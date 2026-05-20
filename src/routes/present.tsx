@@ -498,7 +498,7 @@ function Presenter() {
               <div className="mono space-y-1 border-t border-foreground/20 px-4 py-3 text-xs text-muted-foreground">
                 <div>→ / Space — next slide</div>
                 <div>← — previous slide</div>
-                <div>B — blackout</div>
+                <div>Esc — stop (fade to black)</div>
                 <div>Esc — stop</div>
               </div>
             )}
