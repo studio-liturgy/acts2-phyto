@@ -19,9 +19,16 @@ export interface Deck {
   name: string;
   kind: DeckKind;
   slides: Slide[];
+  /** Media-only: auto-advance to next slide after N ms. 0 = off. */
+  autoAdvanceMs?: number;
+  /** Media-only: when auto-advancing, loop from end back to start. */
+  loop?: boolean;
+  /** Media-only: cross-dissolve duration in ms between slides. */
+  dissolveMs?: number;
   createdAt: number;
   updatedAt: number;
 }
+
 
 export interface Playlist {
   id: string;
