@@ -9,11 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PresentRouteImport } from './routes/present'
 import { Route as OutputRouteImport } from './routes/output'
+import { Route as ChangeLogRouteImport } from './routes/change-log'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DeckDeckIdRouteImport } from './routes/deck.$deckId'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PresentRoute = PresentRouteImport.update({
   id: '/present',
   path: '/present',
@@ -22,6 +36,16 @@ const PresentRoute = PresentRouteImport.update({
 const OutputRoute = OutputRouteImport.update({
   id: '/output',
   path: '/output',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChangeLogRoute = ChangeLogRouteImport.update({
+  id: '/change-log',
+  path: '/change-log',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -37,40 +61,95 @@ const DeckDeckIdRoute = DeckDeckIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/change-log': typeof ChangeLogRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/change-log': typeof ChangeLogRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/change-log': typeof ChangeLogRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/output' | '/present' | '/deck/$deckId'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/change-log'
+    | '/output'
+    | '/present'
+    | '/privacy'
+    | '/terms'
+    | '/deck/$deckId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/output' | '/present' | '/deck/$deckId'
-  id: '__root__' | '/' | '/output' | '/present' | '/deck/$deckId'
+  to:
+    | '/'
+    | '/about'
+    | '/change-log'
+    | '/output'
+    | '/present'
+    | '/privacy'
+    | '/terms'
+    | '/deck/$deckId'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/change-log'
+    | '/output'
+    | '/present'
+    | '/privacy'
+    | '/terms'
+    | '/deck/$deckId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
+  ChangeLogRoute: typeof ChangeLogRoute
   OutputRoute: typeof OutputRoute
   PresentRoute: typeof PresentRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
   DeckDeckIdRoute: typeof DeckDeckIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/present': {
       id: '/present'
       path: '/present'
@@ -83,6 +162,20 @@ declare module '@tanstack/react-router' {
       path: '/output'
       fullPath: '/output'
       preLoaderRoute: typeof OutputRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/change-log': {
+      id: '/change-log'
+      path: '/change-log'
+      fullPath: '/change-log'
+      preLoaderRoute: typeof ChangeLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -104,20 +197,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
+  ChangeLogRoute: ChangeLogRoute,
   OutputRoute: OutputRoute,
   PresentRoute: PresentRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
   DeckDeckIdRoute: DeckDeckIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

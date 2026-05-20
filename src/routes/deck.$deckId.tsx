@@ -4,12 +4,9 @@ import { parseLyrics, fileToCompressedImageDataUrl, scriptureToSlides } from "@/
 import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
 import { searchSongs, type SongResult } from "@/lib/songs";
 import { SlideView } from "@/components/SlideView";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
-import { ArrowLeft, Plus, Trash2, GripVertical, Search, Loader2 } from "lucide-react";
+import { ArrowUpLeft, ArrowUpRight, Plus, Trash2, GripVertical, Search, Loader2, Pencil } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Slide, DeckKind } from "@/lib/types";
 
@@ -21,6 +18,33 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function kindBadgeBg(kind: DeckKind): string {
+  if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
+  if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
+  if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
+  return "bg-muted text-foreground";
+}
+
+/* Reusable card frame matching the mockup: thin foreground border, large radius */
+function PanelCard({
+  label,
+  className = "",
+  children,
+}: {
+  label?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={`rounded-3xl border border-foreground bg-background p-5 ${className}`}>
+      {label && (
+        <h3 className="mono mb-4 text-xs uppercase tracking-wider">{label}</h3>
+      )}
+      {children}
+    </section>
+  );
+}
+
 function DeckEditor() {
   const { deckId } = Route.useParams();
   const navigate = useNavigate();
@@ -29,13 +53,13 @@ function DeckEditor() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
   const [groupView, setGroupView] = useState(true);
+  const [editingName, setEditingName] = useState(false);
 
   const selected = useMemo(
     () => deck?.slides.find((s) => s.id === selectedId) ?? deck?.slides[0] ?? null,
     [deck, selectedId]
   );
 
-  // Keyboard: arrows move single selection; Delete removes selection(s).
   useEffect(() => {
     if (!deck) return;
     const handler = (e: KeyboardEvent) => {
@@ -45,18 +69,12 @@ function DeckEditor() {
         e.preventDefault();
         const idx = deck.slides.findIndex((s) => s.id === (selected?.id ?? ""));
         const next = deck.slides[Math.min(deck.slides.length - 1, idx + 1)];
-        if (next) {
-          setSelectedId(next.id);
-          setMultiSel(new Set([next.id]));
-        }
+        if (next) { setSelectedId(next.id); setMultiSel(new Set([next.id])); }
       } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
         e.preventDefault();
         const idx = deck.slides.findIndex((s) => s.id === (selected?.id ?? ""));
         const prev = deck.slides[Math.max(0, idx - 1)];
-        if (prev) {
-          setSelectedId(prev.id);
-          setMultiSel(new Set([prev.id]));
-        }
+        if (prev) { setSelectedId(prev.id); setMultiSel(new Set([prev.id])); }
       } else if (e.key === "Delete" || e.key === "Backspace") {
         if (multiSel.size > 0) {
           e.preventDefault();
@@ -74,9 +92,7 @@ function DeckEditor() {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <p className="text-muted-foreground">Deck not found.</p>
-          <Button asChild variant="link">
-            <Link to="/">Back to library</Link>
-          </Button>
+          <Link to="/" className="mt-3 inline-block underline">Back to library</Link>
         </div>
       </div>
     );
@@ -89,8 +105,7 @@ function DeckEditor() {
     if (e && (e.metaKey || e.ctrlKey)) {
       setMultiSel((prev) => {
         const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
+        next.has(id) ? next.delete(id) : next.add(id);
         return next;
       });
     } else if (e && e.shiftKey && selected) {
@@ -111,44 +126,76 @@ function DeckEditor() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
-          <div className="flex items-center gap-3">
-            <Button asChild size="icon" variant="ghost" title="Back" aria-label="Back">
-              <Link to="/">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Input
-              value={deck.name}
-              onChange={(e) => updateDeck(deck.id, { name: e.target.value })}
-              className="h-8 w-64 font-medium"
-            />
-            <span className="text-xs capitalize text-muted-foreground">{deck.kind}</span>
+      {/* Header */}
+      <header className="px-6 pt-6 md:px-10 md:pt-8">
+        <div className="mx-auto grid max-w-7xl grid-cols-3 items-center gap-4">
+          <div className="justify-self-start">
+            <Link
+              to="/"
+              className="pill flex h-12 w-12 items-center justify-center bg-foreground text-background transition hover:opacity-90"
+              title="Back"
+              aria-label="Back"
+            >
+              <ArrowUpLeft className="h-5 w-5" />
+            </Link>
           </div>
-          <Button onClick={() => navigate({ to: "/present", search: { deck: deck.id } })}>
-            Present
-          </Button>
+
+          <div className="flex items-center justify-center gap-3 justify-self-center">
+            {editingName ? (
+              <Input
+                autoFocus
+                value={deck.name}
+                onChange={(e) => updateDeck(deck.id, { name: e.target.value })}
+                onBlur={() => setEditingName(false)}
+                onKeyDown={(e) => e.key === "Enter" && setEditingName(false)}
+                className="h-12 w-72 border-foreground text-3xl"
+              />
+            ) : (
+              <h1 className="truncate text-3xl text-muted-foreground md:text-4xl">{deck.name}</h1>
+            )}
+            <button
+              onClick={() => setEditingName((v) => !v)}
+              className="rounded-full p-2 hover:bg-muted"
+              title="Rename"
+              aria-label="Rename"
+            >
+              <Pencil className="h-5 w-5" />
+            </button>
+            <span
+              className={`pill mono ml-2 px-5 py-1.5 text-xs uppercase tracking-wider ${kindBadgeBg(deck.kind)}`}
+            >
+              {deck.kind}
+            </span>
+          </div>
+
+          <div className="justify-self-end">
+            <button
+              onClick={() => navigate({ to: "/present", search: { deck: deck.id } })}
+              className="pill flex items-center gap-2 border border-foreground bg-background px-6 py-2.5 text-base transition hover:bg-foreground hover:text-background"
+            >
+              Present <ArrowUpRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-6">
+      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 md:px-10 lg:grid-cols-[1fr_340px]">
+        <div className="space-y-5">
           <Importers deckId={deck.id} kind={deck.kind} />
 
           {deck.kind === "media" && <MediaOptions deckId={deck.id} />}
 
-          <Card className="p-4">
+          <PanelCard>
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              <h2 className="mono text-xs uppercase tracking-wider">
                 Slides ({deck.slides.length})
                 {multiSel.size > 0 && (
-                  <span className="ml-2 normal-case text-foreground">· {multiSel.size} selected</span>
+                  <span className="ml-2 text-foreground">· {multiSel.size} selected</span>
                 )}
               </h2>
               <div className="flex items-center gap-2">
                 {(deck.kind === "song" || deck.kind === "scripture") && (
-                  <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <label className="mono flex items-center gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
                     <input
                       type="checkbox"
                       checked={groupView}
@@ -158,27 +205,29 @@ function DeckEditor() {
                   </label>
                 )}
                 {multiSel.size > 0 && (
-                  <Button size="sm" variant="destructive" onClick={deleteSelected}>
-                    <Trash2 className="mr-1 h-3 w-3" /> Delete selected
-                  </Button>
+                  <button
+                    onClick={deleteSelected}
+                    className="pill flex items-center gap-1 bg-[var(--brand-red)] px-3 py-1.5 text-xs text-[var(--brand-white)]"
+                  >
+                    <Trash2 className="h-3 w-3" /> Delete selected
+                  </button>
                 )}
-                <Button
-                  size="sm"
-                  variant="outline"
+                <button
                   onClick={() =>
                     addSlide(deck.id, { id: uid(), kind: "blank", lines: [""] } as Slide)
                   }
+                  className="pill flex items-center gap-1 border border-foreground px-3 py-1.5 text-xs transition hover:bg-foreground hover:text-background"
                 >
-                  <Plus className="mr-1 h-3 w-3" /> Add blank
-                </Button>
+                  <Plus className="h-3 w-3" /> Add blank
+                </button>
               </div>
             </div>
             {deck.slides.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No slides yet. Use an importer above.
+                No slides yet, use the importer above to get started!
               </p>
             ) : (
-              <div className="max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
+              <div className="max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
                 {groupView && (deck.kind === "song" || deck.kind === "scripture") ? (
                   <GroupedSongGrid
                     slides={deck.slides}
@@ -202,63 +251,80 @@ function DeckEditor() {
                 )}
               </div>
             )}
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Click to select · Shift / ⌘ click for multi-select · ← → navigate · Delete removes selected
-            </p>
-          </Card>
+          </PanelCard>
         </div>
 
-        <aside className="space-y-4">
-          <Card className="p-4">
-            <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Preview
-            </h3>
-            <SlideView slide={selected} variant="preview" className="rounded" />
-          </Card>
+        <aside className="space-y-5">
+          <PanelCard label="Preview">
+            <div className="overflow-hidden rounded-2xl bg-[var(--brand-black)]">
+              <SlideView slide={selected} variant="preview" />
+            </div>
+          </PanelCard>
+
           {selected && (
-            <Card className="space-y-3 p-4">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Edit slide
-              </h3>
-              <div>
-                <Label className="text-xs">Section (for grouping)</Label>
-                <Input
-                  value={selected.section ?? ""}
-                  onChange={(e) =>
-                    updateSlide(deck.id, selected.id, { section: e.target.value })
-                  }
-                  placeholder="e.g. Chorus, Verse 1, Bridge"
-                />
-              </div>
-              {deck.kind === "scripture" && (
+            <PanelCard label="Edit slide">
+              <div className="space-y-3">
+                <Field label="Group">
+                  <PillInput
+                    value={selected.section ?? ""}
+                    onChange={(v) => updateSlide(deck.id, selected.id, { section: v })}
+                    placeholder="Chorus, Verse 1…"
+                  />
+                </Field>
+                {deck.kind === "scripture" && (
+                  <Field label="Reference">
+                    <PillInput
+                      value={selected.reference ?? ""}
+                      onChange={(v) => updateSlide(deck.id, selected.id, { reference: v })}
+                      placeholder="e.g. John 3:16"
+                    />
+                  </Field>
+                )}
                 <div>
-                  <Label className="text-xs">Reference (shown on slide)</Label>
-                  <Input
-                    value={selected.reference ?? ""}
+                  <div className="mono mb-2 text-[10px] uppercase tracking-wider">Text</div>
+                  <Textarea
+                    rows={6}
+                    value={selected.lines?.join("\n") ?? ""}
                     onChange={(e) =>
-                      updateSlide(deck.id, selected.id, { reference: e.target.value })
+                      updateSlide(deck.id, selected.id, { lines: e.target.value.split("\n") })
                     }
-                    placeholder="e.g. John 3:16"
+                    className="rounded-2xl border-foreground"
                   />
                 </div>
-              )}
-              <div>
-                <Label className="text-xs">Lines (one per line)</Label>
-                <Textarea
-                  rows={5}
-                  value={selected.lines?.join("\n") ?? ""}
-                  onChange={(e) =>
-                    updateSlide(deck.id, selected.id, {
-                      lines: e.target.value.split("\n"),
-                    })
-                  }
-                />
               </div>
-            </Card>
+            </PanelCard>
           )}
         </aside>
       </div>
     </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="mono w-24 text-[10px] uppercase tracking-wider">{label}</div>
+      <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
+function PillInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="pill w-full border border-foreground bg-background px-4 py-1.5 text-sm outline-none focus:ring-1 focus:ring-foreground"
+    />
   );
 }
 
@@ -269,56 +335,53 @@ function MediaOptions({ deckId }: { deckId: string }) {
   const auto = deck.autoAdvanceMs ?? 0;
   const dissolve = deck.dissolveMs ?? 0;
   return (
-    <Card className="flex flex-wrap items-center gap-4 p-3 text-sm">
-      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        Playback
-      </span>
-      <label className="flex items-center gap-2">
-        <span className="text-xs">Auto-advance</span>
-        <Input
-          type="number"
-          min={0}
-          step={0.5}
-          value={auto ? (auto / 1000).toString() : ""}
-          placeholder="off"
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            updateDeck(deckId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
-          }}
-          className="h-8 w-20"
-        />
-        <span className="text-xs text-muted-foreground">seconds</span>
-      </label>
-      <label className="flex items-center gap-2 text-xs">
-        <input
-          type="checkbox"
-          checked={!!deck.loop}
-          onChange={(e) => updateDeck(deckId, { loop: e.target.checked })}
-        />
-        Loop
-      </label>
-      <label className="flex items-center gap-2">
-        <span className="text-xs">Cross-dissolve</span>
-        <Input
-          type="number"
-          min={0}
-          max={2}
-          step={0.1}
-          value={dissolve ? (dissolve / 1000).toString() : ""}
-          placeholder="0"
-          onChange={(e) => {
-            const n = Math.min(2, Math.max(0, Number(e.target.value) || 0));
-            updateDeck(deckId, { dissolveMs: Math.round(n * 1000) });
-          }}
-          className="h-8 w-20"
-        />
-        <span className="text-xs text-muted-foreground">seconds (0–2)</span>
-      </label>
-    </Card>
+    <PanelCard label="Playback">
+      <div className="flex flex-wrap items-center gap-4 text-sm">
+        <label className="flex items-center gap-2">
+          <span className="mono text-[10px] uppercase tracking-wider">Auto-advance</span>
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            value={auto ? (auto / 1000).toString() : ""}
+            placeholder="off"
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              updateDeck(deckId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
+            }}
+            className="pill h-8 w-20 border border-foreground bg-background px-3 text-sm outline-none"
+          />
+          <span className="text-xs text-muted-foreground">s</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={!!deck.loop}
+            onChange={(e) => updateDeck(deckId, { loop: e.target.checked })}
+          />
+          <span className="mono text-[10px] uppercase tracking-wider">Loop</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="mono text-[10px] uppercase tracking-wider">Cross-dissolve</span>
+          <input
+            type="number"
+            min={0}
+            max={2}
+            step={0.1}
+            value={dissolve ? (dissolve / 1000).toString() : ""}
+            placeholder="0"
+            onChange={(e) => {
+              const n = Math.min(2, Math.max(0, Number(e.target.value) || 0));
+              updateDeck(deckId, { dissolveMs: Math.round(n * 1000) });
+            }}
+            className="pill h-8 w-20 border border-foreground bg-background px-3 text-sm outline-none"
+          />
+          <span className="text-xs text-muted-foreground">s</span>
+        </label>
+      </div>
+    </PanelCard>
   );
 }
-
-
 
 function SlideGrid({
   slides,
@@ -363,27 +426,24 @@ function SlideGrid({
               onReorder(ids);
             }}
             onClick={(e) => onSelect(s.id, e)}
-            className={`group relative cursor-pointer rounded-md border-2 transition ${
+            className={`group relative cursor-pointer overflow-hidden rounded-2xl border-2 transition ${
               isSelected
-                ? "border-primary"
+                ? "border-foreground"
                 : inMulti
-                ? "border-primary/60"
-                : "border-transparent hover:border-border"
+                ? "border-foreground/60"
+                : "border-transparent hover:border-muted-foreground"
             }`}
           >
-            <SlideView slide={s} variant="thumb" className="rounded" />
-            <div className="absolute left-1 top-1 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+            <SlideView slide={s} variant="thumb" />
+            <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
               <GripVertical className="h-3 w-3" /> {i + 1}
             </div>
-            {inMulti && (
-              <div className="absolute right-1 bottom-1 h-3 w-3 rounded-full bg-primary ring-2 ring-white" />
-            )}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onRemove(s.id);
               }}
-              className="absolute right-1 top-1 rounded bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
+              className="absolute right-1.5 top-1.5 rounded-full bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
               aria-label="Remove slide"
             >
               <Trash2 className="h-3 w-3" />
@@ -395,7 +455,6 @@ function SlideGrid({
   );
 }
 
-/** Group song slides by section reference (Verse, Chorus, Bridge…). */
 function GroupedSongGrid(props: {
   slides: Slide[];
   selectedId: string | null;
@@ -408,7 +467,6 @@ function GroupedSongGrid(props: {
   const SECTION_RE = /^\s*\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?\s*$/i;
   const sectionOf = (s: Slide): string | null => {
     if (s.section && s.section.trim()) return s.section.trim();
-    // Legacy: song slides used `reference` for section before `section` existed.
     if (s.kind === "lyric" && s.reference && SECTION_RE.test(s.reference)) {
       return s.reference.trim();
     }
@@ -421,18 +479,15 @@ function GroupedSongGrid(props: {
     const sec = sectionOf(s);
     if (sec) currentLabel = sec;
     const last = groups[groups.length - 1];
-    if (!last || last.label !== currentLabel) {
-      groups.push({ label: currentLabel, slides: [s] });
-    } else {
-      last.slides.push(s);
-    }
+    if (!last || last.label !== currentLabel) groups.push({ label: currentLabel, slides: [s] });
+    else last.slides.push(s);
   }
 
   return (
     <div className="space-y-5">
       {groups.map((g, gi) => (
         <section key={`${g.label}-${gi}`}>
-          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="mono mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
             {g.label}
           </h3>
           <SlideGrid
@@ -450,22 +505,17 @@ function GroupedSongGrid(props: {
   );
 }
 
-
 function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
   const { addSlide, updateDeck } = useLibrary();
 
   const [linesPer, setLinesPer] = useState(2);
-
-  // Paste lyrics
   const [lyrics, setLyrics] = useState("");
 
-  // Song search
   const [songQuery, setSongQuery] = useState("");
   const [songResults, setSongResults] = useState<SongResult[]>([]);
   const [songSearching, setSongSearching] = useState(false);
   const [songErr, setSongErr] = useState<string | null>(null);
 
-  // Scripture
   const [ref, setRef] = useState("");
   const [translation, setTranslation] = useState("NIV");
   const [versesPer, setVersesPer] = useState(1);
@@ -511,9 +561,7 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
       const { reference, verses } = await fetchScriptureBolls(ref, translation, {
         removeLineBreaks: !keepLineBreaks,
       });
-      const slides = scriptureToSlides(reference, verses, versesPer, {
-        keepLineBreaks,
-      });
+      const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks });
       slides.forEach((s) => addSlide(deckId, s));
       updateDeck(deckId, { name: reference });
       setRef("");
@@ -529,14 +577,8 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
     const ACCEPTED = /^image\/(png|jpe?g|webp|gif|bmp)$/i;
     const list = Array.from(files).filter((f) => ACCEPTED.test(f.type));
     if (list.length === 0) return;
-    // Compress in parallel, then add slides in order.
     const urls = await Promise.all(
-      list.map((f) =>
-        fileToCompressedImageDataUrl(f).catch((err) => {
-          console.error(err);
-          return null;
-        })
-      )
+      list.map((f) => fileToCompressedImageDataUrl(f).catch(() => null))
     );
     urls.forEach((url) => {
       if (url) addSlide(deckId, { kind: "image", imageUrl: url, lines: [] });
@@ -545,98 +587,75 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
 
   if (kind === "song") {
     return (
-      <div className="space-y-3">
-        <Card className="flex items-center gap-3 p-3">
-          <Label className="text-xs">Lines per slide</Label>
-          <Input
-            type="number"
-            min={1}
-            max={8}
-            value={linesPer}
-            onChange={(e) => setLinesPer(Math.max(1, Number(e.target.value) || 1))}
-            className="h-8 w-20"
-          />
-          <span className="text-xs text-muted-foreground">
-            Applies to both song search and pasted lyrics.
-          </span>
-        </Card>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="p-4">
-            <h3 className="mb-2 text-sm font-medium">Search worship songs</h3>
-            <form onSubmit={runSongSearch} className="flex gap-2">
-              <Input
+      <div className="grid gap-5 lg:grid-cols-2">
+        <PanelCard label="Search for a song">
+          <form onSubmit={runSongSearch} className="flex gap-2">
+            <div className="pill flex flex-1 items-center gap-2 border border-foreground bg-background px-4 py-2">
+              <input
                 value={songQuery}
                 onChange={(e) => setSongQuery(e.target.value)}
-                placeholder="e.g. Oceans Hillsong"
+                placeholder="e.g. How Great is Our God"
+                className="mono w-full bg-transparent text-sm italic outline-none placeholder:text-muted-foreground"
               />
-              <Button size="sm" type="submit" disabled={songSearching || !songQuery.trim()}>
-                {songSearching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4" />
-                )}
-              </Button>
-            </form>
-            {songErr && <p className="mt-2 text-xs text-destructive">{songErr}</p>}
-            <div className="mt-3 max-h-72 space-y-1 overflow-auto">
-              {songResults.map((s, idx) => {
-                const preview = s.lyrics
-                  .split("\n")
-                  .map((l) => l.trim())
-                  .filter(Boolean)
-                  .slice(0, 8)
-                  .join("\n");
-                return (
-                  <button
-                    key={`${s.title}-${s.artist}-${idx}`}
-                    onClick={() => importSong(s)}
-                    title={preview || "No preview available"}
-                    className="group/song relative flex w-full items-center gap-2 rounded p-2 text-left text-sm transition hover:bg-muted"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{s.title}</div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {s.artist}
-                        {s.album ? ` · ${s.album}` : ""}
-                      </div>
-                    </div>
-                    <Plus className="h-4 w-4 text-muted-foreground" />
-                    {preview && (
-                      <div className="pointer-events-none absolute left-full top-0 z-20 ml-2 hidden w-72 whitespace-pre-line rounded-md border border-border bg-popover p-3 text-xs leading-relaxed text-popover-foreground shadow-lg group-hover/song:block">
-                        {preview}
-                        {s.lyrics.split("\n").filter((l) => l.trim()).length > 8 && (
-                          <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                            …more
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
             </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Worship-focused search via lrclib.net. Sections are auto-segmented and repeated parts (like the chorus) are de-duplicated on import.
-            </p>
-          </Card>
+            <button
+              type="submit"
+              disabled={songSearching || !songQuery.trim()}
+              className="pill flex h-10 w-10 items-center justify-center bg-foreground text-background transition hover:opacity-90 disabled:opacity-50"
+              aria-label="Search"
+            >
+              {songSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </button>
+          </form>
+          {songErr && <p className="mt-2 text-xs text-destructive">{songErr}</p>}
+          <div className="mt-3 max-h-72 space-y-1 overflow-auto">
+            {songResults.map((s, idx) => (
+              <button
+                key={`${s.title}-${s.artist}-${idx}`}
+                onClick={() => importSong(s)}
+                className="group flex w-full items-center gap-2 rounded-xl p-2 text-left text-sm transition hover:bg-muted"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-bold">{s.title}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {s.artist}{s.album ? ` · ${s.album}` : ""}
+                  </div>
+                </div>
+                <Plus className="h-5 w-5" />
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
+            <input
+              type="number"
+              min={1}
+              max={8}
+              value={linesPer}
+              onChange={(e) => setLinesPer(Math.max(1, Number(e.target.value) || 1))}
+              className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
+            />
+          </div>
+        </PanelCard>
 
-          <Card className="p-4">
-            <h3 className="mb-2 text-sm font-medium">Or paste lyrics</h3>
+        <PanelCard label="Or paste lyrics">
+          <div className="rounded-2xl border border-foreground p-3">
             <Textarea
               value={lyrics}
               onChange={(e) => setLyrics(e.target.value)}
               rows={8}
               placeholder={`[Verse 1]\nAmazing grace, how sweet the sound\nThat saved a wretch like me\n\n[Chorus]\n...`}
-              className="font-mono text-xs"
+              className="mono border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
             />
-            <div className="mt-2 flex">
-              <Button size="sm" className="ml-auto" onClick={importLyrics} disabled={!lyrics.trim()}>
-                Import
-              </Button>
-            </div>
-          </Card>
-        </div>
+          </div>
+          <button
+            onClick={importLyrics}
+            disabled={!lyrics.trim()}
+            className="pill mt-3 w-full bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
+          >
+            Import
+          </button>
+        </PanelCard>
       </div>
     );
   }
@@ -644,47 +663,35 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
   if (kind === "scripture") {
     const importManualScripture = () => {
       const reference = manualRef.trim();
-      const lines = manualText
-        .split("\n")
-        .map((l) => l.trim())
-        .filter(Boolean);
+      const lines = manualText.split("\n").map((l) => l.trim()).filter(Boolean);
       if (!reference || lines.length === 0) return;
       const verses = lines.map((text, i) => ({ verse: i + 1, text }));
-      const slides = scriptureToSlides(reference, verses, versesPer, {
-        keepLineBreaks,
-      });
+      const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks });
       slides.forEach((s) => addSlide(deckId, s));
       updateDeck(deckId, { name: reference });
       setManualRef("");
       setManualText("");
     };
     return (
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-4">
-          <h3 className="mb-2 text-sm font-medium">Import scripture</h3>
-          <Input
-            value={ref}
-            onChange={(e) => setRef(e.target.value)}
-            placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2"
-          />
-          <div className="mt-2 grid grid-cols-2 gap-2">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <PanelCard label="Import scripture">
+          <PillInput value={ref} onChange={setRef} placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2" />
+          <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Translation</Label>
+              <div className="mono mb-1 text-[10px] uppercase tracking-wider">Translation</div>
               <select
                 value={translation}
                 onChange={(e) => setTranslation(e.target.value)}
-                className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                className="pill h-9 w-full border border-foreground bg-background px-3 text-sm outline-none"
               >
                 {TRANSLATIONS.map((t) => (
-                  <option key={t.code} value={t.code}>
-                    {t.label}
-                  </option>
+                  <option key={t.code} value={t.code}>{t.label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <Label className="text-xs">Verses per slide (max 2)</Label>
-              <Input
+              <div className="mono mb-1 text-[10px] uppercase tracking-wider">Verses per slide</div>
+              <input
                 type="number"
                 min={1}
                 max={2}
@@ -692,54 +699,49 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
                 onChange={(e) =>
                   setVersesPer(Math.min(2, Math.max(1, Number(e.target.value) || 1)))
                 }
-                className="h-9"
+                className="pill h-9 w-full border border-foreground bg-background px-3 text-sm outline-none"
               />
             </div>
           </div>
-          <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+          <label className="mt-3 flex cursor-pointer items-center gap-2">
+            <span className="mono text-[10px] uppercase tracking-wider">Keep line breaks</span>
             <input
               type="checkbox"
               checked={keepLineBreaks}
               onChange={(e) => setKeepLineBreaks(e.target.checked)}
             />
-            Keep original line breaks (off by default — flowed into a paragraph).
           </label>
           {err && <p className="mt-2 text-xs text-destructive">{err}</p>}
-          <Button
-            size="sm"
-            className="mt-2 w-full"
+          <button
             onClick={importScripture}
             disabled={!ref.trim() || busy}
+            className="pill mt-3 w-full bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
           >
-            {busy ? "Fetching…" : "Fetch & add"}
-          </Button>
-        </Card>
+            {busy ? "Fetching…" : "Import"}
+          </button>
+        </PanelCard>
 
-        <Card className="p-4">
-          <h3 className="mb-2 text-sm font-medium">Or enter manually</h3>
-          <Label className="text-xs">Reference</Label>
-          <Input
-            value={manualRef}
-            onChange={(e) => setManualRef(e.target.value)}
-            placeholder="e.g. John 3:16-17"
-          />
-          <Label className="mt-2 text-xs">Verses (one per line)</Label>
-          <Textarea
-            rows={8}
-            value={manualText}
-            onChange={(e) => setManualText(e.target.value)}
-            placeholder={`For God so loved the world...\nFor God did not send his Son...`}
-            className="font-mono text-xs"
-          />
-          <Button
-            size="sm"
-            className="mt-2 w-full"
+        <PanelCard label="Or enter manually">
+          <div className="mono mb-1 text-[10px] uppercase tracking-wider">Reference</div>
+          <PillInput value={manualRef} onChange={setManualRef} placeholder="e.g. John 3:16-17" />
+          <div className="mono mb-1 mt-3 text-[10px] uppercase tracking-wider">Verses</div>
+          <div className="rounded-2xl border border-foreground p-3">
+            <Textarea
+              rows={5}
+              value={manualText}
+              onChange={(e) => setManualText(e.target.value)}
+              placeholder={`For God so loved the world…`}
+              className="mono border-0 bg-transparent p-0 text-xs italic shadow-none focus-visible:ring-0"
+            />
+          </div>
+          <button
             onClick={importManualScripture}
             disabled={!manualRef.trim() || !manualText.trim()}
+            className="pill mt-3 w-full bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
           >
-            Add slides
-          </Button>
-        </Card>
+            Import
+          </button>
+        </PanelCard>
       </div>
     );
   }
@@ -750,8 +752,7 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
 function MediaImporter({ onImport }: { onImport: (files: FileList | null) => void }) {
   const [over, setOver] = useState(false);
   return (
-    <Card className="p-4">
-      <h3 className="mb-2 text-sm font-medium">Import images</h3>
+    <PanelCard label="Import images">
       <label
         onDragOver={(e) => {
           e.preventDefault();
@@ -764,15 +765,11 @@ function MediaImporter({ onImport }: { onImport: (files: FileList | null) => voi
           setOver(false);
           if (e.dataTransfer.files?.length) onImport(e.dataTransfer.files);
         }}
-        className={`flex h-32 cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed text-xs transition ${
-          over
-            ? "border-primary bg-primary/5 text-primary"
-            : "border-border text-muted-foreground hover:border-primary"
+        className={`mono flex h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed text-xs uppercase tracking-wider transition ${
+          over ? "border-foreground bg-foreground/5" : "border-foreground/60 text-muted-foreground hover:border-foreground"
         }`}
       >
-        <Plus className="mb-1 h-5 w-5" />
         {over ? "Drop to upload" : "Drop images here or click to browse"}
-        <span className="mt-1 text-[10px] opacity-70">Multiple files supported</span>
         <input
           type="file"
           accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
@@ -781,10 +778,6 @@ function MediaImporter({ onImport }: { onImport: (files: FileList | null) => voi
           onChange={(e) => onImport(e.target.files)}
         />
       </label>
-      <p className="mt-2 text-[11px] text-muted-foreground">
-        Stored locally as data URLs. Each image becomes its own slide.
-      </p>
-    </Card>
+    </PanelCard>
   );
 }
-
