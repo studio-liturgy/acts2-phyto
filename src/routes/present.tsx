@@ -118,14 +118,21 @@ function Presenter() {
       <div className="grid flex-1 gap-0 lg:grid-cols-[260px_1fr_360px]">
         {/* Deck list */}
         <aside className="border-r border-border bg-card/40 p-3">
-          <h3 className="mb-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Decks
+          <h3 className="mb-2 flex items-center justify-between px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <span>{activePlaylist ? activePlaylist.name : "Decks"}</span>
+            {activePlaylist && (
+              <Link to="/present" className="text-[10px] normal-case text-primary hover:underline">
+                all decks
+              </Link>
+            )}
           </h3>
           <div className="space-y-1">
-            {order.length === 0 && (
-              <p className="px-2 text-xs text-muted-foreground">No decks. Create some first.</p>
+            {deckList.length === 0 && (
+              <p className="px-2 text-xs text-muted-foreground">
+                {activePlaylist ? "Playlist is empty." : "No decks. Create some first."}
+              </p>
             )}
-            {order.map((id) => {
+            {deckList.map((id, i) => {
               const d = decks[id];
               if (!d) return null;
               const isActive = id === activeDeckId;
@@ -138,7 +145,12 @@ function Presenter() {
                     isActive ? "bg-muted font-medium" : "hover:bg-muted/50"
                   }`}
                 >
-                  <span className="truncate">{d.name}</span>
+                  <span className="truncate">
+                    {activePlaylist && (
+                      <span className="mr-1 text-xs text-muted-foreground">{i + 1}.</span>
+                    )}
+                    {d.name}
+                  </span>
                   {isLive && (
                     <span className="rounded bg-red-500 px-1.5 text-[10px] font-semibold text-white">
                       LIVE
