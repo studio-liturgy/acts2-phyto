@@ -1,15 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary } from "@/lib/store";
-import { parseLyrics, fetchScripture, scriptureToSlides, fileToDataUrl } from "@/lib/parsers";
+import { parseLyrics, fileToDataUrl, scriptureToSlides } from "@/lib/parsers";
+import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
+import { searchSongs, fetchLyrics, type SongResult } from "@/lib/songs";
 import { SlideView } from "@/components/SlideView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Plus, Trash2, GripVertical } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, GripVertical, Search, Loader2 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import type { Slide } from "@/lib/types";
+import type { Slide, DeckKind } from "@/lib/types";
 
 export const Route = createFileRoute("/deck/$deckId")({
   component: DeckEditor,
