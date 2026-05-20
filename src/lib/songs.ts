@@ -1,40 +1,37 @@
-// Song search + lyrics via lyrics.ovh (free, no key, CORS-enabled)
+// Song search + lyrics via lrclib.net — reliable for worship/CCM lyrics.
+// Returns plainLyrics inline with search results (no second request needed).
 
 export interface SongResult {
   title: string;
   artist: string;
-  preview?: string;
-  albumCover?: string;
+  album?: string;
+  lyrics: string;
 }
 
-interface SuggestResponse {
-  data?: {
-    title: string;
-    preview?: string;
-    artist?: { name?: string };
-    album?: { cover_small?: string };
-  }[];
+interface LrcLibTrack {
+  id: number;
+  trackName?: string;
+  name?: string;
+  artistName?: string;
+  albumName?: string;
+  plainLyrics?: string | null;
+  instrumental?: boolean;
 }
 
 export async function searchSongs(query: string): Promise<SongResult[]> {
   if (!query.trim()) return [];
-  const res = await fetch(`https://api.lyrics.ovh/suggest/${encodeURIComponent(query)}`);
-  if (!res.ok) throw new Error("Search failed");
-  const data = (await res.json()) as SuggestResponse;
-  return (data.data ?? []).slice(0, 12).map((d) => ({
-    title: d.title,
-    artist: d.artist?.name ?? "Unknown",
-    preview: d.preview,
-    albumCover: d.album?.cover_small,
-  }));
-}
-
-export async function fetchLyrics(artist: string, title: string): Promise<string> {
   const res = await fetch(
-    `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`
+    `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`
   );
-  if (!res.ok) throw new Error("Lyrics not found");
-  const data = (await res.json()) as { lyrics?: string; error?: string };
-  if (!data.lyrics) throw new Error(data.error ?? "Lyrics not found");
-  return data.lyrics.replace(/\r\n/g, "\n").trim();
+  if (!res.ok) throw new Error("Search failed");
+  const data = (await res.json()) as LrcLibTrack[];
+  return (data ?? [])
+    .filter((d) => d.plainLyrics && !d.instrumental)
+    .slice(0, 20)
+    .map((d) => ({
+      title: d.trackName ?? d.name ?? "Untitled",
+      artist: d.artistName ?? "Unknown",
+      album: d.albumName,
+      lyrics: (d.plainLyrics ?? "").replace(/\r\n/g, "\n").trim(),
+    }));
 }
