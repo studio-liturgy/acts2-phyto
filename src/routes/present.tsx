@@ -145,20 +145,20 @@ function Presenter() {
         <div className="grid grid-cols-3 items-center gap-4 px-4 py-2">
           <div className="flex items-center gap-2 justify-self-start">
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
               onClick={() => setSidebarOpen((v) => !v)}
               title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
             >
               {sidebarOpen ? (
-                <PanelLeftClose className="mr-1 h-4 w-4" />
+                <PanelLeftClose className="h-4 w-4" />
               ) : (
-                <PanelLeftOpen className="mr-1 h-4 w-4" />
+                <PanelLeftOpen className="h-4 w-4" />
               )}
-              {sidebarOpen ? "Hide" : "Show"} sidebar
             </Button>
-            <Button asChild size="sm" variant="ghost">
-              <Link to="/">Create</Link>
+            <Button asChild size="icon" variant="ghost" title="Create" aria-label="Create">
+              <Link to="/"><Plus className="h-4 w-4" /></Link>
             </Button>
           </div>
           <div className="flex items-center justify-center gap-2 justify-self-center">
@@ -174,10 +174,19 @@ function Presenter() {
           </div>
           <div className="flex items-center gap-2 justify-self-end">
             {liveDeck?.kind === "media" && <MediaPlaybackControls deckId={liveDeck.id} />}
-            <Button size="sm" variant="outline" onClick={openOutput}>
-              <Monitor className="mr-1 h-4 w-4" /> Output window
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={openOutput}
+              title="Output window"
+              aria-label="Output window"
+            >
+              <Monitor className="h-4 w-4" />
             </Button>
-            <label className="flex items-center gap-1 rounded-md border border-border bg-card/60 px-2 py-1 text-xs">
+            <label
+              className="flex items-center gap-1 rounded-md border border-border bg-card/60 px-2 py-1 text-xs"
+              title="Crossfade blackout"
+            >
               <input
                 type="checkbox"
                 checked={(live.blackoutFadeMs ?? 0) > 0}
@@ -188,15 +197,22 @@ function Presenter() {
               Fade
             </label>
             <Button
-              size="sm"
+              size="icon"
               variant={live.blackout ? "default" : "outline"}
               onClick={() => live.toggleBlackout()}
               title="Blackout (B)"
+              aria-label="Blackout"
             >
-              <Square className="mr-1 h-4 w-4" /> Black
+              <Square className="h-4 w-4" />
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => live.clearLive()} title="Stop (Esc)">
-              <X className="mr-1 h-4 w-4" /> Stop
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => live.clearLive()}
+              title="Stop (Esc)"
+              aria-label="Stop"
+            >
+              <X className="h-4 w-4" />
             </Button>
 
           </div>
