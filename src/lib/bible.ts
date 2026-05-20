@@ -180,16 +180,22 @@ export async function fetchScriptureBolls(
 
   const collected: FetchedVerse[] = [];
   for (let ch = parsed.startChapter; ch <= parsed.endChapter; ch++) {
-    const data = await fetchChapter(translation, parsed.bookId, ch);
+    const data = (await fetchChapter(translation, parsed.bookId, ch)) as {
+      verse: number;
+      text: string;
+      pericope?: unknown;
+      comment?: unknown;
+    }[];
     const lo = ch === parsed.startChapter ? parsed.startVerse : 1;
     const hi = ch === parsed.endChapter ? parsed.endVerse : 999;
     for (const v of data) {
+      // Skip non-verse entries (e.g. pericope-only rows that some bolls
+      // translations include with verse === 0 or empty text).
+      if (!v || typeof v.verse !== "number" || v.verse <= 0) continue;
+      const text = cleanVerseText(v.text ?? "", { removeLineBreaks });
+      if (!text) continue;
       if (v.verse >= lo && v.verse <= hi) {
-        collected.push({
-          verse: v.verse,
-          chapter: ch,
-          text: cleanVerseText(v.text, { removeLineBreaks }),
-        });
+        collected.push({ verse: v.verse, chapter: ch, text });
       }
     }
   }
@@ -211,17 +217,20 @@ export async function fetchScriptureBolls(
 
 function cleanVerseText(s: string, { removeLineBreaks }: { removeLineBreaks: boolean }) {
   let out = s;
-  // Strip Strong's tags + content
-  out = out.replace(/<S>[^<]*<\/S>/gi, "");
-  // Strip section / pericope headers (e.g. <h>Jesus Teaches Nicodemus</h>)
-  out = out.replace(/<h>[^<]*<\/h>/gi, "");
-  // Strip footnotes
-  out = out.replace(/<f>[^<]*<\/f>/gi, "");
-  // Line breaks → newline marker we control
+  // Strip paired tags that contain non-verse metadata (header, pericope,
+  // footnotes, Strong's numbers, translator notes, paragraph breaks, etc.)
+  // including any nested attributes.
+  const stripPaired = (tag: string) =>
+    (out = out.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, "gi"), ""));
+  ["S", "h", "f", "pb", "n", "e", "t"].forEach(stripPaired);
+  // Self-closing variants
+  out = out.replace(/<(?:pb|n|e)\b[^>]*\/>/gi, "");
+  // <br> → controlled newline marker
   out = out.replace(/<br\s*\/?>/gi, removeLineBreaks ? " " : "\n");
-  // Any remaining tags
+  // Strip any remaining tags but keep their inner text (e.g. <i>added</i>)
   out = out.replace(/<[^>]+>/g, "");
-  // Collapse whitespace (but keep newlines if preserving line breaks)
+  // Drop markdown-style bold headers a few translations smuggle in
+  out = out.replace(/^\s*\*\*[^*\n]+\*\*\s*/g, "");
   if (removeLineBreaks) {
     out = out.replace(/\s+/g, " ");
   } else {
@@ -233,3 +242,4 @@ function cleanVerseText(s: string, { removeLineBreaks }: { removeLineBreaks: boo
   }
   return out.trim();
 }
+

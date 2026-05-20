@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Plus, Trash2, GripVertical, Search, Loader2 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Slide, DeckKind } from "@/lib/types";
 
 export const Route = createFileRoute("/deck/$deckId")({
@@ -27,11 +27,46 @@ function DeckEditor() {
   const deck = useLibrary((s) => s.decks[deckId]);
   const { updateDeck, addSlide, updateSlide, removeSlide, reorderSlides } = useLibrary();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
 
   const selected = useMemo(
     () => deck?.slides.find((s) => s.id === selectedId) ?? deck?.slides[0] ?? null,
     [deck, selectedId]
   );
+
+  // Keyboard: arrows move single selection; Delete removes selection(s).
+  useEffect(() => {
+    if (!deck) return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const idx = deck.slides.findIndex((s) => s.id === (selected?.id ?? ""));
+        const next = deck.slides[Math.min(deck.slides.length - 1, idx + 1)];
+        if (next) {
+          setSelectedId(next.id);
+          setMultiSel(new Set([next.id]));
+        }
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const idx = deck.slides.findIndex((s) => s.id === (selected?.id ?? ""));
+        const prev = deck.slides[Math.max(0, idx - 1)];
+        if (prev) {
+          setSelectedId(prev.id);
+          setMultiSel(new Set([prev.id]));
+        }
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (multiSel.size > 0) {
+          e.preventDefault();
+          multiSel.forEach((id) => removeSlide(deck.id, id));
+          setMultiSel(new Set());
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [deck, selected, multiSel, removeSlide]);
 
   if (!deck) {
     return (
@@ -47,6 +82,31 @@ function DeckEditor() {
   }
 
   const dense = deck.slides.length > 20;
+
+  const handleSelect = (id: string, e?: React.MouseEvent) => {
+    setSelectedId(id);
+    if (e && (e.metaKey || e.ctrlKey)) {
+      setMultiSel((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    } else if (e && e.shiftKey && selected) {
+      const ids = deck.slides.map((s) => s.id);
+      const a = ids.indexOf(selected.id);
+      const b = ids.indexOf(id);
+      const [lo, hi] = a < b ? [a, b] : [b, a];
+      setMultiSel(new Set(ids.slice(lo, hi + 1)));
+    } else {
+      setMultiSel(new Set([id]));
+    }
+  };
+
+  const deleteSelected = () => {
+    multiSel.forEach((id) => removeSlide(deck.id, id));
+    setMultiSel(new Set());
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -75,20 +135,32 @@ function DeckEditor() {
         <div className="space-y-6">
           <Importers deckId={deck.id} kind={deck.kind} />
 
+          {deck.kind === "media" && <MediaOptions deckId={deck.id} />}
+
           <Card className="p-4">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
                 Slides ({deck.slides.length})
+                {multiSel.size > 0 && (
+                  <span className="ml-2 normal-case text-foreground">· {multiSel.size} selected</span>
+                )}
               </h2>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  addSlide(deck.id, { id: uid(), kind: "blank", lines: [""] } as Slide)
-                }
-              >
-                <Plus className="mr-1 h-3 w-3" /> Add blank
-              </Button>
+              <div className="flex gap-2">
+                {multiSel.size > 0 && (
+                  <Button size="sm" variant="destructive" onClick={deleteSelected}>
+                    <Trash2 className="mr-1 h-3 w-3" /> Delete selected
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    addSlide(deck.id, { id: uid(), kind: "blank", lines: [""] } as Slide)
+                  }
+                >
+                  <Plus className="mr-1 h-3 w-3" /> Add blank
+                </Button>
+              </div>
             </div>
             {deck.slides.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
@@ -100,7 +172,8 @@ function DeckEditor() {
                   <GroupedSongGrid
                     slides={deck.slides}
                     selectedId={selected?.id ?? null}
-                    onSelect={setSelectedId}
+                    multiSel={multiSel}
+                    onSelect={handleSelect}
                     onRemove={(id) => removeSlide(deck.id, id)}
                     onReorder={(ids) => reorderSlides(deck.id, ids)}
                     dense={dense}
@@ -109,7 +182,8 @@ function DeckEditor() {
                   <SlideGrid
                     slides={deck.slides}
                     selectedId={selected?.id ?? null}
-                    onSelect={setSelectedId}
+                    multiSel={multiSel}
+                    onSelect={handleSelect}
                     onRemove={(id) => removeSlide(deck.id, id)}
                     onReorder={(ids) => reorderSlides(deck.id, ids)}
                     dense={dense}
@@ -117,6 +191,9 @@ function DeckEditor() {
                 )}
               </div>
             )}
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Click to select · Shift / ⌘ click for multi-select · ← → navigate · Delete removes selected
+            </p>
           </Card>
         </div>
 
@@ -162,9 +239,68 @@ function DeckEditor() {
   );
 }
 
+function MediaOptions({ deckId }: { deckId: string }) {
+  const deck = useLibrary((s) => s.decks[deckId]);
+  const updateDeck = useLibrary((s) => s.updateDeck);
+  if (!deck) return null;
+  const auto = deck.autoAdvanceMs ?? 0;
+  const dissolve = deck.dissolveMs ?? 0;
+  return (
+    <Card className="flex flex-wrap items-center gap-4 p-3 text-sm">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Playback
+      </span>
+      <label className="flex items-center gap-2">
+        <span className="text-xs">Auto-advance</span>
+        <Input
+          type="number"
+          min={0}
+          step={0.5}
+          value={auto ? (auto / 1000).toString() : ""}
+          placeholder="off"
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            updateDeck(deckId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
+          }}
+          className="h-8 w-20"
+        />
+        <span className="text-xs text-muted-foreground">seconds</span>
+      </label>
+      <label className="flex items-center gap-2 text-xs">
+        <input
+          type="checkbox"
+          checked={!!deck.loop}
+          onChange={(e) => updateDeck(deckId, { loop: e.target.checked })}
+        />
+        Loop
+      </label>
+      <label className="flex items-center gap-2">
+        <span className="text-xs">Cross-dissolve</span>
+        <Input
+          type="number"
+          min={0}
+          max={2}
+          step={0.1}
+          value={dissolve ? (dissolve / 1000).toString() : ""}
+          placeholder="0"
+          onChange={(e) => {
+            const n = Math.min(2, Math.max(0, Number(e.target.value) || 0));
+            updateDeck(deckId, { dissolveMs: Math.round(n * 1000) });
+          }}
+          className="h-8 w-20"
+        />
+        <span className="text-xs text-muted-foreground">seconds (0–2)</span>
+      </label>
+    </Card>
+  );
+}
+
+
+
 function SlideGrid({
   slides,
   selectedId,
+  multiSel,
   onSelect,
   onRemove,
   onReorder,
@@ -172,7 +308,8 @@ function SlideGrid({
 }: {
   slides: Slide[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  multiSel: Set<string>;
+  onSelect: (id: string, e?: React.MouseEvent) => void;
   onRemove: (id: string) => void;
   onReorder: (ids: string[]) => void;
   dense?: boolean;
@@ -183,43 +320,54 @@ function SlideGrid({
     : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
   return (
     <div className={`grid gap-3 ${cols}`}>
-      {slides.map((s, i) => (
-        <div
-          key={s.id}
-          draggable
-          onDragStart={() => (dragId.current = s.id)}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => {
-            const from = dragId.current;
-            dragId.current = null;
-            if (!from || from === s.id) return;
-            const ids = slides.map((x) => x.id);
-            const fromIdx = ids.indexOf(from);
-            const toIdx = ids.indexOf(s.id);
-            ids.splice(toIdx, 0, ids.splice(fromIdx, 1)[0]);
-            onReorder(ids);
-          }}
-          onClick={() => onSelect(s.id)}
-          className={`group relative cursor-pointer rounded-md border-2 transition ${
-            selectedId === s.id ? "border-primary" : "border-transparent hover:border-border"
-          }`}
-        >
-          <SlideView slide={s} variant="thumb" className="rounded" />
-          <div className="absolute left-1 top-1 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-            <GripVertical className="h-3 w-3" /> {i + 1}
-          </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove(s.id);
+      {slides.map((s, i) => {
+        const isSelected = selectedId === s.id;
+        const inMulti = multiSel.has(s.id);
+        return (
+          <div
+            key={s.id}
+            draggable
+            onDragStart={() => (dragId.current = s.id)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => {
+              const from = dragId.current;
+              dragId.current = null;
+              if (!from || from === s.id) return;
+              const ids = slides.map((x) => x.id);
+              const fromIdx = ids.indexOf(from);
+              const toIdx = ids.indexOf(s.id);
+              ids.splice(toIdx, 0, ids.splice(fromIdx, 1)[0]);
+              onReorder(ids);
             }}
-            className="absolute right-1 top-1 rounded bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
-            aria-label="Remove slide"
+            onClick={(e) => onSelect(s.id, e)}
+            className={`group relative cursor-pointer rounded-md border-2 transition ${
+              isSelected
+                ? "border-primary"
+                : inMulti
+                ? "border-primary/60"
+                : "border-transparent hover:border-border"
+            }`}
           >
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
-      ))}
+            <SlideView slide={s} variant="thumb" className="rounded" />
+            <div className="absolute left-1 top-1 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+              <GripVertical className="h-3 w-3" /> {i + 1}
+            </div>
+            {inMulti && (
+              <div className="absolute right-1 bottom-1 h-3 w-3 rounded-full bg-primary ring-2 ring-white" />
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(s.id);
+              }}
+              className="absolute right-1 top-1 rounded bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
+              aria-label="Remove slide"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -228,12 +376,12 @@ function SlideGrid({
 function GroupedSongGrid(props: {
   slides: Slide[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  multiSel: Set<string>;
+  onSelect: (id: string, e?: React.MouseEvent) => void;
   onRemove: (id: string) => void;
   onReorder: (ids: string[]) => void;
   dense?: boolean;
 }) {
-  // Sticky section: the last-seen reference applies to subsequent slides.
   const groups: { label: string; slides: Slide[] }[] = [];
   let currentLabel = "Section";
   for (const s of props.slides) {
@@ -256,6 +404,7 @@ function GroupedSongGrid(props: {
           <SlideGrid
             slides={g.slides}
             selectedId={props.selectedId}
+            multiSel={props.multiSel}
             onSelect={props.onSelect}
             onRemove={props.onRemove}
             onReorder={props.onReorder}
@@ -266,6 +415,7 @@ function GroupedSongGrid(props: {
     </div>
   );
 }
+
 
 function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
   const { addSlide, updateDeck } = useLibrary();
@@ -501,18 +651,41 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
     );
   }
 
+  return <MediaImporter onImport={importImages} />;
+}
+
+function MediaImporter({ onImport }: { onImport: (files: FileList | null) => void }) {
+  const [over, setOver] = useState(false);
   return (
     <Card className="p-4">
       <h3 className="mb-2 text-sm font-medium">Import images</h3>
-      <label className="flex h-32 cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-border text-xs text-muted-foreground transition hover:border-primary">
+      <label
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          if (e.dataTransfer.files?.length) onImport(e.dataTransfer.files);
+        }}
+        className={`flex h-32 cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed text-xs transition ${
+          over
+            ? "border-primary bg-primary/5 text-primary"
+            : "border-border text-muted-foreground hover:border-primary"
+        }`}
+      >
         <Plus className="mb-1 h-5 w-5" />
-        Click to upload
+        {over ? "Drop to upload" : "Drop images here or click to browse"}
+        <span className="mt-1 text-[10px] opacity-70">Multiple files supported</span>
         <input
           type="file"
           accept="image/*"
           multiple
           className="hidden"
-          onChange={(e) => importImages(e.target.files)}
+          onChange={(e) => onImport(e.target.files)}
         />
       </label>
       <p className="mt-2 text-[11px] text-muted-foreground">
@@ -521,3 +694,4 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
     </Card>
   );
 }
+

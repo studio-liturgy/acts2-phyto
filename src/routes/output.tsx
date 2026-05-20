@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLibrary, useLive } from "@/lib/store";
-import { SlideView } from "@/components/SlideView";
+import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { useEffect, useMemo } from "react";
 
 export const Route = createFileRoute("/output")({
@@ -21,7 +21,6 @@ function Output() {
     [deck, live.slideId]
   );
 
-  // Hide scrollbars / background — this is the projection surface
   useEffect(() => {
     const prev = document.body.style.background;
     document.body.style.background = "black";
@@ -32,14 +31,21 @@ function Output() {
     };
   }, []);
 
+  const isMedia = deck?.kind === "media";
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black">
       {live.blackout || live.clear || !slide ? (
         <div className="h-full w-full bg-black" />
+      ) : isMedia ? (
+        <DissolveSlide
+          slide={slide}
+          variant="stage"
+          durationMs={deck?.dissolveMs ?? 0}
+          className="h-full w-full"
+        />
       ) : (
-        <div className="h-full w-full">
-          <SlideView slide={slide} variant="stage" className="h-full w-full aspect-auto" />
-        </div>
+        <SlideView slide={slide} variant="stage" className="h-full w-full" />
       )}
     </div>
   );

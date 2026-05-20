@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useLibrary, useLive } from "@/lib/store";
-import { SlideView } from "@/components/SlideView";
+import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,14 +8,16 @@ import {
   ArrowLeft,
   Monitor,
   Square,
-  EyeOff,
   X,
   Search,
   ListMusic,
   Layers,
+  Repeat,
+  Timer,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
+
 
 const searchSchema = z.object({
   deck: z.string().optional(),
@@ -86,8 +88,6 @@ function Presenter() {
         if (prev) live.go(liveDeck.id, prev.id);
       } else if (e.key.toLowerCase() === "b") {
         live.toggleBlackout();
-      } else if (e.key.toLowerCase() === "c") {
-        live.toggleClear();
       } else if (e.key === "Escape") {
         live.clearLive();
       }
@@ -97,8 +97,9 @@ function Presenter() {
   }, [liveDeck, liveSlide, live]);
 
   const openOutput = () => {
-    window.open("/output", "stage-output", "width=1280,height=720");
+    window.open("/output", "_blank", "noopener,noreferrer");
   };
+
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -107,12 +108,13 @@ function Presenter() {
           <div className="flex items-center gap-2">
             <Button asChild size="sm" variant="ghost">
               <Link to="/">
-                <ArrowLeft className="mr-1 h-4 w-4" /> Library
+                <ArrowLeft className="mr-1 h-4 w-4" /> Create
               </Link>
             </Button>
             <span className="text-sm font-medium">Presenter</span>
           </div>
           <div className="flex items-center gap-2">
+            {liveDeck?.kind === "media" && <MediaPlaybackControls deckId={liveDeck.id} />}
             <Button size="sm" variant="outline" onClick={openOutput}>
               <Monitor className="mr-1 h-4 w-4" /> Output window
             </Button>
@@ -124,17 +126,10 @@ function Presenter() {
             >
               <Square className="mr-1 h-4 w-4" /> Black
             </Button>
-            <Button
-              size="sm"
-              variant={live.clear ? "default" : "outline"}
-              onClick={() => live.toggleClear()}
-              title="Clear (C)"
-            >
-              <EyeOff className="mr-1 h-4 w-4" /> Clear
-            </Button>
             <Button size="sm" variant="ghost" onClick={() => live.clearLive()} title="Stop (Esc)">
               <X className="mr-1 h-4 w-4" /> Stop
             </Button>
+
           </div>
         </div>
       </header>
@@ -316,10 +311,12 @@ function Presenter() {
               <div className="flex aspect-video w-full items-center justify-center bg-black text-xs text-white/40">
                 BLACKOUT
               </div>
-            ) : live.clear ? (
-              <div className="flex aspect-video w-full items-center justify-center bg-black text-xs text-white/40">
-                CLEAR
-              </div>
+            ) : liveDeck?.kind === "media" ? (
+              <DissolveSlide
+                slide={liveSlide}
+                variant="preview"
+                durationMs={liveDeck.dissolveMs ?? 0}
+              />
             ) : (
               <SlideView slide={liveSlide} variant="preview" />
             )}
@@ -336,10 +333,91 @@ function Presenter() {
             <div className="mb-1 font-medium text-foreground">Shortcuts</div>
             <div>→ / Space — next slide</div>
             <div>← — previous slide</div>
-            <div>B — blackout · C — clear · Esc — stop</div>
+            <div>B — blackout · Esc — stop</div>
           </div>
         </aside>
       </div>
+
+      {/* Drives auto-advance for media decks while presenting. */}
+      <MediaAutoAdvance />
     </div>
   );
 }
+
+function MediaAutoAdvance() {
+  const deckId = useLive((s) => s.deckId);
+  const slideId = useLive((s) => s.slideId);
+  const blackout = useLive((s) => s.blackout);
+  const deck = useLibrary((s) => (deckId ? s.decks[deckId] : null));
+  useEffect(() => {
+    if (!deck || deck.kind !== "media") return;
+    const ms = deck.autoAdvanceMs ?? 0;
+    if (ms <= 0 || !slideId || blackout) return;
+    const idx = deck.slides.findIndex((s) => s.id === slideId);
+    if (idx === -1) return;
+    const t = setTimeout(() => {
+      const go = useLive.getState().go;
+      const next = deck.slides[idx + 1];
+      if (next) go(deck.id, next.id);
+      else if (deck.loop && deck.slides[0]) go(deck.id, deck.slides[0].id);
+    }, ms);
+    return () => clearTimeout(t);
+  }, [deck, slideId, blackout]);
+  return null;
+}
+
+
+function MediaPlaybackControls({ deckId }: { deckId: string }) {
+  const deck = useLibrary((s) => s.decks[deckId]);
+  const updateDeck = useLibrary((s) => s.updateDeck);
+  if (!deck) return null;
+  const auto = deck.autoAdvanceMs ?? 0;
+  const dissolve = deck.dissolveMs ?? 0;
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-border bg-card/60 px-2 py-1 text-xs">
+      <Timer className="h-3.5 w-3.5 text-muted-foreground" />
+      <label className="flex items-center gap-1">
+        Auto
+        <input
+          type="number"
+          min={0}
+          step={0.5}
+          value={auto ? (auto / 1000).toString() : ""}
+          placeholder="off"
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            updateDeck(deckId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
+          }}
+          className="h-6 w-14 rounded border border-input bg-background px-1"
+        />
+        s
+      </label>
+      <button
+        type="button"
+        onClick={() => updateDeck(deckId, { loop: !deck.loop })}
+        className={`flex items-center gap-1 rounded px-1.5 py-0.5 ${deck.loop ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+        title="Loop"
+      >
+        <Repeat className="h-3 w-3" /> Loop
+      </button>
+      <label className="flex items-center gap-1">
+        Fade
+        <input
+          type="number"
+          min={0}
+          max={2}
+          step={0.1}
+          value={dissolve ? (dissolve / 1000).toString() : ""}
+          placeholder="0"
+          onChange={(e) => {
+            const n = Math.min(2, Math.max(0, Number(e.target.value) || 0));
+            updateDeck(deckId, { dissolveMs: Math.round(n * 1000) });
+          }}
+          className="h-6 w-12 rounded border border-input bg-background px-1"
+        />
+        s
+      </label>
+    </div>
+  );
+}
+
