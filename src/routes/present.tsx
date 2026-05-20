@@ -10,8 +10,6 @@ import {
   Square,
   X,
   Search,
-  ListMusic,
-  Layers,
   Repeat,
   Timer,
   PanelLeftClose,
@@ -40,6 +38,7 @@ function Presenter() {
   const order = useLibrary((s) => s.order);
   const playlists = useLibrary((s) => s.playlists);
   const playlistOrder = useLibrary((s) => s.playlistOrder);
+  const addDeckToPlaylist = useLibrary((s) => s.addDeckToPlaylist);
   const live = useLive();
 
   const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
@@ -55,6 +54,7 @@ function Presenter() {
   const [query, setQuery] = useState("");
   const [groupView, setGroupView] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [dragOverPlaylist, setDragOverPlaylist] = useState<string | null>(null);
   
   
 
@@ -212,19 +212,41 @@ function Presenter() {
           <div className="flex-1 overflow-auto p-3">
             {showAll && filteredPlaylists.length > 0 && (
               <div className="mb-4">
-                <div className="mb-1 flex items-center gap-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <ListMusic className="h-3 w-3" /> Gatherings
+                <div className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Gatherings
                 </div>
                 <div className="space-y-1">
                   {filteredPlaylists.map((pid) => {
                     const p = playlists[pid];
                     if (!p) return null;
+                    const isDragOver = dragOverPlaylist === pid;
                     return (
                       <Link
                         key={pid}
                         to="/present"
                         search={{ playlist: pid }}
-                        className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition hover:bg-muted"
+                        onDragOver={(e) => {
+                          if (e.dataTransfer.types.includes("application/x-deck-id")) {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "copy";
+                            if (dragOverPlaylist !== pid) setDragOverPlaylist(pid);
+                          }
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverPlaylist === pid) setDragOverPlaylist(null);
+                        }}
+                        onDrop={(e) => {
+                          const deckId = e.dataTransfer.getData("application/x-deck-id");
+                          setDragOverPlaylist(null);
+                          if (!deckId) return;
+                          e.preventDefault();
+                          if (!p.deckIds.includes(deckId)) {
+                            addDeckToPlaylist(pid, deckId);
+                          }
+                        }}
+                        className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition hover:bg-muted ${
+                          isDragOver ? "bg-primary/20 ring-1 ring-primary" : ""
+                        }`}
                       >
                         <span className="truncate">{p.name}</span>
                         <span className="text-[10px] text-muted-foreground">
@@ -238,8 +260,8 @@ function Presenter() {
             )}
 
             <div>
-              <div className="mb-1 flex items-center gap-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                <Layers className="h-3 w-3" /> Sets
+              <div className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Sets
               </div>
               <div className="space-y-1">
                 {filteredDecks.length === 0 && (
@@ -259,7 +281,18 @@ function Presenter() {
                   return (
                     <button
                       key={id}
-                      onClick={() => setActiveDeckId(id)}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("application/x-deck-id", id);
+                        e.dataTransfer.effectAllowed = "copy";
+                      }}
+                      onClick={() => {
+                        setActiveDeckId(id);
+                        if (activePlaylist) {
+                          const el = document.getElementById(`deck-section-${id}`);
+                          el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }
+                      }}
                       className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
                         isActive ? "bg-muted font-medium" : "hover:bg-muted/50"
                       }`}
@@ -288,7 +321,20 @@ function Presenter() {
 
         {/* Slide grid */}
         <main className="overflow-auto p-4">
-          {!activeDeck ? (
+          {activePlaylist ? (
+            deckList.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Gathering is empty. Drag sets here.
+              </div>
+            ) : (
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">{activePlaylist.name}</h2>
+                <span className="text-xs text-muted-foreground">
+                  Click any slide to send it live · ← → navigates
+                </span>
+              </div>
+            )
+          ) : !activeDeck ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               Select a set to begin.
             </div>
@@ -334,6 +380,44 @@ function Presenter() {
                 grouped={groupView && (activeDeck.kind === "song" || activeDeck.kind === "scripture")}
               />
             </>
+          )}
+
+          {activePlaylist && deckList.length > 0 && (
+            <div className="space-y-8">
+              {deckList.map((id, i) => {
+                const d = decks[id];
+                if (!d) return null;
+                return (
+                  <section key={id} id={`deck-section-${id}`}>
+                    <div className="mb-2 flex items-center gap-3">
+                      <h3 className="text-base font-semibold">
+                        <span className="mr-1 text-muted-foreground">{i + 1}.</span>
+                        {d.name}
+                      </h3>
+                      <Button asChild size="sm" variant="outline">
+                        <Link to="/deck/$deckId" params={{ deckId: d.id }}>
+                          Edit set
+                        </Link>
+                      </Button>
+                      {id === live.deckId && (
+                        <span className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          LIVE
+                        </span>
+                      )}
+                    </div>
+                    {d.slides.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No slides.</p>
+                    ) : (
+                      <SlideGridForPresenter
+                        deck={d}
+                        live={live}
+                        grouped={groupView && (d.kind === "song" || d.kind === "scripture")}
+                      />
+                    )}
+                  </section>
+                );
+              })}
+            </div>
           )}
         </main>
 
