@@ -568,9 +568,12 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
       const { reference, verses } = await fetchScriptureBolls(ref, translation, {
         removeLineBreaks: !keepLineBreaks,
       });
-      const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks });
+      const labelled = `${reference} ${translation}`;
+      // Annotate each slide's reference so the translation shows on the slide.
+      const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks })
+        .map((s) => ({ ...s, reference: s.reference ? `${s.reference} ${translation}` : labelled }));
       slides.forEach((s) => addSlide(deckId, s));
-      updateDeck(deckId, { name: reference });
+      updateDeck(deckId, { name: labelled });
       setRef("");
     } catch (e) {
       setErr((e as Error).message);
