@@ -88,8 +88,6 @@ function Presenter() {
         if (prev) live.go(liveDeck.id, prev.id);
       } else if (e.key.toLowerCase() === "b") {
         live.toggleBlackout();
-      } else if (e.key.toLowerCase() === "c") {
-        live.toggleClear();
       } else if (e.key === "Escape") {
         live.clearLive();
       }
@@ -99,8 +97,9 @@ function Presenter() {
   }, [liveDeck, liveSlide, live]);
 
   const openOutput = () => {
-    window.open("/output", "stage-output", "width=1280,height=720");
+    window.open("/output", "_blank", "noopener,noreferrer");
   };
+
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
