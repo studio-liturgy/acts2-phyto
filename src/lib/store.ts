@@ -131,7 +131,8 @@ export const useLibrary = create<LibraryState>()(
       addDeckToPlaylist: (playlistId, deckId) =>
         set((s) => {
           const p = s.playlists[playlistId];
-          if (!p || p.deckIds.includes(deckId)) return s;
+          if (!p) return s;
+          // Allow the same deck to appear multiple times in a gathering.
           return {
             playlists: {
               ...s.playlists,
@@ -139,18 +140,23 @@ export const useLibrary = create<LibraryState>()(
             },
           };
         }),
-      removeDeckFromPlaylist: (playlistId, deckId) =>
+      removeDeckFromPlaylist: (playlistId, deckIdOrIndex) =>
         set((s) => {
           const p = s.playlists[playlistId];
           if (!p) return s;
+          let deckIds: string[];
+          if (typeof deckIdOrIndex === "number") {
+            deckIds = p.deckIds.filter((_, i) => i !== deckIdOrIndex);
+          } else {
+            // Remove only the first occurrence so duplicates are preserved.
+            const idx = p.deckIds.indexOf(deckIdOrIndex);
+            if (idx === -1) return s;
+            deckIds = p.deckIds.filter((_, i) => i !== idx);
+          }
           return {
             playlists: {
               ...s.playlists,
-              [playlistId]: {
-                ...p,
-                deckIds: p.deckIds.filter((d) => d !== deckId),
-                updatedAt: Date.now(),
-              },
+              [playlistId]: { ...p, deckIds, updatedAt: Date.now() },
             },
           };
         }),
