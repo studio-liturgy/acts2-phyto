@@ -54,6 +54,8 @@ function Presenter() {
   );
   const [query, setQuery] = useState("");
   const [groupView, setGroupView] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
   
 
   // Only follow URL changes (not internal clicks).
