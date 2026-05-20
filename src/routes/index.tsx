@@ -7,7 +7,6 @@ import {
   BookOpen,
   Image as ImageIcon,
   X,
-  GripVertical,
   ChevronDown,
   Search,
   ArrowUpRight,
@@ -23,6 +22,7 @@ import {
 import { useMemo, useRef, useState } from "react";
 import type { DeckKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
+import { DotsGrip, hideDragGhost } from "@/components/DragBits";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -49,16 +49,38 @@ function kindBg(kind: DeckKind | string): string {
   return "bg-muted text-foreground";
 }
 
-function kindOutline(kind: KindFilter, active: boolean): string {
-  const colors: Record<string, string> = {
-    all: "border-foreground text-foreground",
-    song: "border-[var(--brand-blue)] text-[var(--brand-blue)]",
-    scripture: "border-[var(--brand-green)] text-[var(--brand-green)]",
-    media: "border-[var(--brand-orange)] text-[var(--brand-orange)]",
-    mixed: "border-foreground text-foreground",
+/** Filter chip: filled when active, outline when inactive. */
+function kindChip(kind: KindFilter, active: boolean): string {
+  const palette: Record<string, { border: string; fillBg: string; fillText: string; idleText: string }> = {
+    all: {
+      border: "border-foreground",
+      fillBg: "bg-foreground",
+      fillText: "text-background",
+      idleText: "text-foreground",
+    },
+    song: {
+      border: "border-[var(--brand-blue)]",
+      fillBg: "bg-[var(--brand-blue)]",
+      fillText: "text-[var(--brand-white)]",
+      idleText: "text-[var(--brand-blue)]",
+    },
+    scripture: {
+      border: "border-[var(--brand-green)]",
+      fillBg: "bg-[var(--brand-green)]",
+      fillText: "text-[var(--brand-white)]",
+      idleText: "text-[var(--brand-green)]",
+    },
+    media: {
+      border: "border-[var(--brand-orange)]",
+      fillBg: "bg-[var(--brand-orange)]",
+      fillText: "text-[var(--brand-white)]",
+      idleText: "text-[var(--brand-orange)]",
+    },
   };
-  const ring = active ? "ring-2 ring-offset-2 ring-offset-background" : "";
-  return `${colors[kind] ?? colors.all} ${ring}`;
+  const c = palette[kind] ?? palette.all;
+  return active
+    ? `${c.border} ${c.fillBg} ${c.fillText}`
+    : `${c.border} ${c.idleText} hover:bg-foreground/5`;
 }
 
 function Library() {
@@ -134,13 +156,20 @@ function Library() {
     oldest: "Oldest first",
   };
 
+  const emptyCategoryLabel: Record<KindFilter, string> = {
+    all: "Nothing in the catalogue yet. Click New to add your first set.",
+    song: "No Songs yet!",
+    scripture: "No Scriptures yet!",
+    media: "No Media yet!",
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="px-6 pt-6 md:px-12 md:pt-10">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="pill bg-foreground px-8 py-3 text-2xl text-background transition hover:opacity-90">
+              <button className="pill bg-foreground px-10 py-4 text-3xl text-background transition hover:opacity-90">
                 Create
               </button>
             </DropdownMenuTrigger>
@@ -159,12 +188,12 @@ function Library() {
 
           <Link
             to="/present"
-            className="pill flex items-center gap-3 border border-foreground px-8 py-3 text-2xl transition hover:bg-foreground hover:text-background"
+            className="pill flex items-center gap-3 border border-foreground px-10 py-4 text-3xl transition hover:bg-foreground hover:text-background"
           >
-            Present <ArrowUpRight className="h-5 w-5" />
+            Present <ArrowUpRight className="h-6 w-6" />
           </Link>
 
-          <p className="mono ml-auto hidden text-sm italic text-muted-foreground md:block">
+          <p className="mono ml-auto hidden text-xs italic text-muted-foreground md:block">
             Build sets, group them into gatherings, and present them live!
           </p>
         </div>
@@ -173,8 +202,8 @@ function Library() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 md:px-12">
         {/* Gatherings */}
         <section className="mb-16">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-            <h2 className="text-5xl md:text-6xl">Gatherings</h2>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-4xl md:text-5xl">Gatherings</h2>
             <div className="flex items-center gap-2">
               {showPlaylistSearch ? (
                 <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
@@ -206,11 +235,11 @@ function Library() {
           </div>
 
           {playlistOrder.length === 0 ? (
-            <div className="pill border border-foreground p-10 text-center text-sm text-muted-foreground">
+            <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
               No gatherings yet. Click <b>New</b> to plan a service.
             </div>
           ) : filteredPlaylistIds.length === 0 ? (
-            <div className="pill border border-foreground p-10 text-center text-sm text-muted-foreground">
+            <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
               No gatherings match “{playlistFilter}”.
             </div>
           ) : (
@@ -239,18 +268,15 @@ function Library() {
 
         {/* Catalogue */}
         <section>
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-4">
-              <h2 className="text-5xl md:text-6xl">Catalogue</h2>
+              <h2 className="text-4xl md:text-5xl leading-none">Catalogue</h2>
               <div className="flex items-center gap-2">
                 {(["all", "song", "scripture", "media"] as KindFilter[]).map((k) => (
                   <button
                     key={k}
                     onClick={() => setKindFilter(k)}
-                    className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindOutline(
-                      k,
-                      kindFilter === k
-                    )} ${kindFilter === k ? "bg-background" : "opacity-80 hover:opacity-100"}`}
+                    className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, kindFilter === k)}`}
                   >
                     {k === "all" ? "All" : k === "song" ? "Songs" : k === "scripture" ? "Scriptures" : "Media"}
                   </button>
@@ -314,10 +340,10 @@ function Library() {
           </div>
 
           {catalogueRows.length === 0 ? (
-            <div className="pill border border-foreground p-10 text-center text-sm text-muted-foreground">
-              {order.length === 0
-                ? "Nothing in the catalogue yet. Click New to add your first set."
-                : `Nothing matches “${catalogueFilter}”.`}
+            <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
+              {catalogueFilter.trim()
+                ? `Nothing matches “${catalogueFilter}”.`
+                : emptyCategoryLabel[kindFilter]}
             </div>
           ) : (
             <div className="rounded-3xl border border-foreground p-4">
@@ -330,10 +356,11 @@ function Library() {
                       e.dataTransfer.setData(DECK_DRAG_TYPE, d.id);
                       e.dataTransfer.setData("text/plain", d.id);
                       e.dataTransfer.effectAllowed = "copy";
+                      hideDragGhost(e);
                     }}
                     className={`pill group flex items-center gap-4 px-5 py-4 ${kindBg(d.kind)}`}
                   >
-                    <GripVertical className="h-4 w-4 cursor-grab opacity-80" />
+                    <DotsGrip className="cursor-grab opacity-80" />
                     <span className="flex-1 truncate text-base">{d.name}</span>
                     <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
                       {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
@@ -360,7 +387,7 @@ function Library() {
               </ul>
             </div>
           )}
-          <p className="mono mt-3 text-xs italic text-muted-foreground">
+          <p className="mono mt-10 text-xs italic text-muted-foreground">
             Tip: Drag a set into a gathering.
           </p>
         </section>
@@ -397,6 +424,8 @@ function PlaylistCard({
   const [addQuery, setAddQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [editingName, setEditingName] = useState(false);
+  // Edit mode reveals destructive controls + the "search for a set" input.
+  const [editMode, setEditMode] = useState(false);
 
   const nameLookup = useMemo(
     () => Object.fromEntries(allDecks.map((d) => [d.id, d])),
@@ -442,13 +471,21 @@ function PlaylistCard({
             className="h-9 flex-1 border-foreground text-lg"
           />
         ) : (
-          <h3 className="flex-1 truncate text-2xl">{name}</h3>
+          <h3
+            className="flex-1 cursor-text truncate text-2xl"
+            onClick={() => setEditingName(true)}
+            title="Rename"
+          >
+            {name}
+          </h3>
         )}
         <button
-          onClick={() => setEditingName((v) => !v)}
-          className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-          title="Rename"
-          aria-label="Rename"
+          onClick={() => setEditMode((v) => !v)}
+          className={`pill flex h-10 w-10 items-center justify-center border border-foreground transition ${
+            editMode ? "bg-foreground text-background" : "hover:bg-foreground hover:text-background"
+          }`}
+          title={editMode ? "Done editing" : "Edit"}
+          aria-label={editMode ? "Done editing" : "Edit"}
         >
           <Pencil className="h-4 w-4" />
         </button>
@@ -461,22 +498,24 @@ function PlaylistCard({
         >
           <ArrowUpRight className="h-4 w-4" />
         </Link>
-        <button
-          onClick={onDelete}
-          className="pill flex h-10 w-10 items-center justify-center text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-          aria-label="Delete gathering"
-          title="Delete gathering"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+        {editMode && (
+          <button
+            onClick={onDelete}
+            className="pill flex h-10 w-10 items-center justify-center text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+            aria-label="Delete gathering"
+            title="Delete gathering"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {deckIds.length === 0 ? (
-        <p className="pill mb-3 border border-dashed border-muted-foreground p-3 text-center text-xs text-muted-foreground">
-          Drag a set in, or search below to add.
+        <p className="rounded-2xl border border-dashed border-muted-foreground p-3 text-center text-xs text-muted-foreground">
+          Drag a set in to add it to this gathering.
         </p>
       ) : (
-        <ol className="mb-3 space-y-2">
+        <ol className="space-y-2">
           {deckIds.map((id, i) => {
             const d = nameLookup[id];
             return (
@@ -486,6 +525,7 @@ function PlaylistCard({
                 onDragStart={(e) => {
                   dragIndex.current = i;
                   e.dataTransfer.effectAllowed = "move";
+                  hideDragGhost(e);
                 }}
                 onDragEnd={() => {
                   dragIndex.current = null;
@@ -507,61 +547,65 @@ function PlaylistCard({
                 }}
                 className={`pill flex items-center gap-3 px-4 py-2.5 text-sm ${kindBg(d?.kind ?? "mixed")}`}
               >
-                <GripVertical className="h-3.5 w-3.5 cursor-grab opacity-80" />
+                <DotsGrip className="cursor-grab opacity-80" />
                 <span className="flex-1 truncate">{d?.name ?? "(missing)"}</span>
                 <span className="mono text-[10px] uppercase tracking-wider opacity-90">
                   {d?.kind}
                 </span>
-                <button
-                  onClick={() => onRemoveAt(i)}
-                  className="rounded-full p-0.5 transition hover:bg-white/25"
-                  aria-label="Remove from gathering"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                {editMode && (
+                  <button
+                    onClick={() => onRemoveAt(i)}
+                    className="rounded-full p-0.5 transition hover:bg-white/25"
+                    aria-label="Remove from gathering"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </li>
             );
           })}
         </ol>
       )}
 
-      {/* Search-to-add */}
-      <div className="relative">
-        <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
-          <Search className="h-4 w-4" />
-          <input
-            value={addQuery}
-            onChange={(e) => {
-              setAddQuery(e.target.value);
-              setShowResults(true);
-            }}
-            onFocus={() => setShowResults(true)}
-            onBlur={() => setTimeout(() => setShowResults(false), 150)}
-            placeholder="Search for a set and add more!"
-            className="mono w-full bg-transparent text-sm italic outline-none placeholder:text-muted-foreground"
-          />
-        </div>
-        {showResults && matches.length > 0 && (
-          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-foreground bg-popover shadow-md">
-            {matches.map((m) => (
-              <button
-                key={m.id}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onAdd(m.id);
-                  setAddQuery("");
-                }}
-                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
-              >
-                <span className="truncate">{m.name}</span>
-                <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {m.kind}
-                </span>
-              </button>
-            ))}
+      {/* Search-to-add — only shown in edit mode */}
+      {editMode && (
+        <div className="relative mt-3">
+          <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
+            <Search className="h-4 w-4" />
+            <input
+              value={addQuery}
+              onChange={(e) => {
+                setAddQuery(e.target.value);
+                setShowResults(true);
+              }}
+              onFocus={() => setShowResults(true)}
+              onBlur={() => setTimeout(() => setShowResults(false), 150)}
+              placeholder="Search for a set and add more!"
+              className="mono w-full bg-transparent text-sm italic outline-none placeholder:text-muted-foreground"
+            />
           </div>
-        )}
-      </div>
+          {showResults && matches.length > 0 && (
+            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-foreground bg-popover shadow-md">
+              {matches.map((m) => (
+                <button
+                  key={m.id}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onAdd(m.id);
+                    setAddQuery("");
+                  }}
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                >
+                  <span className="truncate">{m.name}</span>
+                  <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {m.kind}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
