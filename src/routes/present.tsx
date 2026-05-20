@@ -16,7 +16,25 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { Deck, Slide } from "@/lib/types";
+import type { Deck, DeckKind, Slide } from "@/lib/types";
+
+function KindBadge({ kind }: { kind: DeckKind }) {
+  const label =
+    kind === "song" ? "Song" : kind === "scripture" ? "Scripture" : kind === "media" ? "Media" : "Mixed";
+  const cls =
+    kind === "song"
+      ? "bg-blue-500/15 text-blue-600 dark:text-blue-300"
+      : kind === "scripture"
+      ? "bg-amber-500/15 text-amber-600 dark:text-amber-300"
+      : kind === "media"
+      ? "bg-purple-500/15 text-purple-600 dark:text-purple-300"
+      : "bg-muted text-muted-foreground";
+  return (
+    <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${cls}`}>
+      {label}
+    </span>
+  );
+}
 import { z } from "zod";
 
 type LiveApi = ReturnType<typeof useLive.getState>;
@@ -331,6 +349,7 @@ function Presenter() {
                           {d.name}
                         </span>
                         <span className="flex items-center gap-1">
+                          {inGathering && <KindBadge kind={d.kind} />}
                           {isLive && (
                             <span className="rounded bg-red-500 px-1.5 text-[10px] font-semibold text-white">
                               LIVE
@@ -442,6 +461,7 @@ function Presenter() {
                         <span className="mr-1 text-muted-foreground">{i + 1}.</span>
                         {d.name}
                       </h3>
+                      <KindBadge kind={d.kind} />
                       <Button asChild size="sm" variant="outline">
                         <Link to="/deck/$deckId" params={{ deckId: d.id }}>
                           Edit set
