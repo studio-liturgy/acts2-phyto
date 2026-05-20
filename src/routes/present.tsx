@@ -48,11 +48,17 @@ function Presenter() {
     deckFromUrl ?? deckList[0] ?? null
   );
   const [query, setQuery] = useState("");
+  const [blackoutFade, setBlackoutFade] = useState(false);
 
+  // Only follow URL changes (not internal clicks).
   useEffect(() => {
     if (deckFromUrl) setActiveDeckId(deckFromUrl);
-    else if (activePlaylist && !activeDeckId) setActiveDeckId(activePlaylist.deckIds[0] ?? null);
-  }, [deckFromUrl, activePlaylist, activeDeckId]);
+  }, [deckFromUrl]);
+  useEffect(() => {
+    if (activePlaylist && !activeDeckId) {
+      setActiveDeckId(activePlaylist.deckIds[0] ?? null);
+    }
+  }, [activePlaylist, activeDeckId]);
 
   const activeDeck = activeDeckId ? decks[activeDeckId] : null;
   const liveDeck = live.deckId ? decks[live.deckId] : null;
