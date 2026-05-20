@@ -61,6 +61,7 @@ function Library() {
 
   const [playlistFilter, setPlaylistFilter] = useState("");
   const [catalogueFilter, setCatalogueFilter] = useState("");
+  const [kindFilter, setKindFilter] = useState<"all" | "song" | "scripture" | "media">("all");
   const [sortMode, setSortMode] = useState<SortMode>("az");
 
   const newDeck = (kind: "song" | "scripture" | "media") => {
