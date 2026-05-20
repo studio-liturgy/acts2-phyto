@@ -275,39 +275,90 @@ function Presenter() {
                   if (!d) return null;
                   const isActive = id === activeDeckId;
                   const isLive = id === live.deckId;
+                  const inGathering = !!activePlaylist;
+                  const isReorderTarget =
+                    inGathering && reorderOverIndex === i && reorderDragIndex !== null;
                   return (
-                    <button
-                      key={id}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData("application/x-deck-id", id);
-                        e.dataTransfer.effectAllowed = "copy";
+                    <div
+                      key={`${id}-${i}`}
+                      onDragOver={(e) => {
+                        if (!inGathering || reorderDragIndex === null) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        if (reorderOverIndex !== i) setReorderOverIndex(i);
                       }}
-                      onClick={() => {
-                        setActiveDeckId(id);
-                        if (activePlaylist) {
-                          const el = document.getElementById(`deck-section-${id}`);
-                          el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                        }
+                      onDrop={(e) => {
+                        if (!inGathering || reorderDragIndex === null || !activePlaylist) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const ids = [...activePlaylist.deckIds];
+                        const [moved] = ids.splice(reorderDragIndex, 1);
+                        ids.splice(i, 0, moved);
+                        reorderPlaylistDecks(activePlaylist.id, ids);
+                        setReorderDragIndex(null);
+                        setReorderOverIndex(null);
                       }}
-                      className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
-                        isActive ? "bg-muted font-medium" : "hover:bg-muted/50"
-                      }`}
+                      className={isReorderTarget ? "rounded ring-1 ring-primary" : ""}
                     >
-                      <span className="truncate">
-                        {activePlaylist && (
-                          <span className="mr-1 text-xs text-muted-foreground">
-                            {i + 1}.
-                          </span>
-                        )}
-                        {d.name}
-                      </span>
-                      {isLive && (
-                        <span className="rounded bg-red-500 px-1.5 text-[10px] font-semibold text-white">
-                          LIVE
+                      <button
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("application/x-deck-id", id);
+                          e.dataTransfer.effectAllowed = inGathering ? "move" : "copy";
+                          if (inGathering) setReorderDragIndex(i);
+                        }}
+                        onDragEnd={() => {
+                          setReorderDragIndex(null);
+                          setReorderOverIndex(null);
+                        }}
+                        onClick={() => {
+                          setActiveDeckId(id);
+                          if (activePlaylist) {
+                            const el = document.getElementById(`deck-section-${id}`);
+                            el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }
+                        }}
+                        className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
+                          isActive ? "bg-muted font-medium" : "hover:bg-muted/50"
+                        }`}
+                      >
+                        <span className="truncate">
+                          {inGathering && (
+                            <span className="mr-1 text-xs text-muted-foreground">
+                              {i + 1}.
+                            </span>
+                          )}
+                          {d.name}
                         </span>
-                      )}
-                    </button>
+                        <span className="flex items-center gap-1">
+                          {isLive && (
+                            <span className="rounded bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                              LIVE
+                            </span>
+                          )}
+                          {inGathering && activePlaylist && (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeDeckFromPlaylist(activePlaylist.id, i);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.stopPropagation();
+                                  removeDeckFromPlaylist(activePlaylist.id, i);
+                                }
+                              }}
+                              className="rounded p-0.5 text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground hover:opacity-100"
+                              title="Remove from gathering"
+                            >
+                              <X className="h-3 w-3" />
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    </div>
                   );
                 })}
               </div>
