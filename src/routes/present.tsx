@@ -437,3 +437,111 @@ function MediaPlaybackControls({ deckId }: { deckId: string }) {
   );
 }
 
+const SECTION_RE =
+  /^\s*\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?\s*$/i;
+
+function sectionOf(s: Slide): string | null {
+  if (s.section && s.section.trim()) return s.section.trim();
+  if (s.kind === "lyric" && s.reference && SECTION_RE.test(s.reference)) {
+    return s.reference.trim();
+  }
+  return null;
+}
+
+function PresenterThumb({
+  slide,
+  index,
+  deck,
+  live,
+}: {
+  slide: Slide;
+  index: number;
+  deck: Deck;
+  live: ReturnType<typeof useLive>;
+}) {
+  const isLive = live.deckId === deck.id && live.slideId === slide.id;
+  return (
+    <button
+      onClick={() => live.go(deck.id, slide.id)}
+      className={`group relative rounded-md border-2 text-left transition ${
+        isLive
+          ? "border-red-500 ring-2 ring-red-500/30"
+          : "border-transparent hover:border-primary"
+      }`}
+    >
+      <SlideView slide={slide} variant="thumb" className="rounded" />
+      <div className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+        {index + 1}
+      </div>
+      {slide.reference && deck.kind === "scripture" && (
+        <div className="absolute bottom-1 left-1 right-1 truncate rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+          {slide.reference}
+        </div>
+      )}
+      {isLive && (
+        <div className="absolute right-1 top-1 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          LIVE
+        </div>
+      )}
+    </button>
+  );
+}
+
+function SlideGridForPresenter({
+  deck,
+  live,
+  grouped,
+}: {
+  deck: Deck;
+  live: ReturnType<typeof useLive>;
+  grouped: boolean;
+}) {
+  if (!grouped) {
+    return (
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+        {deck.slides.map((s, i) => (
+          <PresenterThumb key={s.id} slide={s} index={i} deck={deck} live={live} />
+        ))}
+      </div>
+    );
+  }
+
+  // Build groups carrying each slide's original index so live navigation stays correct.
+  const groups: { label: string; items: { slide: Slide; index: number }[] }[] = [];
+  let current = "Section";
+  deck.slides.forEach((s, i) => {
+    const sec = sectionOf(s);
+    if (sec) current = sec;
+    const last = groups[groups.length - 1];
+    if (!last || last.label !== current) {
+      groups.push({ label: current, items: [{ slide: s, index: i }] });
+    } else {
+      last.items.push({ slide: s, index: i });
+    }
+  });
+
+  return (
+    <div className="space-y-5">
+      {groups.map((g, gi) => (
+        <section key={`${g.label}-${gi}`}>
+          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {g.label}
+          </h3>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+            {g.items.map(({ slide, index }) => (
+              <PresenterThumb
+                key={slide.id}
+                slide={slide}
+                index={index}
+                deck={deck}
+                live={live}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+
