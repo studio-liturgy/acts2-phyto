@@ -22,7 +22,7 @@ interface LibraryState {
   renamePlaylist: (id: string, name: string) => void;
   deletePlaylist: (id: string) => void;
   addDeckToPlaylist: (playlistId: string, deckId: string) => void;
-  removeDeckFromPlaylist: (playlistId: string, deckId: string) => void;
+  removeDeckFromPlaylist: (playlistId: string, deckIdOrIndex: string | number) => void;
   reorderPlaylistDecks: (playlistId: string, deckIds: string[]) => void;
 }
 
