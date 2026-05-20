@@ -579,7 +579,7 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
               })}
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground">
-              Lyrics via lrclib.net — strong coverage of modern worship.
+              Worship-focused search via lrclib.net. Sections are auto-segmented and repeated parts (like the chorus) are de-duplicated on import.
             </p>
           </Card>
 
