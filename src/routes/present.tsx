@@ -108,12 +108,13 @@ function Presenter() {
           <div className="flex items-center gap-2">
             <Button asChild size="sm" variant="ghost">
               <Link to="/">
-                <ArrowLeft className="mr-1 h-4 w-4" /> Library
+                <ArrowLeft className="mr-1 h-4 w-4" /> Create
               </Link>
             </Button>
             <span className="text-sm font-medium">Presenter</span>
           </div>
           <div className="flex items-center gap-2">
+            {liveDeck?.kind === "media" && <MediaPlaybackControls deckId={liveDeck.id} />}
             <Button size="sm" variant="outline" onClick={openOutput}>
               <Monitor className="mr-1 h-4 w-4" /> Output window
             </Button>
@@ -125,17 +126,10 @@ function Presenter() {
             >
               <Square className="mr-1 h-4 w-4" /> Black
             </Button>
-            <Button
-              size="sm"
-              variant={live.clear ? "default" : "outline"}
-              onClick={() => live.toggleClear()}
-              title="Clear (C)"
-            >
-              <EyeOff className="mr-1 h-4 w-4" /> Clear
-            </Button>
             <Button size="sm" variant="ghost" onClick={() => live.clearLive()} title="Stop (Esc)">
               <X className="mr-1 h-4 w-4" /> Stop
             </Button>
+
           </div>
         </div>
       </header>
