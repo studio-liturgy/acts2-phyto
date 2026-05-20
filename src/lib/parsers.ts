@@ -20,11 +20,13 @@ export function parseLyrics(text: string, linesPerSlide = 2): Slide[] {
   const slides: Slide[] = [];
   for (const block of blocks) {
     const rawLines = block.split("\n").map((l) => l.trim()).filter(Boolean);
-    let reference: string | undefined;
-    const headerMatch = rawLines[0]?.match(/^\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude)\]?$/i);
+    let section: string | undefined;
+    const headerMatch = rawLines[0]?.match(
+      /^\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?$/i
+    );
     let lines = rawLines;
     if (headerMatch) {
-      reference = rawLines[0].replace(/[\[\]]/g, "");
+      section = rawLines[0].replace(/[\[\]:]/g, "").trim();
       lines = rawLines.slice(1);
     }
     if (lines.length === 0) continue;
@@ -33,7 +35,7 @@ export function parseLyrics(text: string, linesPerSlide = 2): Slide[] {
         id: uid(),
         kind: "lyric",
         lines: lines.slice(i, i + linesPerSlide),
-        reference: i === 0 ? reference : undefined,
+        section: i === 0 ? section : undefined,
       });
     }
   }

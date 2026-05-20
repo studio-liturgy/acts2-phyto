@@ -223,8 +223,28 @@ function cleanVerseText(s: string, { removeLineBreaks }: { removeLineBreaks: boo
   const stripPaired = (tag: string) =>
     (out = out.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, "gi"), ""));
   ["S", "h", "f", "pb", "n", "e", "t"].forEach(stripPaired);
-  // Self-closing variants
+  // Self-closing variants (excluding <br/>, handled below)
   out = out.replace(/<(?:pb|n|e)\b[^>]*\/>/gi, "");
+
+  // Bolls embeds pericope titles inline at the start of the verse that
+  // follows them, separated by <br/>. Detect a leading heading-like fragment
+  // (no terminal sentence punctuation, mostly title-case words) and drop it.
+  const brIdx = out.search(/<br\s*\/?>/i);
+  if (brIdx > 0) {
+    const head = out.slice(0, brIdx).replace(/<[^>]+>/g, "").trim();
+    const headIsTitle =
+      head.length > 0 &&
+      head.length < 120 &&
+      !/[.!?;:]\s*["'\u201D\u2019)]?$/.test(head) &&
+      // mostly capitalised words OR all caps
+      (/^[A-Z0-9][^a-z\n]*$/.test(head) ||
+        head.split(/\s+/).filter((w) => /^[A-Z]/.test(w)).length >=
+          Math.ceil(head.split(/\s+/).length * 0.6));
+    if (headIsTitle) {
+      out = out.slice(brIdx).replace(/^<br\s*\/?>/i, "");
+    }
+  }
+
   // <br> → controlled newline marker
   out = out.replace(/<br\s*\/?>/gi, removeLineBreaks ? " " : "\n");
   // Strip any remaining tags but keep their inner text (e.g. <i>added</i>)

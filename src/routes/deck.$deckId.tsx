@@ -28,6 +28,7 @@ function DeckEditor() {
   const { updateDeck, addSlide, updateSlide, removeSlide, reorderSlides } = useLibrary();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
+  const [groupView, setGroupView] = useState(true);
 
   const selected = useMemo(
     () => deck?.slides.find((s) => s.id === selectedId) ?? deck?.slides[0] ?? null,
@@ -145,7 +146,17 @@ function DeckEditor() {
                   <span className="ml-2 normal-case text-foreground">· {multiSel.size} selected</span>
                 )}
               </h2>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {(deck.kind === "song" || deck.kind === "scripture") && (
+                  <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={groupView}
+                      onChange={(e) => setGroupView(e.target.checked)}
+                    />
+                    Group by section
+                  </label>
+                )}
                 {multiSel.size > 0 && (
                   <Button size="sm" variant="destructive" onClick={deleteSelected}>
                     <Trash2 className="mr-1 h-3 w-3" /> Delete selected
@@ -168,7 +179,7 @@ function DeckEditor() {
               </p>
             ) : (
               <div className="max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
-                {deck.kind === "song" ? (
+                {groupView && (deck.kind === "song" || deck.kind === "scripture") ? (
                   <GroupedSongGrid
                     slides={deck.slides}
                     selectedId={selected?.id ?? null}
@@ -210,15 +221,27 @@ function DeckEditor() {
                 Edit slide
               </h3>
               <div>
-                <Label className="text-xs">Reference / label</Label>
+                <Label className="text-xs">Section (for grouping)</Label>
                 <Input
-                  value={selected.reference ?? ""}
+                  value={selected.section ?? ""}
                   onChange={(e) =>
-                    updateSlide(deck.id, selected.id, { reference: e.target.value })
+                    updateSlide(deck.id, selected.id, { section: e.target.value })
                   }
-                  placeholder="e.g. Chorus, John 3:16"
+                  placeholder="e.g. Chorus, Verse 1, Bridge"
                 />
               </div>
+              {deck.kind === "scripture" && (
+                <div>
+                  <Label className="text-xs">Reference (shown on slide)</Label>
+                  <Input
+                    value={selected.reference ?? ""}
+                    onChange={(e) =>
+                      updateSlide(deck.id, selected.id, { reference: e.target.value })
+                    }
+                    placeholder="e.g. John 3:16"
+                  />
+                </div>
+              )}
               <div>
                 <Label className="text-xs">Lines (one per line)</Label>
                 <Textarea
@@ -382,10 +405,21 @@ function GroupedSongGrid(props: {
   onReorder: (ids: string[]) => void;
   dense?: boolean;
 }) {
+  const SECTION_RE = /^\s*\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?\s*$/i;
+  const sectionOf = (s: Slide): string | null => {
+    if (s.section && s.section.trim()) return s.section.trim();
+    // Legacy: song slides used `reference` for section before `section` existed.
+    if (s.kind === "lyric" && s.reference && SECTION_RE.test(s.reference)) {
+      return s.reference.trim();
+    }
+    return null;
+  };
+
   const groups: { label: string; slides: Slide[] }[] = [];
   let currentLabel = "Section";
   for (const s of props.slides) {
-    if (s.reference && s.reference.trim()) currentLabel = s.reference.trim();
+    const sec = sectionOf(s);
+    if (sec) currentLabel = sec;
     const last = groups[groups.length - 1];
     if (!last || last.label !== currentLabel) {
       groups.push({ label: currentLabel, slides: [s] });

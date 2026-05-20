@@ -181,7 +181,7 @@ export const useLibrary = create<LibraryState>()(
 const CHANNEL = "stage-live-v1";
 const STORAGE_KEY = "stage-live-v1";
 
-interface LiveStore extends LiveState {
+export interface LiveStore extends LiveState {
   setLive: (patch: Partial<LiveState>) => void;
   go: (deckId: string, slideId: string) => void;
   clearLive: () => void;
