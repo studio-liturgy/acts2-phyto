@@ -124,6 +124,16 @@ function Presenter() {
             <Button size="sm" variant="outline" onClick={openOutput}>
               <Monitor className="mr-1 h-4 w-4" /> Output window
             </Button>
+            <label className="flex items-center gap-1 rounded-md border border-border bg-card/60 px-2 py-1 text-xs">
+              <input
+                type="checkbox"
+                checked={(live.blackoutFadeMs ?? 0) > 0}
+                onChange={(e) =>
+                  live.setLive({ blackoutFadeMs: e.target.checked ? 600 : 0 })
+                }
+              />
+              Fade
+            </label>
             <Button
               size="sm"
               variant={live.blackout ? "default" : "outline"}
