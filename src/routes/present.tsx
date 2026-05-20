@@ -1,46 +1,40 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useLibrary, useLive } from "@/lib/store";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  ArrowLeft,
-  Monitor,
+  ArrowUpLeft,
+  ArrowUpRight,
   Square,
   X,
   Search,
-  Repeat,
-  Timer,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
   Plus,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Deck, DeckKind, Slide } from "@/lib/types";
-
-function KindBadge({ kind }: { kind: DeckKind }) {
-  const label =
-    kind === "song" ? "Song" : kind === "scripture" ? "Scripture" : kind === "media" ? "Media" : "Mixed";
-  const cls =
-    kind === "song"
-      ? "bg-blue-500/15 text-blue-600 dark:text-blue-300"
-      : kind === "scripture"
-      ? "bg-amber-500/15 text-amber-600 dark:text-amber-300"
-      : kind === "media"
-      ? "bg-purple-500/15 text-purple-600 dark:text-purple-300"
-      : "bg-muted text-muted-foreground";
-  return (
-    <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${cls}`}>
-      {label}
-    </span>
-  );
-}
 import { z } from "zod";
 
 type LiveApi = ReturnType<typeof useLive.getState>;
 
+function kindBadgeBg(kind: DeckKind): string {
+  if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
+  if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
+  if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
+  return "bg-muted text-foreground";
+}
+
+function KindBadge({ kind }: { kind: DeckKind }) {
+  return (
+    <span className={`pill mono px-2 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(kind)}`}>
+      {kind === "mixed" ? "Mixed" : kind}
+    </span>
+  );
+}
 
 const searchSchema = z.object({
   deck: z.string().optional(),
@@ -65,7 +59,6 @@ function Presenter() {
 
   const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
 
-  // The list of decks shown in the sidebar.
   const deckList = activePlaylist
     ? activePlaylist.deckIds.filter((id) => decks[id])
     : order;
@@ -79,11 +72,8 @@ function Presenter() {
   const [dragOverPlaylist, setDragOverPlaylist] = useState<string | null>(null);
   const [reorderDragIndex, setReorderDragIndex] = useState<number | null>(null);
   const [reorderOverIndex, setReorderOverIndex] = useState<number | null>(null);
-  
-  
-  
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
-  // Only follow URL changes (not internal clicks).
   useEffect(() => {
     if (deckFromUrl) setActiveDeckId(deckFromUrl);
   }, [deckFromUrl]);
@@ -100,7 +90,6 @@ function Presenter() {
     [liveDeck, live.slideId]
   );
 
-  // Filter both lists when in "all" mode.
   const q = query.trim().toLowerCase();
   const showAll = !activePlaylist;
   const filteredDecks = deckList.filter(
@@ -108,7 +97,6 @@ function Presenter() {
   );
   const filteredPlaylists = showAll ? playlistOrder : [];
 
-  // Keyboard navigation
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!liveDeck || !liveSlide) return;
@@ -133,347 +121,308 @@ function Presenter() {
     return () => window.removeEventListener("keydown", handler);
   }, [liveDeck, liveSlide, live]);
 
-  const openOutput = () => {
-    window.open("/output", "_blank", "noopener,noreferrer");
-  };
-
+  const openOutput = () => window.open("/output", "_blank", "noopener,noreferrer");
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      {/* Sticky header keeps top toolbar visible while presenting. */}
-      <header className="sticky top-0 z-30 border-b border-border bg-background">
-        <div className="grid grid-cols-3 items-center gap-4 px-4 py-2">
+      {/* Top bar */}
+      <header className="sticky top-0 z-30 border-b border-foreground/10 bg-background">
+        <div className="grid grid-cols-3 items-center gap-4 px-6 py-4">
           <div className="flex items-center gap-2 justify-self-start">
-            <Button
-              size="icon"
-              variant="ghost"
+            <Link
+              to="/"
+              className="pill flex h-10 w-10 items-center justify-center bg-foreground text-background transition hover:opacity-90"
+              title="Create"
+              aria-label="Create"
+            >
+              <Plus className="h-5 w-5" />
+            </Link>
+            <button
               onClick={() => setSidebarOpen((v) => !v)}
+              className="rounded-full p-2 transition hover:bg-muted"
               title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
               aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
             >
-              {sidebarOpen ? (
-                <PanelLeftClose className="h-4 w-4" />
-              ) : (
-                <PanelLeftOpen className="h-4 w-4" />
-              )}
-            </Button>
-            <Button asChild size="icon" variant="ghost" title="Create" aria-label="Create">
-              <Link to="/"><Plus className="h-4 w-4" /></Link>
-            </Button>
+              {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
+            </button>
           </div>
-          <div className="flex items-center justify-center gap-2 justify-self-center">
-            <span className="text-sm font-medium">Presenter</span>
+
+          <div className="flex items-center justify-center gap-3 justify-self-center">
+            <h1 className="text-3xl">Presenter</h1>
             {activePlaylist && (
               <>
                 <span className="text-muted-foreground">·</span>
-                <span className="truncate text-sm text-muted-foreground">
-                  {activePlaylist.name}
-                </span>
+                <span className="truncate text-lg text-muted-foreground">{activePlaylist.name}</span>
               </>
             )}
           </div>
+
           <div className="flex items-center gap-2 justify-self-end">
-            {liveDeck?.kind === "media" && <MediaPlaybackControls deckId={liveDeck.id} />}
-            <Button
-              size="icon"
-              variant="outline"
+            <button
               onClick={openOutput}
+              className="pill flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
               title="Output window"
-              aria-label="Output window"
             >
-              <Monitor className="h-4 w-4" />
-            </Button>
+              Output <ArrowUpRight className="h-4 w-4" />
+            </button>
             <label
-              className="flex items-center gap-1 rounded-md border border-border bg-card/60 px-2 py-1 text-xs"
+              className="mono flex items-center gap-1.5 pill border border-foreground/40 px-3 py-1.5 text-[10px] uppercase tracking-wider"
               title="Crossfade blackout"
             >
               <input
                 type="checkbox"
                 checked={(live.blackoutFadeMs ?? 0) > 0}
-                onChange={(e) =>
-                  live.setLive({ blackoutFadeMs: e.target.checked ? 600 : 0 })
-                }
+                onChange={(e) => live.setLive({ blackoutFadeMs: e.target.checked ? 600 : 0 })}
               />
               Fade
             </label>
-            <Button
-              size="icon"
-              variant={live.blackout ? "default" : "outline"}
+            <button
               onClick={() => live.toggleBlackout()}
+              className={`pill flex h-9 w-9 items-center justify-center border transition ${
+                live.blackout
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-foreground hover:bg-foreground hover:text-background"
+              }`}
               title="Blackout (B)"
               aria-label="Blackout"
             >
               <Square className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
+            </button>
+            <button
               onClick={() => live.clearLive()}
+              className="pill flex h-9 w-9 items-center justify-center text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
               title="Stop (Esc)"
               aria-label="Stop"
             >
               <X className="h-4 w-4" />
-            </Button>
-
+            </button>
           </div>
         </div>
       </header>
 
       <div
         className={`grid flex-1 gap-0 ${
-          sidebarOpen
-            ? "md:grid-cols-[260px_1fr_340px]"
-            : "md:grid-cols-[1fr_340px]"
+          sidebarOpen ? "md:grid-cols-[240px_1fr_320px]" : "md:grid-cols-[1fr_320px]"
         }`}
       >
         {/* Sidebar */}
         {sidebarOpen && (
-        <aside className="flex max-h-[calc(100vh-49px)] flex-col border-r border-border bg-card/40 md:sticky md:top-[49px] md:self-start">
-          <div className="border-b border-border p-3">
-            {activePlaylist && (
-              <div className="mb-2 flex items-center gap-2">
-                <Link
-                  to="/present"
-                  className="rounded p-1 hover:bg-muted"
-                  title="Back to all"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                </Link>
-                <h3 className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {activePlaylist.name}
-                </h3>
-              </div>
-            )}
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
+          <aside className="flex max-h-[calc(100vh-73px)] flex-col border-r border-foreground/10 bg-background p-4 md:sticky md:top-[73px] md:self-start">
+            <div className="pill mb-4 flex items-center gap-2 border border-foreground bg-background px-4 py-2">
+              <Search className="h-4 w-4" />
+              <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search sets"
-                className="h-8 pl-7 text-sm"
+                placeholder="Search for a set"
+                className="mono w-full bg-transparent text-xs italic outline-none placeholder:text-muted-foreground"
               />
             </div>
-          </div>
 
-          <div className="flex-1 overflow-auto p-3">
-            {showAll && filteredPlaylists.length > 0 && (
-              <div className="mb-4">
-                <div className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Gatherings
+            <div className="flex-1 overflow-auto pr-1">
+              {showAll && filteredPlaylists.length > 0 && (
+                <div className="mb-5">
+                  <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">Gatherings</div>
+                  <div className="space-y-1">
+                    {filteredPlaylists.map((pid) => {
+                      const p = playlists[pid];
+                      if (!p) return null;
+                      const isDragOver = dragOverPlaylist === pid;
+                      return (
+                        <Link
+                          key={pid}
+                          to="/present"
+                          search={{ playlist: pid }}
+                          onDragOver={(e) => {
+                            if (e.dataTransfer.types.includes("application/x-deck-id")) {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "copy";
+                              if (dragOverPlaylist !== pid) setDragOverPlaylist(pid);
+                            }
+                          }}
+                          onDragLeave={() => {
+                            if (dragOverPlaylist === pid) setDragOverPlaylist(null);
+                          }}
+                          onDrop={(e) => {
+                            const deckId = e.dataTransfer.getData("application/x-deck-id");
+                            setDragOverPlaylist(null);
+                            if (!deckId) return;
+                            e.preventDefault();
+                            if (!p.deckIds.includes(deckId)) addDeckToPlaylist(pid, deckId);
+                          }}
+                          className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-muted ${
+                            isDragOver ? "bg-foreground/10 ring-1 ring-foreground" : ""
+                          }`}
+                        >
+                          <span className="truncate">{p.name}</span>
+                          <span className="mono text-[10px] text-muted-foreground">{p.deckIds.length}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">
+                  {activePlaylist ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Link to="/present" title="Back to all" aria-label="Back to all">
+                        <ArrowUpLeft className="h-3.5 w-3.5" />
+                      </Link>
+                      {activePlaylist.name}
+                    </span>
+                  ) : (
+                    "Sets"
+                  )}
                 </div>
                 <div className="space-y-1">
-                  {filteredPlaylists.map((pid) => {
-                    const p = playlists[pid];
-                    if (!p) return null;
-                    const isDragOver = dragOverPlaylist === pid;
+                  {filteredDecks.length === 0 && (
+                    <p className="px-2 text-xs text-muted-foreground">
+                      {activePlaylist ? "Gathering is empty." : q ? "No matches." : "No sets yet."}
+                    </p>
+                  )}
+                  {filteredDecks.map((id, i) => {
+                    const d = decks[id];
+                    if (!d) return null;
+                    const isActive = id === activeDeckId;
+                    const isLive = id === live.deckId;
+                    const inGathering = !!activePlaylist;
+                    const isReorderTarget = inGathering && reorderOverIndex === i && reorderDragIndex !== null;
                     return (
-                      <Link
-                        key={pid}
-                        to="/present"
-                        search={{ playlist: pid }}
+                      <div
+                        key={`${id}-${i}`}
                         onDragOver={(e) => {
-                          if (e.dataTransfer.types.includes("application/x-deck-id")) {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = "copy";
-                            if (dragOverPlaylist !== pid) setDragOverPlaylist(pid);
-                          }
-                        }}
-                        onDragLeave={() => {
-                          if (dragOverPlaylist === pid) setDragOverPlaylist(null);
+                          if (!inGathering || reorderDragIndex === null) return;
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          if (reorderOverIndex !== i) setReorderOverIndex(i);
                         }}
                         onDrop={(e) => {
-                          const deckId = e.dataTransfer.getData("application/x-deck-id");
-                          setDragOverPlaylist(null);
-                          if (!deckId) return;
+                          if (!inGathering || reorderDragIndex === null || !activePlaylist) return;
                           e.preventDefault();
-                          if (!p.deckIds.includes(deckId)) {
-                            addDeckToPlaylist(pid, deckId);
-                          }
+                          e.stopPropagation();
+                          const ids = [...activePlaylist.deckIds];
+                          const [moved] = ids.splice(reorderDragIndex, 1);
+                          ids.splice(i, 0, moved);
+                          reorderPlaylistDecks(activePlaylist.id, ids);
+                          setReorderDragIndex(null);
+                          setReorderOverIndex(null);
                         }}
-                        className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition hover:bg-muted ${
-                          isDragOver ? "bg-primary/20 ring-1 ring-primary" : ""
-                        }`}
+                        className={isReorderTarget ? "rounded-lg ring-1 ring-foreground" : ""}
                       >
-                        <span className="truncate">{p.name}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {p.deckIds.length}
-                        </span>
-                      </Link>
+                        <button
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("application/x-deck-id", id);
+                            e.dataTransfer.effectAllowed = inGathering ? "move" : "copy";
+                            if (inGathering) setReorderDragIndex(i);
+                          }}
+                          onDragEnd={() => {
+                            setReorderDragIndex(null);
+                            setReorderOverIndex(null);
+                          }}
+                          onClick={() => {
+                            setActiveDeckId(id);
+                            if (activePlaylist) {
+                              const el = document.getElementById(`deck-section-${id}`);
+                              el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }
+                          }}
+                          className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
+                            isLive
+                              ? "ring-1 ring-[var(--brand-red)]"
+                              : isActive
+                              ? "bg-muted"
+                              : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <span className="flex items-center gap-1 truncate">
+                            {inGathering && (
+                              <span className="mono mr-1 text-[10px] text-muted-foreground">{i + 1}.</span>
+                            )}
+                            {d.name}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <KindBadge kind={d.kind} />
+                            {inGathering && activePlaylist && (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeDeckFromPlaylist(activePlaylist.id, i);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.stopPropagation();
+                                    removeDeckFromPlaylist(activePlaylist.id, i);
+                                  }
+                                }}
+                                className="rounded-full p-0.5 text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground hover:opacity-100"
+                                title="Remove from gathering"
+                              >
+                                <X className="h-3 w-3" />
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
               </div>
-            )}
-
-            <div>
-              <div className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Sets
-              </div>
-              <div className="space-y-1">
-                {filteredDecks.length === 0 && (
-                  <p className="px-2 text-xs text-muted-foreground">
-                    {activePlaylist
-                      ? "Gathering is empty."
-                      : q
-                      ? "No matches."
-                      : "No sets yet."}
-                  </p>
-                )}
-                {filteredDecks.map((id, i) => {
-                  const d = decks[id];
-                  if (!d) return null;
-                  const isActive = id === activeDeckId;
-                  const isLive = id === live.deckId;
-                  const inGathering = !!activePlaylist;
-                  const isReorderTarget =
-                    inGathering && reorderOverIndex === i && reorderDragIndex !== null;
-                  return (
-                    <div
-                      key={`${id}-${i}`}
-                      onDragOver={(e) => {
-                        if (!inGathering || reorderDragIndex === null) return;
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                        if (reorderOverIndex !== i) setReorderOverIndex(i);
-                      }}
-                      onDrop={(e) => {
-                        if (!inGathering || reorderDragIndex === null || !activePlaylist) return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const ids = [...activePlaylist.deckIds];
-                        const [moved] = ids.splice(reorderDragIndex, 1);
-                        ids.splice(i, 0, moved);
-                        reorderPlaylistDecks(activePlaylist.id, ids);
-                        setReorderDragIndex(null);
-                        setReorderOverIndex(null);
-                      }}
-                      className={isReorderTarget ? "rounded ring-1 ring-primary" : ""}
-                    >
-                      <button
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("application/x-deck-id", id);
-                          e.dataTransfer.effectAllowed = inGathering ? "move" : "copy";
-                          if (inGathering) setReorderDragIndex(i);
-                        }}
-                        onDragEnd={() => {
-                          setReorderDragIndex(null);
-                          setReorderOverIndex(null);
-                        }}
-                        onClick={() => {
-                          setActiveDeckId(id);
-                          if (activePlaylist) {
-                            const el = document.getElementById(`deck-section-${id}`);
-                            el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                          }
-                        }}
-                        className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
-                          isActive ? "bg-muted font-medium" : "hover:bg-muted/50"
-                        }`}
-                      >
-                        <span className="truncate">
-                          {inGathering && (
-                            <span className="mr-1 text-xs text-muted-foreground">
-                              {i + 1}.
-                            </span>
-                          )}
-                          {d.name}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <KindBadge kind={d.kind} />
-                          {isLive && (
-                            <span className="rounded bg-red-500 px-1.5 text-[10px] font-semibold text-white">
-                              LIVE
-                            </span>
-                          )}
-                          {inGathering && activePlaylist && (
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeDeckFromPlaylist(activePlaylist.id, i);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.stopPropagation();
-                                  removeDeckFromPlaylist(activePlaylist.id, i);
-                                }
-                              }}
-                              className="rounded p-0.5 text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground hover:opacity-100"
-                              title="Remove from gathering"
-                            >
-                              <X className="h-3 w-3" />
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
         )}
 
-        {/* Slide grid */}
-        <main className="overflow-auto p-4">
+        {/* Main */}
+        <main className="overflow-auto p-6">
           {activePlaylist ? (
             deckList.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 Gathering is empty. Drag sets here.
               </div>
-            ) : (
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">{activePlaylist.name}</h2>
-                <span className="text-xs text-muted-foreground">
-                  Click any slide to send it live · ← → navigates
-                </span>
-              </div>
-            )
+            ) : null
           ) : !activeDeck ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               Select a set to begin.
             </div>
           ) : activeDeck.slides.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              This set has no slides.{" "}
+            <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+              This set has no slides.
               <Link
                 to="/deck/$deckId"
                 params={{ deckId: activeDeck.id }}
-                className="ml-1 underline"
+                className="underline"
                 title="Edit set"
-                aria-label="Edit set"
               >
                 <Pencil className="inline h-3.5 w-3.5" />
               </Link>
             </div>
           ) : (
             <>
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-semibold">{activeDeck.name}</h2>
-                  <KindBadge kind={activeDeck.kind} />
-                  <Button asChild size="icon" variant="outline" title="Edit set" aria-label="Edit set">
-                    <Link to="/deck/$deckId" params={{ deckId: activeDeck.id }}>
-                      <Pencil className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                  {(activeDeck.kind === "song" || activeDeck.kind === "scripture") && (
-                    <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={groupView}
-                        onChange={(e) => setGroupView(e.target.checked)}
-                      />
-                      Group by section
-                    </label>
-                  )}
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  Click any slide to send it live · ← → navigates
-                </span>
+              <div className="mb-4 flex items-center gap-3">
+                <h2 className="text-2xl">{activeDeck.name}</h2>
+                <KindBadge kind={activeDeck.kind} />
+                <Link
+                  to="/deck/$deckId"
+                  params={{ deckId: activeDeck.id }}
+                  className="pill flex h-8 w-8 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                  title="Edit set"
+                  aria-label="Edit set"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Link>
+                {(activeDeck.kind === "song" || activeDeck.kind === "scripture") && (
+                  <label className="mono flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={groupView}
+                      onChange={(e) => setGroupView(e.target.checked)}
+                    />
+                    Group
+                  </label>
+                )}
               </div>
               <SlideGridForPresenter
                 deck={activeDeck}
@@ -491,19 +440,23 @@ function Presenter() {
                 return (
                   <section key={id} id={`deck-section-${id}`}>
                     <div className="mb-2 flex items-center gap-3">
-                      <h3 className="text-base font-semibold">
-                        <span className="mr-1 text-muted-foreground">{i + 1}.</span>
+                      <h3 className="text-lg">
+                        <span className="mono mr-2 text-sm text-muted-foreground">{i + 1}.</span>
                         {d.name}
                       </h3>
                       <KindBadge kind={d.kind} />
-                      <Button asChild size="icon" variant="outline" title="Edit set" aria-label="Edit set">
-                        <Link to="/deck/$deckId" params={{ deckId: d.id }}>
-                          <Pencil className="h-4 w-4" />
-                        </Link>
-                      </Button>
+                      <Link
+                        to="/deck/$deckId"
+                        params={{ deckId: d.id }}
+                        className="pill flex h-7 w-7 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                        title="Edit set"
+                        aria-label="Edit set"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Link>
                       {id === live.deckId && (
-                        <span className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                          LIVE
+                        <span className="pill mono bg-[var(--brand-red)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--brand-white)]">
+                          Live
                         </span>
                       )}
                     </div>
@@ -523,52 +476,65 @@ function Presenter() {
           )}
         </main>
 
-        {/* Live preview */}
-        <aside className="max-h-[calc(100vh-49px)] overflow-auto border-l border-border bg-card/40 p-3 md:sticky md:top-[49px] md:self-start">
-          <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Live output
-          </h3>
-          <Card className="relative overflow-hidden p-0">
-            {liveDeck?.kind === "media" ? (
-              <DissolveSlide
-                slide={liveSlide}
-                variant="preview"
-                durationMs={liveDeck.dissolveMs ?? 0}
-              />
-            ) : (
-              <SlideView slide={liveSlide} variant="preview" />
-            )}
-            <div
-              className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black text-xs text-white/40"
-              style={{
-                opacity: live.blackout ? 1 : 0,
-                transition:
-                  (live.blackoutFadeMs ?? 0) > 0
-                    ? `opacity ${live.blackoutFadeMs}ms ease-in-out`
-                    : undefined,
-              }}
-            >
-              BLACKOUT
+        {/* Right rail */}
+        <aside className="max-h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground/10 bg-background p-4 md:sticky md:top-[73px] md:self-start">
+          <div>
+            <div className="mono mb-2 text-[10px] uppercase tracking-wider">Live output</div>
+            <div className="relative overflow-hidden rounded-2xl bg-[var(--brand-black)]">
+              {liveDeck?.kind === "media" ? (
+                <DissolveSlide slide={liveSlide} variant="preview" durationMs={liveDeck.dissolveMs ?? 0} />
+              ) : (
+                <SlideView slide={liveSlide} variant="preview" />
+              )}
+              <div
+                className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black text-xs text-white/40"
+                style={{
+                  opacity: live.blackout ? 1 : 0,
+                  transition:
+                    (live.blackoutFadeMs ?? 0) > 0
+                      ? `opacity ${live.blackoutFadeMs}ms ease-in-out`
+                      : undefined,
+                }}
+              >
+                BLACKOUT
+              </div>
             </div>
-          </Card>
-          {liveDeck && liveSlide && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              {liveDeck.name} ·{" "}
-              {liveDeck.slides.findIndex((s) => s.id === liveSlide.id) + 1} /{" "}
-              {liveDeck.slides.length}
-            </p>
-          )}
+            {liveDeck && liveSlide && (
+              <p className="mono mt-2 text-xs text-muted-foreground">
+                {liveDeck.name} · {liveDeck.slides.findIndex((s) => s.id === liveSlide.id) + 1} / {liveDeck.slides.length}
+              </p>
+            )}
+          </div>
 
-          <div className="mt-4 rounded-md border border-border bg-card p-3 text-xs text-muted-foreground">
-            <div className="mb-1 font-medium text-foreground">Shortcuts</div>
-            <div>→ / Space — next slide</div>
-            <div>← — previous slide</div>
-            <div>B — blackout · Esc — stop</div>
+          <div className="rounded-2xl border border-foreground p-4">
+            <div className="mono mb-3 text-[10px] uppercase tracking-wider">Media functions</div>
+            {liveDeck?.kind === "media" ? (
+              <MediaPlaybackControls deckId={liveDeck.id} />
+            ) : (
+              <p className="text-xs text-muted-foreground">Available when a Media set is live.</p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-foreground">
+            <button
+              onClick={() => setShortcutsOpen((v) => !v)}
+              className="flex w-full items-center justify-between px-4 py-3 text-sm"
+            >
+              <span>Shortcuts</span>
+              {shortcutsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {shortcutsOpen && (
+              <div className="mono space-y-1 border-t border-foreground/20 px-4 py-3 text-xs text-muted-foreground">
+                <div>→ / Space — next slide</div>
+                <div>← — previous slide</div>
+                <div>B — blackout</div>
+                <div>Esc — stop</div>
+              </div>
+            )}
           </div>
         </aside>
       </div>
 
-      {/* Drives auto-advance for media decks while presenting. */}
       <MediaAutoAdvance />
     </div>
   );
@@ -596,7 +562,6 @@ function MediaAutoAdvance() {
   return null;
 }
 
-
 function MediaPlaybackControls({ deckId }: { deckId: string }) {
   const deck = useLibrary((s) => s.decks[deckId]);
   const updateDeck = useLibrary((s) => s.updateDeck);
@@ -604,49 +569,52 @@ function MediaPlaybackControls({ deckId }: { deckId: string }) {
   const auto = deck.autoAdvanceMs ?? 0;
   const dissolve = deck.dissolveMs ?? 0;
   return (
-    <div className="flex items-center gap-2 rounded-md border border-border bg-card/60 px-2 py-1 text-xs">
-      <Timer className="h-3.5 w-3.5 text-muted-foreground" />
-      <label className="flex items-center gap-1">
-        Auto
+    <div className="space-y-3 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="mono text-[10px] uppercase tracking-wider">Auto advance</span>
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            value={auto ? (auto / 1000).toString() : ""}
+            placeholder="off"
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              updateDeck(deckId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
+            }}
+            className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
+          />
+          <span className="text-xs text-muted-foreground">s</span>
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="mono text-[10px] uppercase tracking-wider">Fade duration</span>
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min={0}
+            max={2}
+            step={0.1}
+            value={dissolve ? (dissolve / 1000).toString() : ""}
+            placeholder="0"
+            onChange={(e) => {
+              const n = Math.min(2, Math.max(0, Number(e.target.value) || 0));
+              updateDeck(deckId, { dissolveMs: Math.round(n * 1000) });
+            }}
+            className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
+          />
+          <span className="text-xs text-muted-foreground">s</span>
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="mono text-[10px] uppercase tracking-wider">Loop</span>
         <input
-          type="number"
-          min={0}
-          step={0.5}
-          value={auto ? (auto / 1000).toString() : ""}
-          placeholder="off"
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            updateDeck(deckId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
-          }}
-          className="h-6 w-14 rounded border border-input bg-background px-1"
+          type="checkbox"
+          checked={!!deck.loop}
+          onChange={(e) => updateDeck(deckId, { loop: e.target.checked })}
         />
-        s
-      </label>
-      <button
-        type="button"
-        onClick={() => updateDeck(deckId, { loop: !deck.loop })}
-        className={`flex items-center gap-1 rounded px-1.5 py-0.5 ${deck.loop ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-        title="Loop"
-      >
-        <Repeat className="h-3 w-3" /> Loop
-      </button>
-      <label className="flex items-center gap-1">
-        Fade
-        <input
-          type="number"
-          min={0}
-          max={2}
-          step={0.1}
-          value={dissolve ? (dissolve / 1000).toString() : ""}
-          placeholder="0"
-          onChange={(e) => {
-            const n = Math.min(2, Math.max(0, Number(e.target.value) || 0));
-            updateDeck(deckId, { dissolveMs: Math.round(n * 1000) });
-          }}
-          className="h-6 w-12 rounded border border-input bg-background px-1"
-        />
-        s
-      </label>
+      </div>
     </div>
   );
 }
@@ -662,54 +630,36 @@ function sectionOf(s: Slide): string | null {
   return null;
 }
 
-function PresenterThumb({
-  slide,
-  index,
-  deck,
-  live,
-}: {
-  slide: Slide;
-  index: number;
-  deck: Deck;
-  live: LiveApi;
-}) {
+function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: number; deck: Deck; live: LiveApi }) {
   const isLive = live.deckId === deck.id && live.slideId === slide.id;
   return (
     <button
       onClick={() => live.go(deck.id, slide.id)}
-      className={`group relative rounded-md border-2 text-left transition ${
+      className={`group relative overflow-hidden rounded-2xl border-2 text-left transition ${
         isLive
-          ? "border-red-500 ring-2 ring-red-500/30"
-          : "border-transparent hover:border-primary"
+          ? "border-[var(--brand-red)] ring-2 ring-[var(--brand-red)]/30"
+          : "border-transparent hover:border-foreground"
       }`}
     >
-      <SlideView slide={slide} variant="thumb" className="rounded" />
-      <div className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+      <SlideView slide={slide} variant="thumb" />
+      <div className="mono absolute left-1.5 top-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
         {index + 1}
       </div>
       {slide.reference && deck.kind === "scripture" && (
-        <div className="absolute bottom-1 left-1 right-1 truncate rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+        <div className="mono absolute bottom-1.5 left-1.5 right-1.5 truncate rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
           {slide.reference}
         </div>
       )}
       {isLive && (
-        <div className="absolute right-1 top-1 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-          LIVE
+        <div className="pill mono absolute right-1.5 top-1.5 bg-[var(--brand-red)] px-2 py-0.5 text-[10px] font-semibold text-white">
+          Live
         </div>
       )}
     </button>
   );
 }
 
-function SlideGridForPresenter({
-  deck,
-  live,
-  grouped,
-}: {
-  deck: Deck;
-  live: LiveApi;
-  grouped: boolean;
-}) {
+function SlideGridForPresenter({ deck, live, grouped }: { deck: Deck; live: LiveApi; grouped: boolean }) {
   if (!grouped) {
     return (
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
@@ -719,37 +669,23 @@ function SlideGridForPresenter({
       </div>
     );
   }
-
-  // Build groups carrying each slide's original index so live navigation stays correct.
   const groups: { label: string; items: { slide: Slide; index: number }[] }[] = [];
   let current = "Section";
   deck.slides.forEach((s, i) => {
     const sec = sectionOf(s);
     if (sec) current = sec;
     const last = groups[groups.length - 1];
-    if (!last || last.label !== current) {
-      groups.push({ label: current, items: [{ slide: s, index: i }] });
-    } else {
-      last.items.push({ slide: s, index: i });
-    }
+    if (!last || last.label !== current) groups.push({ label: current, items: [{ slide: s, index: i }] });
+    else last.items.push({ slide: s, index: i });
   });
-
   return (
     <div className="space-y-5">
       {groups.map((g, gi) => (
         <section key={`${g.label}-${gi}`}>
-          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {g.label}
-          </h3>
+          <h3 className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">{g.label}</h3>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
             {g.items.map(({ slide, index }) => (
-              <PresenterThumb
-                key={slide.id}
-                slide={slide}
-                index={index}
-                deck={deck}
-                live={live}
-              />
+              <PresenterThumb key={slide.id} slide={slide} index={index} deck={deck} live={live} />
             ))}
           </div>
         </section>
@@ -757,5 +693,3 @@ function SlideGridForPresenter({
     </div>
   );
 }
-
-
