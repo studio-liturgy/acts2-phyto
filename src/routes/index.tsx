@@ -61,6 +61,7 @@ function Library() {
 
   const [playlistFilter, setPlaylistFilter] = useState("");
   const [catalogueFilter, setCatalogueFilter] = useState("");
+  const [kindFilter, setKindFilter] = useState<"all" | "song" | "scripture" | "media">("all");
   const [sortMode, setSortMode] = useState<SortMode>("az");
 
   const newDeck = (kind: "song" | "scripture" | "media") => {
@@ -82,6 +83,7 @@ function Library() {
     let rows = order
       .map((id) => decks[id])
       .filter(Boolean)
+      .filter((d) => kindFilter === "all" || d.kind === kindFilter)
       .filter((d) => !q || d.name.toLowerCase().includes(q) || d.kind.includes(q));
     rows = [...rows].sort((a, b) => {
       switch (sortMode) {
@@ -96,7 +98,7 @@ function Library() {
       }
     });
     return rows;
-  }, [order, decks, catalogueFilter, sortMode]);
+  }, [order, decks, catalogueFilter, sortMode, kindFilter]);
 
   // ---- Playlists: filter -------------------------------------------------
   const filteredPlaylistIds = useMemo(() => {
@@ -189,9 +191,26 @@ function Library() {
         {/* Catalogue */}
         <section>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-              Catalogue
-            </h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+                Catalogue
+              </h2>
+              <div className="flex items-center gap-1">
+                {(["all", "song", "scripture", "media"] as const).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => setKindFilter(k)}
+                    className={`rounded-full px-2.5 py-0.5 text-xs capitalize transition ${
+                      kindFilter === k
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/70"
+                    }`}
+                  >
+                    {k === "all" ? "All" : k === "song" ? "Songs" : k === "scripture" ? "Scripture" : "Media"}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
