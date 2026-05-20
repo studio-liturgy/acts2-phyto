@@ -221,15 +221,27 @@ function DeckEditor() {
                 Edit slide
               </h3>
               <div>
-                <Label className="text-xs">Reference / label</Label>
+                <Label className="text-xs">Section (for grouping)</Label>
                 <Input
-                  value={selected.reference ?? ""}
+                  value={selected.section ?? ""}
                   onChange={(e) =>
-                    updateSlide(deck.id, selected.id, { reference: e.target.value })
+                    updateSlide(deck.id, selected.id, { section: e.target.value })
                   }
-                  placeholder="e.g. Chorus, John 3:16"
+                  placeholder="e.g. Chorus, Verse 1, Bridge"
                 />
               </div>
+              {deck.kind === "scripture" && (
+                <div>
+                  <Label className="text-xs">Reference (shown on slide)</Label>
+                  <Input
+                    value={selected.reference ?? ""}
+                    onChange={(e) =>
+                      updateSlide(deck.id, selected.id, { reference: e.target.value })
+                    }
+                    placeholder="e.g. John 3:16"
+                  />
+                </div>
+              )}
               <div>
                 <Label className="text-xs">Lines (one per line)</Label>
                 <Textarea
