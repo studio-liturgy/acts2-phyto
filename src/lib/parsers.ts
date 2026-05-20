@@ -69,7 +69,7 @@ export function scriptureToSlides(
     slides.push({
       id: uid(),
       kind: "scripture",
-      lines: chunk.map((v) => `${v.verse}. ${v.text}`),
+      lines: chunk.map((v) => v.text),
       reference: ref,
     });
   }
