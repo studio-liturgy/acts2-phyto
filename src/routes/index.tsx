@@ -421,19 +421,28 @@ function PlaylistCard({
                   dragIndex.current = i;
                   e.dataTransfer.effectAllowed = "move";
                 }}
+                onDragEnd={() => {
+                  dragIndex.current = null;
+                }}
                 onDragOver={(e) => {
+                  // Only intercept when this is an internal reorder.
                   if (dragIndex.current !== null) e.preventDefault();
                 }}
                 onDrop={(e) => {
-                  e.stopPropagation();
                   const from = dragIndex.current;
+                  // External deck drops have no internal index — let them bubble
+                  // up to the Card's drop handler so the deck gets added.
+                  if (from === null) return;
+                  e.stopPropagation();
+                  e.preventDefault();
                   dragIndex.current = null;
-                  if (from === null || from === i) return;
+                  if (from === i) return;
                   const ids = [...deckIds];
                   const [moved] = ids.splice(from, 1);
                   ids.splice(i, 0, moved);
                   onReorder(ids);
                 }}
+
                 className="flex items-center gap-2 rounded border border-border bg-card/60 px-2 py-1.5 text-sm"
               >
                 <GripVertical className="h-3.5 w-3.5 cursor-grab text-muted-foreground" />
