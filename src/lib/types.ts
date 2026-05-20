@@ -23,6 +23,14 @@ export interface Deck {
   updatedAt: number;
 }
 
+export interface Playlist {
+  id: string;
+  name: string;
+  deckIds: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface LiveState {
   deckId: string | null;
   slideId: string | null;
