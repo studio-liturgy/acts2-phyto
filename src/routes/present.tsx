@@ -17,8 +17,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Deck, Slide } from "@/lib/types";
-import type { LiveStore } from "@/lib/store";
 import { z } from "zod";
+
+type LiveApi = ReturnType<typeof useLive.getState>;
 
 
 const searchSchema = z.object({
