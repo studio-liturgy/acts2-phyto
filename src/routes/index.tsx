@@ -83,6 +83,7 @@ function Library() {
     let rows = order
       .map((id) => decks[id])
       .filter(Boolean)
+      .filter((d) => kindFilter === "all" || d.kind === kindFilter)
       .filter((d) => !q || d.name.toLowerCase().includes(q) || d.kind.includes(q));
     rows = [...rows].sort((a, b) => {
       switch (sortMode) {
@@ -97,7 +98,7 @@ function Library() {
       }
     });
     return rows;
-  }, [order, decks, catalogueFilter, sortMode]);
+  }, [order, decks, catalogueFilter, sortMode, kindFilter]);
 
   // ---- Playlists: filter -------------------------------------------------
   const filteredPlaylistIds = useMemo(() => {
