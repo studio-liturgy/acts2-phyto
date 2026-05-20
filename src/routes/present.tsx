@@ -121,6 +121,19 @@ function Presenter() {
       <header className="sticky top-0 z-30 border-b border-border bg-background">
         <div className="flex items-center justify-between gap-4 px-4 py-2">
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSidebarOpen((v) => !v)}
+              title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+            >
+              {sidebarOpen ? (
+                <PanelLeftClose className="mr-1 h-4 w-4" />
+              ) : (
+                <PanelLeftOpen className="mr-1 h-4 w-4" />
+              )}
+              {sidebarOpen ? "Hide" : "Show"} sidebar
+            </Button>
             <Button asChild size="sm" variant="ghost">
               <Link to="/">
                 <ArrowLeft className="mr-1 h-4 w-4" /> Create
