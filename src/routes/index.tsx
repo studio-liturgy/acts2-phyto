@@ -136,8 +136,8 @@ function Library() {
         {/* Gatherings (Service Playlists) */}
         <section className="mb-10">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-muted-foreground">
-              <ListMusic className="h-4 w-4" /> Gatherings
+            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              Gatherings
             </h2>
             <div className="flex gap-2">
               <div className="relative">
@@ -150,7 +150,7 @@ function Library() {
                 />
               </div>
               <Button size="sm" onClick={createNewPlaylist}>
-                <Plus className="mr-1 h-3 w-3" /> New playlist
+                <Plus className="mr-1 h-3 w-3" /> New gathering
               </Button>
             </div>
           </div>
