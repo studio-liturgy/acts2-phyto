@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useLibrary, useLive } from "@/lib/store";
-import { SlideView } from "@/components/SlideView";
+import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,14 +8,16 @@ import {
   ArrowLeft,
   Monitor,
   Square,
-  EyeOff,
   X,
   Search,
   ListMusic,
   Layers,
+  Repeat,
+  Timer,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
+
 
 const searchSchema = z.object({
   deck: z.string().optional(),
