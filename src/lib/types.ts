@@ -43,4 +43,6 @@ export interface LiveState {
   slideId: string | null;
   blackout: boolean;
   clear: boolean; // logo / clear screen
+  /** Cross-fade duration for blackout transitions (ms). 0 = instant. */
+  blackoutFadeMs?: number;
 }
