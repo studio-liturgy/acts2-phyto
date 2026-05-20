@@ -114,9 +114,9 @@ function DeckEditor() {
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
           <div className="flex items-center gap-3">
-            <Button asChild size="sm" variant="ghost">
+            <Button asChild size="icon" variant="ghost" title="Back" aria-label="Back">
               <Link to="/">
-                <ArrowLeft className="mr-1 h-4 w-4" /> Create
+                <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
             <Input
