@@ -739,13 +739,13 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
           <div className="mono mb-1 text-[10px] uppercase tracking-wider">Reference</div>
           <PillInput value={manualRef} onChange={setManualRef} placeholder="e.g. John 3:16-17" />
           <div className="mono mb-1 mt-3 text-[10px] uppercase tracking-wider">Verses</div>
-          <div className="rounded-2xl border border-foreground p-3">
+          <div className="overflow-hidden rounded-2xl border border-foreground">
             <Textarea
               rows={5}
               value={manualText}
               onChange={(e) => setManualText(e.target.value)}
               placeholder={`For God so loved the world…`}
-              className="mono border-0 bg-transparent p-0 text-xs italic shadow-none focus-visible:ring-0"
+              className="mono block w-full resize-none border-0 bg-transparent px-4 py-3 text-xs italic shadow-none focus-visible:ring-0"
             />
           </div>
           <button
