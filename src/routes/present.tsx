@@ -459,7 +459,7 @@ function PresenterThumb({
   slide: Slide;
   index: number;
   deck: Deck;
-  live: LiveStore;
+  live: LiveApi;
 }) {
   const isLive = live.deckId === deck.id && live.slideId === slide.id;
   return (
@@ -495,7 +495,7 @@ function SlideGridForPresenter({
   grouped,
 }: {
   deck: Deck;
-  live: LiveStore;
+  live: LiveApi;
   grouped: boolean;
 }) {
   if (!grouped) {
