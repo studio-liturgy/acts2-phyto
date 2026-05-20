@@ -624,9 +624,9 @@ function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: num
   return (
     <button
       onClick={() => live.go(deck.id, slide.id)}
-      className={`group relative overflow-hidden rounded-2xl border-2 text-left transition ${
+      className={`group relative overflow-hidden rounded-lg border-2 text-left transition ${
         isLive
-          ? "border-[var(--brand-red)] ring-2 ring-[var(--brand-red)]/30"
+          ? "border-[var(--brand-red)]"
           : "border-transparent hover:border-foreground"
       }`}
     >
@@ -640,9 +640,7 @@ function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: num
         </div>
       )}
       {isLive && (
-        <div className="pill mono absolute right-1.5 top-1.5 bg-[var(--brand-red)] px-2 py-0.5 text-[10px] font-semibold text-white">
-          Live
-        </div>
+        <div className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[var(--brand-red)]" />
       )}
     </button>
   );
