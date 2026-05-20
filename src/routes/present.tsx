@@ -499,7 +499,7 @@ function Presenter() {
                 <div>→ / Space — next slide</div>
                 <div>← — previous slide</div>
                 <div>Esc — stop (fade to black)</div>
-                <div>Esc — stop</div>
+                
               </div>
             )}
           </div>
