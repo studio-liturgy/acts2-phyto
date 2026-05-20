@@ -446,9 +446,7 @@ function Presenter() {
                         <Pencil className="h-3 w-3" />
                       </Link>
                       {id === live.deckId && (
-                        <span className="pill mono bg-[var(--brand-red)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--brand-white)]">
-                          Live
-                        </span>
+                        <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" title="Live" />
                       )}
                     </div>
                     {d.slides.length === 0 ? (
