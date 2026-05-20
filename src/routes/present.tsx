@@ -496,9 +496,9 @@ function Presenter() {
                         {d.name}
                       </h3>
                       <KindBadge kind={d.kind} />
-                      <Button asChild size="sm" variant="outline">
+                      <Button asChild size="icon" variant="outline" title="Edit set" aria-label="Edit set">
                         <Link to="/deck/$deckId" params={{ deckId: d.id }}>
-                          Edit set
+                          <Pencil className="h-4 w-4" />
                         </Link>
                       </Button>
                       {id === live.deckId && (
