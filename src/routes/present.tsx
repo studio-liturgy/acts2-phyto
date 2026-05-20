@@ -14,6 +14,8 @@ import {
   Layers,
   Repeat,
   Timer,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Deck, Slide } from "@/lib/types";
@@ -52,6 +54,8 @@ function Presenter() {
   );
   const [query, setQuery] = useState("");
   const [groupView, setGroupView] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
   
 
   // Only follow URL changes (not internal clicks).
@@ -117,6 +121,19 @@ function Presenter() {
       <header className="sticky top-0 z-30 border-b border-border bg-background">
         <div className="flex items-center justify-between gap-4 px-4 py-2">
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSidebarOpen((v) => !v)}
+              title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+            >
+              {sidebarOpen ? (
+                <PanelLeftClose className="mr-1 h-4 w-4" />
+              ) : (
+                <PanelLeftOpen className="mr-1 h-4 w-4" />
+              )}
+              {sidebarOpen ? "Hide" : "Show"} sidebar
+            </Button>
             <Button asChild size="sm" variant="ghost">
               <Link to="/">
                 <ArrowLeft className="mr-1 h-4 w-4" /> Create
@@ -155,8 +172,15 @@ function Presenter() {
         </div>
       </header>
 
-      <div className="grid flex-1 gap-0 md:grid-cols-[260px_1fr_340px]">
+      <div
+        className={`grid flex-1 gap-0 ${
+          sidebarOpen
+            ? "md:grid-cols-[260px_1fr_340px]"
+            : "md:grid-cols-[1fr_340px]"
+        }`}
+      >
         {/* Sidebar */}
+        {sidebarOpen && (
         <aside className="flex max-h-[calc(100vh-49px)] flex-col border-r border-border bg-card/40 md:sticky md:top-[49px] md:self-start">
           <div className="border-b border-border p-3">
             <div className="mb-2 flex items-center justify-between">
@@ -260,6 +284,7 @@ function Presenter() {
             </div>
           </div>
         </aside>
+        )}
 
         {/* Slide grid */}
         <main className="overflow-auto p-4">
