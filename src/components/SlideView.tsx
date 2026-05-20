@@ -27,9 +27,10 @@ export function SlideView({ slide, variant = "preview", className = "" }: Props)
     ? { backgroundImage: `url(${slide.imageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
     : undefined;
 
+  const aspect = variant === "stage" ? "" : "aspect-video";
   return (
     <div
-      className={`relative aspect-video w-full overflow-hidden bg-black text-white ${className}`}
+      className={`relative ${aspect} w-full overflow-hidden bg-black text-white ${className}`}
       style={bg}
     >
       {slide?.imageUrl && (slide.lines?.length || slide.title) ? (
