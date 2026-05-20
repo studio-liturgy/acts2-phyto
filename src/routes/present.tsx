@@ -48,6 +48,7 @@ function Presenter() {
     deckFromUrl ?? deckList[0] ?? null
   );
   const [query, setQuery] = useState("");
+  const [groupView, setGroupView] = useState(true);
   
 
   // Only follow URL changes (not internal clicks).
