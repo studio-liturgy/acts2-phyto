@@ -1,21 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary } from "@/lib/store";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Plus,
   Music,
   BookOpen,
   Image as ImageIcon,
-  Trash2,
-  Monitor,
-  ListMusic,
   X,
   GripVertical,
   ChevronDown,
   Search,
-  ArrowUpDown,
+  ArrowUpRight,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -24,14 +21,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMemo, useRef, useState } from "react";
+import type { DeckKind } from "@/lib/types";
+import { Footer } from "@/components/Footer";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Create — Live presentation" },
+      { title: "phyto — Create" },
       {
         name: "description",
-        content: "Project lyrics, scripture, and images. Jump between slides live.",
+        content: "Build sets, group them into gatherings, and present them live.",
       },
     ],
   }),
@@ -41,6 +40,25 @@ export const Route = createFileRoute("/")({
 const DECK_DRAG_TYPE = "application/x-stage-deck-id";
 
 type SortMode = "az" | "za" | "newest" | "oldest";
+type KindFilter = "all" | DeckKind;
+
+function kindBg(kind: DeckKind | string): string {
+  if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
+  if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
+  if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
+  return "bg-muted text-foreground";
+}
+
+function kindOutline(kind: KindFilter, active: boolean): string {
+  const colors: Record<KindFilter, string> = {
+    all: "border-foreground text-foreground",
+    song: "border-[var(--brand-blue)] text-[var(--brand-blue)]",
+    scripture: "border-[var(--brand-green)] text-[var(--brand-green)]",
+    media: "border-[var(--brand-orange)] text-[var(--brand-orange)]",
+  };
+  const ring = active ? "ring-2 ring-offset-2 ring-offset-background" : "";
+  return `${colors[kind]} ${ring}`;
+}
 
 function Library() {
   const navigate = useNavigate();
@@ -60,11 +78,13 @@ function Library() {
   } = useLibrary();
 
   const [playlistFilter, setPlaylistFilter] = useState("");
+  const [showPlaylistSearch, setShowPlaylistSearch] = useState(false);
   const [catalogueFilter, setCatalogueFilter] = useState("");
-  const [kindFilter, setKindFilter] = useState<"all" | "song" | "scripture" | "media">("all");
+  const [showCatalogueSearch, setShowCatalogueSearch] = useState(false);
+  const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("az");
 
-  const newDeck = (kind: "song" | "scripture" | "media") => {
+  const newDeck = (kind: DeckKind) => {
     const id = createDeck({
       name: kind === "song" ? "New Song" : kind === "scripture" ? "New Scripture" : "New Media",
       kind,
@@ -74,98 +94,126 @@ function Library() {
   };
 
   const createNewPlaylist = () => {
-    createPlaylist("New Gathering");
+    const today = new Date().toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+    createPlaylist(today);
   };
 
-  // ---- Catalogue: filter + sort ------------------------------------------
   const catalogueRows = useMemo(() => {
     const q = catalogueFilter.trim().toLowerCase();
     let rows = order
       .map((id) => decks[id])
       .filter(Boolean)
       .filter((d) => kindFilter === "all" || d.kind === kindFilter)
-      .filter((d) => !q || d.name.toLowerCase().includes(q) || d.kind.includes(q));
+      .filter((d) => !q || d.name.toLowerCase().includes(q));
     rows = [...rows].sort((a, b) => {
       switch (sortMode) {
-        case "az":
-          return a.name.localeCompare(b.name);
-        case "za":
-          return b.name.localeCompare(a.name);
-        case "newest":
-          return b.createdAt - a.createdAt;
-        case "oldest":
-          return a.createdAt - b.createdAt;
+        case "az": return a.name.localeCompare(b.name);
+        case "za": return b.name.localeCompare(a.name);
+        case "newest": return b.createdAt - a.createdAt;
+        case "oldest": return a.createdAt - b.createdAt;
       }
     });
     return rows;
   }, [order, decks, catalogueFilter, sortMode, kindFilter]);
 
-  // ---- Playlists: filter -------------------------------------------------
   const filteredPlaylistIds = useMemo(() => {
     const q = playlistFilter.trim().toLowerCase();
     if (!q) return playlistOrder;
-    return playlistOrder.filter((pid) => {
-      const p = playlists[pid];
-      if (!p) return false;
-      return p.name.toLowerCase().includes(q);
-    });
+    return playlistOrder.filter((pid) => playlists[pid]?.name.toLowerCase().includes(q));
   }, [playlistOrder, playlists, playlistFilter]);
 
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-end gap-2 px-6 py-4">
-          <Button asChild variant="outline">
-            <a href="/output" target="_blank" rel="noopener noreferrer">
-              <Monitor className="mr-2 h-4 w-4" /> Open output window
-            </a>
-          </Button>
+  const sortLabel: Record<SortMode, string> = {
+    az: "A → Z",
+    za: "Z → A",
+    newest: "Newest first",
+    oldest: "Oldest first",
+  };
 
-          <Button asChild>
-            <Link to="/present">Present</Link>
-          </Button>
+  return (
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="px-6 pt-6 md:px-12 md:pt-10">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="pill bg-foreground px-8 py-3 text-2xl text-background transition hover:opacity-90">
+                Create
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => newDeck("song")}>
+                <Music className="mr-2 h-4 w-4" /> New Song
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => newDeck("scripture")}>
+                <BookOpen className="mr-2 h-4 w-4" /> New Scripture
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => newDeck("media")}>
+                <ImageIcon className="mr-2 h-4 w-4" /> New Media
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Link
+            to="/present"
+            className="pill flex items-center gap-3 border border-foreground px-8 py-3 text-2xl transition hover:bg-foreground hover:text-background"
+          >
+            Present <ArrowUpRight className="h-5 w-5" />
+          </Link>
+
+          <p className="mono ml-auto hidden text-sm italic text-muted-foreground md:block">
+            Build sets, group them into gatherings, and present them live!
+          </p>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        <section className="mb-8">
-          <h1 className="mb-1 text-2xl font-semibold">Create</h1>
-          <p className="text-sm text-muted-foreground">
-            Build sets, group them into gatherings, and present live.
-          </p>
-        </section>
-
-        {/* Gatherings (Service Playlists) */}
-        <section className="mb-10">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-              Gatherings
-            </h2>
-            <div className="flex gap-2">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  value={playlistFilter}
-                  onChange={(e) => setPlaylistFilter(e.target.value)}
-                  placeholder="Search gatherings"
-                  className="h-8 w-48 pl-7"
-                />
-              </div>
-              <Button size="sm" onClick={createNewPlaylist}>
-                <Plus className="mr-1 h-3 w-3" /> New gathering
-              </Button>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 md:px-12">
+        {/* Gatherings */}
+        <section className="mb-16">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <h2 className="text-5xl md:text-6xl">Gatherings</h2>
+            <div className="flex items-center gap-2">
+              {showPlaylistSearch ? (
+                <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
+                  <Search className="h-4 w-4" />
+                  <input
+                    autoFocus
+                    value={playlistFilter}
+                    onChange={(e) => setPlaylistFilter(e.target.value)}
+                    onBlur={() => !playlistFilter && setShowPlaylistSearch(false)}
+                    placeholder="Search"
+                    className="w-40 bg-transparent text-sm outline-none"
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowPlaylistSearch(true)}
+                  className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2 text-sm transition hover:bg-foreground hover:text-background"
+                >
+                  <Search className="h-4 w-4" /> Search
+                </button>
+              )}
+              <button
+                onClick={createNewPlaylist}
+                className="pill flex items-center gap-2 bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90"
+              >
+                <Plus className="h-4 w-4" /> New
+              </button>
             </div>
           </div>
+
           {playlistOrder.length === 0 ? (
-            <Card className="p-6 text-center text-sm text-muted-foreground">
-              No gatherings yet. Create one to start planning a service.
-            </Card>
+            <div className="pill border border-foreground p-10 text-center text-sm text-muted-foreground">
+              No gatherings yet. Click <b>New</b> to plan a service.
+            </div>
           ) : filteredPlaylistIds.length === 0 ? (
-            <Card className="p-6 text-center text-sm text-muted-foreground">
-              No gatherings match "{playlistFilter}".
-            </Card>
+            <div className="pill border border-foreground p-10 text-center text-sm text-muted-foreground">
+              No gatherings match “{playlistFilter}”.
+            </div>
           ) : (
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="grid gap-5 lg:grid-cols-2">
               {filteredPlaylistIds.map((pid) => {
                 const p = playlists[pid];
                 if (!p) return null;
@@ -179,7 +227,7 @@ function Library() {
                     onRename={(name) => renamePlaylist(pid, name)}
                     onDelete={() => deletePlaylist(pid)}
                     onAdd={(deckId) => addDeckToPlaylist(pid, deckId)}
-                    onRemoveAt={(index) => removeDeckFromPlaylist(pid, index)}
+                    onRemoveAt={(i) => removeDeckFromPlaylist(pid, i)}
                     onReorder={(ids) => reorderPlaylistDecks(pid, ids)}
                   />
                 );
@@ -190,54 +238,64 @@ function Library() {
 
         {/* Catalogue */}
         <section>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-                Catalogue
-              </h2>
-              <div className="flex items-center gap-1">
-                {(["all", "song", "scripture", "media"] as const).map((k) => (
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-4">
+              <h2 className="text-5xl md:text-6xl">Catalogue</h2>
+              <div className="flex items-center gap-2">
+                {(["all", "song", "scripture", "media"] as KindFilter[]).map((k) => (
                   <button
                     key={k}
                     onClick={() => setKindFilter(k)}
-                    className={`rounded-full px-2.5 py-0.5 text-xs capitalize transition ${
+                    className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindOutline(
+                      k,
                       kindFilter === k
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/70"
-                    }`}
+                    )} ${kindFilter === k ? "bg-background" : "opacity-80 hover:opacity-100"}`}
                   >
-                    {k === "all" ? "All" : k === "song" ? "Songs" : k === "scripture" ? "Scripture" : "Media"}
+                    {k === "all" ? "All" : k === "song" ? "Songs" : k === "scripture" ? "Scriptures" : "Media"}
                   </button>
                 ))}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  value={catalogueFilter}
-                  onChange={(e) => setCatalogueFilter(e.target.value)}
-                  placeholder="Filter sets"
-                  className="h-8 w-48 pl-7"
-                />
-              </div>
-              <select
-                value={sortMode}
-                onChange={(e) => setSortMode(e.target.value as SortMode)}
-                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-                aria-label="Sort"
-              >
-                <option value="az">A → Z</option>
-                <option value="za">Z → A</option>
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-              </select>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="mr-1 h-3 w-3" /> Build
-                    <ChevronDown className="ml-1 h-3 w-3" />
-                  </Button>
+                  <button className="mono flex items-center gap-1 px-2 py-2 text-sm">
+                    {sortLabel[sortMode]} <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {(Object.keys(sortLabel) as SortMode[]).map((m) => (
+                    <DropdownMenuItem key={m} onClick={() => setSortMode(m)}>
+                      {sortLabel[m]}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {showCatalogueSearch ? (
+                <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
+                  <Search className="h-4 w-4" />
+                  <input
+                    autoFocus
+                    value={catalogueFilter}
+                    onChange={(e) => setCatalogueFilter(e.target.value)}
+                    onBlur={() => !catalogueFilter && setShowCatalogueSearch(false)}
+                    placeholder="Search"
+                    className="w-40 bg-transparent text-sm outline-none"
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowCatalogueSearch(true)}
+                  className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2 text-sm transition hover:bg-foreground hover:text-background"
+                >
+                  <Search className="h-4 w-4" /> Search
+                </button>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="pill flex items-center gap-2 bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90">
+                    <Plus className="h-4 w-4" /> New
+                  </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => newDeck("song")}>
@@ -253,55 +311,61 @@ function Library() {
               </DropdownMenu>
             </div>
           </div>
+
           {catalogueRows.length === 0 ? (
-            <Card className="p-10 text-center text-sm text-muted-foreground">
-              <ArrowUpDown className="mx-auto mb-2 h-5 w-5 opacity-60" />
+            <div className="pill border border-foreground p-10 text-center text-sm text-muted-foreground">
               {order.length === 0
-                ? "Nothing in the catalogue yet. Click Build to add your first set."
-                : `Nothing matches "${catalogueFilter}".`}
-            </Card>
+                ? "Nothing in the catalogue yet. Click New to add your first set."
+                : `Nothing matches “${catalogueFilter}”.`}
+            </div>
           ) : (
-            <Card className="divide-y divide-border p-0">
-              {catalogueRows.map((d) => (
-                <div
-                  key={d.id}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData(DECK_DRAG_TYPE, d.id);
-                    e.dataTransfer.setData("text/plain", d.id);
-                    e.dataTransfer.effectAllowed = "copy";
-                  }}
-                  className="group flex items-center gap-3 px-4 py-3"
-                >
-                  <GripVertical className="h-4 w-4 cursor-grab text-muted-foreground" />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{d.name}</div>
-                    <div className="text-xs capitalize text-muted-foreground">
-                      {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
-                    </div>
-                  </div>
-                  <Button asChild size="sm" variant="outline">
-                    <Link to="/deck/$deckId" params={{ deckId: d.id }}>
-                      Edit
-                    </Link>
-                  </Button>
-                  <button
-                    onClick={() => deleteDeck(d.id)}
-                    className="rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-muted hover:text-destructive group-hover:opacity-100"
-                    aria-label="Delete set"
-                    title="Delete set"
+            <div className="rounded-3xl border border-foreground p-4">
+              <ul className="space-y-3">
+                {catalogueRows.map((d) => (
+                  <li
+                    key={d.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(DECK_DRAG_TYPE, d.id);
+                      e.dataTransfer.setData("text/plain", d.id);
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    className={`pill group flex items-center gap-4 px-5 py-4 ${kindBg(d.kind)}`}
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </Card>
+                    <GripVertical className="h-4 w-4 cursor-grab opacity-80" />
+                    <span className="flex-1 truncate text-base">{d.name}</span>
+                    <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
+                      {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
+                    </span>
+                    <Link
+                      to="/deck/$deckId"
+                      params={{ deckId: d.id }}
+                      className="rounded-full p-1.5 transition hover:bg-white/20"
+                      title="Edit set"
+                      aria-label="Edit set"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Link>
+                    <button
+                      onClick={() => deleteDeck(d.id)}
+                      className="rounded-full p-1.5 opacity-0 transition hover:bg-white/20 group-hover:opacity-100"
+                      aria-label="Delete set"
+                      title="Delete set"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
-          <p className="mt-2 text-xs text-muted-foreground">
-            Tip: drag a set up into a gathering, or use its search box to add it.
+          <p className="mono mt-3 text-xs italic text-muted-foreground">
+            Tip: Drag a set into a gathering.
           </p>
         </section>
       </main>
+
+      <Footer />
     </div>
   );
 }
@@ -320,18 +384,18 @@ function PlaylistCard({
   playlistId: string;
   name: string;
   deckIds: string[];
-  allDecks: { id: string; name: string; kind: string }[];
+  allDecks: { id: string; name: string; kind: DeckKind }[];
   onRename: (name: string) => void;
   onDelete: () => void;
   onAdd: (deckId: string) => void;
   onRemoveAt: (index: number) => void;
   onReorder: (ids: string[]) => void;
 }) {
-  // Drag state: either an internal reorder (index) or an external deck (deckId).
   const dragIndex = useRef<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
   const [addQuery, setAddQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
+  const [editingName, setEditingName] = useState(false);
 
   const nameLookup = useMemo(
     () => Object.fromEntries(allDecks.map((d) => [d.id, d])),
@@ -340,16 +404,12 @@ function PlaylistCard({
 
   const matches = useMemo(() => {
     const q = addQuery.trim().toLowerCase();
-    // Allow re-adding sets that are already in this gathering (duplicates allowed).
-    return allDecks
-      .filter((d) => !q || d.name.toLowerCase().includes(q))
-      .slice(0, 8);
+    return allDecks.filter((d) => !q || d.name.toLowerCase().includes(q)).slice(0, 8);
   }, [allDecks, addQuery]);
 
   return (
-    <Card
+    <div
       onDragOver={(e) => {
-        // Always allow drop on the card so external deck drags land reliably.
         e.preventDefault();
         e.dataTransfer.dropEffect = "copy";
         setDropActive(true);
@@ -358,7 +418,6 @@ function PlaylistCard({
       onDrop={(e) => {
         e.preventDefault();
         setDropActive(false);
-        // Internal reorder drops are handled on the <li>; ignore them here.
         if (dragIndex.current !== null) {
           dragIndex.current = null;
           return;
@@ -367,22 +426,43 @@ function PlaylistCard({
           e.dataTransfer.getData(DECK_DRAG_TYPE) || e.dataTransfer.getData("text/plain");
         if (incoming && allDecks.some((d) => d.id === incoming)) onAdd(incoming);
       }}
-      className={`p-4 transition ${dropActive ? "ring-2 ring-primary" : ""}`}
+      className={`rounded-3xl border border-foreground bg-background p-5 transition ${
+        dropActive ? "ring-2 ring-foreground ring-offset-2 ring-offset-background" : ""
+      }`}
     >
-      <div className="mb-3 flex items-center gap-2">
-        <Input
-          value={name}
-          onChange={(e) => onRename(e.target.value)}
-          className="h-8 flex-1 font-medium"
-        />
-        <Button asChild size="sm">
-          <Link to="/present" search={{ playlist: playlistId }}>
-            Present
-          </Link>
-        </Button>
+      <div className="mb-4 flex items-center gap-2">
+        {editingName ? (
+          <Input
+            autoFocus
+            value={name}
+            onChange={(e) => onRename(e.target.value)}
+            onBlur={() => setEditingName(false)}
+            onKeyDown={(e) => e.key === "Enter" && setEditingName(false)}
+            className="h-9 flex-1 border-foreground text-lg"
+          />
+        ) : (
+          <h3 className="flex-1 truncate text-2xl">{name}</h3>
+        )}
+        <button
+          onClick={() => setEditingName((v) => !v)}
+          className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+          title="Rename"
+          aria-label="Rename"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+        <Link
+          to="/present"
+          search={{ playlist: playlistId }}
+          className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+          title="Present"
+          aria-label="Present"
+        >
+          <ArrowUpRight className="h-4 w-4" />
+        </Link>
         <button
           onClick={onDelete}
-          className="rounded p-1 text-muted-foreground transition hover:bg-muted hover:text-destructive"
+          className="pill flex h-10 w-10 items-center justify-center text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
           aria-label="Delete gathering"
           title="Delete gathering"
         >
@@ -390,46 +470,12 @@ function PlaylistCard({
         </button>
       </div>
 
-      {/* Search-to-add */}
-      <div className="relative mb-2">
-        <Search className="pointer-events-none absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-        <Input
-          value={addQuery}
-          onChange={(e) => {
-            setAddQuery(e.target.value);
-            setShowResults(true);
-          }}
-          onFocus={() => setShowResults(true)}
-          onBlur={() => setTimeout(() => setShowResults(false), 150)}
-          placeholder="Add a set — search to find one"
-          className="h-8 pl-7"
-        />
-        {showResults && matches.length > 0 && (
-          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover shadow-md">
-            {matches.map((m) => (
-              <button
-                key={m.id}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onAdd(m.id);
-                  setAddQuery("");
-                }}
-                className="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-sm hover:bg-muted"
-              >
-                <span className="truncate">{m.name}</span>
-                <span className="text-[10px] uppercase text-muted-foreground">{m.kind}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
       {deckIds.length === 0 ? (
-        <p className="rounded border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
-          Search above (or drag from the catalogue) to add sets.
+        <p className="pill mb-3 border border-dashed border-muted-foreground p-3 text-center text-xs text-muted-foreground">
+          Drag a set in, or search below to add.
         </p>
       ) : (
-        <ol className="space-y-1">
+        <ol className="mb-3 space-y-2">
           {deckIds.map((id, i) => {
             const d = nameLookup[id];
             return (
@@ -444,13 +490,10 @@ function PlaylistCard({
                   dragIndex.current = null;
                 }}
                 onDragOver={(e) => {
-                  // Only intercept when this is an internal reorder.
                   if (dragIndex.current !== null) e.preventDefault();
                 }}
                 onDrop={(e) => {
                   const from = dragIndex.current;
-                  // External deck drops have no internal index — let them bubble
-                  // up to the Card's drop handler so the deck gets added.
                   if (from === null) return;
                   e.stopPropagation();
                   e.preventDefault();
@@ -461,16 +504,16 @@ function PlaylistCard({
                   ids.splice(i, 0, moved);
                   onReorder(ids);
                 }}
-
-                className="flex items-center gap-2 rounded border border-border bg-card/60 px-2 py-1.5 text-sm"
+                className={`pill flex items-center gap-3 px-4 py-2.5 text-sm ${kindBg(d?.kind ?? "mixed")}`}
               >
-                <GripVertical className="h-3.5 w-3.5 cursor-grab text-muted-foreground" />
-                <span className="w-5 text-xs text-muted-foreground">{i + 1}.</span>
+                <GripVertical className="h-3.5 w-3.5 cursor-grab opacity-80" />
                 <span className="flex-1 truncate">{d?.name ?? "(missing)"}</span>
-                <span className="text-[10px] uppercase text-muted-foreground">{d?.kind}</span>
+                <span className="mono text-[10px] uppercase tracking-wider opacity-90">
+                  {d?.kind}
+                </span>
                 <button
                   onClick={() => onRemoveAt(i)}
-                  className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-destructive"
+                  className="rounded-full p-0.5 transition hover:bg-white/25"
                   aria-label="Remove from gathering"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -480,6 +523,44 @@ function PlaylistCard({
           })}
         </ol>
       )}
-    </Card>
+
+      {/* Search-to-add */}
+      <div className="relative">
+        <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
+          <Search className="h-4 w-4" />
+          <input
+            value={addQuery}
+            onChange={(e) => {
+              setAddQuery(e.target.value);
+              setShowResults(true);
+            }}
+            onFocus={() => setShowResults(true)}
+            onBlur={() => setTimeout(() => setShowResults(false), 150)}
+            placeholder="Search for a set and add more!"
+            className="mono w-full bg-transparent text-sm italic outline-none placeholder:text-muted-foreground"
+          />
+        </div>
+        {showResults && matches.length > 0 && (
+          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-foreground bg-popover shadow-md">
+            {matches.map((m) => (
+              <button
+                key={m.id}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onAdd(m.id);
+                  setAddQuery("");
+                }}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+              >
+                <span className="truncate">{m.name}</span>
+                <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {m.kind}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
