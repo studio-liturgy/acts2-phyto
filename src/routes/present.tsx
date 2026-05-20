@@ -443,8 +443,10 @@ function Presenter() {
                 to="/deck/$deckId"
                 params={{ deckId: activeDeck.id }}
                 className="ml-1 underline"
+                title="Edit set"
+                aria-label="Edit set"
               >
-                Edit
+                <Pencil className="inline h-3.5 w-3.5" />
               </Link>
             </div>
           ) : (
@@ -452,9 +454,10 @@ function Presenter() {
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-semibold">{activeDeck.name}</h2>
-                  <Button asChild size="sm" variant="outline">
+                  <KindBadge kind={activeDeck.kind} />
+                  <Button asChild size="icon" variant="outline" title="Edit set" aria-label="Edit set">
                     <Link to="/deck/$deckId" params={{ deckId: activeDeck.id }}>
-                      Edit set
+                      <Pencil className="h-4 w-4" />
                     </Link>
                   </Button>
                   {(activeDeck.kind === "song" || activeDeck.kind === "scripture") && (
