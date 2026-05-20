@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Deck, Slide, LiveState } from "./types";
+import type { Deck, Slide, LiveState, Playlist } from "./types";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -9,6 +9,8 @@ function uid() {
 interface LibraryState {
   decks: Record<string, Deck>;
   order: string[];
+  playlists: Record<string, Playlist>;
+  playlistOrder: string[];
   createDeck: (deck: Omit<Deck, "id" | "createdAt" | "updatedAt">) => string;
   updateDeck: (id: string, patch: Partial<Deck>) => void;
   deleteDeck: (id: string) => void;
@@ -16,6 +18,12 @@ interface LibraryState {
   updateSlide: (deckId: string, slideId: string, patch: Partial<Slide>) => void;
   removeSlide: (deckId: string, slideId: string) => void;
   reorderSlides: (deckId: string, ids: string[]) => void;
+  createPlaylist: (name: string) => string;
+  renamePlaylist: (id: string, name: string) => void;
+  deletePlaylist: (id: string) => void;
+  addDeckToPlaylist: (playlistId: string, deckId: string) => void;
+  removeDeckFromPlaylist: (playlistId: string, deckId: string) => void;
+  reorderPlaylistDecks: (playlistId: string, deckIds: string[]) => void;
 }
 
 export const useLibrary = create<LibraryState>()(
@@ -23,6 +31,8 @@ export const useLibrary = create<LibraryState>()(
     (set) => ({
       decks: {},
       order: [],
+      playlists: {},
+      playlistOrder: [],
       createDeck: (deck) => {
         const id = uid();
         const now = Date.now();
@@ -94,6 +104,66 @@ export const useLibrary = create<LibraryState>()(
           const map = new Map(d.slides.map((sl) => [sl.id, sl]));
           const slides = ids.map((i) => map.get(i)!).filter(Boolean);
           return { decks: { ...s.decks, [deckId]: { ...d, slides, updatedAt: Date.now() } } };
+        }),
+      createPlaylist: (name) => {
+        const id = uid();
+        const now = Date.now();
+        set((s) => ({
+          playlists: {
+            ...s.playlists,
+            [id]: { id, name, deckIds: [], createdAt: now, updatedAt: now },
+          },
+          playlistOrder: [id, ...s.playlistOrder],
+        }));
+        return id;
+      },
+      renamePlaylist: (id, name) =>
+        set((s) => {
+          const p = s.playlists[id];
+          if (!p) return s;
+          return { playlists: { ...s.playlists, [id]: { ...p, name, updatedAt: Date.now() } } };
+        }),
+      deletePlaylist: (id) =>
+        set((s) => {
+          const { [id]: _gone, ...rest } = s.playlists;
+          return { playlists: rest, playlistOrder: s.playlistOrder.filter((x) => x !== id) };
+        }),
+      addDeckToPlaylist: (playlistId, deckId) =>
+        set((s) => {
+          const p = s.playlists[playlistId];
+          if (!p || p.deckIds.includes(deckId)) return s;
+          return {
+            playlists: {
+              ...s.playlists,
+              [playlistId]: { ...p, deckIds: [...p.deckIds, deckId], updatedAt: Date.now() },
+            },
+          };
+        }),
+      removeDeckFromPlaylist: (playlistId, deckId) =>
+        set((s) => {
+          const p = s.playlists[playlistId];
+          if (!p) return s;
+          return {
+            playlists: {
+              ...s.playlists,
+              [playlistId]: {
+                ...p,
+                deckIds: p.deckIds.filter((d) => d !== deckId),
+                updatedAt: Date.now(),
+              },
+            },
+          };
+        }),
+      reorderPlaylistDecks: (playlistId, deckIds) =>
+        set((s) => {
+          const p = s.playlists[playlistId];
+          if (!p) return s;
+          return {
+            playlists: {
+              ...s.playlists,
+              [playlistId]: { ...p, deckIds, updatedAt: Date.now() },
+            },
+          };
         }),
     }),
     { name: "stage-library-v1" }

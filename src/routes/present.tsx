@@ -7,7 +7,10 @@ import { ArrowLeft, Monitor, Square, EyeOff, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
-const searchSchema = z.object({ deck: z.string().optional() });
+const searchSchema = z.object({
+  deck: z.string().optional(),
+  playlist: z.string().optional(),
+});
 
 export const Route = createFileRoute("/present")({
   validateSearch: searchSchema,
@@ -15,17 +18,25 @@ export const Route = createFileRoute("/present")({
 });
 
 function Presenter() {
-  const { deck: deckFromUrl } = Route.useSearch();
+  const { deck: deckFromUrl, playlist: playlistFromUrl } = Route.useSearch();
   const decks = useLibrary((s) => s.decks);
   const order = useLibrary((s) => s.order);
+  const playlists = useLibrary((s) => s.playlists);
   const live = useLive();
+
+  const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
+  const deckList = activePlaylist
+    ? activePlaylist.deckIds.filter((id) => decks[id])
+    : order;
+
   const [activeDeckId, setActiveDeckId] = useState<string | null>(
-    deckFromUrl ?? order[0] ?? null
+    deckFromUrl ?? deckList[0] ?? null
   );
 
   useEffect(() => {
     if (deckFromUrl) setActiveDeckId(deckFromUrl);
-  }, [deckFromUrl]);
+    else if (activePlaylist && !activeDeckId) setActiveDeckId(activePlaylist.deckIds[0] ?? null);
+  }, [deckFromUrl, activePlaylist, activeDeckId]);
 
   const activeDeck = activeDeckId ? decks[activeDeckId] : null;
   const liveDeck = live.deckId ? decks[live.deckId] : null;
@@ -107,14 +118,21 @@ function Presenter() {
       <div className="grid flex-1 gap-0 lg:grid-cols-[260px_1fr_360px]">
         {/* Deck list */}
         <aside className="border-r border-border bg-card/40 p-3">
-          <h3 className="mb-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Decks
+          <h3 className="mb-2 flex items-center justify-between px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <span>{activePlaylist ? activePlaylist.name : "Decks"}</span>
+            {activePlaylist && (
+              <Link to="/present" className="text-[10px] normal-case text-primary hover:underline">
+                all decks
+              </Link>
+            )}
           </h3>
           <div className="space-y-1">
-            {order.length === 0 && (
-              <p className="px-2 text-xs text-muted-foreground">No decks. Create some first.</p>
+            {deckList.length === 0 && (
+              <p className="px-2 text-xs text-muted-foreground">
+                {activePlaylist ? "Playlist is empty." : "No decks. Create some first."}
+              </p>
             )}
-            {order.map((id) => {
+            {deckList.map((id, i) => {
               const d = decks[id];
               if (!d) return null;
               const isActive = id === activeDeckId;
@@ -127,7 +145,12 @@ function Presenter() {
                     isActive ? "bg-muted font-medium" : "hover:bg-muted/50"
                   }`}
                 >
-                  <span className="truncate">{d.name}</span>
+                  <span className="truncate">
+                    {activePlaylist && (
+                      <span className="mr-1 text-xs text-muted-foreground">{i + 1}.</span>
+                    )}
+                    {d.name}
+                  </span>
                   {isLive && (
                     <span className="rounded bg-red-500 px-1.5 text-[10px] font-semibold text-white">
                       LIVE
