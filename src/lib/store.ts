@@ -209,16 +209,31 @@ function getChannel() {
 export const useLive = create<LiveStore>((set, get) => ({
   ...readInitial(),
   setLive: (patch) => {
-    const next = { ...get(), ...patch } as LiveState;
     set(patch);
+    const s = get();
+    const snapshot: LiveState = {
+      deckId: s.deckId,
+      slideId: s.slideId,
+      blackout: s.blackout,
+      clear: s.clear,
+      blackoutFadeMs: s.blackoutFadeMs,
+    };
     if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      getChannel()?.postMessage(next);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+      try { getChannel()?.postMessage(snapshot); } catch {}
     }
   },
-  go: (deckId, slideId) => get().setLive({ deckId, slideId, blackout: false, clear: false }),
-  clearLive: () => get().setLive({ deckId: null, slideId: null, blackout: false, clear: false }),
-  toggleBlackout: () => get().setLive({ blackout: !get().blackout }),
+  go: (deckId, slideId) => get().setLive({ deckId, slideId, blackout: false, clear: false, blackoutFadeMs: 0 }),
+  clearLive: () => {
+    // Dissolve to black over 0.5s, then fully clear.
+    get().setLive({ blackout: true, blackoutFadeMs: 500 });
+    if (typeof window !== "undefined") {
+      setTimeout(() => {
+        get().setLive({ deckId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 });
+      }, 520);
+    }
+  },
+  toggleBlackout: () => get().setLive({ blackout: !get().blackout, blackoutFadeMs: 500 }),
   toggleClear: () => get().setLive({ clear: !get().clear }),
 }));
 

@@ -17,7 +17,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { Deck, DeckKind, Slide } from "@/lib/types";
 import { z } from "zod";
-import { CurtainIcon } from "@/components/CurtainIcon";
+
 
 type LiveApi = ReturnType<typeof useLive.getState>;
 
@@ -111,8 +111,6 @@ function Presenter() {
         e.preventDefault();
         const prev = liveDeck.slides[idx - 1];
         if (prev) live.go(liveDeck.id, prev.id);
-      } else if (e.key.toLowerCase() === "b") {
-        live.toggleBlackout();
       } else if (e.key === "Escape") {
         live.clearLive();
       }
@@ -165,28 +163,14 @@ function Presenter() {
             >
               Output <ArrowUpRight className="h-4 w-4" />
             </button>
-            <div className="pill flex items-center gap-1 border border-foreground px-2 py-1">
-              <button
-                onClick={() => live.toggleBlackout()}
-                className={`pill flex h-7 w-7 items-center justify-center transition ${
-                  live.blackout
-                    ? "bg-foreground text-background"
-                    : "hover:bg-foreground hover:text-background"
-                }`}
-                title="Blackout (B)"
-                aria-label="Blackout"
-              >
-                <CurtainIcon size={16} />
-              </button>
-              <button
-                onClick={() => live.clearLive()}
-                className="pill flex h-7 w-7 items-center justify-center text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-                title="Stop (Esc)"
-                aria-label="Stop"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+            <button
+              onClick={() => live.clearLive()}
+              className="pill flex h-9 w-9 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
+              title="Stop (Esc) — fades to black"
+              aria-label="Stop"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </header>
@@ -198,7 +182,7 @@ function Presenter() {
       >
         {/* Sidebar */}
         {sidebarOpen && (
-          <aside className="flex max-h-[calc(100vh-73px)] flex-col border-r border-foreground/10 bg-background p-4 md:sticky md:top-[73px] md:self-start">
+          <aside className="flex h-[calc(100vh-73px)] flex-col border-r border-foreground/10 bg-background p-4 md:sticky md:top-[73px]">
             <div className="pill mb-4 flex items-center gap-2 border border-foreground bg-background px-4 py-2">
               <Search className="h-4 w-4" />
               <input
@@ -466,7 +450,7 @@ function Presenter() {
         </main>
 
         {/* Right rail */}
-        <aside className="max-h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground/10 bg-background p-4 md:sticky md:top-[73px] md:self-start">
+        <aside className="h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground/10 bg-background p-4 md:sticky md:top-[73px]">
           <div>
             <div className="mono mb-2 text-[10px] uppercase tracking-wider">Live output</div>
             <div className="relative overflow-hidden rounded-2xl bg-[var(--brand-black)]">
@@ -514,8 +498,8 @@ function Presenter() {
               <div className="mono space-y-1 border-t border-foreground/20 px-4 py-3 text-xs text-muted-foreground">
                 <div>→ / Space — next slide</div>
                 <div>← — previous slide</div>
-                <div>B — blackout</div>
-                <div>Esc — stop</div>
+                <div>Esc — stop (fade to black)</div>
+                
               </div>
             )}
           </div>

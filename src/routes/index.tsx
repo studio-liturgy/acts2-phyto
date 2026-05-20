@@ -167,35 +167,37 @@ function Library() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="px-6 pt-6 md:px-12 md:pt-10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="pill bg-foreground px-10 py-4 text-3xl text-background transition hover:opacity-90">
-                Create
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => newDeck("song")}>
-                <Music className="mr-2 h-4 w-4" /> New Song
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => newDeck("scripture")}>
-                <BookOpen className="mr-2 h-4 w-4" /> New Scripture
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => newDeck("media")}>
-                <ImageIcon className="mr-2 h-4 w-4" /> New Media
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Link
-            to="/present"
-            className="pill flex items-center gap-3 border border-foreground px-10 py-4 text-3xl transition hover:bg-foreground hover:text-background"
-          >
-            Present <ArrowUpRight className="h-6 w-6" />
-          </Link>
-
-          <p className="mono ml-auto hidden text-xs italic text-muted-foreground md:block">
+          <p className="mono hidden text-xs italic text-muted-foreground md:block">
             Build sets, group them into gatherings, and present them live!
           </p>
+
+          <div className="ml-auto flex flex-wrap items-center gap-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="pill bg-foreground px-12 py-5 text-3xl text-background transition hover:opacity-90">
+                  Create
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => newDeck("song")}>
+                  <Music className="mr-2 h-4 w-4" /> New Song
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => newDeck("scripture")}>
+                  <BookOpen className="mr-2 h-4 w-4" /> New Scripture
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => newDeck("media")}>
+                  <ImageIcon className="mr-2 h-4 w-4" /> New Media
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Link
+              to="/present"
+              className="pill flex items-center gap-3 border border-foreground px-12 py-5 text-3xl transition hover:bg-foreground hover:text-background"
+            >
+              Present <ArrowUpRight className="h-6 w-6" />
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -461,7 +463,7 @@ function PlaylistCard({
       }`}
     >
       <div className="mb-4 flex items-center gap-2">
-        {editingName ? (
+        {editingName && editMode ? (
           <Input
             autoFocus
             value={name}
@@ -472,9 +474,9 @@ function PlaylistCard({
           />
         ) : (
           <h3
-            className="flex-1 cursor-text truncate text-2xl"
-            onClick={() => setEditingName(true)}
-            title="Rename"
+            className={`flex-1 truncate text-2xl ${editMode ? "cursor-text" : ""}`}
+            onClick={() => editMode && setEditingName(true)}
+            title={editMode ? "Rename" : undefined}
           >
             {name}
           </h3>

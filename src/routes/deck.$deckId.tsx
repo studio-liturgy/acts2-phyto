@@ -189,7 +189,7 @@ function DeckEditor() {
         <div className="space-y-5">
           <Importers deckId={deck.id} kind={deck.kind} />
 
-          {deck.kind === "media" && <MediaOptions deckId={deck.id} />}
+
 
           <PanelCard>
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -335,60 +335,6 @@ function PillInput({
   );
 }
 
-function MediaOptions({ deckId }: { deckId: string }) {
-  const deck = useLibrary((s) => s.decks[deckId]);
-  const updateDeck = useLibrary((s) => s.updateDeck);
-  if (!deck) return null;
-  const auto = deck.autoAdvanceMs ?? 0;
-  const dissolve = deck.dissolveMs ?? 0;
-  return (
-    <PanelCard label="Playback">
-      <div className="flex flex-wrap items-center gap-4 text-sm">
-        <label className="flex items-center gap-2">
-          <span className="mono text-[10px] uppercase tracking-wider">Auto-advance</span>
-          <input
-            type="number"
-            min={0}
-            step={0.5}
-            value={auto ? (auto / 1000).toString() : ""}
-            placeholder="off"
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              updateDeck(deckId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
-            }}
-            className="pill h-8 w-20 border border-foreground bg-background px-3 text-sm outline-none"
-          />
-          <span className="text-xs text-muted-foreground">s</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={!!deck.loop}
-            onChange={(e) => updateDeck(deckId, { loop: e.target.checked })}
-          />
-          <span className="mono text-[10px] uppercase tracking-wider">Loop</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <span className="mono text-[10px] uppercase tracking-wider">Cross-dissolve</span>
-          <input
-            type="number"
-            min={0}
-            max={2}
-            step={0.1}
-            value={dissolve ? (dissolve / 1000).toString() : ""}
-            placeholder="0"
-            onChange={(e) => {
-              const n = Math.min(2, Math.max(0, Number(e.target.value) || 0));
-              updateDeck(deckId, { dissolveMs: Math.round(n * 1000) });
-            }}
-            className="pill h-8 w-20 border border-foreground bg-background px-3 text-sm outline-none"
-          />
-          <span className="text-xs text-muted-foreground">s</span>
-        </label>
-      </div>
-    </PanelCard>
-  );
-}
 
 function SlideGrid({
   slides,
