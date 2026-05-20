@@ -1,7 +1,10 @@
 // Bible reference parsing + bolls.life API integration
-// bolls.life supports many copyrighted translations free (NIV, NLT, ESV, NRSV, NASB, NKJV, KJV, ...)
+// Supports:
+//   "John 3:16"            single verse
+//   "John 3:16-18"         range within a chapter
+//   "John 3"               whole chapter
+//   "John 3:21-John 4:2"   cross-chapter range (same book only)
 
-// Note: NRSV maps to bolls' NRSVCE (the available NRSV edition on bolls.life).
 export const TRANSLATIONS = [
   { code: "NIV", label: "NIV — New International Version" },
   { code: "NLT", label: "NLT — New Living Translation" },
@@ -12,7 +15,6 @@ export const TRANSLATIONS = [
   { code: "KJV", label: "KJV — King James Version" },
 ] as const;
 
-// Canonical book order (1..66) for bolls.life book IDs.
 const BOOKS: { id: number; names: string[] }[] = [
   { id: 1, names: ["genesis", "gen", "ge", "gn"] },
   { id: 2, names: ["exodus", "exo", "ex"] },
@@ -91,60 +93,143 @@ function bookDisplayName(id: number) {
   return b.names[0].replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function lookupBook(raw: string): number | null {
+  const key = raw.toLowerCase().replace(/\s+/g, " ").trim();
+  return BOOK_LOOKUP.get(key) ?? BOOK_LOOKUP.get(key.replace(/\s/g, "")) ?? null;
+}
+
 export interface ParsedRef {
   bookId: number;
   bookName: string;
-  chapter: number;
-  verseStart: number;
-  verseEnd: number;
+  startChapter: number;
+  startVerse: number; // 1 if not specified
+  endChapter: number;
+  endVerse: number; // 999 means "to end of chapter"
+  wholeChapter: boolean;
 }
 
-/** Parse references like "John 3:16", "John 3:16-18", "1 Cor 13:4-7". */
+const BOOK_RE = /^(\d?\s*[A-Za-z][A-Za-z\s]*?)\s+(\d+)(?::(\d+))?(?:\s*[-–]\s*(?:(\d?\s*[A-Za-z][A-Za-z\s]*?)\s+(\d+):(\d+)|(\d+):(\d+)|(\d+)))?$/;
+
 export function parseReference(input: string): ParsedRef | null {
-  const m = input.trim().match(/^(\d?\s*[A-Za-z][A-Za-z\s]*?)\s+(\d+):(\d+)(?:\s*[-–]\s*(\d+))?$/);
+  const m = input.trim().match(BOOK_RE);
   if (!m) return null;
-  const bookKey = m[1].toLowerCase().replace(/\s+/g, " ").trim();
-  const bookId =
-    BOOK_LOOKUP.get(bookKey) ?? BOOK_LOOKUP.get(bookKey.replace(/\s/g, ""));
+  const bookId = lookupBook(m[1]);
   if (!bookId) return null;
-  const chapter = Number(m[2]);
-  const verseStart = Number(m[3]);
-  const verseEnd = m[4] ? Number(m[4]) : verseStart;
-  return { bookId, bookName: bookDisplayName(bookId), chapter, verseStart, verseEnd };
+  const startChapter = Number(m[2]);
+  const hasStartVerse = m[3] !== undefined;
+  const startVerse = hasStartVerse ? Number(m[3]) : 1;
+
+  let endChapter = startChapter;
+  let endVerse = hasStartVerse ? startVerse : 999;
+  let wholeChapter = !hasStartVerse;
+
+  if (m[4]) {
+    // cross-book/chapter "John 3:21 - John 4:2"
+    const otherBookId = lookupBook(m[4]);
+    if (!otherBookId || otherBookId !== bookId)
+      return null; // only same-book ranges supported
+    endChapter = Number(m[5]);
+    endVerse = Number(m[6]);
+    wholeChapter = false;
+  } else if (m[7]) {
+    // "John 3:21-4:2"
+    endChapter = Number(m[7]);
+    endVerse = Number(m[8]);
+    wholeChapter = false;
+  } else if (m[9]) {
+    // "John 3:16-18"
+    endVerse = Number(m[9]);
+    wholeChapter = false;
+  }
+
+  return {
+    bookId,
+    bookName: bookDisplayName(bookId),
+    startChapter,
+    startVerse,
+    endChapter,
+    endVerse,
+    wholeChapter,
+  };
 }
 
 export interface FetchedVerse {
   verse: number;
+  chapter: number;
   text: string;
 }
 
-/** Fetch verses from bolls.life. */
-export async function fetchScriptureBolls(
-  ref: string,
-  translation: string
-): Promise<{ reference: string; verses: FetchedVerse[] }> {
-  const parsed = parseReference(ref);
-  if (!parsed) throw new Error(`Couldn't parse "${ref}". Try e.g. "John 3:16-18".`);
-  const url = `https://bolls.life/get-text/${encodeURIComponent(translation)}/${parsed.bookId}/${parsed.chapter}/`;
+async function fetchChapter(translation: string, bookId: number, chapter: number) {
+  const url = `https://bolls.life/get-text/${encodeURIComponent(translation)}/${bookId}/${chapter}/`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Lookup failed (${res.status}). Translation may be unavailable.`);
-  const data = (await res.json()) as { verse: number; text: string }[];
-  const verses = data
-    .filter((v) => v.verse >= parsed.verseStart && v.verse <= parsed.verseEnd)
-    .map((v) => ({ verse: v.verse, text: stripHtml(v.text) }));
-  if (verses.length === 0) throw new Error("No verses found in that range.");
-  const reference =
-    parsed.verseStart === parsed.verseEnd
-      ? `${parsed.bookName} ${parsed.chapter}:${parsed.verseStart}`
-      : `${parsed.bookName} ${parsed.chapter}:${parsed.verseStart}-${parsed.verseEnd}`;
-  return { reference, verses };
+  return (await res.json()) as { verse: number; text: string }[];
 }
 
-function stripHtml(s: string) {
-  // Strip Strong's number tags (e.g. <S>1234</S>) entirely, then any remaining HTML.
-  return s
-    .replace(/<S>[^<]*<\/S>/gi, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+export async function fetchScriptureBolls(
+  ref: string,
+  translation: string,
+  opts: { removeLineBreaks?: boolean } = {}
+): Promise<{ reference: string; verses: FetchedVerse[] }> {
+  const parsed = parseReference(ref);
+  if (!parsed)
+    throw new Error(
+      `Couldn't parse "${ref}". Try "John 3:16", "John 3", or "John 3:21-John 4:2".`
+    );
+  const removeLineBreaks = opts.removeLineBreaks ?? true;
+
+  const collected: FetchedVerse[] = [];
+  for (let ch = parsed.startChapter; ch <= parsed.endChapter; ch++) {
+    const data = await fetchChapter(translation, parsed.bookId, ch);
+    const lo = ch === parsed.startChapter ? parsed.startVerse : 1;
+    const hi = ch === parsed.endChapter ? parsed.endVerse : 999;
+    for (const v of data) {
+      if (v.verse >= lo && v.verse <= hi) {
+        collected.push({
+          verse: v.verse,
+          chapter: ch,
+          text: cleanVerseText(v.text, { removeLineBreaks }),
+        });
+      }
+    }
+  }
+  if (collected.length === 0) throw new Error("No verses found in that range.");
+
+  let reference: string;
+  if (parsed.wholeChapter) {
+    reference = `${parsed.bookName} ${parsed.startChapter}`;
+  } else if (parsed.startChapter === parsed.endChapter) {
+    reference =
+      parsed.startVerse === parsed.endVerse
+        ? `${parsed.bookName} ${parsed.startChapter}:${parsed.startVerse}`
+        : `${parsed.bookName} ${parsed.startChapter}:${parsed.startVerse}-${parsed.endVerse}`;
+  } else {
+    reference = `${parsed.bookName} ${parsed.startChapter}:${parsed.startVerse}-${parsed.endChapter}:${parsed.endVerse}`;
+  }
+  return { reference, verses: collected };
+}
+
+function cleanVerseText(s: string, { removeLineBreaks }: { removeLineBreaks: boolean }) {
+  let out = s;
+  // Strip Strong's tags + content
+  out = out.replace(/<S>[^<]*<\/S>/gi, "");
+  // Strip section / pericope headers (e.g. <h>Jesus Teaches Nicodemus</h>)
+  out = out.replace(/<h>[^<]*<\/h>/gi, "");
+  // Strip footnotes
+  out = out.replace(/<f>[^<]*<\/f>/gi, "");
+  // Line breaks → newline marker we control
+  out = out.replace(/<br\s*\/?>/gi, removeLineBreaks ? " " : "\n");
+  // Any remaining tags
+  out = out.replace(/<[^>]+>/g, "");
+  // Collapse whitespace (but keep newlines if preserving line breaks)
+  if (removeLineBreaks) {
+    out = out.replace(/\s+/g, " ");
+  } else {
+    out = out
+      .split("\n")
+      .map((l) => l.replace(/[ \t]+/g, " ").trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+  return out.trim();
 }

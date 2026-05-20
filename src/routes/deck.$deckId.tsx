@@ -46,6 +46,8 @@ function DeckEditor() {
     );
   }
 
+  const dense = deck.slides.length > 20;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border">
@@ -53,7 +55,7 @@ function DeckEditor() {
           <div className="flex items-center gap-3">
             <Button asChild size="sm" variant="ghost">
               <Link to="/">
-                <ArrowLeft className="mr-1 h-4 w-4" /> Library
+                <ArrowLeft className="mr-1 h-4 w-4" /> Create
               </Link>
             </Button>
             <Input
@@ -93,14 +95,27 @@ function DeckEditor() {
                 No slides yet. Use an importer above.
               </p>
             ) : (
-              <SlideGrid
-                deckId={deck.id}
-                slides={deck.slides}
-                selectedId={selected?.id ?? null}
-                onSelect={setSelectedId}
-                onRemove={(id) => removeSlide(deck.id, id)}
-                onReorder={(ids) => reorderSlides(deck.id, ids)}
-              />
+              <div className="max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
+                {deck.kind === "song" ? (
+                  <GroupedSongGrid
+                    slides={deck.slides}
+                    selectedId={selected?.id ?? null}
+                    onSelect={setSelectedId}
+                    onRemove={(id) => removeSlide(deck.id, id)}
+                    onReorder={(ids) => reorderSlides(deck.id, ids)}
+                    dense={dense}
+                  />
+                ) : (
+                  <SlideGrid
+                    slides={deck.slides}
+                    selectedId={selected?.id ?? null}
+                    onSelect={setSelectedId}
+                    onRemove={(id) => removeSlide(deck.id, id)}
+                    onReorder={(ids) => reorderSlides(deck.id, ids)}
+                    dense={dense}
+                  />
+                )}
+              </div>
             )}
           </Card>
         </div>
@@ -153,17 +168,21 @@ function SlideGrid({
   onSelect,
   onRemove,
   onReorder,
+  dense,
 }: {
-  deckId: string;
   slides: Slide[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;
   onReorder: (ids: string[]) => void;
+  dense?: boolean;
 }) {
   const dragId = useRef<string | null>(null);
+  const cols = dense
+    ? "grid-cols-3 md:grid-cols-5 lg:grid-cols-6"
+    : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+    <div className={`grid gap-3 ${cols}`}>
       {slides.map((s, i) => (
         <div
           key={s.id}
@@ -205,10 +224,52 @@ function SlideGrid({
   );
 }
 
+/** Group song slides by section reference (Verse, Chorus, Bridge…). */
+function GroupedSongGrid(props: {
+  slides: Slide[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onRemove: (id: string) => void;
+  onReorder: (ids: string[]) => void;
+  dense?: boolean;
+}) {
+  // Sticky section: the last-seen reference applies to subsequent slides.
+  const groups: { label: string; slides: Slide[] }[] = [];
+  let currentLabel = "Section";
+  for (const s of props.slides) {
+    if (s.reference && s.reference.trim()) currentLabel = s.reference.trim();
+    const last = groups[groups.length - 1];
+    if (!last || last.label !== currentLabel) {
+      groups.push({ label: currentLabel, slides: [s] });
+    } else {
+      last.slides.push(s);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      {groups.map((g, gi) => (
+        <section key={`${g.label}-${gi}`}>
+          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {g.label}
+          </h3>
+          <SlideGrid
+            slides={g.slides}
+            selectedId={props.selectedId}
+            onSelect={props.onSelect}
+            onRemove={props.onRemove}
+            onReorder={props.onReorder}
+            dense={props.dense}
+          />
+        </section>
+      ))}
+    </div>
+  );
+}
+
 function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
   const { addSlide, updateDeck } = useLibrary();
 
-  // Shared lines-per-slide control (used by song search AND paste).
   const [linesPer, setLinesPer] = useState(2);
 
   // Paste lyrics
@@ -224,6 +285,7 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
   const [ref, setRef] = useState("");
   const [translation, setTranslation] = useState("NIV");
   const [versesPer, setVersesPer] = useState(1);
+  const [keepLineBreaks, setKeepLineBreaks] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -260,9 +322,12 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
     setBusy(true);
     setErr(null);
     try {
-      const { reference, verses } = await fetchScriptureBolls(ref, translation);
+      const { reference, verses } = await fetchScriptureBolls(ref, translation, {
+        removeLineBreaks: !keepLineBreaks,
+      });
       const slides = scriptureToSlides(reference, verses, versesPer);
       slides.forEach((s) => addSlide(deckId, s));
+      updateDeck(deckId, { name: reference });
       setRef("");
     } catch (e) {
       setErr((e as Error).message);
@@ -365,7 +430,7 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
         <Input
           value={ref}
           onChange={(e) => setRef(e.target.value)}
-          placeholder="e.g. John 3:16-18"
+          placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2"
         />
         <div className="mt-2 grid grid-cols-2 gap-2">
           <div>
@@ -383,17 +448,27 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
             </select>
           </div>
           <div>
-            <Label className="text-xs">Verses per slide</Label>
+            <Label className="text-xs">Verses per slide (max 2)</Label>
             <Input
               type="number"
               min={1}
-              max={5}
+              max={2}
               value={versesPer}
-              onChange={(e) => setVersesPer(Math.max(1, Number(e.target.value) || 1))}
+              onChange={(e) =>
+                setVersesPer(Math.min(2, Math.max(1, Number(e.target.value) || 1)))
+              }
               className="h-9"
             />
           </div>
         </div>
+        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={keepLineBreaks}
+            onChange={(e) => setKeepLineBreaks(e.target.checked)}
+          />
+          Keep original line breaks (off by default — flowed into a paragraph).
+        </label>
         {err && <p className="mt-2 text-xs text-destructive">{err}</p>}
         <Button
           size="sm"
