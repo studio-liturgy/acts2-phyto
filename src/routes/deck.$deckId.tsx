@@ -28,6 +28,7 @@ function DeckEditor() {
   const { updateDeck, addSlide, updateSlide, removeSlide, reorderSlides } = useLibrary();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
+  const [groupView, setGroupView] = useState(true);
 
   const selected = useMemo(
     () => deck?.slides.find((s) => s.id === selectedId) ?? deck?.slides[0] ?? null,
