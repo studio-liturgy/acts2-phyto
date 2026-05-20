@@ -27,11 +27,46 @@ function DeckEditor() {
   const deck = useLibrary((s) => s.decks[deckId]);
   const { updateDeck, addSlide, updateSlide, removeSlide, reorderSlides } = useLibrary();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
 
   const selected = useMemo(
     () => deck?.slides.find((s) => s.id === selectedId) ?? deck?.slides[0] ?? null,
     [deck, selectedId]
   );
+
+  // Keyboard: arrows move single selection; Delete removes selection(s).
+  useEffect(() => {
+    if (!deck) return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const idx = deck.slides.findIndex((s) => s.id === (selected?.id ?? ""));
+        const next = deck.slides[Math.min(deck.slides.length - 1, idx + 1)];
+        if (next) {
+          setSelectedId(next.id);
+          setMultiSel(new Set([next.id]));
+        }
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const idx = deck.slides.findIndex((s) => s.id === (selected?.id ?? ""));
+        const prev = deck.slides[Math.max(0, idx - 1)];
+        if (prev) {
+          setSelectedId(prev.id);
+          setMultiSel(new Set([prev.id]));
+        }
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (multiSel.size > 0) {
+          e.preventDefault();
+          multiSel.forEach((id) => removeSlide(deck.id, id));
+          setMultiSel(new Set());
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [deck, selected, multiSel, removeSlide]);
 
   if (!deck) {
     return (
@@ -47,6 +82,31 @@ function DeckEditor() {
   }
 
   const dense = deck.slides.length > 20;
+
+  const handleSelect = (id: string, e?: React.MouseEvent) => {
+    setSelectedId(id);
+    if (e && (e.metaKey || e.ctrlKey)) {
+      setMultiSel((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    } else if (e && e.shiftKey && selected) {
+      const ids = deck.slides.map((s) => s.id);
+      const a = ids.indexOf(selected.id);
+      const b = ids.indexOf(id);
+      const [lo, hi] = a < b ? [a, b] : [b, a];
+      setMultiSel(new Set(ids.slice(lo, hi + 1)));
+    } else {
+      setMultiSel(new Set([id]));
+    }
+  };
+
+  const deleteSelected = () => {
+    multiSel.forEach((id) => removeSlide(deck.id, id));
+    setMultiSel(new Set());
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -75,20 +135,32 @@ function DeckEditor() {
         <div className="space-y-6">
           <Importers deckId={deck.id} kind={deck.kind} />
 
+          {deck.kind === "media" && <MediaOptions deckId={deck.id} />}
+
           <Card className="p-4">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
                 Slides ({deck.slides.length})
+                {multiSel.size > 0 && (
+                  <span className="ml-2 normal-case text-foreground">· {multiSel.size} selected</span>
+                )}
               </h2>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  addSlide(deck.id, { id: uid(), kind: "blank", lines: [""] } as Slide)
-                }
-              >
-                <Plus className="mr-1 h-3 w-3" /> Add blank
-              </Button>
+              <div className="flex gap-2">
+                {multiSel.size > 0 && (
+                  <Button size="sm" variant="destructive" onClick={deleteSelected}>
+                    <Trash2 className="mr-1 h-3 w-3" /> Delete selected
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    addSlide(deck.id, { id: uid(), kind: "blank", lines: [""] } as Slide)
+                  }
+                >
+                  <Plus className="mr-1 h-3 w-3" /> Add blank
+                </Button>
+              </div>
             </div>
             {deck.slides.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
@@ -100,7 +172,8 @@ function DeckEditor() {
                   <GroupedSongGrid
                     slides={deck.slides}
                     selectedId={selected?.id ?? null}
-                    onSelect={setSelectedId}
+                    multiSel={multiSel}
+                    onSelect={handleSelect}
                     onRemove={(id) => removeSlide(deck.id, id)}
                     onReorder={(ids) => reorderSlides(deck.id, ids)}
                     dense={dense}
@@ -109,7 +182,8 @@ function DeckEditor() {
                   <SlideGrid
                     slides={deck.slides}
                     selectedId={selected?.id ?? null}
-                    onSelect={setSelectedId}
+                    multiSel={multiSel}
+                    onSelect={handleSelect}
                     onRemove={(id) => removeSlide(deck.id, id)}
                     onReorder={(ids) => reorderSlides(deck.id, ids)}
                     dense={dense}
@@ -117,6 +191,9 @@ function DeckEditor() {
                 )}
               </div>
             )}
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Click to select · Shift / ⌘ click for multi-select · ← → navigate · Delete removes selected
+            </p>
           </Card>
         </div>
 
@@ -161,6 +238,64 @@ function DeckEditor() {
     </div>
   );
 }
+
+function MediaOptions({ deckId }: { deckId: string }) {
+  const deck = useLibrary((s) => s.decks[deckId]);
+  const updateDeck = useLibrary((s) => s.updateDeck);
+  if (!deck) return null;
+  const auto = deck.autoAdvanceMs ?? 0;
+  const dissolve = deck.dissolveMs ?? 0;
+  return (
+    <Card className="flex flex-wrap items-center gap-4 p-3 text-sm">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Playback
+      </span>
+      <label className="flex items-center gap-2">
+        <span className="text-xs">Auto-advance</span>
+        <Input
+          type="number"
+          min={0}
+          step={0.5}
+          value={auto ? (auto / 1000).toString() : ""}
+          placeholder="off"
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            updateDeck(deckId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
+          }}
+          className="h-8 w-20"
+        />
+        <span className="text-xs text-muted-foreground">seconds</span>
+      </label>
+      <label className="flex items-center gap-2 text-xs">
+        <input
+          type="checkbox"
+          checked={!!deck.loop}
+          onChange={(e) => updateDeck(deckId, { loop: e.target.checked })}
+        />
+        Loop
+      </label>
+      <label className="flex items-center gap-2">
+        <span className="text-xs">Cross-dissolve</span>
+        <Input
+          type="number"
+          min={0}
+          max={2}
+          step={0.1}
+          value={dissolve ? (dissolve / 1000).toString() : ""}
+          placeholder="0"
+          onChange={(e) => {
+            const n = Math.min(2, Math.max(0, Number(e.target.value) || 0));
+            updateDeck(deckId, { dissolveMs: Math.round(n * 1000) });
+          }}
+          className="h-8 w-20"
+        />
+        <span className="text-xs text-muted-foreground">seconds (0–2)</span>
+      </label>
+    </Card>
+  );
+}
+
+
 
 function SlideGrid({
   slides,
