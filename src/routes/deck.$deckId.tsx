@@ -381,22 +381,41 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
             </form>
             {songErr && <p className="mt-2 text-xs text-destructive">{songErr}</p>}
             <div className="mt-3 max-h-72 space-y-1 overflow-auto">
-              {songResults.map((s, idx) => (
-                <button
-                  key={`${s.title}-${s.artist}-${idx}`}
-                  onClick={() => importSong(s)}
-                  className="flex w-full items-center gap-2 rounded p-2 text-left text-sm transition hover:bg-muted"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{s.title}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {s.artist}
-                      {s.album ? ` · ${s.album}` : ""}
+              {songResults.map((s, idx) => {
+                const preview = s.lyrics
+                  .split("\n")
+                  .map((l) => l.trim())
+                  .filter(Boolean)
+                  .slice(0, 8)
+                  .join("\n");
+                return (
+                  <button
+                    key={`${s.title}-${s.artist}-${idx}`}
+                    onClick={() => importSong(s)}
+                    title={preview || "No preview available"}
+                    className="group/song relative flex w-full items-center gap-2 rounded p-2 text-left text-sm transition hover:bg-muted"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{s.title}</div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {s.artist}
+                        {s.album ? ` · ${s.album}` : ""}
+                      </div>
                     </div>
-                  </div>
-                  <Plus className="h-4 w-4 text-muted-foreground" />
-                </button>
-              ))}
+                    <Plus className="h-4 w-4 text-muted-foreground" />
+                    {preview && (
+                      <div className="pointer-events-none absolute left-full top-0 z-20 ml-2 hidden w-72 whitespace-pre-line rounded-md border border-border bg-popover p-3 text-xs leading-relaxed text-popover-foreground shadow-lg group-hover/song:block">
+                        {preview}
+                        {s.lyrics.split("\n").filter((l) => l.trim()).length > 8 && (
+                          <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                            …more
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground">
               Lyrics via lrclib.net — strong coverage of modern worship.
