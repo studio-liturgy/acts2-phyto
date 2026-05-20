@@ -322,12 +322,8 @@ function Presenter() {
           <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Live output
           </h3>
-          <Card className="overflow-hidden p-0">
-            {live.blackout ? (
-              <div className="flex aspect-video w-full items-center justify-center bg-black text-xs text-white/40">
-                BLACKOUT
-              </div>
-            ) : liveDeck?.kind === "media" ? (
+          <Card className="relative overflow-hidden p-0">
+            {liveDeck?.kind === "media" ? (
               <DissolveSlide
                 slide={liveSlide}
                 variant="preview"
@@ -336,6 +332,18 @@ function Presenter() {
             ) : (
               <SlideView slide={liveSlide} variant="preview" />
             )}
+            <div
+              className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black text-xs text-white/40"
+              style={{
+                opacity: live.blackout ? 1 : 0,
+                transition:
+                  (live.blackoutFadeMs ?? 0) > 0
+                    ? `opacity ${live.blackoutFadeMs}ms ease-in-out`
+                    : undefined,
+              }}
+            >
+              BLACKOUT
+            </div>
           </Card>
           {liveDeck && liveSlide && (
             <p className="mt-2 text-xs text-muted-foreground">
