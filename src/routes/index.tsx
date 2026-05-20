@@ -266,11 +266,10 @@ function Library() {
                     </Link>
                   </Button>
                   <button
-                    onClick={() => {
-                      if (confirm(`Delete "${d.name}"?`)) deleteDeck(d.id);
-                    }}
+                    onClick={() => deleteDeck(d.id)}
                     className="rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-muted hover:text-destructive group-hover:opacity-100"
                     aria-label="Delete set"
+                    title="Delete set"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
