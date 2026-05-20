@@ -380,7 +380,7 @@ function Presenter() {
                           {d.name}
                         </span>
                         <span className="flex items-center gap-1">
-                          {inGathering && <KindBadge kind={d.kind} />}
+                          <KindBadge kind={d.kind} />
                           {isLive && (
                             <span className="rounded bg-red-500 px-1.5 text-[10px] font-semibold text-white">
                               LIVE
