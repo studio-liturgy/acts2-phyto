@@ -672,9 +672,13 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
 
   if (kind === "scripture") {
     const importManualScripture = () => {
-      const reference = manualRef.trim();
+      const refRaw = manualRef.trim();
       const lines = manualText.split("\n").map((l) => l.trim()).filter(Boolean);
-      if (!reference || lines.length === 0) return;
+      if (!refRaw || lines.length === 0) return;
+      // Append translation abbreviation, e.g. "John 3:1-2 NIV".
+      const reference = refRaw.match(/\b(NIV|NLT|ESV|NRSVCE|NASB|NKJV|KJV)\b\s*$/i)
+        ? refRaw
+        : `${refRaw} ${translation}`;
       const verses = lines.map((text, i) => ({ verse: i + 1, text }));
       const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks });
       slides.forEach((s) => addSlide(deckId, s));
