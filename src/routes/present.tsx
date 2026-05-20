@@ -48,7 +48,7 @@ function Presenter() {
     deckFromUrl ?? deckList[0] ?? null
   );
   const [query, setQuery] = useState("");
-  const [blackoutFade, setBlackoutFade] = useState(false);
+  
 
   // Only follow URL changes (not internal clicks).
   useEffect(() => {
