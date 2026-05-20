@@ -6,8 +6,11 @@ export interface Slide {
   title?: string;
   /** lines of text shown on the slide (each rendered as its own line) */
   lines?: string[];
-  /** reference/caption (e.g. "John 3:16" or song section "Chorus") */
+  /** reference/caption shown on the slide (e.g. "John 3:16"). Hidden for songs. */
   reference?: string;
+  /** Manual section label used for grouping (e.g. "Chorus", "Verse 1", "Intro").
+   *  Independent of `reference` so scripture slides can keep their verse ref. */
+  section?: string;
   /** data URL or external URL for an image slide / background */
   imageUrl?: string;
 }
