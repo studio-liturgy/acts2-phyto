@@ -16,6 +16,7 @@ import {
   Timer,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { Deck, Slide } from "@/lib/types";
 import { z } from "zod";
 
 
