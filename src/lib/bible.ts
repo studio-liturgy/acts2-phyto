@@ -141,5 +141,10 @@ export async function fetchScriptureBolls(
 }
 
 function stripHtml(s: string) {
-  return s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  // Strip Strong's number tags (e.g. <S>1234</S>) entirely, then any remaining HTML.
+  return s
+    .replace(/<S>[^<]*<\/S>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
