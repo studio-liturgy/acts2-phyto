@@ -172,8 +172,15 @@ function Presenter() {
         </div>
       </header>
 
-      <div className="grid flex-1 gap-0 md:grid-cols-[260px_1fr_340px]">
+      <div
+        className={`grid flex-1 gap-0 ${
+          sidebarOpen
+            ? "md:grid-cols-[260px_1fr_340px]"
+            : "md:grid-cols-[1fr_340px]"
+        }`}
+      >
         {/* Sidebar */}
+        {sidebarOpen && (
         <aside className="flex max-h-[calc(100vh-49px)] flex-col border-r border-border bg-card/40 md:sticky md:top-[49px] md:self-start">
           <div className="border-b border-border p-3">
             <div className="mb-2 flex items-center justify-between">
