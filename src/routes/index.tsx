@@ -174,7 +174,7 @@ function Library() {
           <div className="ml-auto flex flex-wrap items-center gap-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="pill bg-foreground px-10 py-4 text-3xl text-background transition hover:opacity-90">
+                <button className="pill bg-foreground px-12 py-5 text-3xl text-background transition hover:opacity-90">
                   Create
                 </button>
               </DropdownMenuTrigger>
@@ -193,7 +193,7 @@ function Library() {
 
             <Link
               to="/present"
-              className="pill flex items-center gap-3 border border-foreground px-10 py-4 text-3xl transition hover:bg-foreground hover:text-background"
+              className="pill flex items-center gap-3 border border-foreground px-12 py-5 text-3xl transition hover:bg-foreground hover:text-background"
             >
               Present <ArrowUpRight className="h-6 w-6" />
             </Link>
