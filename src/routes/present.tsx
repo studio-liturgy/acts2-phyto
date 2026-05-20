@@ -83,12 +83,10 @@ function Presenter() {
   // Filter both lists when in "all" mode.
   const q = query.trim().toLowerCase();
   const showAll = !activePlaylist;
-  const filteredDecks = showAll
-    ? deckList.filter((id) => !q || decks[id]?.name.toLowerCase().includes(q))
-    : deckList;
-  const filteredPlaylists = showAll
-    ? playlistOrder.filter((pid) => !q || playlists[pid]?.name.toLowerCase().includes(q))
-    : [];
+  const filteredDecks = deckList.filter(
+    (id) => !q || decks[id]?.name.toLowerCase().includes(q)
+  );
+  const filteredPlaylists = showAll ? playlistOrder : [];
 
   // Keyboard navigation
   useEffect(() => {
