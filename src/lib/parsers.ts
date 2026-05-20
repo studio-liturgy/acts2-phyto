@@ -73,20 +73,6 @@ export function scriptureToSlides(
   const slides: Slide[] = [];
   for (let i = 0; i < verses.length; i += perSlide) {
     const chunk = verses.slice(i, i + perSlide);
-    // Build a per-slide reference label like "John 3:16" or "John 3:16-17".
-    const first = chunk[0];
-    const last = chunk[chunk.length - 1];
-    const ch = first.chapter ?? last.chapter;
-    let perSlideRef: string;
-    if (ch == null) {
-      perSlideRef = ref;
-    } else if (chunk.length === 1) {
-      perSlideRef = `${bookName} ${ch}:${first.verse}`;
-    } else if ((first.chapter ?? ch) === (last.chapter ?? ch)) {
-      perSlideRef = `${bookName} ${ch}:${first.verse}-${last.verse}`;
-    } else {
-      perSlideRef = `${bookName} ${first.chapter}:${first.verse}-${last.chapter}:${last.verse}`;
-    }
     const lines = keepLineBreaks
       ? chunk.flatMap((v) => v.text.split("\n"))
       : [chunk.map((v) => v.text.replace(/\s*\n\s*/g, " ")).join(" ")];
@@ -94,7 +80,7 @@ export function scriptureToSlides(
       id: uid(),
       kind: "scripture",
       lines,
-      reference: perSlideRef,
+      reference: ref,
       section: ref,
     });
   }
