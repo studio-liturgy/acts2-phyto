@@ -189,7 +189,7 @@ function DeckEditor() {
         <div className="space-y-5">
           <Importers deckId={deck.id} kind={deck.kind} />
 
-          {deck.kind === "media" && <MediaOptions deckId={deck.id} />}
+
 
           <PanelCard>
             <div className="mb-3 flex items-center justify-between gap-2">
