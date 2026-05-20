@@ -261,11 +261,12 @@ function DeckEditor() {
         </div>
 
         <aside className="space-y-5">
-          <PanelCard label="Preview">
+          <div>
+            <div className="mono mb-3 text-xs uppercase tracking-wider">Preview</div>
             <div className="overflow-hidden rounded-2xl bg-[var(--brand-black)]">
               <SlideView slide={selected} variant="preview" />
             </div>
-          </PanelCard>
+          </div>
 
           {selected && (
             <PanelCard label="Edit slide">
