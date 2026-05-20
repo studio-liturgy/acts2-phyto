@@ -495,7 +495,6 @@ function Presenter() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-foreground p-4">
           {liveDeck?.kind === "media" && (
             <div className="rounded-2xl border border-foreground p-4">
               <div className="mono mb-3 text-[10px] uppercase tracking-wider">Media functions</div>
