@@ -14,6 +14,8 @@ import {
   Timer,
   PanelLeftClose,
   PanelLeftOpen,
+  Pencil,
+  Plus,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Deck, DeckKind, Slide } from "@/lib/types";
