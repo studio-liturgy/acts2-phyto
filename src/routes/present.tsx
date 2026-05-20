@@ -163,28 +163,14 @@ function Presenter() {
             >
               Output <ArrowUpRight className="h-4 w-4" />
             </button>
-            <div className="pill flex items-center gap-1 border border-foreground px-2 py-1">
-              <button
-                onClick={() => live.toggleBlackout()}
-                className={`pill flex h-7 w-7 items-center justify-center transition ${
-                  live.blackout
-                    ? "bg-foreground text-background"
-                    : "hover:bg-foreground hover:text-background"
-                }`}
-                title="Blackout (B)"
-                aria-label="Blackout"
-              >
-                <CurtainIcon size={16} />
-              </button>
-              <button
-                onClick={() => live.clearLive()}
-                className="pill flex h-7 w-7 items-center justify-center text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-                title="Stop (Esc)"
-                aria-label="Stop"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+            <button
+              onClick={() => live.clearLive()}
+              className="pill flex h-9 w-9 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
+              title="Stop (Esc) — fades to black"
+              aria-label="Stop"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </header>
