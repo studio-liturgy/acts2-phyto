@@ -1,15 +1,15 @@
 // Bible reference parsing + bolls.life API integration
 // bolls.life supports many copyrighted translations free (NIV, NLT, ESV, NRSV, NASB, NKJV, KJV, ...)
 
+// Note: NRSV maps to bolls' NRSVCE (the available NRSV edition on bolls.life).
 export const TRANSLATIONS = [
   { code: "NIV", label: "NIV — New International Version" },
   { code: "NLT", label: "NLT — New Living Translation" },
   { code: "ESV", label: "ESV — English Standard Version" },
-  { code: "NRSV", label: "NRSV — New Revised Standard" },
+  { code: "NRSVCE", label: "NRSV — New Revised Standard" },
   { code: "NASB", label: "NASB — New American Standard" },
   { code: "NKJV", label: "NKJV — New King James Version" },
   { code: "KJV", label: "KJV — King James Version" },
-  { code: "WEB", label: "WEB — World English Bible" },
 ] as const;
 
 // Canonical book order (1..66) for bolls.life book IDs.
