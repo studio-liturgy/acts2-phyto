@@ -39,6 +39,8 @@ function Presenter() {
   const playlists = useLibrary((s) => s.playlists);
   const playlistOrder = useLibrary((s) => s.playlistOrder);
   const addDeckToPlaylist = useLibrary((s) => s.addDeckToPlaylist);
+  const removeDeckFromPlaylist = useLibrary((s) => s.removeDeckFromPlaylist);
+  const reorderPlaylistDecks = useLibrary((s) => s.reorderPlaylistDecks);
   const live = useLive();
 
   const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
@@ -55,6 +57,9 @@ function Presenter() {
   const [groupView, setGroupView] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dragOverPlaylist, setDragOverPlaylist] = useState<string | null>(null);
+  const [reorderDragIndex, setReorderDragIndex] = useState<number | null>(null);
+  const [reorderOverIndex, setReorderOverIndex] = useState<number | null>(null);
+  
   
   
 
@@ -78,12 +83,10 @@ function Presenter() {
   // Filter both lists when in "all" mode.
   const q = query.trim().toLowerCase();
   const showAll = !activePlaylist;
-  const filteredDecks = showAll
-    ? deckList.filter((id) => !q || decks[id]?.name.toLowerCase().includes(q))
-    : deckList;
-  const filteredPlaylists = showAll
-    ? playlistOrder.filter((pid) => !q || playlists[pid]?.name.toLowerCase().includes(q))
-    : [];
+  const filteredDecks = deckList.filter(
+    (id) => !q || decks[id]?.name.toLowerCase().includes(q)
+  );
+  const filteredPlaylists = showAll ? playlistOrder : [];
 
   // Keyboard navigation
   useEffect(() => {
@@ -134,11 +137,6 @@ function Presenter() {
               )}
               {sidebarOpen ? "Hide" : "Show"} sidebar
             </Button>
-            <Button asChild size="sm" variant="ghost">
-              <Link to="/">
-                <ArrowLeft className="mr-1 h-4 w-4" /> Create
-              </Link>
-            </Button>
             <span className="text-sm font-medium">Presenter</span>
           </div>
           <div className="flex items-center gap-2">
@@ -183,30 +181,29 @@ function Presenter() {
         {sidebarOpen && (
         <aside className="flex max-h-[calc(100vh-49px)] flex-col border-r border-border bg-card/40 md:sticky md:top-[49px] md:self-start">
           <div className="border-b border-border p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {activePlaylist ? activePlaylist.name : "All"}
-              </h3>
-              {activePlaylist && (
+            {activePlaylist && (
+              <div className="mb-2 flex items-center gap-2">
                 <Link
                   to="/present"
-                  className="text-[10px] text-primary hover:underline"
+                  className="rounded p-1 hover:bg-muted"
+                  title="Back to all"
                 >
-                  show all
+                  <ArrowLeft className="h-3.5 w-3.5" />
                 </Link>
-              )}
-            </div>
-            {showAll && (
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search decks & playlists"
-                  className="h-8 pl-7 text-sm"
-                />
+                <h3 className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {activePlaylist.name}
+                </h3>
               </div>
             )}
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search sets"
+                className="h-8 pl-7 text-sm"
+              />
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto p-3">
@@ -278,39 +275,90 @@ function Presenter() {
                   if (!d) return null;
                   const isActive = id === activeDeckId;
                   const isLive = id === live.deckId;
+                  const inGathering = !!activePlaylist;
+                  const isReorderTarget =
+                    inGathering && reorderOverIndex === i && reorderDragIndex !== null;
                   return (
-                    <button
-                      key={id}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData("application/x-deck-id", id);
-                        e.dataTransfer.effectAllowed = "copy";
+                    <div
+                      key={`${id}-${i}`}
+                      onDragOver={(e) => {
+                        if (!inGathering || reorderDragIndex === null) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        if (reorderOverIndex !== i) setReorderOverIndex(i);
                       }}
-                      onClick={() => {
-                        setActiveDeckId(id);
-                        if (activePlaylist) {
-                          const el = document.getElementById(`deck-section-${id}`);
-                          el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                        }
+                      onDrop={(e) => {
+                        if (!inGathering || reorderDragIndex === null || !activePlaylist) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const ids = [...activePlaylist.deckIds];
+                        const [moved] = ids.splice(reorderDragIndex, 1);
+                        ids.splice(i, 0, moved);
+                        reorderPlaylistDecks(activePlaylist.id, ids);
+                        setReorderDragIndex(null);
+                        setReorderOverIndex(null);
                       }}
-                      className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
-                        isActive ? "bg-muted font-medium" : "hover:bg-muted/50"
-                      }`}
+                      className={isReorderTarget ? "rounded ring-1 ring-primary" : ""}
                     >
-                      <span className="truncate">
-                        {activePlaylist && (
-                          <span className="mr-1 text-xs text-muted-foreground">
-                            {i + 1}.
-                          </span>
-                        )}
-                        {d.name}
-                      </span>
-                      {isLive && (
-                        <span className="rounded bg-red-500 px-1.5 text-[10px] font-semibold text-white">
-                          LIVE
+                      <button
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("application/x-deck-id", id);
+                          e.dataTransfer.effectAllowed = inGathering ? "move" : "copy";
+                          if (inGathering) setReorderDragIndex(i);
+                        }}
+                        onDragEnd={() => {
+                          setReorderDragIndex(null);
+                          setReorderOverIndex(null);
+                        }}
+                        onClick={() => {
+                          setActiveDeckId(id);
+                          if (activePlaylist) {
+                            const el = document.getElementById(`deck-section-${id}`);
+                            el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }
+                        }}
+                        className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
+                          isActive ? "bg-muted font-medium" : "hover:bg-muted/50"
+                        }`}
+                      >
+                        <span className="truncate">
+                          {inGathering && (
+                            <span className="mr-1 text-xs text-muted-foreground">
+                              {i + 1}.
+                            </span>
+                          )}
+                          {d.name}
                         </span>
-                      )}
-                    </button>
+                        <span className="flex items-center gap-1">
+                          {isLive && (
+                            <span className="rounded bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                              LIVE
+                            </span>
+                          )}
+                          {inGathering && activePlaylist && (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeDeckFromPlaylist(activePlaylist.id, i);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.stopPropagation();
+                                  removeDeckFromPlaylist(activePlaylist.id, i);
+                                }
+                              }}
+                              className="rounded p-0.5 text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground hover:opacity-100"
+                              title="Remove from gathering"
+                            >
+                              <X className="h-3 w-3" />
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    </div>
                   );
                 })}
               </div>
