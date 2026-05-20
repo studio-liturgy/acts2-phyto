@@ -77,15 +77,15 @@ export function scriptureToSlides(
     const first = chunk[0];
     const last = chunk[chunk.length - 1];
     const ch = first.chapter ?? last.chapter;
-    let label: string;
+    let perSlideRef: string;
     if (ch == null) {
-      label = ref;
+      perSlideRef = ref;
     } else if (chunk.length === 1) {
-      label = `${bookName} ${ch}:${first.verse}`;
+      perSlideRef = `${bookName} ${ch}:${first.verse}`;
     } else if ((first.chapter ?? ch) === (last.chapter ?? ch)) {
-      label = `${bookName} ${ch}:${first.verse}-${last.verse}`;
+      perSlideRef = `${bookName} ${ch}:${first.verse}-${last.verse}`;
     } else {
-      label = `${bookName} ${first.chapter}:${first.verse}-${last.chapter}:${last.verse}`;
+      perSlideRef = `${bookName} ${first.chapter}:${first.verse}-${last.chapter}:${last.verse}`;
     }
     const lines = keepLineBreaks
       ? chunk.flatMap((v) => v.text.split("\n"))
@@ -94,8 +94,8 @@ export function scriptureToSlides(
       id: uid(),
       kind: "scripture",
       lines,
-      reference: label,
-      section: label,
+      reference: perSlideRef,
+      section: ref,
     });
   }
   return slides;
