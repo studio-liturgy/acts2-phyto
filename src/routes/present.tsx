@@ -10,8 +10,6 @@ import {
   Square,
   X,
   Search,
-  ListMusic,
-  Layers,
   Repeat,
   Timer,
   PanelLeftClose,
