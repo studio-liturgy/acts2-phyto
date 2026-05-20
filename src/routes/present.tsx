@@ -38,6 +38,7 @@ function Presenter() {
   const order = useLibrary((s) => s.order);
   const playlists = useLibrary((s) => s.playlists);
   const playlistOrder = useLibrary((s) => s.playlistOrder);
+  const addDeckToPlaylist = useLibrary((s) => s.addDeckToPlaylist);
   const live = useLive();
 
   const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
@@ -53,6 +54,7 @@ function Presenter() {
   const [query, setQuery] = useState("");
   const [groupView, setGroupView] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [dragOverPlaylist, setDragOverPlaylist] = useState<string | null>(null);
   
   
 
