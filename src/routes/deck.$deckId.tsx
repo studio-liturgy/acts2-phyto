@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary } from "@/lib/store";
-import { parseLyrics, fileToDataUrl, scriptureToSlides } from "@/lib/parsers";
+import { parseLyrics, fileToCompressedImageDataUrl, scriptureToSlides } from "@/lib/parsers";
 import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
 import { searchSongs, type SongResult } from "@/lib/songs";
 import { SlideView } from "@/components/SlideView";
