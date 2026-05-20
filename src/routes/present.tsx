@@ -3,7 +3,17 @@ import { useLibrary, useLive } from "@/lib/store";
 import { SlideView } from "@/components/SlideView";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Monitor, Square, EyeOff, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  ArrowLeft,
+  Monitor,
+  Square,
+  EyeOff,
+  X,
+  Search,
+  ListMusic,
+  Layers,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
@@ -22,9 +32,12 @@ function Presenter() {
   const decks = useLibrary((s) => s.decks);
   const order = useLibrary((s) => s.order);
   const playlists = useLibrary((s) => s.playlists);
+  const playlistOrder = useLibrary((s) => s.playlistOrder);
   const live = useLive();
 
   const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
+
+  // The list of decks shown in the sidebar.
   const deckList = activePlaylist
     ? activePlaylist.deckIds.filter((id) => decks[id])
     : order;
@@ -32,6 +45,7 @@ function Presenter() {
   const [activeDeckId, setActiveDeckId] = useState<string | null>(
     deckFromUrl ?? deckList[0] ?? null
   );
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     if (deckFromUrl) setActiveDeckId(deckFromUrl);
@@ -44,6 +58,16 @@ function Presenter() {
     () => liveDeck?.slides.find((s) => s.id === live.slideId) ?? null,
     [liveDeck, live.slideId]
   );
+
+  // Filter both lists when in "all" mode.
+  const q = query.trim().toLowerCase();
+  const showAll = !activePlaylist;
+  const filteredDecks = showAll
+    ? deckList.filter((id) => !q || decks[id]?.name.toLowerCase().includes(q))
+    : deckList;
+  const filteredPlaylists = showAll
+    ? playlistOrder.filter((pid) => !q || playlists[pid]?.name.toLowerCase().includes(q))
+    : [];
 
   // Keyboard navigation
   useEffect(() => {
@@ -115,54 +139,113 @@ function Presenter() {
         </div>
       </header>
 
-      <div className="grid flex-1 gap-0 lg:grid-cols-[260px_1fr_360px]">
-        {/* Deck list */}
-        <aside className="border-r border-border bg-card/40 p-3">
-          <h3 className="mb-2 flex items-center justify-between px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            <span>{activePlaylist ? activePlaylist.name : "Decks"}</span>
-            {activePlaylist && (
-              <Link to="/present" className="text-[10px] normal-case text-primary hover:underline">
-                all decks
-              </Link>
-            )}
-          </h3>
-          <div className="space-y-1">
-            {deckList.length === 0 && (
-              <p className="px-2 text-xs text-muted-foreground">
-                {activePlaylist ? "Playlist is empty." : "No decks. Create some first."}
-              </p>
-            )}
-            {deckList.map((id, i) => {
-              const d = decks[id];
-              if (!d) return null;
-              const isActive = id === activeDeckId;
-              const isLive = id === live.deckId;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setActiveDeckId(id)}
-                  className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
-                    isActive ? "bg-muted font-medium" : "hover:bg-muted/50"
-                  }`}
+      <div className="grid flex-1 gap-0 lg:grid-cols-[280px_1fr_360px]">
+        {/* Sidebar */}
+        <aside className="flex flex-col border-r border-border bg-card/40">
+          <div className="border-b border-border p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {activePlaylist ? activePlaylist.name : "All"}
+              </h3>
+              {activePlaylist && (
+                <Link
+                  to="/present"
+                  className="text-[10px] text-primary hover:underline"
                 >
-                  <span className="truncate">
-                    {activePlaylist && (
-                      <span className="mr-1 text-xs text-muted-foreground">{i + 1}.</span>
-                    )}
-                    {d.name}
-                  </span>
-                  {isLive && (
-                    <span className="rounded bg-red-500 px-1.5 text-[10px] font-semibold text-white">
-                      LIVE
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                  show all
+                </Link>
+              )}
+            </div>
+            {showAll && (
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search decks & playlists"
+                  className="h-8 pl-7 text-sm"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-auto p-3">
+            {showAll && filteredPlaylists.length > 0 && (
+              <div className="mb-4">
+                <div className="mb-1 flex items-center gap-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <ListMusic className="h-3 w-3" /> Playlists
+                </div>
+                <div className="space-y-1">
+                  {filteredPlaylists.map((pid) => {
+                    const p = playlists[pid];
+                    if (!p) return null;
+                    return (
+                      <Link
+                        key={pid}
+                        to="/present"
+                        search={{ playlist: pid }}
+                        className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition hover:bg-muted"
+                      >
+                        <span className="truncate">{p.name}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {p.deckIds.length}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <div className="mb-1 flex items-center gap-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Layers className="h-3 w-3" /> Decks
+              </div>
+              <div className="space-y-1">
+                {filteredDecks.length === 0 && (
+                  <p className="px-2 text-xs text-muted-foreground">
+                    {activePlaylist
+                      ? "Playlist is empty."
+                      : q
+                      ? "No matches."
+                      : "No decks yet."}
+                  </p>
+                )}
+                {filteredDecks.map((id, i) => {
+                  const d = decks[id];
+                  if (!d) return null;
+                  const isActive = id === activeDeckId;
+                  const isLive = id === live.deckId;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => setActiveDeckId(id)}
+                      className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
+                        isActive ? "bg-muted font-medium" : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <span className="truncate">
+                        {activePlaylist && (
+                          <span className="mr-1 text-xs text-muted-foreground">
+                            {i + 1}.
+                          </span>
+                        )}
+                        {d.name}
+                      </span>
+                      {isLive && (
+                        <span className="rounded bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                          LIVE
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </aside>
 
-        {/* Slide grid — non-chronological jumping */}
+        {/* Slide grid */}
         <main className="overflow-auto p-4">
           {!activeDeck ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -170,7 +253,14 @@ function Presenter() {
             </div>
           ) : activeDeck.slides.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              This deck has no slides. <Link to="/deck/$deckId" params={{ deckId: activeDeck.id }} className="ml-1 underline">Edit</Link>
+              This deck has no slides.{" "}
+              <Link
+                to="/deck/$deckId"
+                params={{ deckId: activeDeck.id }}
+                className="ml-1 underline"
+              >
+                Edit
+              </Link>
             </div>
           ) : (
             <>
@@ -182,7 +272,8 @@ function Presenter() {
               </div>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
                 {activeDeck.slides.map((s, i) => {
-                  const isLive = live.deckId === activeDeck.id && live.slideId === s.id;
+                  const isLive =
+                    live.deckId === activeDeck.id && live.slideId === s.id;
                   return (
                     <button
                       key={s.id}

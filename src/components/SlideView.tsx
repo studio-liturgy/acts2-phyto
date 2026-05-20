@@ -1,54 +1,79 @@
 import type { Slide } from "@/lib/types";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
   slide?: Slide | null;
-  /** scale text relative to a 1920x1080 stage */
+  /** "stage" = fullscreen output, "preview" = editor preview, "thumb" = small card. */
   variant?: "stage" | "thumb" | "preview";
   className?: string;
 }
 
+// Canonical stage size — all variants render at this size, then scale-to-fit.
+const STAGE_W = 1920;
+const STAGE_H = 1080;
+
 /**
- * Renders a slide at 16:9 aspect.
- * "stage" = fullscreen output, "preview" = editor preview, "thumb" = small card.
+ * Renders a slide at a fixed 1920x1080 canvas and uses a CSS transform to
+ * scale-to-fit any container. This guarantees that the editor preview, the
+ * presenter preview, and the live output all wrap and lay out identically.
  */
 export function SlideView({ slide, variant = "preview", className = "" }: Props) {
-  const titleSize =
-    variant === "stage" ? "text-6xl md:text-7xl" : variant === "preview" ? "text-3xl" : "text-xs";
-  const bodySize =
-    variant === "stage"
-      ? "text-5xl md:text-6xl leading-tight"
-      : variant === "preview"
-      ? "text-2xl leading-snug"
-      : "text-[10px] leading-tight";
-  const refSize =
-    variant === "stage" ? "text-2xl" : variant === "preview" ? "text-sm" : "text-[8px]";
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w > 0 && h > 0) setScale(Math.min(w / STAGE_W, h / STAGE_H));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const bg = slide?.imageUrl
-    ? { backgroundImage: `url(${slide.imageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+    ? {
+        backgroundImage: `url(${slide.imageUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
     : undefined;
 
-  const aspect = variant === "stage" ? "" : "aspect-video";
+  const aspect = variant === "stage" ? "h-full" : "aspect-video";
+
   return (
     <div
+      ref={wrapRef}
       className={`relative ${aspect} w-full overflow-hidden bg-black text-white ${className}`}
-      style={bg}
     >
-      {slide?.imageUrl && (slide.lines?.length || slide.title) ? (
-        <div className="absolute inset-0 bg-black/40" />
-      ) : null}
-      <div className="relative flex h-full w-full flex-col items-center justify-center p-[5%] text-center">
-        {slide?.title && <div className={`mb-4 font-semibold ${titleSize}`}>{slide.title}</div>}
-        {slide?.lines?.map((l, i) => (
-          <div key={i} className={`font-medium ${bodySize}`}>
-            {l}
-          </div>
-        ))}
-        {slide?.reference && (
-          <div className={`mt-6 opacity-80 ${refSize}`}>{slide.reference}</div>
-        )}
-        {!slide && (
-          <div className="text-white/40 text-sm">No slide selected</div>
-        )}
+      <div
+        className="absolute left-0 top-0 origin-top-left"
+        style={{
+          width: STAGE_W,
+          height: STAGE_H,
+          transform: `scale(${scale})`,
+          ...bg,
+        }}
+      >
+        {slide?.imageUrl && (slide.lines?.length || slide.title) ? (
+          <div className="absolute inset-0 bg-black/40" />
+        ) : null}
+        <div className="relative flex h-full w-full flex-col items-center justify-center px-24 py-20 text-center">
+          {slide?.title && (
+            <div className="mb-10 text-7xl font-semibold leading-tight">{slide.title}</div>
+          )}
+          {slide?.lines?.map((l, i) => (
+            <div key={i} className="text-6xl font-medium leading-snug">
+              {l}
+            </div>
+          ))}
+          {slide?.reference && (
+            <div className="mt-12 text-3xl opacity-80">{slide.reference}</div>
+          )}
+          {!slide && <div className="text-3xl text-white/40">No slide selected</div>}
+        </div>
       </div>
     </div>
   );
