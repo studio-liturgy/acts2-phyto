@@ -284,43 +284,26 @@ function Presenter() {
                       Edit set
                     </Link>
                   </Button>
+                  {(activeDeck.kind === "song" || activeDeck.kind === "scripture") && (
+                    <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={groupView}
+                        onChange={(e) => setGroupView(e.target.checked)}
+                      />
+                      Group by section
+                    </label>
+                  )}
                 </div>
                 <span className="text-xs text-muted-foreground">
                   Click any slide to send it live · ← → navigates
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-                {activeDeck.slides.map((s, i) => {
-                  const isLive =
-                    live.deckId === activeDeck.id && live.slideId === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => live.go(activeDeck.id, s.id)}
-                      className={`group relative rounded-md border-2 text-left transition ${
-                        isLive
-                          ? "border-red-500 ring-2 ring-red-500/30"
-                          : "border-transparent hover:border-primary"
-                      }`}
-                    >
-                      <SlideView slide={s} variant="thumb" className="rounded" />
-                      <div className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-                        {i + 1}
-                      </div>
-                      {s.reference && activeDeck.kind === "scripture" && (
-                        <div className="absolute bottom-1 left-1 right-1 truncate rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-                          {s.reference}
-                        </div>
-                      )}
-                      {isLive && (
-                        <div className="absolute right-1 top-1 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                          LIVE
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              <SlideGridForPresenter
+                deck={activeDeck}
+                live={live}
+                grouped={groupView && (activeDeck.kind === "song" || activeDeck.kind === "scripture")}
+              />
             </>
           )}
         </main>
