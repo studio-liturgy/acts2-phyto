@@ -450,7 +450,7 @@ function Presenter() {
         </main>
 
         {/* Right rail */}
-        <aside className="max-h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground/10 bg-background p-4 md:sticky md:top-[73px] md:self-start">
+        <aside className="h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground/10 bg-background p-4 md:sticky md:top-[73px]">
           <div>
             <div className="mono mb-2 text-[10px] uppercase tracking-wider">Live output</div>
             <div className="relative overflow-hidden rounded-2xl bg-[var(--brand-black)]">
