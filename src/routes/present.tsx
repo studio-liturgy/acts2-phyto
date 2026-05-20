@@ -461,6 +461,7 @@ function Presenter() {
                         <span className="mr-1 text-muted-foreground">{i + 1}.</span>
                         {d.name}
                       </h3>
+                      <KindBadge kind={d.kind} />
                       <Button asChild size="sm" variant="outline">
                         <Link to="/deck/$deckId" params={{ deckId: d.id }}>
                           Edit set
