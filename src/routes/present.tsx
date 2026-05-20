@@ -321,7 +321,20 @@ function Presenter() {
 
         {/* Slide grid */}
         <main className="overflow-auto p-4">
-          {!activeDeck ? (
+          {activePlaylist ? (
+            deckList.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Gathering is empty. Drag sets here.
+              </div>
+            ) : (
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">{activePlaylist.name}</h2>
+                <span className="text-xs text-muted-foreground">
+                  Click any slide to send it live · ← → navigates
+                </span>
+              </div>
+            )
+          ) : !activeDeck ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               Select a set to begin.
             </div>
@@ -367,6 +380,44 @@ function Presenter() {
                 grouped={groupView && (activeDeck.kind === "song" || activeDeck.kind === "scripture")}
               />
             </>
+          )}
+
+          {activePlaylist && deckList.length > 0 && (
+            <div className="space-y-8">
+              {deckList.map((id, i) => {
+                const d = decks[id];
+                if (!d) return null;
+                return (
+                  <section key={id} id={`deck-section-${id}`}>
+                    <div className="mb-2 flex items-center gap-3">
+                      <h3 className="text-base font-semibold">
+                        <span className="mr-1 text-muted-foreground">{i + 1}.</span>
+                        {d.name}
+                      </h3>
+                      <Button asChild size="sm" variant="outline">
+                        <Link to="/deck/$deckId" params={{ deckId: d.id }}>
+                          Edit set
+                        </Link>
+                      </Button>
+                      {id === live.deckId && (
+                        <span className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          LIVE
+                        </span>
+                      )}
+                    </div>
+                    {d.slides.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No slides.</p>
+                    ) : (
+                      <SlideGridForPresenter
+                        deck={d}
+                        live={live}
+                        grouped={groupView && (d.kind === "song" || d.kind === "scripture")}
+                      />
+                    )}
+                  </section>
+                );
+              })}
+            </div>
           )}
         </main>
 
