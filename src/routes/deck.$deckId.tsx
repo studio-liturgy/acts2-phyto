@@ -651,18 +651,41 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
     );
   }
 
+  return <MediaImporter onImport={importImages} />;
+}
+
+function MediaImporter({ onImport }: { onImport: (files: FileList | null) => void }) {
+  const [over, setOver] = useState(false);
   return (
     <Card className="p-4">
       <h3 className="mb-2 text-sm font-medium">Import images</h3>
-      <label className="flex h-32 cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-border text-xs text-muted-foreground transition hover:border-primary">
+      <label
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          if (e.dataTransfer.files?.length) onImport(e.dataTransfer.files);
+        }}
+        className={`flex h-32 cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed text-xs transition ${
+          over
+            ? "border-primary bg-primary/5 text-primary"
+            : "border-border text-muted-foreground hover:border-primary"
+        }`}
+      >
         <Plus className="mb-1 h-5 w-5" />
-        Click to upload
+        {over ? "Drop to upload" : "Drop images here or click to browse"}
+        <span className="mt-1 text-[10px] opacity-70">Multiple files supported</span>
         <input
           type="file"
           accept="image/*"
           multiple
           className="hidden"
-          onChange={(e) => importImages(e.target.files)}
+          onChange={(e) => onImport(e.target.files)}
         />
       </label>
       <p className="mt-2 text-[11px] text-muted-foreground">
@@ -671,3 +694,4 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
     </Card>
   );
 }
+
