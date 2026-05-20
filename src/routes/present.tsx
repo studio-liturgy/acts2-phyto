@@ -184,7 +184,7 @@ function Presenter() {
             {showAll && filteredPlaylists.length > 0 && (
               <div className="mb-4">
                 <div className="mb-1 flex items-center gap-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <ListMusic className="h-3 w-3" /> Playlists
+                  <ListMusic className="h-3 w-3" /> Gatherings
                 </div>
                 <div className="space-y-1">
                   {filteredPlaylists.map((pid) => {
@@ -210,16 +210,16 @@ function Presenter() {
 
             <div>
               <div className="mb-1 flex items-center gap-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                <Layers className="h-3 w-3" /> Decks
+                <Layers className="h-3 w-3" /> Sets
               </div>
               <div className="space-y-1">
                 {filteredDecks.length === 0 && (
                   <p className="px-2 text-xs text-muted-foreground">
                     {activePlaylist
-                      ? "Playlist is empty."
+                      ? "Gathering is empty."
                       : q
                       ? "No matches."
-                      : "No decks yet."}
+                      : "No sets yet."}
                   </p>
                 )}
                 {filteredDecks.map((id, i) => {
@@ -260,11 +260,11 @@ function Presenter() {
         <main className="overflow-auto p-4">
           {!activeDeck ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Select a deck to begin.
+              Select a set to begin.
             </div>
           ) : activeDeck.slides.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              This deck has no slides.{" "}
+              This set has no slides.{" "}
               <Link
                 to="/deck/$deckId"
                 params={{ deckId: activeDeck.id }}
@@ -276,7 +276,14 @@ function Presenter() {
           ) : (
             <>
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">{activeDeck.name}</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-semibold">{activeDeck.name}</h2>
+                  <Button asChild size="sm" variant="outline">
+                    <Link to="/deck/$deckId" params={{ deckId: activeDeck.id }}>
+                      Edit set
+                    </Link>
+                  </Button>
+                </div>
                 <span className="text-xs text-muted-foreground">
                   Click any slide to send it live · ← → navigates
                 </span>
@@ -299,7 +306,7 @@ function Presenter() {
                       <div className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
                         {i + 1}
                       </div>
-                      {s.reference && (
+                      {s.reference && activeDeck.kind === "scripture" && (
                         <div className="absolute bottom-1 left-1 right-1 truncate rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
                           {s.reference}
                         </div>

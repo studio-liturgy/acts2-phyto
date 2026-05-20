@@ -76,7 +76,7 @@ export function SlideView({
               {l}
             </div>
           ))}
-          {slide?.reference && (
+          {slide?.reference && slide.kind === "scripture" && (
             <div className="mt-12 text-3xl opacity-80">{slide.reference}</div>
           )}
           {!slide && <div className="text-3xl text-white/40">No slide selected</div>}

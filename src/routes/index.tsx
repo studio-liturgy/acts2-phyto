@@ -73,7 +73,7 @@ function Library() {
   };
 
   const createNewPlaylist = () => {
-    createPlaylist("New Playlist");
+    createPlaylist("New Gathering");
   };
 
   // ---- Catalogue: filter + sort ------------------------------------------
@@ -136,8 +136,8 @@ function Library() {
         {/* Gatherings (Service Playlists) */}
         <section className="mb-10">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-muted-foreground">
-              <ListMusic className="h-4 w-4" /> Gatherings
+            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              Gatherings
             </h2>
             <div className="flex gap-2">
               <div className="relative">
@@ -150,7 +150,7 @@ function Library() {
                 />
               </div>
               <Button size="sm" onClick={createNewPlaylist}>
-                <Plus className="mr-1 h-3 w-3" /> New playlist
+                <Plus className="mr-1 h-3 w-3" /> New gathering
               </Button>
             </div>
           </div>
@@ -364,8 +364,8 @@ function PlaylistCard({
         <button
           onClick={onDelete}
           className="rounded p-1 text-muted-foreground transition hover:bg-muted hover:text-destructive"
-          aria-label="Delete playlist"
-          title="Delete playlist"
+          aria-label="Delete gathering"
+          title="Delete gathering"
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -452,7 +452,7 @@ function PlaylistCard({
                 <button
                   onClick={() => onRemoveAt(i)}
                   className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-destructive"
-                  aria-label="Remove from playlist"
+                  aria-label="Remove from gathering"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
