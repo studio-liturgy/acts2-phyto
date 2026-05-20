@@ -646,13 +646,13 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
         </PanelCard>
 
         <PanelCard label="Or paste lyrics">
-          <div className="rounded-2xl border border-foreground p-3">
+          <div className="overflow-hidden rounded-2xl border border-foreground">
             <Textarea
               value={lyrics}
               onChange={(e) => setLyrics(e.target.value)}
               rows={8}
               placeholder={`[Verse 1]\nAmazing grace, how sweet the sound\nThat saved a wretch like me\n\n[Chorus]\n...`}
-              className="mono border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+              className="mono block w-full resize-none border-0 bg-transparent px-4 py-3 text-xs shadow-none focus-visible:ring-0"
             />
           </div>
           <button
