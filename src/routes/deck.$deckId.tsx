@@ -146,7 +146,17 @@ function DeckEditor() {
                   <span className="ml-2 normal-case text-foreground">· {multiSel.size} selected</span>
                 )}
               </h2>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {(deck.kind === "song" || deck.kind === "scripture") && (
+                  <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={groupView}
+                      onChange={(e) => setGroupView(e.target.checked)}
+                    />
+                    Group by section
+                  </label>
+                )}
                 {multiSel.size > 0 && (
                   <Button size="sm" variant="destructive" onClick={deleteSelected}>
                     <Trash2 className="mr-1 h-3 w-3" /> Delete selected
@@ -169,7 +179,7 @@ function DeckEditor() {
               </p>
             ) : (
               <div className="max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
-                {deck.kind === "song" ? (
+                {groupView && (deck.kind === "song" || deck.kind === "scripture") ? (
                   <GroupedSongGrid
                     slides={deck.slides}
                     selectedId={selected?.id ?? null}
