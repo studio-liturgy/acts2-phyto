@@ -50,14 +50,15 @@ function kindBg(kind: DeckKind | string): string {
 }
 
 function kindOutline(kind: KindFilter, active: boolean): string {
-  const colors: Record<KindFilter, string> = {
+  const colors: Record<string, string> = {
     all: "border-foreground text-foreground",
     song: "border-[var(--brand-blue)] text-[var(--brand-blue)]",
     scripture: "border-[var(--brand-green)] text-[var(--brand-green)]",
     media: "border-[var(--brand-orange)] text-[var(--brand-orange)]",
+    mixed: "border-foreground text-foreground",
   };
   const ring = active ? "ring-2 ring-offset-2 ring-offset-background" : "";
-  return `${colors[kind]} ${ring}`;
+  return `${colors[kind] ?? colors.all} ${ring}`;
 }
 
 function Library() {
