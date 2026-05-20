@@ -174,11 +174,9 @@ function Library() {
                     deckIds={p.deckIds}
                     allDecks={Object.values(decks)}
                     onRename={(name) => renamePlaylist(pid, name)}
-                    onDelete={() => {
-                      if (confirm(`Delete playlist "${p.name}"?`)) deletePlaylist(pid);
-                    }}
+                    onDelete={() => deletePlaylist(pid)}
                     onAdd={(deckId) => addDeckToPlaylist(pid, deckId)}
-                    onRemove={(deckId) => removeDeckFromPlaylist(pid, deckId)}
+                    onRemoveAt={(index) => removeDeckFromPlaylist(pid, index)}
                     onReorder={(ids) => reorderPlaylistDecks(pid, ids)}
                   />
                 );
