@@ -114,10 +114,11 @@ function Library() {
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-6xl items-center justify-end gap-2 px-6 py-4">
           <Button asChild variant="outline">
-            <Link to="/output">
+            <a href="/output" target="_blank" rel="noopener noreferrer">
               <Monitor className="mr-2 h-4 w-4" /> Open output window
-            </Link>
+            </a>
           </Button>
+
           <Button asChild>
             <Link to="/present">Present</Link>
           </Button>
