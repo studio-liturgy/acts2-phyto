@@ -496,13 +496,12 @@ function Presenter() {
           </div>
 
           <div className="rounded-2xl border border-foreground p-4">
-            <div className="mono mb-3 text-[10px] uppercase tracking-wider">Media functions</div>
-            {liveDeck?.kind === "media" ? (
+          {liveDeck?.kind === "media" && (
+            <div className="rounded-2xl border border-foreground p-4">
+              <div className="mono mb-3 text-[10px] uppercase tracking-wider">Media functions</div>
               <MediaPlaybackControls deckId={liveDeck.id} />
-            ) : (
-              <p className="text-xs text-muted-foreground">Available when a Media set is live.</p>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="rounded-2xl border border-foreground">
             <button
