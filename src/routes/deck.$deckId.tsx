@@ -472,6 +472,8 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
   const [keepLineBreaks, setKeepLineBreaks] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [manualRef, setManualRef] = useState("");
+  const [manualText, setManualText] = useState("");
 
   const importLyrics = () => {
     const slides = parseLyrics(lyrics, linesPer);
@@ -640,61 +642,105 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
   }
 
   if (kind === "scripture") {
+    const importManualScripture = () => {
+      const reference = manualRef.trim();
+      const lines = manualText
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+      if (!reference || lines.length === 0) return;
+      const verses = lines.map((text, i) => ({ verse: i + 1, text }));
+      const slides = scriptureToSlides(reference, verses, versesPer, {
+        keepLineBreaks,
+      });
+      slides.forEach((s) => addSlide(deckId, s));
+      updateDeck(deckId, { name: reference });
+      setManualRef("");
+      setManualText("");
+    };
     return (
-      <Card className="p-4">
-        <h3 className="mb-2 text-sm font-medium">Import scripture</h3>
-        <Input
-          value={ref}
-          onChange={(e) => setRef(e.target.value)}
-          placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2"
-        />
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <div>
-            <Label className="text-xs">Translation</Label>
-            <select
-              value={translation}
-              onChange={(e) => setTranslation(e.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-            >
-              {TRANSLATIONS.map((t) => (
-                <option key={t.code} value={t.code}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Label className="text-xs">Verses per slide (max 2)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={2}
-              value={versesPer}
-              onChange={(e) =>
-                setVersesPer(Math.min(2, Math.max(1, Number(e.target.value) || 1)))
-              }
-              className="h-9"
-            />
-          </div>
-        </div>
-        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={keepLineBreaks}
-            onChange={(e) => setKeepLineBreaks(e.target.checked)}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="p-4">
+          <h3 className="mb-2 text-sm font-medium">Import scripture</h3>
+          <Input
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2"
           />
-          Keep original line breaks (off by default — flowed into a paragraph).
-        </label>
-        {err && <p className="mt-2 text-xs text-destructive">{err}</p>}
-        <Button
-          size="sm"
-          className="mt-2 w-full"
-          onClick={importScripture}
-          disabled={!ref.trim() || busy}
-        >
-          {busy ? "Fetching…" : "Fetch & add"}
-        </Button>
-      </Card>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">Translation</Label>
+              <select
+                value={translation}
+                onChange={(e) => setTranslation(e.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+              >
+                {TRANSLATIONS.map((t) => (
+                  <option key={t.code} value={t.code}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs">Verses per slide (max 2)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={2}
+                value={versesPer}
+                onChange={(e) =>
+                  setVersesPer(Math.min(2, Math.max(1, Number(e.target.value) || 1)))
+                }
+                className="h-9"
+              />
+            </div>
+          </div>
+          <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={keepLineBreaks}
+              onChange={(e) => setKeepLineBreaks(e.target.checked)}
+            />
+            Keep original line breaks (off by default — flowed into a paragraph).
+          </label>
+          {err && <p className="mt-2 text-xs text-destructive">{err}</p>}
+          <Button
+            size="sm"
+            className="mt-2 w-full"
+            onClick={importScripture}
+            disabled={!ref.trim() || busy}
+          >
+            {busy ? "Fetching…" : "Fetch & add"}
+          </Button>
+        </Card>
+
+        <Card className="p-4">
+          <h3 className="mb-2 text-sm font-medium">Or enter manually</h3>
+          <Label className="text-xs">Reference</Label>
+          <Input
+            value={manualRef}
+            onChange={(e) => setManualRef(e.target.value)}
+            placeholder="e.g. John 3:16-17"
+          />
+          <Label className="mt-2 text-xs">Verses (one per line)</Label>
+          <Textarea
+            rows={8}
+            value={manualText}
+            onChange={(e) => setManualText(e.target.value)}
+            placeholder={`For God so loved the world...\nFor God did not send his Son...`}
+            className="font-mono text-xs"
+          />
+          <Button
+            size="sm"
+            className="mt-2 w-full"
+            onClick={importManualScripture}
+            disabled={!manualRef.trim() || !manualText.trim()}
+          >
+            Add slides
+          </Button>
+        </Card>
+      </div>
     );
   }
 

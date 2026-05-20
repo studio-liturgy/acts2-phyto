@@ -140,8 +140,8 @@ function Presenter() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* Sticky header keeps top toolbar visible while presenting. */}
       <header className="sticky top-0 z-30 border-b border-border bg-background">
-        <div className="flex items-center justify-between gap-4 px-4 py-2">
-          <div className="flex items-center gap-2">
+        <div className="grid grid-cols-3 items-center gap-4 px-4 py-2">
+          <div className="flex items-center gap-2 justify-self-start">
             <Button
               size="sm"
               variant="ghost"
@@ -155,9 +155,22 @@ function Presenter() {
               )}
               {sidebarOpen ? "Hide" : "Show"} sidebar
             </Button>
-            <span className="text-sm font-medium">Presenter</span>
+            <Button asChild size="sm" variant="ghost">
+              <Link to="/">Create</Link>
+            </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2 justify-self-center">
+            <span className="text-sm font-medium">Presenter</span>
+            {activePlaylist && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span className="truncate text-sm text-muted-foreground">
+                  {activePlaylist.name}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2 justify-self-end">
             {liveDeck?.kind === "media" && <MediaPlaybackControls deckId={liveDeck.id} />}
             <Button size="sm" variant="outline" onClick={openOutput}>
               <Monitor className="mr-1 h-4 w-4" /> Output window
