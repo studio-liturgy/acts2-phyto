@@ -311,10 +311,12 @@ function Presenter() {
               <div className="flex aspect-video w-full items-center justify-center bg-black text-xs text-white/40">
                 BLACKOUT
               </div>
-            ) : live.clear ? (
-              <div className="flex aspect-video w-full items-center justify-center bg-black text-xs text-white/40">
-                CLEAR
-              </div>
+            ) : liveDeck?.kind === "media" ? (
+              <DissolveSlide
+                slide={liveSlide}
+                variant="preview"
+                durationMs={liveDeck.dissolveMs ?? 0}
+              />
             ) : (
               <SlideView slide={liveSlide} variant="preview" />
             )}
@@ -331,10 +333,87 @@ function Presenter() {
             <div className="mb-1 font-medium text-foreground">Shortcuts</div>
             <div>→ / Space — next slide</div>
             <div>← — previous slide</div>
-            <div>B — blackout · C — clear · Esc — stop</div>
+            <div>B — blackout · Esc — stop</div>
           </div>
         </aside>
       </div>
+
+      {/* Drives auto-advance for media decks while presenting. */}
+      <MediaAutoAdvance />
     </div>
   );
 }
+
+function MediaAutoAdvance() {
+  const live = useLive();
+  const deck = useLibrary((s) => (live.deckId ? s.decks[live.deckId] : null));
+  useEffect(() => {
+    if (!deck || deck.kind !== "media") return;
+    const ms = deck.autoAdvanceMs ?? 0;
+    if (ms <= 0 || !live.slideId || live.blackout) return;
+    const idx = deck.slides.findIndex((s) => s.id === live.slideId);
+    if (idx === -1) return;
+    const t = setTimeout(() => {
+      const next = deck.slides[idx + 1];
+      if (next) live.go(deck.id, next.id);
+      else if (deck.loop && deck.slides[0]) live.go(deck.id, deck.slides[0].id);
+    }, ms);
+    return () => clearTimeout(t);
+  }, [deck, live.slideId, live.blackout, live]);
+  return null;
+}
+
+function MediaPlaybackControls({ deckId }: { deckId: string }) {
+  const deck = useLibrary((s) => s.decks[deckId]);
+  const updateDeck = useLibrary((s) => s.updateDeck);
+  if (!deck) return null;
+  const auto = deck.autoAdvanceMs ?? 0;
+  const dissolve = deck.dissolveMs ?? 0;
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-border bg-card/60 px-2 py-1 text-xs">
+      <Timer className="h-3.5 w-3.5 text-muted-foreground" />
+      <label className="flex items-center gap-1">
+        Auto
+        <input
+          type="number"
+          min={0}
+          step={0.5}
+          value={auto ? (auto / 1000).toString() : ""}
+          placeholder="off"
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            updateDeck(deckId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
+          }}
+          className="h-6 w-14 rounded border border-input bg-background px-1"
+        />
+        s
+      </label>
+      <button
+        type="button"
+        onClick={() => updateDeck(deckId, { loop: !deck.loop })}
+        className={`flex items-center gap-1 rounded px-1.5 py-0.5 ${deck.loop ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+        title="Loop"
+      >
+        <Repeat className="h-3 w-3" /> Loop
+      </button>
+      <label className="flex items-center gap-1">
+        Fade
+        <input
+          type="number"
+          min={0}
+          max={2}
+          step={0.1}
+          value={dissolve ? (dissolve / 1000).toString() : ""}
+          placeholder="0"
+          onChange={(e) => {
+            const n = Math.min(2, Math.max(0, Number(e.target.value) || 0));
+            updateDeck(deckId, { dissolveMs: Math.round(n * 1000) });
+          }}
+          className="h-6 w-12 rounded border border-input bg-background px-1"
+        />
+        s
+      </label>
+    </div>
+  );
+}
+
