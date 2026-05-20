@@ -137,11 +137,6 @@ function Presenter() {
               )}
               {sidebarOpen ? "Hide" : "Show"} sidebar
             </Button>
-            <Button asChild size="sm" variant="ghost">
-              <Link to="/">
-                <ArrowLeft className="mr-1 h-4 w-4" /> Create
-              </Link>
-            </Button>
             <span className="text-sm font-medium">Presenter</span>
           </div>
           <div className="flex items-center gap-2">
