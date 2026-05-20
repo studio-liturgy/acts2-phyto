@@ -105,6 +105,66 @@ export const useLibrary = create<LibraryState>()(
           const slides = ids.map((i) => map.get(i)!).filter(Boolean);
           return { decks: { ...s.decks, [deckId]: { ...d, slides, updatedAt: Date.now() } } };
         }),
+      createPlaylist: (name) => {
+        const id = uid();
+        const now = Date.now();
+        set((s) => ({
+          playlists: {
+            ...s.playlists,
+            [id]: { id, name, deckIds: [], createdAt: now, updatedAt: now },
+          },
+          playlistOrder: [id, ...s.playlistOrder],
+        }));
+        return id;
+      },
+      renamePlaylist: (id, name) =>
+        set((s) => {
+          const p = s.playlists[id];
+          if (!p) return s;
+          return { playlists: { ...s.playlists, [id]: { ...p, name, updatedAt: Date.now() } } };
+        }),
+      deletePlaylist: (id) =>
+        set((s) => {
+          const { [id]: _gone, ...rest } = s.playlists;
+          return { playlists: rest, playlistOrder: s.playlistOrder.filter((x) => x !== id) };
+        }),
+      addDeckToPlaylist: (playlistId, deckId) =>
+        set((s) => {
+          const p = s.playlists[playlistId];
+          if (!p || p.deckIds.includes(deckId)) return s;
+          return {
+            playlists: {
+              ...s.playlists,
+              [playlistId]: { ...p, deckIds: [...p.deckIds, deckId], updatedAt: Date.now() },
+            },
+          };
+        }),
+      removeDeckFromPlaylist: (playlistId, deckId) =>
+        set((s) => {
+          const p = s.playlists[playlistId];
+          if (!p) return s;
+          return {
+            playlists: {
+              ...s.playlists,
+              [playlistId]: {
+                ...p,
+                deckIds: p.deckIds.filter((d) => d !== deckId),
+                updatedAt: Date.now(),
+              },
+            },
+          };
+        }),
+      reorderPlaylistDecks: (playlistId, deckIds) =>
+        set((s) => {
+          const p = s.playlists[playlistId];
+          if (!p) return s;
+          return {
+            playlists: {
+              ...s.playlists,
+              [playlistId]: { ...p, deckIds, updatedAt: Date.now() },
+            },
+          };
+        }),
     }),
     { name: "stage-library-v1" }
   )
