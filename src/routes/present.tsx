@@ -345,23 +345,27 @@ function Presenter() {
 }
 
 function MediaAutoAdvance() {
-  const live = useLive();
-  const deck = useLibrary((s) => (live.deckId ? s.decks[live.deckId] : null));
+  const deckId = useLive((s) => s.deckId);
+  const slideId = useLive((s) => s.slideId);
+  const blackout = useLive((s) => s.blackout);
+  const deck = useLibrary((s) => (deckId ? s.decks[deckId] : null));
   useEffect(() => {
     if (!deck || deck.kind !== "media") return;
     const ms = deck.autoAdvanceMs ?? 0;
-    if (ms <= 0 || !live.slideId || live.blackout) return;
-    const idx = deck.slides.findIndex((s) => s.id === live.slideId);
+    if (ms <= 0 || !slideId || blackout) return;
+    const idx = deck.slides.findIndex((s) => s.id === slideId);
     if (idx === -1) return;
     const t = setTimeout(() => {
+      const go = useLive.getState().go;
       const next = deck.slides[idx + 1];
-      if (next) live.go(deck.id, next.id);
-      else if (deck.loop && deck.slides[0]) live.go(deck.id, deck.slides[0].id);
+      if (next) go(deck.id, next.id);
+      else if (deck.loop && deck.slides[0]) go(deck.id, deck.slides[0].id);
     }, ms);
     return () => clearTimeout(t);
-  }, [deck, live.slideId, live.blackout, live]);
+  }, [deck, slideId, blackout]);
   return null;
 }
+
 
 function MediaPlaybackControls({ deckId }: { deckId: string }) {
   const deck = useLibrary((s) => s.decks[deckId]);
