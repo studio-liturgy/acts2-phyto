@@ -693,7 +693,7 @@ function MediaImporter({ onImport }: { onImport: (files: FileList | null) => voi
         <span className="mt-1 text-[10px] opacity-70">Multiple files supported</span>
         <input
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
           multiple
           className="hidden"
           onChange={(e) => onImport(e.target.files)}
