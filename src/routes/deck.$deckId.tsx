@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary } from "@/lib/store";
 import { parseLyrics, fileToDataUrl, scriptureToSlides } from "@/lib/parsers";
 import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
-import { searchSongs, fetchLyrics, type SongResult } from "@/lib/songs";
+import { searchSongs, type SongResult } from "@/lib/songs";
 import { SlideView } from "@/components/SlideView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,7 +70,6 @@ function DeckEditor() {
       </header>
 
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[1fr_320px]">
-        {/* Main: importers + slide list */}
         <div className="space-y-6">
           <Importers deckId={deck.id} kind={deck.kind} />
 
@@ -106,7 +105,6 @@ function DeckEditor() {
           </Card>
         </div>
 
-        {/* Sidebar: inspector */}
         <aside className="space-y-4">
           <Card className="p-4">
             <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -150,7 +148,6 @@ function DeckEditor() {
 }
 
 function SlideGrid({
-  deckId: _deckId,
   slides,
   selectedId,
   onSelect,
@@ -211,18 +208,19 @@ function SlideGrid({
 function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
   const { addSlide, updateDeck } = useLibrary();
 
-  // Lyrics state
-  const [lyrics, setLyrics] = useState("");
+  // Shared lines-per-slide control (used by song search AND paste).
   const [linesPer, setLinesPer] = useState(2);
 
-  // Song search state
+  // Paste lyrics
+  const [lyrics, setLyrics] = useState("");
+
+  // Song search
   const [songQuery, setSongQuery] = useState("");
   const [songResults, setSongResults] = useState<SongResult[]>([]);
   const [songSearching, setSongSearching] = useState(false);
   const [songErr, setSongErr] = useState<string | null>(null);
-  const [importingSong, setImportingSong] = useState<string | null>(null);
 
-  // Scripture state
+  // Scripture
   const [ref, setRef] = useState("");
   const [translation, setTranslation] = useState("NIV");
   const [versesPer, setVersesPer] = useState(1);
@@ -244,27 +242,17 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
       const results = await searchSongs(songQuery);
       setSongResults(results);
       if (results.length === 0) setSongErr("No matches found.");
-    } catch (err) {
-      setSongErr((err as Error).message);
+    } catch (e) {
+      setSongErr((e as Error).message);
     } finally {
       setSongSearching(false);
     }
   };
 
-  const importSong = async (s: SongResult) => {
-    const key = `${s.artist}::${s.title}`;
-    setImportingSong(key);
-    setSongErr(null);
-    try {
-      const lyricsText = await fetchLyrics(s.artist, s.title);
-      const slides = parseLyrics(lyricsText, linesPer);
-      slides.forEach((sl) => addSlide(deckId, sl));
-      updateDeck(deckId, { name: `${s.title} — ${s.artist}` });
-    } catch (err) {
-      setSongErr(`${s.title}: ${(err as Error).message}`);
-    } finally {
-      setImportingSong(null);
-    }
+  const importSong = (s: SongResult) => {
+    const slides = parseLyrics(s.lyrics, linesPer);
+    slides.forEach((sl) => addSlide(deckId, sl));
+    updateDeck(deckId, { name: `${s.title} — ${s.artist}` });
   };
 
   const importScripture = async () => {
@@ -293,78 +281,79 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
 
   if (kind === "song") {
     return (
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-4">
-          <h3 className="mb-2 text-sm font-medium">Search songs</h3>
-          <form onSubmit={runSongSearch} className="flex gap-2">
-            <Input
-              value={songQuery}
-              onChange={(e) => setSongQuery(e.target.value)}
-              placeholder="Song title or artist…"
-            />
-            <Button size="sm" type="submit" disabled={songSearching || !songQuery.trim()}>
-              {songSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            </Button>
-          </form>
-          {songErr && <p className="mt-2 text-xs text-destructive">{songErr}</p>}
-          <div className="mt-3 max-h-72 space-y-1 overflow-auto">
-            {songResults.map((s) => {
-              const key = `${s.artist}::${s.title}`;
-              const loading = importingSong === key;
-              return (
-                <button
-                  key={key}
-                  onClick={() => importSong(s)}
-                  disabled={loading}
-                  className="flex w-full items-center gap-2 rounded p-2 text-left text-sm transition hover:bg-muted disabled:opacity-60"
-                >
-                  {s.albumCover ? (
-                    <img src={s.albumCover} alt="" className="h-8 w-8 rounded" />
-                  ) : (
-                    <div className="h-8 w-8 rounded bg-muted" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{s.title}</div>
-                    <div className="truncate text-xs text-muted-foreground">{s.artist}</div>
-                  </div>
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : (
-                    <Plus className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Search powered by lyrics.ovh. Click to fetch lyrics & build slides.
-          </p>
+      <div className="space-y-3">
+        <Card className="flex items-center gap-3 p-3">
+          <Label className="text-xs">Lines per slide</Label>
+          <Input
+            type="number"
+            min={1}
+            max={8}
+            value={linesPer}
+            onChange={(e) => setLinesPer(Math.max(1, Number(e.target.value) || 1))}
+            className="h-8 w-20"
+          />
+          <span className="text-xs text-muted-foreground">
+            Applies to both song search and pasted lyrics.
+          </span>
         </Card>
 
-        <Card className="p-4">
-          <h3 className="mb-2 text-sm font-medium">Or paste lyrics</h3>
-          <Textarea
-            value={lyrics}
-            onChange={(e) => setLyrics(e.target.value)}
-            rows={6}
-            placeholder={`[Verse 1]\nAmazing grace, how sweet the sound\nThat saved a wretch like me\n\n[Chorus]\n...`}
-            className="font-mono text-xs"
-          />
-          <div className="mt-2 flex items-center gap-2">
-            <Label className="text-xs">Lines per slide</Label>
-            <Input
-              type="number"
-              min={1}
-              max={8}
-              value={linesPer}
-              onChange={(e) => setLinesPer(Math.max(1, Number(e.target.value) || 1))}
-              className="h-8 w-16"
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="p-4">
+            <h3 className="mb-2 text-sm font-medium">Search worship songs</h3>
+            <form onSubmit={runSongSearch} className="flex gap-2">
+              <Input
+                value={songQuery}
+                onChange={(e) => setSongQuery(e.target.value)}
+                placeholder="e.g. Oceans Hillsong"
+              />
+              <Button size="sm" type="submit" disabled={songSearching || !songQuery.trim()}>
+                {songSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+              </Button>
+            </form>
+            {songErr && <p className="mt-2 text-xs text-destructive">{songErr}</p>}
+            <div className="mt-3 max-h-72 space-y-1 overflow-auto">
+              {songResults.map((s, idx) => (
+                <button
+                  key={`${s.title}-${s.artist}-${idx}`}
+                  onClick={() => importSong(s)}
+                  className="flex w-full items-center gap-2 rounded p-2 text-left text-sm transition hover:bg-muted"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{s.title}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {s.artist}
+                      {s.album ? ` · ${s.album}` : ""}
+                    </div>
+                  </div>
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Lyrics via lrclib.net — strong coverage of modern worship.
+            </p>
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="mb-2 text-sm font-medium">Or paste lyrics</h3>
+            <Textarea
+              value={lyrics}
+              onChange={(e) => setLyrics(e.target.value)}
+              rows={8}
+              placeholder={`[Verse 1]\nAmazing grace, how sweet the sound\nThat saved a wretch like me\n\n[Chorus]\n...`}
+              className="font-mono text-xs"
             />
-            <Button size="sm" className="ml-auto" onClick={importLyrics} disabled={!lyrics.trim()}>
-              Import
-            </Button>
-          </div>
-        </Card>
+            <div className="mt-2 flex">
+              <Button size="sm" className="ml-auto" onClick={importLyrics} disabled={!lyrics.trim()}>
+                Import
+              </Button>
+            </div>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -418,7 +407,6 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
     );
   }
 
-  // media / mixed
   return (
     <Card className="p-4">
       <h3 className="mb-2 text-sm font-medium">Import images</h3>
