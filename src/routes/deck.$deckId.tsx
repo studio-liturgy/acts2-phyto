@@ -151,7 +151,13 @@ function DeckEditor() {
                 className="h-12 w-72 border-foreground text-3xl"
               />
             ) : (
-              <h1 className="truncate text-3xl text-muted-foreground md:text-4xl">{deck.name}</h1>
+              <h1
+                onClick={() => setEditingName(true)}
+                className="cursor-text truncate text-3xl text-muted-foreground md:text-4xl"
+                title="Click to rename"
+              >
+                {deck.name}
+              </h1>
             )}
             <button
               onClick={() => setEditingName((v) => !v)}
