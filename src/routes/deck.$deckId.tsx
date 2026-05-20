@@ -602,7 +602,7 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
                 value={songQuery}
                 onChange={(e) => setSongQuery(e.target.value)}
                 placeholder="e.g. How Great is Our God"
-                className="mono w-full bg-transparent text-sm italic outline-none placeholder:text-muted-foreground"
+                className="w-full bg-transparent text-sm outline-none placeholder:italic placeholder:text-muted-foreground"
               />
             </div>
             <button
