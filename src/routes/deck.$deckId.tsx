@@ -405,10 +405,21 @@ function GroupedSongGrid(props: {
   onReorder: (ids: string[]) => void;
   dense?: boolean;
 }) {
+  const SECTION_RE = /^\s*\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?\s*$/i;
+  const sectionOf = (s: Slide): string | null => {
+    if (s.section && s.section.trim()) return s.section.trim();
+    // Legacy: song slides used `reference` for section before `section` existed.
+    if (s.kind === "lyric" && s.reference && SECTION_RE.test(s.reference)) {
+      return s.reference.trim();
+    }
+    return null;
+  };
+
   const groups: { label: string; slides: Slide[] }[] = [];
   let currentLabel = "Section";
   for (const s of props.slides) {
-    if (s.reference && s.reference.trim()) currentLabel = s.reference.trim();
+    const sec = sectionOf(s);
+    if (sec) currentLabel = sec;
     const last = groups[groups.length - 1];
     if (!last || last.label !== currentLabel) {
       groups.push({ label: currentLabel, slides: [s] });
