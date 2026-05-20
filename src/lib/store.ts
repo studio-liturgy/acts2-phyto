@@ -191,12 +191,12 @@ interface LiveStore extends LiveState {
 
 function readInitial(): LiveState {
   if (typeof window === "undefined")
-    return { deckId: null, slideId: null, blackout: false, clear: false };
+    return { deckId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return { blackoutFadeMs: 0, ...JSON.parse(raw) };
   } catch {}
-  return { deckId: null, slideId: null, blackout: false, clear: false };
+  return { deckId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 };
 }
 
 let bc: BroadcastChannel | null = null;
