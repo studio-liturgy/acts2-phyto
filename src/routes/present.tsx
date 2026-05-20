@@ -111,8 +111,6 @@ function Presenter() {
         e.preventDefault();
         const prev = liveDeck.slides[idx - 1];
         if (prev) live.go(liveDeck.id, prev.id);
-      } else if (e.key.toLowerCase() === "b") {
-        live.toggleBlackout();
       } else if (e.key === "Escape") {
         live.clearLive();
       }
