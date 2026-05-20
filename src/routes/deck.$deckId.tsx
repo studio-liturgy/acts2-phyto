@@ -300,6 +300,7 @@ function MediaOptions({ deckId }: { deckId: string }) {
 function SlideGrid({
   slides,
   selectedId,
+  multiSel,
   onSelect,
   onRemove,
   onReorder,
@@ -307,7 +308,8 @@ function SlideGrid({
 }: {
   slides: Slide[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  multiSel: Set<string>;
+  onSelect: (id: string, e?: React.MouseEvent) => void;
   onRemove: (id: string) => void;
   onReorder: (ids: string[]) => void;
   dense?: boolean;
@@ -318,43 +320,54 @@ function SlideGrid({
     : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
   return (
     <div className={`grid gap-3 ${cols}`}>
-      {slides.map((s, i) => (
-        <div
-          key={s.id}
-          draggable
-          onDragStart={() => (dragId.current = s.id)}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => {
-            const from = dragId.current;
-            dragId.current = null;
-            if (!from || from === s.id) return;
-            const ids = slides.map((x) => x.id);
-            const fromIdx = ids.indexOf(from);
-            const toIdx = ids.indexOf(s.id);
-            ids.splice(toIdx, 0, ids.splice(fromIdx, 1)[0]);
-            onReorder(ids);
-          }}
-          onClick={() => onSelect(s.id)}
-          className={`group relative cursor-pointer rounded-md border-2 transition ${
-            selectedId === s.id ? "border-primary" : "border-transparent hover:border-border"
-          }`}
-        >
-          <SlideView slide={s} variant="thumb" className="rounded" />
-          <div className="absolute left-1 top-1 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-            <GripVertical className="h-3 w-3" /> {i + 1}
-          </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove(s.id);
+      {slides.map((s, i) => {
+        const isSelected = selectedId === s.id;
+        const inMulti = multiSel.has(s.id);
+        return (
+          <div
+            key={s.id}
+            draggable
+            onDragStart={() => (dragId.current = s.id)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => {
+              const from = dragId.current;
+              dragId.current = null;
+              if (!from || from === s.id) return;
+              const ids = slides.map((x) => x.id);
+              const fromIdx = ids.indexOf(from);
+              const toIdx = ids.indexOf(s.id);
+              ids.splice(toIdx, 0, ids.splice(fromIdx, 1)[0]);
+              onReorder(ids);
             }}
-            className="absolute right-1 top-1 rounded bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
-            aria-label="Remove slide"
+            onClick={(e) => onSelect(s.id, e)}
+            className={`group relative cursor-pointer rounded-md border-2 transition ${
+              isSelected
+                ? "border-primary"
+                : inMulti
+                ? "border-primary/60"
+                : "border-transparent hover:border-border"
+            }`}
           >
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
-      ))}
+            <SlideView slide={s} variant="thumb" className="rounded" />
+            <div className="absolute left-1 top-1 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+              <GripVertical className="h-3 w-3" /> {i + 1}
+            </div>
+            {inMulti && (
+              <div className="absolute right-1 bottom-1 h-3 w-3 rounded-full bg-primary ring-2 ring-white" />
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(s.id);
+              }}
+              className="absolute right-1 top-1 rounded bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
+              aria-label="Remove slide"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -363,12 +376,12 @@ function SlideGrid({
 function GroupedSongGrid(props: {
   slides: Slide[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  multiSel: Set<string>;
+  onSelect: (id: string, e?: React.MouseEvent) => void;
   onRemove: (id: string) => void;
   onReorder: (ids: string[]) => void;
   dense?: boolean;
 }) {
-  // Sticky section: the last-seen reference applies to subsequent slides.
   const groups: { label: string; slides: Slide[] }[] = [];
   let currentLabel = "Section";
   for (const s of props.slides) {
@@ -391,6 +404,7 @@ function GroupedSongGrid(props: {
           <SlideGrid
             slides={g.slides}
             selectedId={props.selectedId}
+            multiSel={props.multiSel}
             onSelect={props.onSelect}
             onRemove={props.onRemove}
             onReorder={props.onReorder}
@@ -401,6 +415,7 @@ function GroupedSongGrid(props: {
     </div>
   );
 }
+
 
 function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
   const { addSlide, updateDeck } = useLibrary();
