@@ -181,30 +181,29 @@ function Presenter() {
         {sidebarOpen && (
         <aside className="flex max-h-[calc(100vh-49px)] flex-col border-r border-border bg-card/40 md:sticky md:top-[49px] md:self-start">
           <div className="border-b border-border p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {activePlaylist ? activePlaylist.name : "All"}
-              </h3>
-              {activePlaylist && (
+            {activePlaylist && (
+              <div className="mb-2 flex items-center gap-2">
                 <Link
                   to="/present"
-                  className="text-[10px] text-primary hover:underline"
+                  className="rounded p-1 hover:bg-muted"
+                  title="Back to all"
                 >
-                  show all
+                  <ArrowLeft className="h-3.5 w-3.5" />
                 </Link>
-              )}
-            </div>
-            {showAll && (
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search decks & playlists"
-                  className="h-8 pl-7 text-sm"
-                />
+                <h3 className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {activePlaylist.name}
+                </h3>
               </div>
             )}
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search sets"
+                className="h-8 pl-7 text-sm"
+              />
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto p-3">
