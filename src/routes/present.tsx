@@ -17,7 +17,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { Deck, DeckKind, Slide } from "@/lib/types";
 import { z } from "zod";
-import { CurtainIcon } from "@/components/CurtainIcon";
+
 
 type LiveApi = ReturnType<typeof useLive.getState>;
 
