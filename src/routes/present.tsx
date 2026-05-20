@@ -284,6 +284,7 @@ function Presenter() {
             </div>
           </div>
         </aside>
+        )}
 
         {/* Slide grid */}
         <main className="overflow-auto p-4">
