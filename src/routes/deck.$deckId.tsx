@@ -208,12 +208,23 @@ function SlideGrid({
   );
 }
 
-function Importers({ deckId, kind }: { deckId: string; kind: string }) {
-  const { addSlide } = useLibrary();
+function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
+  const { addSlide, updateDeck } = useLibrary();
+
+  // Lyrics state
   const [lyrics, setLyrics] = useState("");
   const [linesPer, setLinesPer] = useState(2);
+
+  // Song search state
+  const [songQuery, setSongQuery] = useState("");
+  const [songResults, setSongResults] = useState<SongResult[]>([]);
+  const [songSearching, setSongSearching] = useState(false);
+  const [songErr, setSongErr] = useState<string | null>(null);
+  const [importingSong, setImportingSong] = useState<string | null>(null);
+
+  // Scripture state
   const [ref, setRef] = useState("");
-  const [translation, setTranslation] = useState("web");
+  const [translation, setTranslation] = useState("NIV");
   const [versesPer, setVersesPer] = useState(1);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -224,12 +235,44 @@ function Importers({ deckId, kind }: { deckId: string; kind: string }) {
     setLyrics("");
   };
 
+  const runSongSearch = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!songQuery.trim()) return;
+    setSongSearching(true);
+    setSongErr(null);
+    try {
+      const results = await searchSongs(songQuery);
+      setSongResults(results);
+      if (results.length === 0) setSongErr("No matches found.");
+    } catch (err) {
+      setSongErr((err as Error).message);
+    } finally {
+      setSongSearching(false);
+    }
+  };
+
+  const importSong = async (s: SongResult) => {
+    const key = `${s.artist}::${s.title}`;
+    setImportingSong(key);
+    setSongErr(null);
+    try {
+      const lyricsText = await fetchLyrics(s.artist, s.title);
+      const slides = parseLyrics(lyricsText, linesPer);
+      slides.forEach((sl) => addSlide(deckId, sl));
+      updateDeck(deckId, { name: `${s.title} — ${s.artist}` });
+    } catch (err) {
+      setSongErr(`${s.title}: ${(err as Error).message}`);
+    } finally {
+      setImportingSong(null);
+    }
+  };
+
   const importScripture = async () => {
     if (!ref.trim()) return;
     setBusy(true);
     setErr(null);
     try {
-      const { reference, verses } = await fetchScripture(ref, translation);
+      const { reference, verses } = await fetchScriptureBolls(ref, translation);
       const slides = scriptureToSlides(reference, verses, versesPer);
       slides.forEach((s) => addSlide(deckId, s));
       setRef("");
@@ -248,36 +291,87 @@ function Importers({ deckId, kind }: { deckId: string; kind: string }) {
     }
   };
 
-  return (
-    <div className="grid gap-4 md:grid-cols-3">
-      {/* Lyrics */}
-      <Card className={`p-4 ${kind === "song" ? "ring-1 ring-primary/30" : ""}`}>
-        <h3 className="mb-2 text-sm font-medium">Import lyrics</h3>
-        <Textarea
-          value={lyrics}
-          onChange={(e) => setLyrics(e.target.value)}
-          rows={6}
-          placeholder={`[Verse 1]\nAmazing grace, how sweet the sound\nThat saved a wretch like me\n\n[Chorus]\n...`}
-          className="font-mono text-xs"
-        />
-        <div className="mt-2 flex items-center gap-2">
-          <Label className="text-xs">Lines per slide</Label>
-          <Input
-            type="number"
-            min={1}
-            max={8}
-            value={linesPer}
-            onChange={(e) => setLinesPer(Math.max(1, Number(e.target.value) || 1))}
-            className="h-8 w-16"
-          />
-          <Button size="sm" className="ml-auto" onClick={importLyrics} disabled={!lyrics.trim()}>
-            Import
-          </Button>
-        </div>
-      </Card>
+  if (kind === "song") {
+    return (
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="p-4">
+          <h3 className="mb-2 text-sm font-medium">Search songs</h3>
+          <form onSubmit={runSongSearch} className="flex gap-2">
+            <Input
+              value={songQuery}
+              onChange={(e) => setSongQuery(e.target.value)}
+              placeholder="Song title or artist…"
+            />
+            <Button size="sm" type="submit" disabled={songSearching || !songQuery.trim()}>
+              {songSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </Button>
+          </form>
+          {songErr && <p className="mt-2 text-xs text-destructive">{songErr}</p>}
+          <div className="mt-3 max-h-72 space-y-1 overflow-auto">
+            {songResults.map((s) => {
+              const key = `${s.artist}::${s.title}`;
+              const loading = importingSong === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => importSong(s)}
+                  disabled={loading}
+                  className="flex w-full items-center gap-2 rounded p-2 text-left text-sm transition hover:bg-muted disabled:opacity-60"
+                >
+                  {s.albumCover ? (
+                    <img src={s.albumCover} alt="" className="h-8 w-8 rounded" />
+                  ) : (
+                    <div className="h-8 w-8 rounded bg-muted" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{s.title}</div>
+                    <div className="truncate text-xs text-muted-foreground">{s.artist}</div>
+                  </div>
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Plus className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Search powered by lyrics.ovh. Click to fetch lyrics & build slides.
+          </p>
+        </Card>
 
-      {/* Scripture */}
-      <Card className={`p-4 ${kind === "scripture" ? "ring-1 ring-primary/30" : ""}`}>
+        <Card className="p-4">
+          <h3 className="mb-2 text-sm font-medium">Or paste lyrics</h3>
+          <Textarea
+            value={lyrics}
+            onChange={(e) => setLyrics(e.target.value)}
+            rows={6}
+            placeholder={`[Verse 1]\nAmazing grace, how sweet the sound\nThat saved a wretch like me\n\n[Chorus]\n...`}
+            className="font-mono text-xs"
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <Label className="text-xs">Lines per slide</Label>
+            <Input
+              type="number"
+              min={1}
+              max={8}
+              value={linesPer}
+              onChange={(e) => setLinesPer(Math.max(1, Number(e.target.value) || 1))}
+              className="h-8 w-16"
+            />
+            <Button size="sm" className="ml-auto" onClick={importLyrics} disabled={!lyrics.trim()}>
+              Import
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (kind === "scripture") {
+    return (
+      <Card className="p-4">
         <h3 className="mb-2 text-sm font-medium">Import scripture</h3>
         <Input
           value={ref}
@@ -292,10 +386,11 @@ function Importers({ deckId, kind }: { deckId: string; kind: string }) {
               onChange={(e) => setTranslation(e.target.value)}
               className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
             >
-              <option value="web">WEB</option>
-              <option value="kjv">KJV</option>
-              <option value="bbe">BBE</option>
-              <option value="oeb-us">OEB (US)</option>
+              {TRANSLATIONS.map((t) => (
+                <option key={t.code} value={t.code}>
+                  {t.label}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -320,25 +415,27 @@ function Importers({ deckId, kind }: { deckId: string; kind: string }) {
           {busy ? "Fetching…" : "Fetch & add"}
         </Button>
       </Card>
+    );
+  }
 
-      {/* Images */}
-      <Card className={`p-4 ${kind === "media" ? "ring-1 ring-primary/30" : ""}`}>
-        <h3 className="mb-2 text-sm font-medium">Import images</h3>
-        <label className="flex h-32 cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-border text-xs text-muted-foreground transition hover:border-primary">
-          <Plus className="mb-1 h-5 w-5" />
-          Click to upload
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => importImages(e.target.files)}
-          />
-        </label>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          Stored locally as data URLs. Each image becomes its own slide.
-        </p>
-      </Card>
-    </div>
+  // media / mixed
+  return (
+    <Card className="p-4">
+      <h3 className="mb-2 text-sm font-medium">Import images</h3>
+      <label className="flex h-32 cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-border text-xs text-muted-foreground transition hover:border-primary">
+        <Plus className="mb-1 h-5 w-5" />
+        Click to upload
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => importImages(e.target.files)}
+        />
+      </label>
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        Stored locally as data URLs. Each image becomes its own slide.
+      </p>
+    </Card>
   );
 }
