@@ -63,13 +63,14 @@ export function scriptureToSlides(
   verses: { verse: number; text: string }[],
   versesPerSlide = 1
 ): Slide[] {
+  const perSlide = Math.min(2, Math.max(1, versesPerSlide));
   const slides: Slide[] = [];
-  for (let i = 0; i < verses.length; i += versesPerSlide) {
-    const chunk = verses.slice(i, i + versesPerSlide);
+  for (let i = 0; i < verses.length; i += perSlide) {
+    const chunk = verses.slice(i, i + perSlide);
     slides.push({
       id: uid(),
       kind: "scripture",
-      lines: chunk.map((v) => v.text),
+      lines: chunk.flatMap((v) => v.text.split("\n")),
       reference: ref,
     });
   }
