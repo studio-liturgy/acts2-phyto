@@ -47,15 +47,12 @@ function isWorshipArtist(name?: string): boolean {
 }
 
 /**
- * Auto-label song sections by detecting repeated stanzas, then dedupe
- * repeats so each unique section only appears once on the slides.
+ * Dedupe repeated stanzas (e.g. choruses repeated 3× in the source) so each
+ * unique block appears once. Preserves any section markers present in the
+ * source ("[Chorus]", "Verse 1:" …) but does NOT invent labels — auto
+ * labelling proved unreliable and is now done manually in the editor.
  */
 function segmentAndDedupe(text: string): string {
-  const hasMarkers =
-    /\[(chorus|verse|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)/i.test(
-      text
-    );
-
   const blocks = text
     .replace(/\r\n/g, "\n")
     .split(/\n\s*\n/)
@@ -63,53 +60,22 @@ function segmentAndDedupe(text: string): string {
     .filter(Boolean);
   if (blocks.length < 1) return text;
 
-  // Normalise for repetition detection (case + punctuation-insensitive).
   const norm = (s: string) =>
     s
       .toLowerCase()
-      // Strip any inline section markers from comparison.
       .replace(/^\s*\[[^\]]+\]\s*$/gm, "")
+      .replace(/^\s*(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\s*:?\s*$/gim, "")
       .replace(/[^\p{L}\p{N}\n]+/gu, " ")
       .trim();
 
-  // Count occurrences to find repeated sections (likely choruses).
-  const counts = new Map<string, number>();
-  for (const b of blocks) {
-    const k = norm(b);
-    if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
-  }
-
-  let verseN = 0;
-  let bridgeUsed = false;
   const seen = new Set<string>();
   const out: string[] = [];
-
-  for (let i = 0; i < blocks.length; i++) {
-    const b = blocks[i];
+  for (const b of blocks) {
     const k = norm(b);
     if (!k) continue;
-    // Skip exact repeats — each unique section gets one slide group.
     if (seen.has(k)) continue;
     seen.add(k);
-
-    let label: string;
-    if (hasMarkers && /^\s*\[[^\]]+\]/.test(b)) {
-      // Already labeled by source — preserve as-is.
-      out.push(b);
-      continue;
-    }
-
-    const reps = counts.get(k) ?? 1;
-    if (reps >= 2) {
-      label = "[Chorus]";
-    } else if (i === blocks.length - 1 && blocks.length >= 4 && !bridgeUsed) {
-      label = "[Bridge]";
-      bridgeUsed = true;
-    } else {
-      verseN += 1;
-      label = `[Verse ${verseN}]`;
-    }
-    out.push(`${label}\n${b}`);
+    out.push(b);
   }
   return out.join("\n\n");
 }
