@@ -463,7 +463,7 @@ function PlaylistCard({
       }`}
     >
       <div className="mb-4 flex items-center gap-2">
-        {editingName ? (
+        {editingName && editMode ? (
           <Input
             autoFocus
             value={name}
@@ -474,9 +474,9 @@ function PlaylistCard({
           />
         ) : (
           <h3
-            className="flex-1 cursor-text truncate text-2xl"
-            onClick={() => setEditingName(true)}
-            title="Rename"
+            className={`flex-1 truncate text-2xl ${editMode ? "cursor-text" : ""}`}
+            onClick={() => editMode && setEditingName(true)}
+            title={editMode ? "Rename" : undefined}
           >
             {name}
           </h3>
