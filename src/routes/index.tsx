@@ -73,7 +73,7 @@ function Library() {
   };
 
   const createNewPlaylist = () => {
-    createPlaylist("New Playlist");
+    createPlaylist("New Gathering");
   };
 
   // ---- Catalogue: filter + sort ------------------------------------------
@@ -364,8 +364,8 @@ function PlaylistCard({
         <button
           onClick={onDelete}
           className="rounded p-1 text-muted-foreground transition hover:bg-muted hover:text-destructive"
-          aria-label="Delete playlist"
-          title="Delete playlist"
+          aria-label="Delete gathering"
+          title="Delete gathering"
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -452,7 +452,7 @@ function PlaylistCard({
                 <button
                   onClick={() => onRemoveAt(i)}
                   className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-destructive"
-                  aria-label="Remove from playlist"
+                  aria-label="Remove from gathering"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
