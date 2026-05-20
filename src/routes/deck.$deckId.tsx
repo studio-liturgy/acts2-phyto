@@ -151,7 +151,13 @@ function DeckEditor() {
                 className="h-12 w-72 border-foreground text-3xl"
               />
             ) : (
-              <h1 className="truncate text-3xl text-muted-foreground md:text-4xl">{deck.name}</h1>
+              <h1
+                onClick={() => setEditingName(true)}
+                className="cursor-text truncate text-3xl text-muted-foreground md:text-4xl"
+                title="Click to rename"
+              >
+                {deck.name}
+              </h1>
             )}
             <button
               onClick={() => setEditingName((v) => !v)}
@@ -255,11 +261,12 @@ function DeckEditor() {
         </div>
 
         <aside className="space-y-5">
-          <PanelCard label="Preview">
+          <div>
+            <div className="mono mb-3 text-xs uppercase tracking-wider">Preview</div>
             <div className="overflow-hidden rounded-2xl bg-[var(--brand-black)]">
               <SlideView slide={selected} variant="preview" />
             </div>
-          </PanelCard>
+          </div>
 
           {selected && (
             <PanelCard label="Edit slide">
@@ -561,9 +568,12 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
       const { reference, verses } = await fetchScriptureBolls(ref, translation, {
         removeLineBreaks: !keepLineBreaks,
       });
-      const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks });
+      const labelled = `${reference} ${translation}`;
+      // Annotate each slide's reference so the translation shows on the slide.
+      const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks })
+        .map((s) => ({ ...s, reference: s.reference ? `${s.reference} ${translation}` : labelled }));
       slides.forEach((s) => addSlide(deckId, s));
-      updateDeck(deckId, { name: reference });
+      updateDeck(deckId, { name: labelled });
       setRef("");
     } catch (e) {
       setErr((e as Error).message);
@@ -595,7 +605,7 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
                 value={songQuery}
                 onChange={(e) => setSongQuery(e.target.value)}
                 placeholder="e.g. How Great is Our God"
-                className="mono w-full bg-transparent text-sm italic outline-none placeholder:text-muted-foreground"
+                className="w-full bg-transparent text-sm outline-none placeholder:italic placeholder:text-muted-foreground"
               />
             </div>
             <button
@@ -639,13 +649,13 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
         </PanelCard>
 
         <PanelCard label="Or paste lyrics">
-          <div className="rounded-2xl border border-foreground p-3">
+          <div className="overflow-hidden rounded-2xl border border-foreground">
             <Textarea
               value={lyrics}
               onChange={(e) => setLyrics(e.target.value)}
               rows={8}
               placeholder={`[Verse 1]\nAmazing grace, how sweet the sound\nThat saved a wretch like me\n\n[Chorus]\n...`}
-              className="mono border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+              className="mono block w-full resize-none border-0 bg-transparent px-4 py-3 text-xs shadow-none focus-visible:ring-0"
             />
           </div>
           <button
@@ -662,9 +672,13 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
 
   if (kind === "scripture") {
     const importManualScripture = () => {
-      const reference = manualRef.trim();
+      const refRaw = manualRef.trim();
       const lines = manualText.split("\n").map((l) => l.trim()).filter(Boolean);
-      if (!reference || lines.length === 0) return;
+      if (!refRaw || lines.length === 0) return;
+      // Append translation abbreviation, e.g. "John 3:1-2 NIV".
+      const reference = refRaw.match(/\b(NIV|NLT|ESV|NRSVCE|NASB|NKJV|KJV)\b\s*$/i)
+        ? refRaw
+        : `${refRaw} ${translation}`;
       const verses = lines.map((text, i) => ({ verse: i + 1, text }));
       const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks });
       slides.forEach((s) => addSlide(deckId, s));
@@ -725,13 +739,13 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
           <div className="mono mb-1 text-[10px] uppercase tracking-wider">Reference</div>
           <PillInput value={manualRef} onChange={setManualRef} placeholder="e.g. John 3:16-17" />
           <div className="mono mb-1 mt-3 text-[10px] uppercase tracking-wider">Verses</div>
-          <div className="rounded-2xl border border-foreground p-3">
+          <div className="overflow-hidden rounded-2xl border border-foreground">
             <Textarea
               rows={5}
               value={manualText}
               onChange={(e) => setManualText(e.target.value)}
               placeholder={`For God so loved the world…`}
-              className="mono border-0 bg-transparent p-0 text-xs italic shadow-none focus-visible:ring-0"
+              className="mono block w-full resize-none border-0 bg-transparent px-4 py-3 text-xs italic shadow-none focus-visible:ring-0"
             />
           </div>
           <button

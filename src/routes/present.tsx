@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import {
   ArrowUpLeft,
   ArrowUpRight,
-  Square,
   X,
   Search,
   PanelLeftClose,
@@ -18,6 +17,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { Deck, DeckKind, Slide } from "@/lib/types";
 import { z } from "zod";
+import { CurtainIcon } from "@/components/CurtainIcon";
 
 type LiveApi = ReturnType<typeof useLive.getState>;
 
@@ -157,7 +157,7 @@ function Presenter() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 justify-self-end">
+          <div className="flex flex-col items-end gap-2 justify-self-end">
             <button
               onClick={openOutput}
               className="pill flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
@@ -165,37 +165,28 @@ function Presenter() {
             >
               Output <ArrowUpRight className="h-4 w-4" />
             </button>
-            <label
-              className="mono flex items-center gap-1.5 pill border border-foreground/40 px-3 py-1.5 text-[10px] uppercase tracking-wider"
-              title="Crossfade blackout"
-            >
-              <input
-                type="checkbox"
-                checked={(live.blackoutFadeMs ?? 0) > 0}
-                onChange={(e) => live.setLive({ blackoutFadeMs: e.target.checked ? 600 : 0 })}
-              />
-              Fade
-            </label>
-            <button
-              onClick={() => live.toggleBlackout()}
-              className={`pill flex h-9 w-9 items-center justify-center border transition ${
-                live.blackout
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-foreground hover:bg-foreground hover:text-background"
-              }`}
-              title="Blackout (B)"
-              aria-label="Blackout"
-            >
-              <Square className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => live.clearLive()}
-              className="pill flex h-9 w-9 items-center justify-center text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-              title="Stop (Esc)"
-              aria-label="Stop"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="pill flex items-center gap-1 border border-foreground px-2 py-1">
+              <button
+                onClick={() => live.toggleBlackout()}
+                className={`pill flex h-7 w-7 items-center justify-center transition ${
+                  live.blackout
+                    ? "bg-foreground text-background"
+                    : "hover:bg-foreground hover:text-background"
+                }`}
+                title="Blackout (B)"
+                aria-label="Blackout"
+              >
+                <CurtainIcon size={16} />
+              </button>
+              <button
+                onClick={() => live.clearLive()}
+                className="pill flex h-7 w-7 items-center justify-center text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                title="Stop (Esc)"
+                aria-label="Stop"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -328,12 +319,12 @@ function Presenter() {
                               el?.scrollIntoView({ behavior: "smooth", block: "start" });
                             }
                           }}
-                          className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
+                          className={`flex w-full items-center justify-between gap-2 rounded-lg border-2 px-2 py-1.5 text-left text-sm transition ${
                             isLive
-                              ? "ring-1 ring-[var(--brand-red)]"
+                              ? "border-[var(--brand-red)]"
                               : isActive
-                              ? "bg-muted"
-                              : "hover:bg-muted/50"
+                              ? "border-transparent bg-muted"
+                              : "border-transparent hover:bg-muted/50"
                           }`}
                         >
                           <span className="flex items-center gap-1 truncate">
@@ -455,9 +446,7 @@ function Presenter() {
                         <Pencil className="h-3 w-3" />
                       </Link>
                       {id === live.deckId && (
-                        <span className="pill mono bg-[var(--brand-red)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--brand-white)]">
-                          Live
-                        </span>
+                        <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" title="Live" />
                       )}
                     </div>
                     {d.slides.length === 0 ? (
@@ -506,14 +495,12 @@ function Presenter() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-foreground p-4">
-            <div className="mono mb-3 text-[10px] uppercase tracking-wider">Media functions</div>
-            {liveDeck?.kind === "media" ? (
+          {liveDeck?.kind === "media" && (
+            <div className="rounded-2xl border border-foreground p-4">
+              <div className="mono mb-3 text-[10px] uppercase tracking-wider">Media functions</div>
               <MediaPlaybackControls deckId={liveDeck.id} />
-            ) : (
-              <p className="text-xs text-muted-foreground">Available when a Media set is live.</p>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="rounded-2xl border border-foreground">
             <button
@@ -635,9 +622,9 @@ function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: num
   return (
     <button
       onClick={() => live.go(deck.id, slide.id)}
-      className={`group relative overflow-hidden rounded-2xl border-2 text-left transition ${
+      className={`group relative overflow-hidden rounded-lg border-2 text-left transition ${
         isLive
-          ? "border-[var(--brand-red)] ring-2 ring-[var(--brand-red)]/30"
+          ? "border-[var(--brand-red)]"
           : "border-transparent hover:border-foreground"
       }`}
     >
@@ -651,9 +638,7 @@ function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: num
         </div>
       )}
       {isLive && (
-        <div className="pill mono absolute right-1.5 top-1.5 bg-[var(--brand-red)] px-2 py-0.5 text-[10px] font-semibold text-white">
-          Live
-        </div>
+        <div className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[var(--brand-red)]" />
       )}
     </button>
   );

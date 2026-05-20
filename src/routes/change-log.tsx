@@ -13,13 +13,13 @@ export const Route = createFileRoute("/change-log")({
 
 function ChangeLog() {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
-        <Link to="/" className="mono text-xs uppercase tracking-wider underline">← Back</Link>
+        <Link to="/" className="mono text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60">← Back</Link>
         <h1 className="mt-6 text-5xl">Change Log</h1>
         <ul className="mt-8 space-y-6">
           <li>
-            <div className="mono text-xs uppercase tracking-wider text-muted-foreground">May 2026</div>
+            <div className="mono text-xs uppercase tracking-wider opacity-80">May 2026</div>
             <p className="mt-1">New visual design system: brand palette, Space Mono, pill UI.</p>
           </li>
         </ul>

@@ -125,7 +125,12 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.03em;
+  }
+
+  /* Headings get even tighter kerning to match the design mockups */
+  h1, h2, h3, h4 {
+    letter-spacing: -0.045em;
   }
 
   /* Mono utility for labels / chrome / inputs */
@@ -139,6 +144,11 @@
 /* Reusable pill-shaped utilities */
 @utility pill {
   border-radius: 9999px;
+}
+
+/* Hide native drag preview when an element opts in */
+@utility no-drag-ghost {
+  /* Keep the original element visually intact during drag */
 }
 
 /* Kind-color helpers */
