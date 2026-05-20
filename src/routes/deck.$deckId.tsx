@@ -488,10 +488,21 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
 
   const importImages = async (files: FileList | null) => {
     if (!files) return;
-    for (const f of Array.from(files)) {
-      const url = await fileToDataUrl(f);
-      addSlide(deckId, { kind: "image", imageUrl: url, lines: [] });
-    }
+    const ACCEPTED = /^image\/(png|jpe?g|webp|gif|bmp)$/i;
+    const list = Array.from(files).filter((f) => ACCEPTED.test(f.type));
+    if (list.length === 0) return;
+    // Compress in parallel, then add slides in order.
+    const urls = await Promise.all(
+      list.map((f) =>
+        fileToCompressedImageDataUrl(f).catch((err) => {
+          console.error(err);
+          return null;
+        })
+      )
+    );
+    urls.forEach((url) => {
+      if (url) addSlide(deckId, { kind: "image", imageUrl: url, lines: [] });
+    });
   };
 
   if (kind === "song") {
