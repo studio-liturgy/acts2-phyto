@@ -85,3 +85,36 @@ export function fileToDataUrl(file: File): Promise<string> {
     r.readAsDataURL(file);
   });
 }
+
+/**
+ * Load + downscale an image to a JPEG data URL. Keeps storage small enough
+ * to persist in localStorage and avoids memory issues with huge photos.
+ */
+export async function fileToCompressedImageDataUrl(
+  file: File,
+  maxDim = 1920,
+  quality = 0.85
+): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error("Could not read image: " + file.name));
+      i.src = url;
+    });
+    const longest = Math.max(img.naturalWidth, img.naturalHeight);
+    const scale = longest > maxDim ? maxDim / longest : 1;
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas unsupported");
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL("image/jpeg", quality);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}

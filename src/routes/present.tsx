@@ -48,11 +48,17 @@ function Presenter() {
     deckFromUrl ?? deckList[0] ?? null
   );
   const [query, setQuery] = useState("");
+  
 
+  // Only follow URL changes (not internal clicks).
   useEffect(() => {
     if (deckFromUrl) setActiveDeckId(deckFromUrl);
-    else if (activePlaylist && !activeDeckId) setActiveDeckId(activePlaylist.deckIds[0] ?? null);
-  }, [deckFromUrl, activePlaylist, activeDeckId]);
+  }, [deckFromUrl]);
+  useEffect(() => {
+    if (activePlaylist && !activeDeckId) {
+      setActiveDeckId(activePlaylist.deckIds[0] ?? null);
+    }
+  }, [activePlaylist, activeDeckId]);
 
   const activeDeck = activeDeckId ? decks[activeDeckId] : null;
   const liveDeck = live.deckId ? decks[live.deckId] : null;
@@ -118,6 +124,16 @@ function Presenter() {
             <Button size="sm" variant="outline" onClick={openOutput}>
               <Monitor className="mr-1 h-4 w-4" /> Output window
             </Button>
+            <label className="flex items-center gap-1 rounded-md border border-border bg-card/60 px-2 py-1 text-xs">
+              <input
+                type="checkbox"
+                checked={(live.blackoutFadeMs ?? 0) > 0}
+                onChange={(e) =>
+                  live.setLive({ blackoutFadeMs: e.target.checked ? 600 : 0 })
+                }
+              />
+              Fade
+            </label>
             <Button
               size="sm"
               variant={live.blackout ? "default" : "outline"}
@@ -306,12 +322,8 @@ function Presenter() {
           <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Live output
           </h3>
-          <Card className="overflow-hidden p-0">
-            {live.blackout ? (
-              <div className="flex aspect-video w-full items-center justify-center bg-black text-xs text-white/40">
-                BLACKOUT
-              </div>
-            ) : liveDeck?.kind === "media" ? (
+          <Card className="relative overflow-hidden p-0">
+            {liveDeck?.kind === "media" ? (
               <DissolveSlide
                 slide={liveSlide}
                 variant="preview"
@@ -320,6 +332,18 @@ function Presenter() {
             ) : (
               <SlideView slide={liveSlide} variant="preview" />
             )}
+            <div
+              className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black text-xs text-white/40"
+              style={{
+                opacity: live.blackout ? 1 : 0,
+                transition:
+                  (live.blackoutFadeMs ?? 0) > 0
+                    ? `opacity ${live.blackoutFadeMs}ms ease-in-out`
+                    : undefined,
+              }}
+            >
+              BLACKOUT
+            </div>
           </Card>
           {liveDeck && liveSlide && (
             <p className="mt-2 text-xs text-muted-foreground">

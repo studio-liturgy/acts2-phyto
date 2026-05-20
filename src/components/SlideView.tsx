@@ -87,8 +87,9 @@ export function SlideView({
 }
 
 /**
- * Cross-dissolves between slides. Keeps the previous slide rendered while
- * the new one fades in over `durationMs`. Pure CSS — no extra deps.
+ * Cross-dissolves between slides using two persistent layers. The "front"
+ * layer is always visible; on a slide change we paint the new slide into the
+ * back layer and swap which is on top, animating the opacity over `durationMs`.
  */
 export function DissolveSlide({
   slide,
@@ -97,52 +98,52 @@ export function DissolveSlide({
   className = "",
   imageFit,
 }: Props & { durationMs?: number }) {
-  const [layers, setLayers] = useState<{ id: string; slide: Slide | null | undefined; visible: boolean }[]>(
-    () => [{ id: "init", slide, visible: true }]
-  );
-  const prevKey = useRef<string>(slide?.id ?? "none");
+  const [a, setA] = useState<Slide | null | undefined>(slide);
+  const [b, setB] = useState<Slide | null | undefined>(null);
+  const [front, setFront] = useState<"a" | "b">("a");
+  const lastKey = useRef<string>(slide?.id ?? "none");
 
   useEffect(() => {
     const key = slide?.id ?? "none";
-    if (key === prevKey.current) return;
-    prevKey.current = key;
+    if (key === lastKey.current) return;
+    lastKey.current = key;
+
     if (durationMs <= 0) {
-      setLayers([{ id: key + ":" + Date.now(), slide, visible: true }]);
+      if (front === "a") setA(slide);
+      else setB(slide);
       return;
     }
-    // Add the new layer on top, then fade out the old one.
-    setLayers((prev) => {
-      const next = prev.map((l) => ({ ...l, visible: false }));
-      next.push({ id: key + ":" + Date.now(), slide, visible: false });
-      return next;
-    });
-    // Trigger fade-in on the next frame so the transition runs.
-    const raf = requestAnimationFrame(() => {
-      setLayers((prev) => prev.map((l, i) => (i === prev.length - 1 ? { ...l, visible: true } : l)));
-    });
-    const cleanup = setTimeout(() => {
-      setLayers((prev) => prev.slice(-1));
-    }, durationMs + 50);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(cleanup);
-    };
-  }, [slide, durationMs]);
+
+    // Paint the new slide into the back layer, then on the next frame swap
+    // front so the opacity transition runs.
+    if (front === "a") {
+      setB(slide);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setFront("b"))
+      );
+    } else {
+      setA(slide);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setFront("a"))
+      );
+    }
+  }, [slide, durationMs, front]);
+
+  const layerStyle = (isFront: boolean): React.CSSProperties => ({
+    opacity: isFront ? 1 : 0,
+    transition: durationMs > 0 ? `opacity ${durationMs}ms ease-in-out` : undefined,
+  });
 
   return (
-    <div className={`relative ${variant === "stage" ? "h-full" : "aspect-video"} w-full ${className}`}>
-      {layers.map((l) => (
-        <div
-          key={l.id}
-          className="absolute inset-0"
-          style={{
-            opacity: l.visible ? 1 : 0,
-            transition: durationMs > 0 ? `opacity ${durationMs}ms ease-in-out` : undefined,
-          }}
-        >
-          <SlideView slide={l.slide} variant={variant} imageFit={imageFit} className="h-full w-full" />
-        </div>
-      ))}
+    <div
+      className={`relative ${variant === "stage" ? "h-full" : "aspect-video"} w-full ${className}`}
+    >
+      <div className="absolute inset-0" style={layerStyle(front === "a")}>
+        <SlideView slide={a} variant={variant} imageFit={imageFit} className="h-full w-full" />
+      </div>
+      <div className="absolute inset-0" style={layerStyle(front === "b")}>
+        <SlideView slide={b} variant={variant} imageFit={imageFit} className="h-full w-full" />
+      </div>
     </div>
   );
 }

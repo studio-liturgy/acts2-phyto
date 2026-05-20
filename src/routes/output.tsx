@@ -32,10 +32,12 @@ function Output() {
   }, []);
 
   const isMedia = deck?.kind === "media";
+  const fadeMs = live.blackoutFadeMs ?? 0;
+  const hideContent = live.clear || !slide;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black">
-      {live.blackout || live.clear || !slide ? (
+      {hideContent ? (
         <div className="h-full w-full bg-black" />
       ) : isMedia ? (
         <DissolveSlide
@@ -47,6 +49,14 @@ function Output() {
       ) : (
         <SlideView slide={slide} variant="stage" className="h-full w-full" />
       )}
+      {/* Blackout overlay — fades in/out when blackoutFadeMs > 0. */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-black"
+        style={{
+          opacity: live.blackout ? 1 : 0,
+          transition: fadeMs > 0 ? `opacity ${fadeMs}ms ease-in-out` : undefined,
+        }}
+      />
     </div>
   );
 }
