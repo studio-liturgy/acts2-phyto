@@ -293,7 +293,7 @@ function PlaylistCard({
   onRename,
   onDelete,
   onAdd,
-  onRemove,
+  onRemoveAt,
   onReorder,
   playlistId,
 }: {
@@ -304,10 +304,11 @@ function PlaylistCard({
   onRename: (name: string) => void;
   onDelete: () => void;
   onAdd: (deckId: string) => void;
-  onRemove: (deckId: string) => void;
+  onRemoveAt: (index: number) => void;
   onReorder: (ids: string[]) => void;
 }) {
-  const dragId = useRef<string | null>(null);
+  // Drag state: either an internal reorder (index) or an external deck (deckId).
+  const dragIndex = useRef<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
   const [addQuery, setAddQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
@@ -319,32 +320,32 @@ function PlaylistCard({
 
   const matches = useMemo(() => {
     const q = addQuery.trim().toLowerCase();
+    // Allow re-adding sets that are already in this gathering (duplicates allowed).
     return allDecks
-      .filter((d) => !deckIds.includes(d.id))
       .filter((d) => !q || d.name.toLowerCase().includes(q))
       .slice(0, 8);
-  }, [allDecks, deckIds, addQuery]);
-
-  const acceptExternalDrop = (e: React.DragEvent) => {
-    const incoming =
-      e.dataTransfer.getData(DECK_DRAG_TYPE) || e.dataTransfer.getData("text/plain");
-    if (incoming && !deckIds.includes(incoming)) onAdd(incoming);
-  };
+  }, [allDecks, addQuery]);
 
   return (
     <Card
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes(DECK_DRAG_TYPE)) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "copy";
-          setDropActive(true);
-        }
+        // Always allow drop on the card so external deck drags land reliably.
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+        setDropActive(true);
       }}
       onDragLeave={() => setDropActive(false)}
       onDrop={(e) => {
         e.preventDefault();
         setDropActive(false);
-        acceptExternalDrop(e);
+        // Internal reorder drops are handled on the <li>; ignore them here.
+        if (dragIndex.current !== null) {
+          dragIndex.current = null;
+          return;
+        }
+        const incoming =
+          e.dataTransfer.getData(DECK_DRAG_TYPE) || e.dataTransfer.getData("text/plain");
+        if (incoming && allDecks.some((d) => d.id === incoming)) onAdd(incoming);
       }}
       className={`p-4 transition ${dropActive ? "ring-2 ring-primary" : ""}`}
     >
@@ -363,6 +364,7 @@ function PlaylistCard({
           onClick={onDelete}
           className="rounded p-1 text-muted-foreground transition hover:bg-muted hover:text-destructive"
           aria-label="Delete playlist"
+          title="Delete playlist"
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -412,23 +414,23 @@ function PlaylistCard({
             const d = nameLookup[id];
             return (
               <li
-                key={id}
+                key={`${id}-${i}`}
                 draggable
-                onDragStart={() => (dragId.current = id)}
-                onDragOver={(e) => e.preventDefault()}
+                onDragStart={(e) => {
+                  dragIndex.current = i;
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => {
+                  if (dragIndex.current !== null) e.preventDefault();
+                }}
                 onDrop={(e) => {
                   e.stopPropagation();
-                  const from = dragId.current;
-                  dragId.current = null;
-                  if (!from || from === id) return;
-                  if (!deckIds.includes(from)) {
-                    onAdd(from);
-                    return;
-                  }
+                  const from = dragIndex.current;
+                  dragIndex.current = null;
+                  if (from === null || from === i) return;
                   const ids = [...deckIds];
-                  const fromIdx = ids.indexOf(from);
-                  const toIdx = ids.indexOf(id);
-                  ids.splice(toIdx, 0, ids.splice(fromIdx, 1)[0]);
+                  const [moved] = ids.splice(from, 1);
+                  ids.splice(i, 0, moved);
                   onReorder(ids);
                 }}
                 className="flex items-center gap-2 rounded border border-border bg-card/60 px-2 py-1.5 text-sm"
@@ -438,7 +440,7 @@ function PlaylistCard({
                 <span className="flex-1 truncate">{d?.name ?? "(missing)"}</span>
                 <span className="text-[10px] uppercase text-muted-foreground">{d?.kind}</span>
                 <button
-                  onClick={() => onRemove(id)}
+                  onClick={() => onRemoveAt(i)}
                   className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-destructive"
                   aria-label="Remove from playlist"
                 >
