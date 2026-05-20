@@ -14,6 +14,8 @@ import {
   Layers,
   Repeat,
   Timer,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Deck, Slide } from "@/lib/types";
