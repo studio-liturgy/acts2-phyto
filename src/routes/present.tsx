@@ -313,7 +313,7 @@ function Presenter() {
         </main>
 
         {/* Live preview */}
-        <aside className="border-l border-border bg-card/40 p-3">
+        <aside className="max-h-[calc(100vh-49px)] overflow-auto border-l border-border bg-card/40 p-3 md:sticky md:top-[49px] md:self-start">
           <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Live output
           </h3>
