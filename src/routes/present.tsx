@@ -7,7 +7,10 @@ import { ArrowLeft, Monitor, Square, EyeOff, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
-const searchSchema = z.object({ deck: z.string().optional() });
+const searchSchema = z.object({
+  deck: z.string().optional(),
+  playlist: z.string().optional(),
+});
 
 export const Route = createFileRoute("/present")({
   validateSearch: searchSchema,
@@ -15,17 +18,25 @@ export const Route = createFileRoute("/present")({
 });
 
 function Presenter() {
-  const { deck: deckFromUrl } = Route.useSearch();
+  const { deck: deckFromUrl, playlist: playlistFromUrl } = Route.useSearch();
   const decks = useLibrary((s) => s.decks);
   const order = useLibrary((s) => s.order);
+  const playlists = useLibrary((s) => s.playlists);
   const live = useLive();
+
+  const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
+  const deckList = activePlaylist
+    ? activePlaylist.deckIds.filter((id) => decks[id])
+    : order;
+
   const [activeDeckId, setActiveDeckId] = useState<string | null>(
-    deckFromUrl ?? order[0] ?? null
+    deckFromUrl ?? deckList[0] ?? null
   );
 
   useEffect(() => {
     if (deckFromUrl) setActiveDeckId(deckFromUrl);
-  }, [deckFromUrl]);
+    else if (activePlaylist && !activeDeckId) setActiveDeckId(activePlaylist.deckIds[0] ?? null);
+  }, [deckFromUrl, activePlaylist, activeDeckId]);
 
   const activeDeck = activeDeckId ? decks[activeDeckId] : null;
   const liveDeck = live.deckId ? decks[live.deckId] : null;
