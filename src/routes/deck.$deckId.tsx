@@ -509,7 +509,9 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
       const { reference, verses } = await fetchScriptureBolls(ref, translation, {
         removeLineBreaks: !keepLineBreaks,
       });
-      const slides = scriptureToSlides(reference, verses, versesPer);
+      const slides = scriptureToSlides(reference, verses, versesPer, {
+        keepLineBreaks,
+      });
       slides.forEach((s) => addSlide(deckId, s));
       updateDeck(deckId, { name: reference });
       setRef("");

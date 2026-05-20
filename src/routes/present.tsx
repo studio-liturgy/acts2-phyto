@@ -113,7 +113,8 @@ function Presenter() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="border-b border-border">
+      {/* Sticky header keeps top toolbar visible while presenting. */}
+      <header className="sticky top-0 z-30 border-b border-border bg-background">
         <div className="flex items-center justify-between gap-4 px-4 py-2">
           <div className="flex items-center gap-2">
             <Button asChild size="sm" variant="ghost">
@@ -154,9 +155,9 @@ function Presenter() {
         </div>
       </header>
 
-      <div className="grid flex-1 gap-0 lg:grid-cols-[280px_1fr_360px]">
+      <div className="grid flex-1 gap-0 md:grid-cols-[260px_1fr_340px]">
         {/* Sidebar */}
-        <aside className="flex flex-col border-r border-border bg-card/40">
+        <aside className="flex max-h-[calc(100vh-49px)] flex-col border-r border-border bg-card/40 md:sticky md:top-[49px] md:self-start">
           <div className="border-b border-border p-3">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -312,7 +313,7 @@ function Presenter() {
         </main>
 
         {/* Live preview */}
-        <aside className="border-l border-border bg-card/40 p-3">
+        <aside className="max-h-[calc(100vh-49px)] overflow-auto border-l border-border bg-card/40 p-3 md:sticky md:top-[49px] md:self-start">
           <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Live output
           </h3>

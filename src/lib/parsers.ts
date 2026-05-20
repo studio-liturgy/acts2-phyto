@@ -62,18 +62,40 @@ export async function fetchScripture(
 
 export function scriptureToSlides(
   ref: string,
-  verses: { verse: number; text: string }[],
-  versesPerSlide = 1
+  verses: { verse: number; chapter?: number; text: string }[],
+  versesPerSlide = 1,
+  opts: { keepLineBreaks?: boolean } = {}
 ): Slide[] {
   const perSlide = Math.min(2, Math.max(1, versesPerSlide));
+  const keepLineBreaks = opts.keepLineBreaks ?? false;
+  // Derive book name from the passage reference, e.g. "John 3:16-18" -> "John".
+  const bookName = ref.match(/^(.+?)\s+\d/)?.[1]?.trim() ?? ref;
   const slides: Slide[] = [];
   for (let i = 0; i < verses.length; i += perSlide) {
     const chunk = verses.slice(i, i + perSlide);
+    // Build a per-slide reference label like "John 3:16" or "John 3:16-17".
+    const first = chunk[0];
+    const last = chunk[chunk.length - 1];
+    const ch = first.chapter ?? last.chapter;
+    let label: string;
+    if (ch == null) {
+      label = ref;
+    } else if (chunk.length === 1) {
+      label = `${bookName} ${ch}:${first.verse}`;
+    } else if ((first.chapter ?? ch) === (last.chapter ?? ch)) {
+      label = `${bookName} ${ch}:${first.verse}-${last.verse}`;
+    } else {
+      label = `${bookName} ${first.chapter}:${first.verse}-${last.chapter}:${last.verse}`;
+    }
+    const lines = keepLineBreaks
+      ? chunk.flatMap((v) => v.text.split("\n"))
+      : [chunk.map((v) => v.text.replace(/\s*\n\s*/g, " ")).join(" ")];
     slides.push({
       id: uid(),
       kind: "scripture",
-      lines: chunk.flatMap((v) => v.text.split("\n")),
-      reference: ref,
+      lines,
+      reference: label,
+      section: label,
     });
   }
   return slides;
