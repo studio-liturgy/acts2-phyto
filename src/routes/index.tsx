@@ -156,7 +156,7 @@ function Library() {
     oldest: "Oldest first",
   };
 
-  const emptyCategoryLabel: Record<Exclude<KindFilter, "all"> | "all", string> = {
+  const emptyCategoryLabel: Record<string, string> = {
     all: "Nothing in the catalogue yet. Click New to add your first set.",
     song: "No Songs yet!",
     scripture: "No Scriptures yet!",
