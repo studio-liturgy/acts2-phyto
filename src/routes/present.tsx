@@ -319,12 +319,12 @@ function Presenter() {
                               el?.scrollIntoView({ behavior: "smooth", block: "start" });
                             }
                           }}
-                          className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
+                          className={`flex w-full items-center justify-between gap-2 rounded-lg border-2 px-2 py-1.5 text-left text-sm transition ${
                             isLive
-                              ? "ring-1 ring-[var(--brand-red)]"
+                              ? "border-[var(--brand-red)]"
                               : isActive
-                              ? "bg-muted"
-                              : "hover:bg-muted/50"
+                              ? "border-transparent bg-muted"
+                              : "border-transparent hover:bg-muted/50"
                           }`}
                         >
                           <span className="flex items-center gap-1 truncate">
