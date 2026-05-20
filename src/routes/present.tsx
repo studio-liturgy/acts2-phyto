@@ -182,7 +182,7 @@ function Presenter() {
       >
         {/* Sidebar */}
         {sidebarOpen && (
-          <aside className="flex max-h-[calc(100vh-73px)] flex-col border-r border-foreground/10 bg-background p-4 md:sticky md:top-[73px] md:self-start">
+          <aside className="flex h-[calc(100vh-73px)] flex-col border-r border-foreground/10 bg-background p-4 md:sticky md:top-[73px]">
             <div className="pill mb-4 flex items-center gap-2 border border-foreground bg-background px-4 py-2">
               <Search className="h-4 w-4" />
               <input
