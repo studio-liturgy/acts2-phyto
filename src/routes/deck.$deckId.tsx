@@ -472,6 +472,8 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
   const [keepLineBreaks, setKeepLineBreaks] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [manualRef, setManualRef] = useState("");
+  const [manualText, setManualText] = useState("");
 
   const importLyrics = () => {
     const slides = parseLyrics(lyrics, linesPer);
