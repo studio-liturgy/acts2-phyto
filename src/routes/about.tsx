@@ -7,6 +7,12 @@ export const Route = createFileRoute("/about")({
     meta: [
       { title: "About — phyto" },
       { name: "description", content: "About phyto: build sets, group them into gatherings, and present live." },
+      { property: "og:title", content: "About — phyto" },
+      { property: "og:description", content: "About phyto: build sets, group them into gatherings, and present live." },
+      { property: "og:url", content: "https://phyto.live/about" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://phyto.live/about" },
     ],
   }),
   component: About,

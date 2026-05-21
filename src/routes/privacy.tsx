@@ -7,6 +7,12 @@ export const Route = createFileRoute("/privacy")({
     meta: [
       { title: "Privacy Policy — phyto" },
       { name: "description", content: "Privacy policy for phyto." },
+      { property: "og:title", content: "Privacy Policy — phyto" },
+      { property: "og:description", content: "Privacy policy for phyto." },
+      { property: "og:url", content: "https://phyto.live/privacy" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://phyto.live/privacy" },
     ],
   }),
   component: Privacy,

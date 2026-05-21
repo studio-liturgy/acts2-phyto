@@ -7,6 +7,12 @@ export const Route = createFileRoute("/terms")({
     meta: [
       { title: "Terms of Use — phyto" },
       { name: "description", content: "Terms of use for phyto." },
+      { property: "og:title", content: "Terms of Use — phyto" },
+      { property: "og:description", content: "Terms of use for phyto." },
+      { property: "og:url", content: "https://phyto.live/terms" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://phyto.live/terms" },
     ],
   }),
   component: Terms,

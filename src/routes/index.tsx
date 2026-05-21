@@ -34,10 +34,13 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "phyto — Create" },
-      {
-        name: "description",
-        content: "Build sets, group them into gatherings, and present them live.",
-      },
+      { name: "description", content: "Build sets, group them into gatherings, and present them live." },
+      { property: "og:title", content: "phyto — Create" },
+      { property: "og:description", content: "Build sets, group them into gatherings, and present them live." },
+      { property: "og:url", content: "https://phyto.live/" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://phyto.live/" },
     ],
   }),
   component: Library,

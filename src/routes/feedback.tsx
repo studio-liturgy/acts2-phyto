@@ -10,6 +10,10 @@ export const Route = createFileRoute("/feedback")({
       { name: "description", content: "Send feedback, bug reports, feature requests, and encouragement to the phyto team." },
       { property: "og:title", content: "Submit Feedback — phyto" },
       { property: "og:description", content: "Send feedback, bug reports, feature requests, and encouragement to the phyto team." },
+      { property: "og:url", content: "https://phyto.live/feedback" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://phyto.live/feedback" },
     ],
   }),
   component: FeedbackPage,

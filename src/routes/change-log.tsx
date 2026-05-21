@@ -7,6 +7,12 @@ export const Route = createFileRoute("/change-log")({
     meta: [
       { title: "Change Log — phyto" },
       { name: "description", content: "Release notes for phyto." },
+      { property: "og:title", content: "Change Log — phyto" },
+      { property: "og:description", content: "Release notes for phyto." },
+      { property: "og:url", content: "https://phyto.live/change-log" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://phyto.live/change-log" },
     ],
   }),
   component: ChangeLog,
