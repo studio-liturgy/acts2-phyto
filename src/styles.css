@@ -148,7 +148,7 @@
 
 /* Hide native drag preview when an element opts in */
 @utility no-drag-ghost {
-  /* Keep the original element visually intact during drag */
+  -webkit-user-drag: element;
 }
 
 /* Kind-color helpers */
