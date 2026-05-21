@@ -822,7 +822,7 @@ function SongTemplateEditor() {
                   : "border-foreground/20 bg-white text-black/60 hover:border-foreground"
               }`}
             >
-              Black on White
+              White
             </button>
           </div>
         </div>
