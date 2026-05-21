@@ -686,8 +686,6 @@ function SlideGridForPresenter({ deck, live, grouped }: { deck: Deck; live: Live
 
 const FONT_OPTIONS: { label: string; value: string }[] = [
   { label: "System", value: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" },
-  { label: "Sans", value: "Helvetica, Arial, sans-serif" },
-  { label: "Serif", value: "Georgia, 'Times New Roman', serif" },
   { label: "Display", value: "'Times New Roman', Times, serif" },
   { label: "Mono", value: "'Courier New', Courier, monospace" },
 ];
