@@ -696,6 +696,7 @@ const FONT_OPTIONS: { label: string; value: string }[] = [
 function SongTemplateEditor() {
   const songTemplate = useLibrary((s) => s.songTemplate);
   const setSongTemplate = useLibrary((s) => s.setSongTemplate);
+  const setPreviewDraft = useSongTemplateDraft((s) => s.setDraft);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({
     fontScale: songTemplate.fontScale ?? 1,
@@ -713,6 +714,15 @@ function SongTemplateEditor() {
     }
   }, [songTemplate, open]);
 
+  // Push draft into the global preview store whenever it changes while open.
+  useEffect(() => {
+    if (open) setPreviewDraft(draft);
+    else setPreviewDraft(null);
+  }, [open, draft, setPreviewDraft]);
+
+  // Always clear preview on unmount so leaving the page doesn't strand a draft.
+  useEffect(() => () => setPreviewDraft(null), [setPreviewDraft]);
+
   const label = "Edit Song Template";
 
   if (!open) {
@@ -728,6 +738,12 @@ function SongTemplateEditor() {
 
   const apply = () => {
     setSongTemplate({ ...draft });
+    setPreviewDraft(null);
+    setOpen(false);
+  };
+
+  const cancel = () => {
+    setPreviewDraft(null);
     setOpen(false);
   };
 
