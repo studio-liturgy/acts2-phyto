@@ -64,8 +64,8 @@ function FeedbackPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="mx-auto w-full max-w-3xl px-6 pt-10">
-        <Link to="/" className="mono flex items-center gap-1.5 text-sm transition-opacity duration-200 hover:opacity-60">
-          <ArrowLeft className="h-3.5 w-3.5" /> Back
+        <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60">
+          <ArrowLeft className="h-3.5 w-3.5" /> BACK
         </Link>
       </header>
 
