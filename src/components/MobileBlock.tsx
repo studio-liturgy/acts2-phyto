@@ -15,9 +15,9 @@ export function MobileBlock() {
   if (MOBILE_ALLOWED.includes(pathname)) return null;
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-16 bg-[var(--brand-blue)] px-6 text-center text-[var(--brand-white)] md:hidden">
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-8">
         <img src={wordmark} alt="phyto" className="h-28 w-auto" />
-        <p className="max-w-[260px] text-sm leading-snug opacity-70">
+        <p className="mono max-w-[260px] text-sm leading-snug opacity-70">
           We're currently working on a mobile version, stay tuned!
         </p>
       </div>
