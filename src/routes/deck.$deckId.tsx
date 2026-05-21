@@ -253,6 +253,7 @@ function DeckEditor() {
                     onRemove={(id) => removeSlide(deck.id, id)}
                     onReorder={(ids) => reorderSlides(deck.id, ids)}
                     dense={dense}
+                    kind={deck.kind}
                   />
                 ) : (
                   <SlideGrid
@@ -263,6 +264,7 @@ function DeckEditor() {
                     onRemove={(id) => removeSlide(deck.id, id)}
                     onReorder={(ids) => reorderSlides(deck.id, ids)}
                     dense={dense}
+                    kind={deck.kind}
                   />
                 )}
               </div>
