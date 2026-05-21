@@ -226,7 +226,7 @@ function Library() {
               No gatherings match “{playlistFilter}”.
             </div>
           ) : (
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="grid gap-1.5 lg:grid-cols-2">
               {filteredPlaylistIds.map((pid) => {
                 const p = playlists[pid];
                 if (!p) return null;
@@ -330,7 +330,7 @@ function Library() {
             </div>
           ) : (
             <div className="rounded-3xl border border-foreground p-4">
-              <ul className="space-y-1.5">
+              <ul className="space-y-1">
                 {catalogueRows.map((d) => (
                   <li
                     key={d.id}
@@ -341,7 +341,7 @@ function Library() {
                       e.dataTransfer.effectAllowed = "copy";
                       hideDragGhost(e);
                     }}
-                    className={`pill group flex items-center gap-4 px-5 py-2.5 ${kindBg(d.kind)}`}
+                    className={`pill group flex items-center gap-4 px-5 py-2 ${kindBg(d.kind)}`}
                   >
                     <DotsGrip className="cursor-grab opacity-80" />
                     <span className="flex-1 truncate text-base">{d.name}</span>
