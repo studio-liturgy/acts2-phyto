@@ -58,7 +58,13 @@ function Privacy() {
 
           <section>
             <h2 className="text-2xl">4. Analytics &amp; Tracking</h2>
-            <p className="mt-2">Phyto does not use cookies, tracking pixels, analytics services, or any other monitoring technology. We do not track your usage, behaviour, or session data in any form.</p>
+            <p className="mt-2">Phyto does not use tracking pixels, analytics services, or any other monitoring technology. We do not track your usage, behaviour, or session data in any form.</p>
+            <p className="mt-2">Phyto uses only strictly-necessary cookies required for the App to function:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-6">
+              <li><strong>phyto_access</strong> — an HttpOnly authentication cookie set after you enter the site password. It stores no personal data and is retained for 30 days so you don't have to re-enter the password on every visit.</li>
+              <li><strong>sidebar_state</strong> — a functional preference cookie that remembers whether the sidebar is open or collapsed. Retained for 7 days.</li>
+            </ul>
+            <p className="mt-2">No advertising, analytics, or third-party tracking cookies are used.</p>
           </section>
 
           <section>
