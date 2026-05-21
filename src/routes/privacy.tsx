@@ -23,7 +23,7 @@ function Privacy() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
-        <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"><ArrowLeft className="h-3 w-3" /> Back</Link>
+        <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"><ArrowLeft className="h-3 w-3" /> BACK</Link>
         <h1 className="mt-6 text-5xl">Privacy Policy</h1>
         <p className="mono mt-2 text-xs uppercase tracking-wider opacity-70">Effective Date: May 21, 2026</p>
 
