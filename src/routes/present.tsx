@@ -29,6 +29,13 @@ function kindBadgeBg(kind: DeckKind): string {
   return "bg-muted text-foreground";
 }
 
+function kindHoverBg(kind: DeckKind): string {
+  if (kind === "song") return "hover:bg-[var(--brand-blue)]/10";
+  if (kind === "scripture") return "hover:bg-[var(--brand-green)]/10";
+  if (kind === "media") return "hover:bg-[var(--brand-orange)]/10";
+  return "hover:bg-muted/50";
+}
+
 function KindBadge({ kind }: { kind: DeckKind }) {
   return (
     <span className={`pill mono px-2 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(kind)}`}>
@@ -310,7 +317,7 @@ function Presenter() {
                               ? "border-[var(--brand-red)]"
                               : isActive
                               ? "border-transparent bg-muted"
-                              : "border-transparent hover:bg-muted/50"
+                              : `border-transparent ${kindHoverBg(d.kind)}`
                           }`}
                         >
                           <span className="flex items-center gap-1 truncate">
