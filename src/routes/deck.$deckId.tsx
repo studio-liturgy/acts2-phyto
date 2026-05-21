@@ -307,7 +307,7 @@ function DeckEditor() {
                     onChange={(e) =>
                       updateSlide(deck.id, selected.id, { lines: e.target.value.split("\n") })
                     }
-                    className="rounded-2xl border-foreground"
+                    className="rounded-lg border-foreground"
                   />
                 </div>
               </div>
