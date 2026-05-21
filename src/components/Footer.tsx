@@ -17,7 +17,9 @@ export function Footer() {
           <Link to="/feedback" className={linkCls}>Feedback</Link>
         </nav>
         <div className="flex justify-center">
-          <img src={wordmark} alt="phyto" className="h-12 w-auto" />
+          <Link to="/">
+            <img src={wordmark} alt="phyto" className="h-12 w-auto" />
+          </Link>
         </div>
         <nav className="flex items-center justify-end gap-4 text-sm flex-nowrap">
           <Link to="/change-log" className={`${linkCls} whitespace-nowrap`}>Change Log</Link>
