@@ -13,6 +13,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PresentRouteImport } from './routes/present'
 import { Route as OutputRouteImport } from './routes/output'
+import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as ChangeLogRouteImport } from './routes/change-log'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -36,6 +37,11 @@ const PresentRoute = PresentRouteImport.update({
 const OutputRoute = OutputRouteImport.update({
   id: '/output',
   path: '/output',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedbackRoute = FeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChangeLogRoute = ChangeLogRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/change-log': typeof ChangeLogRoute
+  '/feedback': typeof FeedbackRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/change-log': typeof ChangeLogRoute
+  '/feedback': typeof FeedbackRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/change-log': typeof ChangeLogRoute
+  '/feedback': typeof FeedbackRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/change-log'
+    | '/feedback'
     | '/output'
     | '/present'
     | '/privacy'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/change-log'
+    | '/feedback'
     | '/output'
     | '/present'
     | '/privacy'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/change-log'
+    | '/feedback'
     | '/output'
     | '/present'
     | '/privacy'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   ChangeLogRoute: typeof ChangeLogRoute
+  FeedbackRoute: typeof FeedbackRoute
   OutputRoute: typeof OutputRoute
   PresentRoute: typeof PresentRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -164,6 +177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OutputRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/feedback': {
+      id: '/feedback'
+      path: '/feedback'
+      fullPath: '/feedback'
+      preLoaderRoute: typeof FeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/change-log': {
       id: '/change-log'
       path: '/change-log'
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   ChangeLogRoute: ChangeLogRoute,
+  FeedbackRoute: FeedbackRoute,
   OutputRoute: OutputRoute,
   PresentRoute: PresentRoute,
   PrivacyRoute: PrivacyRoute,
