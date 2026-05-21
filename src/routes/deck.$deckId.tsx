@@ -174,7 +174,8 @@ function DeckEditor() {
             </span>
           </div>
 
-          <div className="justify-self-end">
+          <div className="flex items-center gap-3 justify-self-end">
+            <AddToGathering deckId={deck.id} />
             <button
               onClick={() => navigate({ to: "/present", search: { deck: deck.id } })}
               className="pill flex items-center gap-2 border border-foreground bg-background px-6 py-2.5 text-base transition hover:bg-foreground hover:text-background"
@@ -751,5 +752,65 @@ function MediaImporter({ onImport }: { onImport: (files: FileList | null) => voi
         />
       </label>
     </PanelCard>
+  );
+}
+
+function AddToGathering({ deckId }: { deckId: string }) {
+  const playlists = useLibrary((s) => s.playlists);
+  const playlistOrder = useLibrary((s) => s.playlistOrder);
+  const addDeckToPlaylist = useLibrary((s) => s.addDeckToPlaylist);
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [added, setAdded] = useState<string | null>(null);
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const ids = q
+      ? playlistOrder.filter((pid) => playlists[pid]?.name.toLowerCase().includes(q))
+      : playlistOrder;
+    return ids.map((pid) => playlists[pid]).filter(Boolean);
+  }, [query, playlists, playlistOrder]);
+
+  return (
+    <div className="relative">
+      <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
+        <Search className="h-4 w-4" />
+        <input
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); setAdded(null); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder={added ? `Added to ${added}` : "Add to a gathering…"}
+          className="mono w-56 bg-transparent text-sm italic outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+      {open && matches.length > 0 && (
+        <div className="absolute right-0 z-10 mt-1 max-h-60 w-72 overflow-auto rounded-2xl border border-foreground bg-popover shadow-md">
+          {matches.map((p) => (
+            <button
+              key={p.id}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                addDeckToPlaylist(p.id, deckId);
+                setAdded(p.name);
+                setQuery("");
+                setOpen(false);
+              }}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+            >
+              <span className="truncate">{p.name}</span>
+              <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                {p.deckIds.length} sets
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && matches.length === 0 && (
+        <div className="absolute right-0 z-10 mt-1 w-72 rounded-2xl border border-foreground bg-popover px-3 py-2 text-sm text-muted-foreground shadow-md">
+          No gatherings found.
+        </div>
+      )}
+    </div>
   );
 }
