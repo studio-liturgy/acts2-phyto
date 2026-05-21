@@ -79,7 +79,6 @@ function kindChip(kind: KindFilter, active: boolean): string {
   }
   return "";
 }
-}
 
 function Library() {
   const navigate = useNavigate();
