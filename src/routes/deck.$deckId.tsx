@@ -172,7 +172,7 @@ function DeckEditor() {
 
           <div className="mr-auto">
             <Link
-              to="/"
+              to={redirectTo ?? "/"}
               className="pill flex h-12 w-12 items-center justify-center bg-foreground text-background transition hover:opacity-90"
               title="Back"
               aria-label="Back"
