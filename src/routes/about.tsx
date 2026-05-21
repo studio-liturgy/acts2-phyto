@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
+import { BackToTop } from "@/components/BackToTop";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -28,6 +29,9 @@ function About() {
           phyto is a lightweight presentation tool for worship gatherings. Build sets of songs,
           scripture, and media — group them into gatherings — and present them live.
         </p>
+        <div className="mt-12">
+          <BackToTop />
+        </div>
       </main>
       <Footer />
     </div>

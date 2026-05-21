@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
+import { BackToTop } from "@/components/BackToTop";
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
@@ -102,6 +103,9 @@ function Terms() {
             <h2 className="text-2xl">12. Contact</h2>
             <p className="mt-2">Questions about these Terms can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>, or by reaching out on Instagram at <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">instagram.com/phyto.live</a>.</p>
           </section>
+        </div>
+        <div className="mt-12">
+          <BackToTop />
         </div>
       </main>
       <Footer />

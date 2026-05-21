@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
+import { BackToTop } from "@/components/BackToTop";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -90,6 +91,9 @@ function Privacy() {
             <h2 className="text-2xl">10. Contact</h2>
             <p className="mt-2">Questions about this Privacy Policy can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>.</p>
           </section>
+        </div>
+        <div className="mt-12">
+          <BackToTop />
         </div>
       </main>
       <Footer />
