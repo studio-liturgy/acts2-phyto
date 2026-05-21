@@ -174,7 +174,7 @@ function Library() {
           <div className="ml-auto flex flex-wrap items-center gap-4">
             <Link
               to="/present"
-              className="pill flex items-center gap-3 border border-foreground px-[30px] py-[12px] text-5xl text-foreground transition hover:bg-foreground hover:text-background"
+              className="pill flex items-center gap-3 border border-foreground px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-foreground transition hover:bg-foreground hover:text-background"
             >
               Present <ArrowUpRight className="size-[1em]" />
             </Link>
