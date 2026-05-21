@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useLibrary, useLive } from "@/lib/store";
+import { useLibrary, useLive, useSongTemplateDraft } from "@/lib/store";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { useEffect, useMemo } from "react";
 
