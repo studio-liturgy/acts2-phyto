@@ -625,16 +625,16 @@ function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: num
       }`}
     >
       <SlideView slide={slide} variant="thumb" />
-      <div className="mono absolute left-1.5 top-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
+      <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
+        {isLive && (
+          <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
+        )}
         {index + 1}
       </div>
       {slide.reference && deck.kind === "scripture" && (
         <div className="mono absolute bottom-1.5 left-1.5 right-1.5 truncate rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
           {slide.reference}
         </div>
-      )}
-      {isLive && (
-        <div className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[var(--brand-red)]" />
       )}
     </button>
   );
