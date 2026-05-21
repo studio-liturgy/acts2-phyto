@@ -16,10 +16,12 @@ export const Route = createFileRoute("/output")({
 function Output() {
   const live = useLive();
   const deck = useLibrary((s) => (live.deckId ? s.decks[live.deckId] : null));
+  const songTemplate = useLibrary((s) => s.songTemplate);
   const slide = useMemo(
     () => deck?.slides.find((s) => s.id === live.slideId) ?? null,
     [deck, live.slideId]
   );
+  const template = deck?.kind === "song" ? songTemplate : deck?.template;
 
   useEffect(() => {
     const prev = document.body.style.background;
