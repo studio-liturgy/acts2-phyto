@@ -4,12 +4,9 @@ export type ThemeMode = "light" | "dark";
 
 const STORAGE_KEY = "phyto-theme";
 
-function getStoredMode(): ThemeMode {
-  if (typeof window === "undefined") return "light";
-  const v = localStorage.getItem(STORAGE_KEY);
-  if (v === "light" || v === "dark") return v;
-  // First visit: follow OS preference once, then persist via toggle.
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+function readCurrentMode(): ThemeMode {
+  if (typeof document === "undefined") return "light";
+  return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
 function apply(mode: ThemeMode) {
@@ -18,7 +15,8 @@ function apply(mode: ThemeMode) {
 }
 
 export function useTheme() {
-  const [mode, setModeState] = useState<ThemeMode>(() => getStoredMode());
+  // Match the class already set by the pre-hydration script to avoid SSR mismatch.
+  const [mode, setModeState] = useState<ThemeMode>(() => readCurrentMode());
 
   useEffect(() => {
     apply(mode);
