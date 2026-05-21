@@ -253,6 +253,7 @@ function DeckEditor() {
                     onRemove={(id) => removeSlide(deck.id, id)}
                     onReorder={(ids) => reorderSlides(deck.id, ids)}
                     dense={dense}
+                    kind={deck.kind}
                   />
                 ) : (
                   <SlideGrid
@@ -263,6 +264,7 @@ function DeckEditor() {
                     onRemove={(id) => removeSlide(deck.id, id)}
                     onReorder={(ids) => reorderSlides(deck.id, ids)}
                     dense={dense}
+                    kind={deck.kind}
                   />
                 )}
               </div>
@@ -358,6 +360,13 @@ function PillInput({
 }
 
 
+function kindColor(kind?: DeckKind): string {
+  if (kind === "song") return "var(--brand-blue)";
+  if (kind === "scripture") return "var(--brand-green)";
+  if (kind === "media") return "var(--brand-orange)";
+  return "var(--foreground)";
+}
+
 function SlideGrid({
   slides,
   selectedId,
@@ -366,6 +375,7 @@ function SlideGrid({
   onRemove,
   onReorder,
   dense,
+  kind,
 }: {
   slides: Slide[];
   selectedId: string | null;
@@ -374,16 +384,23 @@ function SlideGrid({
   onRemove: (id: string) => void;
   onReorder: (ids: string[]) => void;
   dense?: boolean;
+  kind?: DeckKind;
 }) {
   const dragId = useRef<string | null>(null);
   const cols = dense
     ? "grid-cols-3 md:grid-cols-5 lg:grid-cols-6"
     : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+  const selColor = kindColor(kind);
   return (
     <div className={`grid gap-3 ${cols}`}>
       {slides.map((s, i) => {
         const isSelected = selectedId === s.id;
         const inMulti = multiSel.has(s.id);
+        const borderStyle: React.CSSProperties | undefined = isSelected
+          ? { borderColor: selColor }
+          : inMulti
+          ? { borderColor: `color-mix(in oklab, ${selColor} 60%, transparent)` }
+          : undefined;
         return (
           <div
             key={s.id}
@@ -401,12 +418,9 @@ function SlideGrid({
               onReorder(ids);
             }}
             onClick={(e) => onSelect(s.id, e)}
+            style={borderStyle}
             className={`group relative cursor-pointer overflow-hidden rounded-md border-2 transition ${
-              isSelected
-                ? "border-foreground"
-                : inMulti
-                ? "border-foreground/60"
-                : "border-transparent hover:border-muted-foreground"
+              isSelected || inMulti ? "" : "border-transparent hover:border-muted-foreground"
             }`}
           >
             <SlideView slide={s} variant="thumb" />
@@ -438,6 +452,7 @@ function GroupedSongGrid(props: {
   onRemove: (id: string) => void;
   onReorder: (ids: string[]) => void;
   dense?: boolean;
+  kind?: DeckKind;
 }) {
   const SECTION_RE = /^\s*\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?\s*$/i;
   const sectionOf = (s: Slide): string | null => {
@@ -473,6 +488,7 @@ function GroupedSongGrid(props: {
             onRemove={props.onRemove}
             onReorder={props.onReorder}
             dense={props.dense}
+            kind={props.kind}
           />
         </section>
       ))}
