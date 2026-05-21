@@ -44,10 +44,11 @@ function Output() {
           slide={slide}
           variant="stage"
           durationMs={deck?.dissolveMs ?? 0}
+          template={deck?.template}
           className="h-full w-full"
         />
       ) : (
-        <SlideView slide={slide} variant="stage" className="h-full w-full" />
+        <SlideView slide={slide} variant="stage" template={deck?.template} className="h-full w-full" />
       )}
       {/* Blackout overlay — fades in/out when blackoutFadeMs > 0. */}
       <div
