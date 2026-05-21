@@ -1,15 +1,17 @@
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
   createRootRouteWithContext,
   useRouter,
+  useLocation,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { MobileBlock } from "@/components/MobileBlock";
+import { MobileBlock, MOBILE_ALLOWED } from "@/components/MobileBlock";
 
 function NotFoundComponent() {
   return (
@@ -99,6 +101,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mql.matches);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+  return isMobile;
+}
+
 const themeInitScript = `(function(){try{var m=localStorage.getItem('phyto-theme');if(!m)m=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';if(m==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`;
 
 function RootShell({ children }: { children: React.ReactNode }) {
@@ -118,10 +132,14 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const { pathname } = useLocation();
+  const isMobile = useIsMobile();
+  const allowedOnMobile = MOBILE_ALLOWED.includes(pathname);
+  const showOutlet = !isMobile || allowedOnMobile;
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      {showOutlet && <Outlet />}
       <MobileBlock />
     </QueryClientProvider>
   );

@@ -4,7 +4,7 @@ import wordmark from "@/assets/wordmark.svg";
 const linkCls = "transition-opacity duration-200 hover:opacity-60";
 
 // Routes that remain viewable on mobile (informational pages).
-const MOBILE_ALLOWED = ["/about", "/change-log", "/terms", "/privacy", "/feedback"];
+export const MOBILE_ALLOWED = ["/about", "/change-log", "/terms", "/privacy", "/feedback"];
 
 /**
  * Shown only on small screens (<md). Blocks the app on mobile and
