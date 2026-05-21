@@ -206,7 +206,7 @@ function Library() {
         <section className="mb-16">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-4xl md:text-5xl">Gatherings</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pl-[80px]">
               {showPlaylistSearch ? (
                 <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
                   <Search className="h-4 w-4" />
@@ -273,7 +273,7 @@ function Library() {
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-4">
               <h2 className="text-4xl md:text-5xl leading-none">Catalogue</h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 pl-[80px]">
                 {(["all", "song", "scripture", "media"] as KindFilter[]).map((k) => (
                   <button
                     key={k}
