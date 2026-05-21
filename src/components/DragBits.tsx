@@ -50,3 +50,26 @@ export function hideDragGhost(e: React.DragEvent) {
     /* noop */
   }
 }
+
+/** Cache colored circle drag images by color string. */
+const _circleCache: Record<string, HTMLImageElement> = {};
+function circleDragImage(color: string, size = 56): HTMLImageElement {
+  const key = `${color}-${size}`;
+  if (_circleCache[key]) return _circleCache[key];
+  const r = size / 2;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'><circle cx='${r}' cy='${r}' r='${r - 1}' fill='${color}'/></svg>`;
+  const img = new Image();
+  img.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  _circleCache[key] = img;
+  return img;
+}
+
+/** Use a solid colored circle as the drag ghost. */
+export function setCircleDragGhost(e: React.DragEvent, color: string, size = 56) {
+  try {
+    const img = circleDragImage(color, size);
+    e.dataTransfer.setDragImage(img, size / 2, size / 2);
+  } catch {
+    /* noop */
+  }
+}
