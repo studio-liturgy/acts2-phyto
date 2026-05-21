@@ -65,6 +65,8 @@ function Presenter() {
   const reorderPlaylistDecks = useLibrary((s) => s.reorderPlaylistDecks);
   const live = useLive();
   const songTemplate = useLibrary((s) => s.songTemplate);
+  const songDraft = useSongTemplateDraft((s) => s.draft);
+  const effectiveSongTemplate = songDraft ?? songTemplate;
 
   const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
 
