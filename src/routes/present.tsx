@@ -692,28 +692,27 @@ const FONT_OPTIONS: { label: string; value: string }[] = [
   { label: "Mono", value: "'Courier New', Courier, monospace" },
 ];
 
-function SongTemplateEditor({ deckId, kind }: { deckId: string; kind: DeckKind }) {
-  const deck = useLibrary((s) => s.decks[deckId]);
-  const updateDeck = useLibrary((s) => s.updateDeck);
+function SongTemplateEditor() {
+  const songTemplate = useLibrary((s) => s.songTemplate);
+  const setSongTemplate = useLibrary((s) => s.setSongTemplate);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({
-    fontScale: deck?.template?.fontScale ?? 1,
-    fontFamily: deck?.template?.fontFamily ?? FONT_OPTIONS[0].value,
-    bg: (deck?.template?.bg ?? "black") as "black" | "white",
+    fontScale: songTemplate.fontScale ?? 1,
+    fontFamily: songTemplate.fontFamily ?? FONT_OPTIONS[0].value,
+    bg: (songTemplate.bg ?? "black") as "black" | "white",
   });
 
   useEffect(() => {
     if (!open) {
       setDraft({
-        fontScale: deck?.template?.fontScale ?? 1,
-        fontFamily: deck?.template?.fontFamily ?? FONT_OPTIONS[0].value,
-        bg: (deck?.template?.bg ?? "black") as "black" | "white",
+        fontScale: songTemplate.fontScale ?? 1,
+        fontFamily: songTemplate.fontFamily ?? FONT_OPTIONS[0].value,
+        bg: (songTemplate.bg ?? "black") as "black" | "white",
       });
     }
-  }, [deck, open]);
+  }, [songTemplate, open]);
 
-  if (!deck) return null;
-  const label = kind === "song" ? "Edit Song Template" : "Edit Scripture Template";
+  const label = "Edit Song Template";
 
   if (!open) {
     return (
@@ -727,7 +726,7 @@ function SongTemplateEditor({ deckId, kind }: { deckId: string; kind: DeckKind }
   }
 
   const apply = () => {
-    updateDeck(deckId, { template: { ...draft } });
+    setSongTemplate({ ...draft });
     setOpen(false);
   };
 
