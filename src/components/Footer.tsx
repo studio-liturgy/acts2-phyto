@@ -19,6 +19,7 @@ export function Footer() {
           <img src={wordmark} alt="phyto" className="h-12 w-auto" />
         </div>
         <nav className="flex items-center justify-end gap-6 text-sm">
+          <Link to="/feedback" className={linkCls}>Feedback</Link>
           <Link to="/change-log" className={linkCls}>Change Log</Link>
           <Link to="/terms" className={linkCls}>Terms of Use</Link>
           <Link to="/privacy" className={linkCls}>Privacy Policy</Link>
