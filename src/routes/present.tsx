@@ -64,6 +64,7 @@ function Presenter() {
   const removeDeckFromPlaylist = useLibrary((s) => s.removeDeckFromPlaylist);
   const reorderPlaylistDecks = useLibrary((s) => s.reorderPlaylistDecks);
   const live = useLive();
+  const songTemplate = useLibrary((s) => s.songTemplate);
 
   const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
 
@@ -469,7 +470,11 @@ function Presenter() {
               {liveDeck?.kind === "media" ? (
                 <DissolveSlide slide={liveSlide} variant="preview" durationMs={liveDeck.dissolveMs ?? 0} template={liveDeck.template} />
               ) : (
-                <SlideView slide={liveSlide} variant="preview" template={liveDeck?.template} />
+                <SlideView
+                  slide={liveSlide}
+                  variant="preview"
+                  template={liveDeck?.kind === "song" ? songTemplate : liveDeck?.template}
+                />
               )}
               <div
                 className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black text-xs text-white/40"
@@ -498,9 +503,7 @@ function Presenter() {
             </div>
           )}
 
-          {liveDeck && (liveDeck.kind === "song" || liveDeck.kind === "scripture") && (
-            <SongTemplateEditor deckId={liveDeck.id} kind={liveDeck.kind} />
-          )}
+          {liveDeck?.kind === "song" && <SongTemplateEditor />}
 
           <div className="rounded-2xl border border-foreground">
             <button
@@ -619,6 +622,8 @@ function sectionOf(s: Slide): string | null {
 
 function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: number; deck: Deck; live: LiveApi }) {
   const isLive = live.deckId === deck.id && live.slideId === slide.id;
+  const songTemplate = useLibrary((s) => s.songTemplate);
+  const template = deck.kind === "song" ? songTemplate : deck.template;
   return (
     <button
       onClick={() => live.go(deck.id, slide.id)}
@@ -628,7 +633,7 @@ function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: num
           : "border-transparent hover:border-foreground"
       }`}
     >
-      <SlideView slide={slide} variant="thumb" template={deck.template} />
+      <SlideView slide={slide} variant="thumb" template={template} />
       <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
         {isLive && (
           <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
@@ -687,28 +692,27 @@ const FONT_OPTIONS: { label: string; value: string }[] = [
   { label: "Mono", value: "'Courier New', Courier, monospace" },
 ];
 
-function SongTemplateEditor({ deckId, kind }: { deckId: string; kind: DeckKind }) {
-  const deck = useLibrary((s) => s.decks[deckId]);
-  const updateDeck = useLibrary((s) => s.updateDeck);
+function SongTemplateEditor() {
+  const songTemplate = useLibrary((s) => s.songTemplate);
+  const setSongTemplate = useLibrary((s) => s.setSongTemplate);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({
-    fontScale: deck?.template?.fontScale ?? 1,
-    fontFamily: deck?.template?.fontFamily ?? FONT_OPTIONS[0].value,
-    bg: (deck?.template?.bg ?? "black") as "black" | "white",
+    fontScale: songTemplate.fontScale ?? 1,
+    fontFamily: songTemplate.fontFamily ?? FONT_OPTIONS[0].value,
+    bg: (songTemplate.bg ?? "black") as "black" | "white",
   });
 
   useEffect(() => {
     if (!open) {
       setDraft({
-        fontScale: deck?.template?.fontScale ?? 1,
-        fontFamily: deck?.template?.fontFamily ?? FONT_OPTIONS[0].value,
-        bg: (deck?.template?.bg ?? "black") as "black" | "white",
+        fontScale: songTemplate.fontScale ?? 1,
+        fontFamily: songTemplate.fontFamily ?? FONT_OPTIONS[0].value,
+        bg: (songTemplate.bg ?? "black") as "black" | "white",
       });
     }
-  }, [deck, open]);
+  }, [songTemplate, open]);
 
-  if (!deck) return null;
-  const label = kind === "song" ? "Edit Song Template" : "Edit Scripture Template";
+  const label = "Edit Song Template";
 
   if (!open) {
     return (
@@ -722,7 +726,7 @@ function SongTemplateEditor({ deckId, kind }: { deckId: string; kind: DeckKind }
   }
 
   const apply = () => {
-    updateDeck(deckId, { template: { ...draft } });
+    setSongTemplate({ ...draft });
     setOpen(false);
   };
 

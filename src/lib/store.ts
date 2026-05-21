@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Deck, Slide, LiveState, Playlist } from "./types";
+import type { Deck, Slide, LiveState, Playlist, DeckTemplate } from "./types";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -11,6 +11,9 @@ interface LibraryState {
   order: string[];
   playlists: Record<string, Playlist>;
   playlistOrder: string[];
+  /** Global template applied to ALL song decks. */
+  songTemplate: DeckTemplate;
+  setSongTemplate: (patch: DeckTemplate) => void;
   createDeck: (deck: Omit<Deck, "id" | "createdAt" | "updatedAt">) => string;
   updateDeck: (id: string, patch: Partial<Deck>) => void;
   deleteDeck: (id: string) => void;
@@ -33,6 +36,9 @@ export const useLibrary = create<LibraryState>()(
       order: [],
       playlists: {},
       playlistOrder: [],
+      songTemplate: { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" },
+      setSongTemplate: (patch) =>
+        set((s) => ({ songTemplate: { ...s.songTemplate, ...patch } })),
       createDeck: (deck) => {
         const id = uid();
         const now = Date.now();

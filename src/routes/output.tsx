@@ -16,10 +16,12 @@ export const Route = createFileRoute("/output")({
 function Output() {
   const live = useLive();
   const deck = useLibrary((s) => (live.deckId ? s.decks[live.deckId] : null));
+  const songTemplate = useLibrary((s) => s.songTemplate);
   const slide = useMemo(
     () => deck?.slides.find((s) => s.id === live.slideId) ?? null,
     [deck, live.slideId]
   );
+  const template = deck?.kind === "song" ? songTemplate : deck?.template;
 
   useEffect(() => {
     const prev = document.body.style.background;
@@ -44,11 +46,11 @@ function Output() {
           slide={slide}
           variant="stage"
           durationMs={deck?.dissolveMs ?? 0}
-          template={deck?.template}
+          template={template}
           className="h-full w-full"
         />
       ) : (
-        <SlideView slide={slide} variant="stage" template={deck?.template} className="h-full w-full" />
+        <SlideView slide={slide} variant="stage" template={template} className="h-full w-full" />
       )}
       {/* Blackout overlay — fades in/out when blackoutFadeMs > 0. */}
       <div
