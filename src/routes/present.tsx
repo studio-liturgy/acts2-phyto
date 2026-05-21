@@ -493,7 +493,7 @@ function Presenter() {
             </div>
             {liveDeck && liveSlide && (
               <p className="mono mt-2 text-xs text-muted-foreground">
-                {liveDeck.name} · {liveDeck.slides.findIndex((s) => s.id === liveSlide.id) + 1} / {liveDeck.slides.length}
+                {liveDeck.name} · {liveDeck.slides.findIndex((s) => s.id === liveSlide.id) + 1}
               </p>
             )}
           </div>
