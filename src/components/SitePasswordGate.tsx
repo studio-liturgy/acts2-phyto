@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import wordmark from "@/assets/wordmark.svg";
 
 const STORAGE_KEY = "phyto-site-access";
 const PASSWORD = "acts24247";
@@ -38,7 +39,7 @@ export function SitePasswordGate({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--brand-blue)] px-6 text-[var(--brand-white)]">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-6 text-center">
-        <h1 className="text-5xl">phyto</h1>
+        <img src={wordmark} alt="phyto" className="mx-auto h-16 w-auto" />
         <p className="mono text-xs uppercase tracking-wider opacity-80">Enter password to continue</p>
         <input
           autoFocus
