@@ -628,7 +628,7 @@ function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: num
           : "border-transparent hover:border-foreground"
       }`}
     >
-      <SlideView slide={slide} variant="thumb" />
+      <SlideView slide={slide} variant="thumb" template={deck.template} />
       <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
         {isLive && (
           <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
