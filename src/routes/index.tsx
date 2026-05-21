@@ -57,36 +57,27 @@ function kindBg(kind: DeckKind | string): string {
 
 /** Filter chip: filled when active or hovered, outline when idle. */
 function kindChip(kind: KindFilter, active: boolean): string {
-  const palette: Record<string, { border: string; fillBg: string; fillText: string; idleText: string }> = {
-    all: {
-      border: "border-foreground",
-      fillBg: "bg-foreground",
-      fillText: "text-background",
-      idleText: "text-foreground",
-    },
-    song: {
-      border: "border-[var(--brand-blue)]",
-      fillBg: "bg-[var(--brand-blue)]",
-      fillText: "text-[var(--brand-white)]",
-      idleText: "text-[var(--brand-blue)]",
-    },
-    scripture: {
-      border: "border-[var(--brand-green)]",
-      fillBg: "bg-[var(--brand-green)]",
-      fillText: "text-[var(--brand-white)]",
-      idleText: "text-[var(--brand-green)]",
-    },
-    media: {
-      border: "border-[var(--brand-orange)]",
-      fillBg: "bg-[var(--brand-orange)]",
-      fillText: "text-[var(--brand-white)]",
-      idleText: "text-[var(--brand-orange)]",
-    },
-  };
-  const c = palette[kind] ?? palette.all;
-  return active
-    ? `${c.border} ${c.fillBg} ${c.fillText}`
-    : `${c.border} ${c.idleText} hover:${c.fillBg} hover:${c.fillText}`;
+  if (kind === "all") {
+    return active
+      ? "border-foreground bg-foreground text-background"
+      : "border-foreground text-foreground hover:bg-foreground hover:text-background";
+  }
+  if (kind === "song") {
+    return active
+      ? "border-[var(--brand-blue)] bg-[var(--brand-blue)] text-[var(--brand-white)]"
+      : "border-[var(--brand-blue)] text-[var(--brand-blue)] hover:bg-[var(--brand-blue)] hover:text-[var(--brand-white)]";
+  }
+  if (kind === "scripture") {
+    return active
+      ? "border-[var(--brand-green)] bg-[var(--brand-green)] text-[var(--brand-white)]"
+      : "border-[var(--brand-green)] text-[var(--brand-green)] hover:bg-[var(--brand-green)] hover:text-[var(--brand-white)]";
+  }
+  if (kind === "media") {
+    return active
+      ? "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]"
+      : "border-[var(--brand-orange)] text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-[var(--brand-white)]";
+  }
+  return "";
 }
 
 function Library() {
