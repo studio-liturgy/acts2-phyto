@@ -29,6 +29,9 @@ function About() {
           phyto is a lightweight presentation tool for worship gatherings. Build sets of songs,
           scripture, and media — group them into gatherings — and present them live.
         </p>
+        <div className="mt-12">
+          <BackToTop />
+        </div>
       </main>
       <Footer />
     </div>

@@ -31,6 +31,9 @@ function ChangeLog() {
             <p className="mt-1">New visual design system: brand palette, Space Mono, pill UI.</p>
           </li>
         </ul>
+        <div className="mt-12">
+          <BackToTop />
+        </div>
       </main>
       <Footer />
     </div>

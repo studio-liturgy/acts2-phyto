@@ -92,6 +92,9 @@ function Privacy() {
             <p className="mt-2">Questions about this Privacy Policy can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>.</p>
           </section>
         </div>
+        <div className="mt-12">
+          <BackToTop />
+        </div>
       </main>
       <Footer />
     </div>
