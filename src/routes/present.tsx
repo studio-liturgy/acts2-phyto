@@ -625,7 +625,8 @@ function sectionOf(s: Slide): string | null {
 function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: number; deck: Deck; live: LiveApi }) {
   const isLive = live.deckId === deck.id && live.slideId === slide.id;
   const songTemplate = useLibrary((s) => s.songTemplate);
-  const template = deck.kind === "song" ? songTemplate : deck.template;
+  const songDraft = useSongTemplateDraft((s) => s.draft);
+  const template = deck.kind === "song" ? (songDraft ?? songTemplate) : deck.template;
   return (
     <button
       onClick={() => live.go(deck.id, slide.id)}
