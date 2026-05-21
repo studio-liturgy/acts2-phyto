@@ -184,7 +184,7 @@ function Library() {
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 md:px-0">
         {/* Gatherings */}
-        <section className="mb-16">
+        <section className="mb-24">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-4xl md:text-5xl">Gatherings</h2>
             <div className="flex items-center gap-2 pl-[80px]">
