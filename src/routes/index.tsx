@@ -456,13 +456,13 @@ function PlaylistCard({
         )}
         <button
           onClick={() => setEditMode((v) => !v)}
-          className={`pill flex h-10 w-10 items-center justify-center border border-foreground transition ${
-            editMode ? "bg-foreground text-background" : "hover:bg-foreground hover:text-background"
+          className={`pill flex items-center justify-center border border-foreground transition ${
+            editMode ? "bg-foreground text-background px-3 h-10 text-sm" : "h-10 w-10 hover:bg-foreground hover:text-background"
           }`}
           title={editMode ? "Done editing" : "Edit"}
           aria-label={editMode ? "Done editing" : "Edit"}
         >
-          <Pencil className="h-4 w-4" />
+          {editMode ? "Done" : <Pencil className="h-4 w-4" />}
         </button>
         <Link
           to="/present"
