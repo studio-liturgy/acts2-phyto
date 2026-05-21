@@ -42,6 +42,35 @@ export const Route = createFileRoute("/")({
     links: [
       { rel: "canonical", href: "https://phyto.live/" },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "WebSite",
+              name: "phyto",
+              url: "https://phyto.live/",
+              description: "A lightweight, open-source presentation tool for worship gatherings.",
+            },
+            {
+              "@type": "SoftwareApplication",
+              name: "phyto",
+              applicationCategory: "PresentationApplication",
+              operatingSystem: "Any",
+              description: "Build sets of songs, scripture, and media — group them into gatherings — and present them live.",
+              url: "https://phyto.live/",
+              offers: {
+                "@type": "Offer",
+                price: "0",
+                priceCurrency: "USD",
+              },
+            },
+          ],
+        }),
+      },
+    ],
   }),
   component: Library,
 });
