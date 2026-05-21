@@ -36,6 +36,9 @@ export const useLibrary = create<LibraryState>()(
       order: [],
       playlists: {},
       playlistOrder: [],
+      songTemplate: { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" },
+      setSongTemplate: (patch) =>
+        set((s) => ({ songTemplate: { ...s.songTemplate, ...patch } })),
       createDeck: (deck) => {
         const id = uid();
         const now = Date.now();
