@@ -729,7 +729,7 @@ function SongTemplateEditor() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="pill flex w-full items-center justify-center border border-foreground px-4 py-2 text-sm transition hover:bg-foreground hover:text-background"
+        className="mono pill flex w-full items-center justify-center border border-foreground px-4 py-2 text-sm transition hover:bg-foreground hover:text-background"
       >
         {label}
       </button>
