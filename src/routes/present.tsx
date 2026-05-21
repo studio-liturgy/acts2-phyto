@@ -812,7 +812,7 @@ function SongTemplateEditor() {
           onClick={apply}
           className="pill flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90"
         >
-          Apply to all slides
+          Apply to all songs
         </button>
       </div>
     </div>
