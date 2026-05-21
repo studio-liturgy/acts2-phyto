@@ -43,7 +43,7 @@ function About() {
           {/* Large intro */}
           <div className="mt-10 max-w-5xl space-y-10 text-3xl md:text-[2.6rem] md:leading-[1.15] leading-snug">
             <p>
-              phyto is a free, open source presentation tool built for small worship gatherings. Prepare your verses and lyrics beforehand, or run it live. Offline support is on the way.
+              phyto is a free, open source presentation tool built for small worship gatherings. Prepare your verses and lyrics beforehand, then run it live. Offline support is on the way.
             </p>
             <p>
               I built this to serve my local church. But God had more in mind.
