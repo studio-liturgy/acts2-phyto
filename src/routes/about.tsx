@@ -66,13 +66,13 @@ function About() {
               href="https://ko-fi.com/valiantchan"
               target="_blank"
               rel="noopener noreferrer"
-              className="pill bg-[var(--brand-white)] px-10 py-3 text-2xl text-[var(--brand-blue)] transition-opacity hover:opacity-90"
+              className="pill flex items-center border border-[var(--brand-white)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"
             >
               Donate
             </a>
             <Link
               to="/feedback"
-              className="pill bg-[var(--brand-white)] px-10 py-3 text-2xl text-[var(--brand-blue)] transition-opacity hover:opacity-90"
+              className="pill flex items-center border border-[var(--brand-white)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"
             >
               Feedback
             </Link>
