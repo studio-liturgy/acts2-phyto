@@ -19,10 +19,10 @@ export function Footer() {
         <div className="flex justify-center">
           <img src={wordmark} alt="phyto" className="h-12 w-auto" />
         </div>
-        <nav className="flex items-center justify-end gap-6 text-sm">
-          <Link to="/change-log" className={linkCls}>Change Log</Link>
-          <Link to="/terms" className={linkCls}>Terms of Use</Link>
-          <Link to="/privacy" className={linkCls}>Privacy Policy</Link>
+        <nav className="flex items-center justify-end gap-4 text-sm flex-nowrap">
+          <Link to="/change-log" className={`${linkCls} whitespace-nowrap`}>Change Log</Link>
+          <Link to="/terms" className={`${linkCls} whitespace-nowrap`}>Terms of Use</Link>
+          <Link to="/privacy" className={`${linkCls} whitespace-nowrap`}>Privacy Policy</Link>
           <ThemeToggle />
         </nav>
       </div>
