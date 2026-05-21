@@ -467,9 +467,9 @@ function Presenter() {
             <div className="mono mb-2 text-[10px] uppercase tracking-wider">Live output</div>
             <div className="relative overflow-hidden rounded-lg bg-[var(--brand-black)]">
               {liveDeck?.kind === "media" ? (
-                <DissolveSlide slide={liveSlide} variant="preview" durationMs={liveDeck.dissolveMs ?? 0} />
+                <DissolveSlide slide={liveSlide} variant="preview" durationMs={liveDeck.dissolveMs ?? 0} template={liveDeck.template} />
               ) : (
-                <SlideView slide={liveSlide} variant="preview" />
+                <SlideView slide={liveSlide} variant="preview" template={liveDeck?.template} />
               )}
               <div
                 className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black text-xs text-white/40"
@@ -496,6 +496,10 @@ function Presenter() {
               <div className="mono mb-3 text-[10px] uppercase tracking-wider">Media functions</div>
               <MediaPlaybackControls deckId={liveDeck.id} />
             </div>
+          )}
+
+          {liveDeck && (liveDeck.kind === "song" || liveDeck.kind === "scripture") && (
+            <SongTemplateEditor deckId={liveDeck.id} kind={liveDeck.kind} />
           )}
 
           <div className="rounded-2xl border border-foreground">
