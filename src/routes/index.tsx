@@ -182,7 +182,7 @@ function Library() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 md:px-12">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 md:px-0">
         {/* Gatherings */}
         <section className="mb-16">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
