@@ -9,17 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UpdatesRouteImport } from './routes/updates'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PresentRouteImport } from './routes/present'
 import { Route as OutputRouteImport } from './routes/output'
 import { Route as FeedbackRouteImport } from './routes/feedback'
-import { Route as ChangeLogRouteImport } from './routes/change-log'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DeckDeckIdRouteImport } from './routes/deck.$deckId'
 
+const UpdatesRoute = UpdatesRouteImport.update({
+  id: '/updates',
+  path: '/updates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -50,11 +55,6 @@ const FeedbackRoute = FeedbackRouteImport.update({
   path: '/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ChangeLogRoute = ChangeLogRouteImport.update({
-  id: '/change-log',
-  path: '/change-log',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -74,38 +74,38 @@ const DeckDeckIdRoute = DeckDeckIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/change-log': typeof ChangeLogRoute
   '/feedback': typeof FeedbackRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/updates': typeof UpdatesRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/change-log': typeof ChangeLogRoute
   '/feedback': typeof FeedbackRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/updates': typeof UpdatesRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/change-log': typeof ChangeLogRoute
   '/feedback': typeof FeedbackRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/updates': typeof UpdatesRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
 }
 export interface FileRouteTypes {
@@ -113,55 +113,62 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
-    | '/change-log'
     | '/feedback'
     | '/output'
     | '/present'
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
+    | '/updates'
     | '/deck/$deckId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
-    | '/change-log'
     | '/feedback'
     | '/output'
     | '/present'
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
+    | '/updates'
     | '/deck/$deckId'
   id:
     | '__root__'
     | '/'
     | '/about'
-    | '/change-log'
     | '/feedback'
     | '/output'
     | '/present'
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
+    | '/updates'
     | '/deck/$deckId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
-  ChangeLogRoute: typeof ChangeLogRoute
   FeedbackRoute: typeof FeedbackRoute
   OutputRoute: typeof OutputRoute
   PresentRoute: typeof PresentRoute
   PrivacyRoute: typeof PrivacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
+  UpdatesRoute: typeof UpdatesRoute
   DeckDeckIdRoute: typeof DeckDeckIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/updates': {
+      id: '/updates'
+      path: '/updates'
+      fullPath: '/updates'
+      preLoaderRoute: typeof UpdatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -204,13 +211,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/change-log': {
-      id: '/change-log'
-      path: '/change-log'
-      fullPath: '/change-log'
-      preLoaderRoute: typeof ChangeLogRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -238,13 +238,13 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
-  ChangeLogRoute: ChangeLogRoute,
   FeedbackRoute: FeedbackRoute,
   OutputRoute: OutputRoute,
   PresentRoute: PresentRoute,
   PrivacyRoute: PrivacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
+  UpdatesRoute: UpdatesRoute,
   DeckDeckIdRoute: DeckDeckIdRoute,
 }
 export const routeTree = rootRouteImport

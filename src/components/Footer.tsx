@@ -23,7 +23,7 @@ export function Footer() {
           </Link>
         </div>
         <nav className="flex items-center justify-end gap-4 text-sm flex-nowrap">
-          <Link to="/change-log" className={`${linkCls} whitespace-nowrap`}>Change Log</Link>
+          <Link to="/updates" className={`${linkCls} whitespace-nowrap`}>Updates</Link>
           <Link to="/terms" className={`${linkCls} whitespace-nowrap`}>Terms of Use</Link>
           <Link to="/privacy" className={`${linkCls} whitespace-nowrap`}>Privacy Policy</Link>
           <ThemeToggle />

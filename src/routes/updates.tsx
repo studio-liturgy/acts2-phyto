@@ -3,28 +3,28 @@ import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 
-export const Route = createFileRoute("/change-log")({
+export const Route = createFileRoute("/updates")({
   head: () => ({
     meta: [
-      { title: "Change Log — phyto" },
+      { title: "Updates — phyto" },
       { name: "description", content: "Release notes for phyto." },
-      { property: "og:title", content: "Change Log — phyto" },
+      { property: "og:title", content: "Updates — phyto" },
       { property: "og:description", content: "Release notes for phyto." },
-      { property: "og:url", content: "https://phyto.live/change-log" },
+      { property: "og:url", content: "https://phyto.live/updates" },
     ],
     links: [
-      { rel: "canonical", href: "https://phyto.live/change-log" },
+      { rel: "canonical", href: "https://phyto.live/updates" },
     ],
   }),
-  component: ChangeLog,
+  component: Updates,
 });
 
-function ChangeLog() {
+function Updates() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
         <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"><ArrowLeft className="h-3 w-3" /> BACK</Link>
-        <h1 className="mt-6 text-5xl">Change Log</h1>
+        <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-6">
           <li>
             <div className="mono text-xs uppercase tracking-wider opacity-80">Releasing beta for test users.</div>

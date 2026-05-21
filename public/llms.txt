@@ -8,7 +8,7 @@
 - [Present](/present): Live presentation mode for projecting lyrics, scripture, and media during worship gatherings.
 - [Output](/output): Configure and display the active slide for projection.
 - [About](/about): What phyto is and how it works.
-- [Change Log](/change-log): Release history and updates.
+- [Updates](/updates): Release history and updates.
 - [Feedback](/feedback): Submit feedback, report bugs, or request features.
 - [Privacy Policy](/privacy): How user data is collected, stored, and used.
 - [Terms of Use](/terms): Terms and conditions for using phyto.
