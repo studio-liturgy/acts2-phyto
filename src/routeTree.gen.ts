@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PresentRouteImport } from './routes/present'
 import { Route as OutputRouteImport } from './routes/output'
@@ -22,6 +23,11 @@ import { Route as DeckDeckIdRouteImport } from './routes/deck.$deckId'
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/output'
     | '/present'
     | '/privacy'
+    | '/sitemap.xml'
     | '/terms'
     | '/deck/$deckId'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/output'
     | '/present'
     | '/privacy'
+    | '/sitemap.xml'
     | '/terms'
     | '/deck/$deckId'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/output'
     | '/present'
     | '/privacy'
+    | '/sitemap.xml'
     | '/terms'
     | '/deck/$deckId'
   fileRoutesById: FileRoutesById
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   OutputRoute: typeof OutputRoute
   PresentRoute: typeof PresentRoute
   PrivacyRoute: typeof PrivacyRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   DeckDeckIdRoute: typeof DeckDeckIdRoute
 }
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   OutputRoute: OutputRoute,
   PresentRoute: PresentRoute,
   PrivacyRoute: PrivacyRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   DeckDeckIdRoute: DeckDeckIdRoute,
 }
