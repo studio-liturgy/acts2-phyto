@@ -55,7 +55,7 @@ function kindBg(kind: DeckKind | string): string {
   return "bg-muted text-foreground";
 }
 
-/** Filter chip: filled when active, outline when inactive. */
+/** Filter chip: filled when active or hovered, outline when idle. */
 function kindChip(kind: KindFilter, active: boolean): string {
   const palette: Record<string, { border: string; fillBg: string; fillText: string; idleText: string }> = {
     all: {
@@ -86,7 +86,7 @@ function kindChip(kind: KindFilter, active: boolean): string {
   const c = palette[kind] ?? palette.all;
   return active
     ? `${c.border} ${c.fillBg} ${c.fillText}`
-    : `${c.border} ${c.idleText} hover:bg-foreground/5`;
+    : `${c.border} ${c.idleText} hover:${c.fillBg} hover:${c.fillText}`;
 }
 
 function Library() {
