@@ -488,6 +488,7 @@ function GroupedSongGrid(props: {
             onRemove={props.onRemove}
             onReorder={props.onReorder}
             dense={props.dense}
+            kind={props.kind}
           />
         </section>
       ))}
