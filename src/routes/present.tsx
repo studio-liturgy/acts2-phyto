@@ -752,7 +752,7 @@ function SongTemplateEditor() {
       <div className="mb-3 flex items-center justify-between">
         <div className="mono text-[10px] uppercase tracking-wider">{label}</div>
         <button
-          onClick={() => setOpen(false)}
+          onClick={cancel}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
           Cancel
