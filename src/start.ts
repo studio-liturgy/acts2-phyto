@@ -28,7 +28,7 @@ function renderGatePage(error?: string, redirectTo = "/"): string {
     <meta name="robots" content="noindex" />
     <title>phyto — enter password</title>
     <style>
-      :root { --blue:#1d4ed8; --white:#ffffff; }
+      :root { --blue:#2E7299; --white:#ffffff; }
       html,body{margin:0;height:100%;background:var(--blue);color:var(--white);font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}
       body{display:flex;align-items:center;justify-content:center;padding:24px}
       form{width:100%;max-width:360px;text-align:center;display:flex;flex-direction:column;gap:24px}
