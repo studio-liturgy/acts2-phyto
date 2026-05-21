@@ -82,8 +82,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@phyto_live" },
       { name: "twitter:title", content: "phyto — Stage Presenter for Worship" },
       { name: "twitter:description", content: "phyto is a lightweight, open-source presentation tool for worship gatherings. Build sets of songs, scripture, and media — group them into gatherings — and present them live." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9bc6e166-ad26-4d05-9b0e-364ecef91726/id-preview-63914c99--4ea9c06b-dbb6-47bb-b382-a4e3f8ca416a.lovable.app-1779247617074.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9bc6e166-ad26-4d05-9b0e-364ecef91726/id-preview-63914c99--4ea9c06b-dbb6-47bb-b382-a4e3f8ca416a.lovable.app-1779247617074.png" },
+      { property: "og:image", content: "https://phyto.live/og-image.jpg" },
+      { name: "twitter:image", content: "https://phyto.live/og-image.jpg" },
     ],
     links: [
       {
