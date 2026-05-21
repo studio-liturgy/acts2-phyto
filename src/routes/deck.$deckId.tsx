@@ -314,7 +314,6 @@ function DeckEditor() {
             Delete this set
           </button>
         </aside>
-        </aside>
       </div>
     </div>
   );
