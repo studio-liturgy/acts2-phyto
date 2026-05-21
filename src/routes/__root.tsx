@@ -121,10 +121,8 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SitePasswordGate>
-        <Outlet />
-        <MobileBlock />
-      </SitePasswordGate>
+      <Outlet />
+      <MobileBlock />
     </QueryClientProvider>
   );
 }
