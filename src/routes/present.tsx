@@ -622,6 +622,8 @@ function sectionOf(s: Slide): string | null {
 
 function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: number; deck: Deck; live: LiveApi }) {
   const isLive = live.deckId === deck.id && live.slideId === slide.id;
+  const songTemplate = useLibrary((s) => s.songTemplate);
+  const template = deck.kind === "song" ? songTemplate : deck.template;
   return (
     <button
       onClick={() => live.go(deck.id, slide.id)}
@@ -631,7 +633,7 @@ function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: num
           : "border-transparent hover:border-foreground"
       }`}
     >
-      <SlideView slide={slide} variant="thumb" template={deck.template} />
+      <SlideView slide={slide} variant="thumb" template={template} />
       <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
         {isLive && (
           <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
