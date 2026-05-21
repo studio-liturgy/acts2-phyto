@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Deck, Slide, LiveState, Playlist } from "./types";
+import type { Deck, Slide, LiveState, Playlist, DeckTemplate } from "./types";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
