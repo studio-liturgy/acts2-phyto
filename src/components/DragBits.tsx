@@ -51,24 +51,32 @@ export function hideDragGhost(e: React.DragEvent) {
   }
 }
 
-/** Cache colored circle drag images by color string. */
-const _circleCache: Record<string, HTMLImageElement> = {};
-function circleDragImage(color: string, size = 56): HTMLImageElement {
-  const key = `${color}-${size}`;
+/** Cache colored circle drag canvases by color string. */
+const _circleCache: Record<string, HTMLCanvasElement> = {};
+function circleDragCanvas(color: string, size = 56): HTMLCanvasElement {
+  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+  const key = `${color}-${size}-${dpr}`;
   if (_circleCache[key]) return _circleCache[key];
-  const r = size / 2;
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'><circle cx='${r}' cy='${r}' r='${r - 1}' fill='${color}'/></svg>`;
-  const img = new Image();
-  img.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-  _circleCache[key] = img;
-  return img;
+  const canvas = document.createElement("canvas");
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvas.style.width = `${size}px`;
+  canvas.style.height = `${size}px`;
+  const ctx = canvas.getContext("2d")!;
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+  ctx.fill();
+  _circleCache[key] = canvas;
+  return canvas;
 }
 
 /** Use a solid colored circle as the drag ghost. */
 export function setCircleDragGhost(e: React.DragEvent, color: string, size = 56) {
   try {
-    const img = circleDragImage(color, size);
-    e.dataTransfer.setDragImage(img, size / 2, size / 2);
+    const canvas = circleDragCanvas(color, size);
+    e.dataTransfer.setDragImage(canvas, size / 2, size / 2);
   } catch {
     /* noop */
   }
