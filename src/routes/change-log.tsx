@@ -28,7 +28,7 @@ function ChangeLog() {
         <ul className="mt-8 space-y-6">
           <li>
             <div className="mono text-xs uppercase tracking-wider opacity-80">Releasing beta for test users.</div>
-            <p className="mt-1">New visual design system: brand palette, Space Mono, pill UI.</p>
+            <p className="mt-1">MAY 21, 2026</p>
           </li>
         </ul>
         <div className="mt-12">
