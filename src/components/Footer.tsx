@@ -5,7 +5,7 @@ const linkCls = "transition-opacity duration-200 hover:opacity-60";
 export function Footer() {
   return (
     <footer className="mt-20 bg-[var(--brand-blue)] text-[var(--brand-white)]">
-      <div className="mx-auto grid max-w-6xl grid-cols-3 items-center gap-4 px-6 py-8 md:px-12">
+      <div className="mx-auto grid max-w-6xl grid-cols-3 items-center gap-4 px-6 py-8">
         <nav className="flex gap-6 text-sm">
           <Link to="/about" className={linkCls}>About</Link>
           <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className={linkCls}>Instagram</a>
