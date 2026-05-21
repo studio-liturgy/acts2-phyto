@@ -13,6 +13,7 @@ import {
   Plus,
   ChevronDown,
   ChevronUp,
+  House,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Deck, DeckKind, Slide } from "@/lib/types";
@@ -131,10 +132,10 @@ function Presenter() {
             <Link
               to="/"
               className="pill flex h-10 w-10 items-center justify-center bg-foreground text-background transition hover:opacity-90"
-              title="Create"
-              aria-label="Create"
+              title="Home"
+              aria-label="Home"
             >
-              <Plus className="h-5 w-5" />
+              <House className="h-5 w-5" />
             </Link>
             <button
               onClick={() => setSidebarOpen((v) => !v)}
