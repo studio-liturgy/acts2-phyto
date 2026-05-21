@@ -498,7 +498,7 @@ function PlaylistCard({
           Drag a set in to add it to this gathering.
         </p>
       ) : (
-        <ol className="space-y-2">
+        <ol className="space-y-1">
           {deckIds.map((id, i) => {
             const d = nameLookup[id];
             return (
@@ -528,7 +528,7 @@ function PlaylistCard({
                   ids.splice(i, 0, moved);
                   onReorder(ids);
                 }}
-                className={`pill flex items-center gap-3 px-4 py-2.5 text-sm ${kindBg(d?.kind ?? "mixed")}`}
+                className={`pill flex items-center gap-3 px-4 py-1.5 text-sm ${kindBg(d?.kind ?? "mixed")}`}
               >
                 <DotsGrip className="cursor-grab opacity-80" />
                 <span className="flex-1 truncate">{d?.name ?? "(missing)"}</span>
