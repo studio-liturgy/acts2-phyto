@@ -369,6 +369,7 @@ function Presenter() {
               <Link
                 to="/deck/$deckId"
                 params={{ deckId: activeDeck.id }}
+                search={{ redirectTo: "/present" }}
                 className="underline"
                 title="Edit set"
               >
@@ -383,6 +384,7 @@ function Presenter() {
                 <Link
                   to="/deck/$deckId"
                   params={{ deckId: activeDeck.id }}
+                  search={{ redirectTo: "/present" }}
                   className="pill flex h-8 w-8 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                   title="Edit set"
                   aria-label="Edit set"
@@ -424,6 +426,7 @@ function Presenter() {
                       <Link
                         to="/deck/$deckId"
                         params={{ deckId: d.id }}
+                        search={{ redirectTo: "/present" }}
                         className="pill flex h-7 w-7 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                         title="Edit set"
                         aria-label="Edit set"
