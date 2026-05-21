@@ -25,6 +25,7 @@ export function MobileBlock() {
         <Link to="/about" className={linkCls}>About</Link>
         <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className={linkCls}>Instagram</a>
         <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className={linkCls}>Donate</a>
+        <Link to="/feedback" className={linkCls}>Feedback</Link>
         <Link to="/change-log" className={linkCls}>Change Log</Link>
         <Link to="/terms" className={linkCls}>Terms of Use</Link>
         <Link to="/privacy" className={linkCls}>Privacy Policy</Link>
