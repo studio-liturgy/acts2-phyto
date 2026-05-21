@@ -182,6 +182,18 @@ export const useLibrary = create<LibraryState>()(
   )
 );
 
+// Ephemeral, non-persisted preview of the song template while the editor is
+// open. When non-null, slide views should render with this draft instead of
+// the saved `songTemplate` so the user can see changes live.
+interface SongTemplateDraftStore {
+  draft: DeckTemplate | null;
+  setDraft: (d: DeckTemplate | null) => void;
+}
+export const useSongTemplateDraft = create<SongTemplateDraftStore>((set) => ({
+  draft: null,
+  setDraft: (d) => set({ draft: d }),
+}));
+
 // --- Live presentation state, synced across windows via BroadcastChannel ---
 
 const CHANNEL = "stage-live-v1";

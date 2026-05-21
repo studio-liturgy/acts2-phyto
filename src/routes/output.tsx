@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useLibrary, useLive } from "@/lib/store";
+import { useLibrary, useLive, useSongTemplateDraft } from "@/lib/store";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { useEffect, useMemo } from "react";
 
@@ -17,11 +17,12 @@ function Output() {
   const live = useLive();
   const deck = useLibrary((s) => (live.deckId ? s.decks[live.deckId] : null));
   const songTemplate = useLibrary((s) => s.songTemplate);
+  const songDraft = useSongTemplateDraft((s) => s.draft);
   const slide = useMemo(
     () => deck?.slides.find((s) => s.id === live.slideId) ?? null,
     [deck, live.slideId]
   );
-  const template = deck?.kind === "song" ? songTemplate : deck?.template;
+  const template = deck?.kind === "song" ? (songDraft ?? songTemplate) : deck?.template;
 
   useEffect(() => {
     const prev = document.body.style.background;

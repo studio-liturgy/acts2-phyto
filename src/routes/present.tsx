@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useLibrary, useLive } from "@/lib/store";
+import { useLibrary, useLive, useSongTemplateDraft } from "@/lib/store";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { Input } from "@/components/ui/input";
 import {
@@ -65,6 +65,8 @@ function Presenter() {
   const reorderPlaylistDecks = useLibrary((s) => s.reorderPlaylistDecks);
   const live = useLive();
   const songTemplate = useLibrary((s) => s.songTemplate);
+  const songDraft = useSongTemplateDraft((s) => s.draft);
+  const effectiveSongTemplate = songDraft ?? songTemplate;
 
   const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
 
@@ -473,7 +475,7 @@ function Presenter() {
                 <SlideView
                   slide={liveSlide}
                   variant="preview"
-                  template={liveDeck?.kind === "song" ? songTemplate : liveDeck?.template}
+                  template={liveDeck?.kind === "song" ? effectiveSongTemplate : liveDeck?.template}
                 />
               )}
               <div
@@ -623,7 +625,8 @@ function sectionOf(s: Slide): string | null {
 function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: number; deck: Deck; live: LiveApi }) {
   const isLive = live.deckId === deck.id && live.slideId === slide.id;
   const songTemplate = useLibrary((s) => s.songTemplate);
-  const template = deck.kind === "song" ? songTemplate : deck.template;
+  const songDraft = useSongTemplateDraft((s) => s.draft);
+  const template = deck.kind === "song" ? (songDraft ?? songTemplate) : deck.template;
   return (
     <button
       onClick={() => live.go(deck.id, slide.id)}
@@ -693,6 +696,7 @@ const FONT_OPTIONS: { label: string; value: string }[] = [
 function SongTemplateEditor() {
   const songTemplate = useLibrary((s) => s.songTemplate);
   const setSongTemplate = useLibrary((s) => s.setSongTemplate);
+  const setPreviewDraft = useSongTemplateDraft((s) => s.setDraft);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({
     fontScale: songTemplate.fontScale ?? 1,
@@ -710,6 +714,15 @@ function SongTemplateEditor() {
     }
   }, [songTemplate, open]);
 
+  // Push draft into the global preview store whenever it changes while open.
+  useEffect(() => {
+    if (open) setPreviewDraft(draft);
+    else setPreviewDraft(null);
+  }, [open, draft, setPreviewDraft]);
+
+  // Always clear preview on unmount so leaving the page doesn't strand a draft.
+  useEffect(() => () => setPreviewDraft(null), [setPreviewDraft]);
+
   const label = "Edit Song Template";
 
   if (!open) {
@@ -725,6 +738,12 @@ function SongTemplateEditor() {
 
   const apply = () => {
     setSongTemplate({ ...draft });
+    setPreviewDraft(null);
+    setOpen(false);
+  };
+
+  const cancel = () => {
+    setPreviewDraft(null);
     setOpen(false);
   };
 
@@ -733,7 +752,7 @@ function SongTemplateEditor() {
       <div className="mb-3 flex items-center justify-between">
         <div className="mono text-[10px] uppercase tracking-wider">{label}</div>
         <button
-          onClick={() => setOpen(false)}
+          onClick={cancel}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
           Cancel
