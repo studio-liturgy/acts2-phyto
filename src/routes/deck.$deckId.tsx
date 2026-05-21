@@ -174,7 +174,8 @@ function DeckEditor() {
             </span>
           </div>
 
-          <div className="justify-self-end">
+          <div className="flex items-center gap-3 justify-self-end">
+            <AddToGathering deckId={deck.id} />
             <button
               onClick={() => navigate({ to: "/present", search: { deck: deck.id } })}
               className="pill flex items-center gap-2 border border-foreground bg-background px-6 py-2.5 text-base transition hover:bg-foreground hover:text-background"
