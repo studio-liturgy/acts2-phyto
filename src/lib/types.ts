@@ -17,11 +17,22 @@ export interface Slide {
 
 export type DeckKind = "song" | "scripture" | "media" | "mixed";
 
+export interface DeckTemplate {
+  /** Multiplier on slide text sizes. 1 = current/smallest. */
+  fontScale?: number;
+  /** CSS font-family stack applied to slide content. */
+  fontFamily?: string;
+  /** Background mode for the slide. */
+  bg?: "black" | "white";
+}
+
 export interface Deck {
   id: string;
   name: string;
   kind: DeckKind;
   slides: Slide[];
+  /** Visual template applied to all slides in this deck. */
+  template?: DeckTemplate;
   /** Media-only: auto-advance to next slide after N ms. 0 = off. */
   autoAdvanceMs?: number;
   /** Media-only: when auto-advancing, loop from end back to start. */
