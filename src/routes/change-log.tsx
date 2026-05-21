@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 
 export const Route = createFileRoute("/change-log")({
