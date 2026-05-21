@@ -452,6 +452,7 @@ function GroupedSongGrid(props: {
   onRemove: (id: string) => void;
   onReorder: (ids: string[]) => void;
   dense?: boolean;
+  kind?: DeckKind;
 }) {
   const SECTION_RE = /^\s*\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?\s*$/i;
   const sectionOf = (s: Slide): string | null => {
