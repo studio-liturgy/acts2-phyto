@@ -510,7 +510,7 @@ function Presenter() {
           <div className="rounded-2xl border border-foreground">
             <button
               onClick={() => setShortcutsOpen((v) => !v)}
-              className="flex w-full items-center justify-between px-4 py-3 text-sm"
+              className="mono flex w-full items-center justify-between px-4 py-3 text-sm"
             >
               <span>Shortcuts</span>
               {shortcutsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
