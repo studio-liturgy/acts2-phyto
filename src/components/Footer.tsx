@@ -8,7 +8,7 @@ const linkCls = "transition-opacity duration-200 hover:opacity-60";
 
 export function Footer() {
   return (
-    <footer className="mt-20 bg-[var(--brand-blue)] text-[var(--brand-white)]">
+    <footer className="mt-20 hidden bg-[var(--brand-blue)] text-[var(--brand-white)] md:block">
       <div className="mx-auto grid max-w-6xl grid-cols-3 items-center gap-4 px-6 py-8">
         <nav className="flex items-center gap-6 text-sm">
           <Link to="/about" className={linkCls}>About</Link>
