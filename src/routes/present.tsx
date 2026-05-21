@@ -475,7 +475,7 @@ function Presenter() {
                 <SlideView
                   slide={liveSlide}
                   variant="preview"
-                  template={liveDeck?.kind === "song" ? songTemplate : liveDeck?.template}
+                  template={liveDeck?.kind === "song" ? effectiveSongTemplate : liveDeck?.template}
                 />
               )}
               <div
