@@ -165,7 +165,7 @@ function Library() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="px-6 pt-6 md:px-12 md:pt-10">
+      <header className="px-6 pt-6 md:pt-10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4">
           <p className="mono hidden text-xs italic text-muted-foreground md:block">
             Build sets, group them into gatherings, and present them live!
