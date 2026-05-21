@@ -167,6 +167,9 @@ input[type="checkbox"]:checked {
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
+.dark input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3 3 L13 13 M13 3 L3 13' stroke='%23F5EFEF' stroke-width='2.2' stroke-linecap='round'/></svg>");
+}
 input[type="checkbox"]:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
