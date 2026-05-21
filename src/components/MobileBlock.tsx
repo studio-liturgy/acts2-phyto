@@ -1,13 +1,18 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import wordmark from "@/assets/wordmark.svg";
 
 const linkCls = "transition-opacity duration-200 hover:opacity-60";
 
+// Routes that remain viewable on mobile (informational pages).
+const MOBILE_ALLOWED = ["/about", "/change-log", "/terms", "/privacy"];
+
 /**
  * Shown only on small screens (<md). Blocks the app on mobile and
- * presents a minimal set of links. Renders above all route content.
+ * presents a minimal set of links. Hidden on informational routes.
  */
 export function MobileBlock() {
+  const { pathname } = useLocation();
+  if (MOBILE_ALLOWED.includes(pathname)) return null;
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-16 bg-[var(--brand-blue)] px-6 text-center text-[var(--brand-white)] md:hidden">
       <img src={wordmark} alt="phyto" className="h-28 w-auto" />
