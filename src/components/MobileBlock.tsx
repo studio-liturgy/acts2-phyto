@@ -4,7 +4,7 @@ import wordmark from "@/assets/wordmark.svg";
 const linkCls = "transition-opacity duration-200 hover:opacity-60";
 
 // Routes that remain viewable on mobile (informational pages).
-export const MOBILE_ALLOWED = ["/about", "/change-log", "/terms", "/privacy", "/feedback"];
+export const MOBILE_ALLOWED = ["/about", "/updates", "/terms", "/privacy", "/feedback"];
 
 /**
  * Shown only on small screens (<md). Blocks the app on mobile and
@@ -26,7 +26,7 @@ export function MobileBlock() {
         <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className={linkCls}>Instagram</a>
         <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className={linkCls}>Donate</a>
         <Link to="/feedback" className={linkCls}>Feedback</Link>
-        <Link to="/change-log" className={linkCls}>Change Log</Link>
+        <Link to="/updates" className={linkCls}>Updates</Link>
         <Link to="/terms" className={linkCls}>Terms of Use</Link>
         <Link to="/privacy" className={linkCls}>Privacy Policy</Link>
       </nav>
