@@ -53,7 +53,7 @@ function About() {
           {/* Body paragraphs — placed lower per design */}
           <div className="mt-[28rem] max-w-5xl space-y-6 text-sm md:text-[0.95rem] leading-relaxed">
             <p>
-              For nearly five years I worked as the “creative / production guy” at a church in downtown Vancouver. Then God led me to Hong Kong, where I found myself in a small house church community. No gear, no budget. Just an acoustic guitar, a piano, and sometimes a cheap TV or projector on the wall. What I noticed was that our pastor was rushing to type out Bible verses last minute, or finding a song to put up, while also keeping an eye on his kids and welcoming people through the door. I wanted to make that one small thing easier.
+              For more than five years I worked as the “creative / production guy” at a church in downtown Vancouver. Then God led me to Hong Kong, where I found myself in a small house church community. No gear, no budget. Just an acoustic guitar, a piano, and sometimes a cheap TV or projector on the wall. What I noticed was that our pastor was rushing to type out Bible verses last minute, or finding a song to put up, while also keeping an eye on his kids and welcoming people through the door. I wanted to make that one small thing easier.
             </p>
             <p>
               As I built it, I started to see who else it could bless: the persecuted church, voluntary pastors with no budget for software, impromptu home gatherings that just need something simple and focused. So I've kept it completely free. I'll keep maintaining and improving it as I'm able. If you'd like to donate (only cheerfully!) or share feedback, testimonies, bug reports, or feature requests, I'd love to hear from you.
