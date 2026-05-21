@@ -51,32 +51,34 @@ export function hideDragGhost(e: React.DragEvent) {
   }
 }
 
-/** Cache colored circle drag canvases by color string. */
-const _circleCache: Record<string, HTMLCanvasElement> = {};
-function circleDragCanvas(color: string, size = 56): HTMLCanvasElement {
-  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-  const key = `${color}-${size}-${dpr}`;
+/** Cache colored circle drag elements by color string. */
+const _circleCache: Record<string, HTMLDivElement> = {};
+let _ghostHost: HTMLDivElement | null = null;
+function ensureGhostHost(): HTMLDivElement {
+  if (_ghostHost) return _ghostHost;
+  const host = document.createElement("div");
+  host.style.cssText =
+    "position:fixed;top:-1000px;left:-1000px;pointer-events:none;z-index:-1;";
+  document.body.appendChild(host);
+  _ghostHost = host;
+  return host;
+}
+function circleDragElement(color: string, size = 56): HTMLDivElement {
+  const key = `${color}-${size}`;
   if (_circleCache[key]) return _circleCache[key];
-  const canvas = document.createElement("canvas");
-  canvas.width = size * dpr;
-  canvas.height = size * dpr;
-  canvas.style.width = `${size}px`;
-  canvas.style.height = `${size}px`;
-  const ctx = canvas.getContext("2d")!;
-  ctx.scale(dpr, dpr);
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
-  ctx.fill();
-  _circleCache[key] = canvas;
-  return canvas;
+  const host = ensureGhostHost();
+  const el = document.createElement("div");
+  el.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:${color};`;
+  host.appendChild(el);
+  _circleCache[key] = el;
+  return el;
 }
 
 /** Use a solid colored circle as the drag ghost. */
 export function setCircleDragGhost(e: React.DragEvent, color: string, size = 56) {
   try {
-    const canvas = circleDragCanvas(color, size);
-    e.dataTransfer.setDragImage(canvas, size / 2, size / 2);
+    const el = circleDragElement(color, size);
+    e.dataTransfer.setDragImage(el, size / 2, size / 2);
   } catch {
     /* noop */
   }
