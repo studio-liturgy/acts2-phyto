@@ -109,11 +109,17 @@
   --muted-foreground: #9a9696;
   --accent: #2a2a2a;
   --accent-foreground: #F5EFEF;
-  --destructive: #C01E21;
+  --destructive: #E74449;
   --destructive-foreground: #F5EFEF;
   --border: rgba(245, 239, 239, 0.25);
   --input: rgba(245, 239, 239, 0.4);
   --ring: #F5EFEF;
+
+  /* Slightly brightened brand accents for dark-mode contrast */
+  --brand-blue: #4A9BC8;
+  --brand-orange: #F19350;
+  --brand-red: #E74449;
+  --brand-green: #6FAE5C;
 }
 
 @layer base {
