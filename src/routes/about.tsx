@@ -46,7 +46,7 @@ function About() {
               phyto is a free, open source presentation tool built for small worship gatherings. Prepare your verses and lyrics beforehand, then run it live. Offline support is on the way.
             </p>
             <p>
-              I built this to serve my local church. But God had more in mind.
+              I started building this to serve my local church. But God had more in mind.
             </p>
           </div>
 
