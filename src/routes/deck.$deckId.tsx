@@ -128,19 +128,8 @@ function DeckEditor() {
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="px-6 pt-6 md:px-10 md:pt-8">
-        <div className="mx-auto grid max-w-7xl grid-cols-3 items-center gap-4">
-          <div className="justify-self-start">
-            <Link
-              to="/"
-              className="pill flex h-12 w-12 items-center justify-center bg-foreground text-background transition hover:opacity-90"
-              title="Back"
-              aria-label="Back"
-            >
-              <ArrowUpLeft className="h-5 w-5" />
-            </Link>
-          </div>
-
-          <div className="flex items-center justify-center gap-3 justify-self-center">
+        <div className="relative mx-auto flex max-w-7xl items-center justify-center gap-4">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-3">
             {editingName ? (
               <Input
                 autoFocus
@@ -148,12 +137,12 @@ function DeckEditor() {
                 onChange={(e) => updateDeck(deck.id, { name: e.target.value })}
                 onBlur={() => setEditingName(false)}
                 onKeyDown={(e) => e.key === "Enter" && setEditingName(false)}
-                className="h-12 w-72 border-foreground text-3xl"
+                className="h-10 w-72 border-foreground text-xl"
               />
             ) : (
               <h1
                 onClick={() => setEditingName(true)}
-                className="cursor-text truncate text-3xl text-muted-foreground md:text-4xl"
+                className="cursor-text truncate text-xl text-muted-foreground"
                 title="Click to rename"
               >
                 {deck.name}
@@ -165,16 +154,27 @@ function DeckEditor() {
               title="Rename"
               aria-label="Rename"
             >
-              <Pencil className="h-5 w-5" />
+              <Pencil className="h-4 w-4" />
             </button>
             <span
-              className={`pill mono ml-2 px-5 py-1.5 text-xs uppercase tracking-wider ${kindBadgeBg(deck.kind)}`}
+              className={`pill mono px-3 py-1 text-[10px] uppercase tracking-wider ${kindBadgeBg(deck.kind)}`}
             >
               {deck.kind}
             </span>
           </div>
 
-          <div className="flex items-center gap-3 justify-self-end">
+          <div className="mr-auto">
+            <Link
+              to="/"
+              className="pill flex h-12 w-12 items-center justify-center bg-foreground text-background transition hover:opacity-90"
+              title="Back"
+              aria-label="Back"
+            >
+              <ArrowUpLeft className="h-5 w-5" />
+            </Link>
+          </div>
+
+          <div className="ml-auto flex items-center gap-3">
             <AddToGathering deckId={deck.id} />
             <button
               onClick={() => navigate({ to: "/present", search: { deck: deck.id } })}
