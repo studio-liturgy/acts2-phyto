@@ -6,6 +6,7 @@ const SITE_PASSWORD = "acts24247";
 const COOKIE_NAME = "phyto_access";
 const COOKIE_VALUE = "1";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+const ACCESS_COOKIE = `${COOKIE_NAME}=${COOKIE_VALUE}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; SameSite=None; Secure; Partitioned`;
 
 function renderGatePage(error?: string, redirectTo = "/"): string {
   const errorHtml = error
@@ -79,7 +80,8 @@ const passwordGateMiddleware = createMiddleware().server(async ({ next, request 
         status: 303,
         headers: {
           location: redirectTo,
-          "set-cookie": `${COOKIE_NAME}=${COOKIE_VALUE}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; SameSite=Lax; Secure`,
+          "set-cookie": ACCESS_COOKIE,
+          "cache-control": "no-store",
         },
       });
     }
