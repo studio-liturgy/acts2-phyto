@@ -27,8 +27,8 @@ function Updates() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-6">
           <li>
-            <div className="mono text-xs uppercase tracking-wider opacity-80">Releasing beta for test users.</div>
-            <p className="mt-1">MAY 21, 2026</p>
+            <div className="mono text-xs uppercase tracking-wider opacity-80">MAY 21, 2026</div>
+            <p className="mt-1">Releasing beta for test users.</p>
           </li>
         </ul>
         <div className="mt-12">
