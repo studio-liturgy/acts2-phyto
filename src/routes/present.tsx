@@ -678,3 +678,141 @@ function SlideGridForPresenter({ deck, live, grouped }: { deck: Deck; live: Live
     </div>
   );
 }
+
+const FONT_OPTIONS: { label: string; value: string }[] = [
+  { label: "System", value: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" },
+  { label: "Sans", value: "Helvetica, Arial, sans-serif" },
+  { label: "Serif", value: "Georgia, 'Times New Roman', serif" },
+  { label: "Display", value: "'Times New Roman', Times, serif" },
+  { label: "Mono", value: "'Courier New', Courier, monospace" },
+];
+
+function SongTemplateEditor({ deckId, kind }: { deckId: string; kind: DeckKind }) {
+  const deck = useLibrary((s) => s.decks[deckId]);
+  const updateDeck = useLibrary((s) => s.updateDeck);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState({
+    fontScale: deck?.template?.fontScale ?? 1,
+    fontFamily: deck?.template?.fontFamily ?? FONT_OPTIONS[0].value,
+    bg: (deck?.template?.bg ?? "black") as "black" | "white",
+  });
+
+  useEffect(() => {
+    if (!open) {
+      setDraft({
+        fontScale: deck?.template?.fontScale ?? 1,
+        fontFamily: deck?.template?.fontFamily ?? FONT_OPTIONS[0].value,
+        bg: (deck?.template?.bg ?? "black") as "black" | "white",
+      });
+    }
+  }, [deck, open]);
+
+  if (!deck) return null;
+  const label = kind === "song" ? "Edit Song Template" : "Edit Scripture Template";
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="pill flex w-full items-center justify-center border border-foreground px-4 py-2 text-sm transition hover:bg-foreground hover:text-background"
+      >
+        {label}
+      </button>
+    );
+  }
+
+  const apply = () => {
+    updateDeck(deckId, { template: { ...draft } });
+    setOpen(false);
+  };
+
+  return (
+    <div className="rounded-2xl border border-foreground p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="mono text-[10px] uppercase tracking-wider">{label}</div>
+        <button
+          onClick={() => setOpen(false)}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Cancel
+        </button>
+      </div>
+
+      <div className="space-y-4 text-sm">
+        <div>
+          <div className="mono mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
+            <span>Font size</span>
+            <span className="text-muted-foreground">{draft.fontScale.toFixed(2)}×</span>
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={2}
+            step={0.05}
+            value={draft.fontScale}
+            onChange={(e) =>
+              setDraft((d) => ({ ...d, fontScale: Number(e.target.value) }))
+            }
+            className="w-full"
+          />
+        </div>
+
+        <div>
+          <div className="mono mb-2 text-[10px] uppercase tracking-wider">Font type</div>
+          <div className="grid grid-cols-1 gap-1">
+            {FONT_OPTIONS.map((f) => {
+              const active = draft.fontFamily === f.value;
+              return (
+                <button
+                  key={f.label}
+                  onClick={() => setDraft((d) => ({ ...d, fontFamily: f.value }))}
+                  style={{ fontFamily: f.value }}
+                  className={`rounded-lg border px-3 py-1.5 text-left text-sm transition ${
+                    active
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-foreground/20 hover:border-foreground"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <div className="mono mb-2 text-[10px] uppercase tracking-wider">Background</div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setDraft((d) => ({ ...d, bg: "black" }))}
+              className={`rounded-lg border px-3 py-2 text-xs transition ${
+                draft.bg === "black"
+                  ? "border-foreground bg-black text-white"
+                  : "border-foreground/20 bg-black text-white/60 hover:border-foreground"
+              }`}
+            >
+              White on Black
+            </button>
+            <button
+              onClick={() => setDraft((d) => ({ ...d, bg: "white" }))}
+              className={`rounded-lg border px-3 py-2 text-xs transition ${
+                draft.bg === "white"
+                  ? "border-foreground bg-white text-black"
+                  : "border-foreground/20 bg-white text-black/60 hover:border-foreground"
+              }`}
+            >
+              Black on White
+            </button>
+          </div>
+        </div>
+
+        <button
+          onClick={apply}
+          className="pill flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90"
+        >
+          Apply to all slides
+        </button>
+      </div>
+    </div>
+  );
+}
