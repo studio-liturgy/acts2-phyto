@@ -1,15 +1,17 @@
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
   createRootRouteWithContext,
   useRouter,
+  useLocation,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { MobileBlock } from "@/components/MobileBlock";
+import { MobileBlock, MOBILE_ALLOWED } from "@/components/MobileBlock";
 
 function NotFoundComponent() {
   return (
