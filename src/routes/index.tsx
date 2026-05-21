@@ -357,14 +357,6 @@ function Library() {
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
-                    <button
-                      onClick={() => deleteDeck(d.id)}
-                      className="rounded-full p-1.5 opacity-0 transition hover:bg-white/20 group-hover:opacity-100"
-                      aria-label="Delete set"
-                      title="Delete set"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </li>
                 ))}
               </ul>
