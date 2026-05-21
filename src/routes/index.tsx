@@ -172,30 +172,11 @@ function Library() {
           </p>
 
           <div className="ml-auto flex flex-wrap items-center gap-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="pill bg-foreground text-background transition hover:opacity-90 px-[30px] py-[12px] text-5xl">
-                  Create
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => newDeck("song")}>
-                  <Music className="mr-2 h-4 w-4" /> New Song
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => newDeck("scripture")}>
-                  <BookOpen className="mr-2 h-4 w-4" /> New Scripture
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => newDeck("media")}>
-                  <ImageIcon className="mr-2 h-4 w-4" /> New Media
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
             <Link
               to="/present"
-              className="pill bg-foreground text-background transition hover:opacity-90 px-[30px] py-[12px] text-5xl flex items-center gap-3"
+              className="pill flex items-center gap-3 border border-foreground px-[30px] py-[12px] text-5xl text-foreground transition hover:bg-foreground hover:text-background"
             >
-              Present <ArrowUpRight className="h-6 w-6" />
+              Present <ArrowUpRight className="size-[1em]" />
             </Link>
           </div>
         </div>
