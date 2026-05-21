@@ -541,7 +541,7 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
   const importSong = (s: SongResult) => {
     const slides = parseLyrics(s.lyrics, linesPer);
     slides.forEach((sl) => addSlide(deckId, sl));
-    updateDeck(deckId, { name: `${s.title} — ${s.artist}` });
+    updateDeck(deckId, { name: s.title });
   };
 
   const importScripture = async () => {
