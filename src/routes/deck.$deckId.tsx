@@ -49,7 +49,7 @@ function DeckEditor() {
   const { deckId } = Route.useParams();
   const navigate = useNavigate();
   const deck = useLibrary((s) => s.decks[deckId]);
-  const { updateDeck, addSlide, updateSlide, removeSlide, reorderSlides } = useLibrary();
+  const { updateDeck, addSlide, updateSlide, removeSlide, reorderSlides, deleteDeck } = useLibrary();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
   const [groupView, setGroupView] = useState(true);
@@ -266,6 +266,19 @@ function DeckEditor() {
             <div className="overflow-hidden rounded-2xl bg-[var(--brand-black)]">
               <SlideView slide={selected} variant="preview" />
             </div>
+            {deck.kind === "song" && (
+              <button
+                onClick={() => {
+                  if (confirm("Delete this set?")) {
+                    deleteDeck(deck.id);
+                    navigate({ to: "/" });
+                  }
+                }}
+                className="pill mt-3 flex w-full items-center justify-center gap-2 bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+              >
+                <Trash2 className="h-4 w-4" /> Delete this set
+              </button>
+            )}
           </div>
 
           {selected && (
@@ -300,6 +313,20 @@ function DeckEditor() {
                 </div>
               </div>
             </PanelCard>
+          )}
+
+          {deck.kind !== "song" && (
+            <button
+              onClick={() => {
+                if (confirm("Delete this set?")) {
+                  deleteDeck(deck.id);
+                  navigate({ to: "/" });
+                }
+              }}
+              className="pill flex w-full items-center justify-center gap-2 bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+            >
+              <Trash2 className="h-4 w-4" /> Delete this set
+            </button>
           )}
         </aside>
       </div>
