@@ -155,7 +155,7 @@ function Presenter() {
             )}
           </div>
 
-          <div className="flex flex-col items-end gap-2 justify-self-end">
+          <div className="flex items-center gap-2 justify-self-end">
             <button
               onClick={openOutput}
               className="pill flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
@@ -165,7 +165,7 @@ function Presenter() {
             </button>
             <button
               onClick={() => live.clearLive()}
-              className="pill flex h-9 w-9 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
+              className="pill flex h-10 w-10 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
               title="Stop (Esc) — fades to black"
               aria-label="Stop"
             >
