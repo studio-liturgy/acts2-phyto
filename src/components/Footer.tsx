@@ -1,4 +1,7 @@
 import { Link } from "@tanstack/react-router";
+import wordmark from "@/assets/wordmark.svg";
+
+
 
 const linkCls = "transition-opacity duration-200 hover:opacity-60";
 
@@ -12,9 +15,7 @@ export function Footer() {
           <a href="https://donate.example.com" target="_blank" rel="noopener noreferrer" className={linkCls}>Donate</a>
         </nav>
         <div className="flex justify-center">
-          <span className="text-3xl italic" style={{ fontFamily: "'Brush Script MT', cursive" }}>
-            phyto
-          </span>
+          <img src={wordmark} alt="phyto" className="h-12 w-auto" />
         </div>
         <nav className="flex justify-end gap-6 text-sm">
           <Link to="/change-log" className={linkCls}>Change Log</Link>
