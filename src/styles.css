@@ -95,31 +95,31 @@
 }
 
 .dark {
-  --background: #0a0a0a;
+  --background: #1a1a1a;
   --foreground: #F5EFEF;
-  --card: #0a0a0a;
+  --card: #1a1a1a;
   --card-foreground: #F5EFEF;
-  --popover: #0a0a0a;
+  --popover: #1a1a1a;
   --popover-foreground: #F5EFEF;
   --primary: #F5EFEF;
-  --primary-foreground: #0a0a0a;
-  --secondary: #161616;
+  --primary-foreground: #212121;
+  --secondary: #2a2a2a;
   --secondary-foreground: #F5EFEF;
-  --muted: #161616;
-  --muted-foreground: #8a8585;
-  --accent: #161616;
+  --muted: #2a2a2a;
+  --muted-foreground: #9a9696;
+  --accent: #2a2a2a;
   --accent-foreground: #F5EFEF;
-  --destructive: #E74449;
+  --destructive: #C01E21;
   --destructive-foreground: #F5EFEF;
   --border: rgba(245, 239, 239, 0.25);
   --input: rgba(245, 239, 239, 0.4);
   --ring: #F5EFEF;
 
-  /* Slightly brightened brand accents for dark-mode contrast */
-  --brand-blue: #4A9BC8;
-  --brand-orange: #F19350;
-  --brand-red: #E74449;
-  --brand-green: #6FAE5C;
+  /* Brand accents stay close to the light-mode tones (slightly deeper) */
+  --brand-blue: #2A688A;
+  --brand-orange: #C96E2A;
+  --brand-red: #A81A1D;
+  --brand-green: #487539;
 }
 
 @layer base {
