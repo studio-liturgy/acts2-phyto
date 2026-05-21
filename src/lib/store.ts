@@ -11,6 +11,9 @@ interface LibraryState {
   order: string[];
   playlists: Record<string, Playlist>;
   playlistOrder: string[];
+  /** Global template applied to ALL song decks. */
+  songTemplate: DeckTemplate;
+  setSongTemplate: (patch: DeckTemplate) => void;
   createDeck: (deck: Omit<Deck, "id" | "createdAt" | "updatedAt">) => string;
   updateDeck: (id: string, patch: Partial<Deck>) => void;
   deleteDeck: (id: string) => void;
