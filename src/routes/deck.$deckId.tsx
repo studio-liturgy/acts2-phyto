@@ -9,8 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowUpLeft, ArrowUpRight, Plus, Trash2, GripVertical, Search, Loader2, Pencil } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Slide, DeckKind } from "@/lib/types";
+import { z } from "zod";
+
+const searchSchema = z.object({
+  redirectTo: z.string().optional(),
+});
 
 export const Route = createFileRoute("/deck/$deckId")({
+  validateSearch: searchSchema,
   component: DeckEditor,
 });
 
@@ -47,6 +53,7 @@ function PanelCard({
 
 function DeckEditor() {
   const { deckId } = Route.useParams();
+  const { redirectTo } = Route.useSearch();
   const navigate = useNavigate();
   const deck = useLibrary((s) => s.decks[deckId]);
   const { updateDeck, addSlide, updateSlide, removeSlide, reorderSlides, deleteDeck } = useLibrary();
