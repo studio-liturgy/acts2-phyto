@@ -22,7 +22,13 @@ import {
 import { useMemo, useRef, useState } from "react";
 import type { DeckKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
-import { DotsGrip, hideDragGhost } from "@/components/DragBits";
+import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
+
+const KIND_COLOR: Record<string, string> = {
+  song: "#2E7299",
+  scripture: "#538844",
+  media: "#E07D31",
+};
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -339,7 +345,7 @@ function Library() {
                       e.dataTransfer.setData(DECK_DRAG_TYPE, d.id);
                       e.dataTransfer.setData("text/plain", d.id);
                       e.dataTransfer.effectAllowed = "copy";
-                      hideDragGhost(e);
+                      setCircleDragGhost(e, KIND_COLOR[d.kind] ?? "#212121", 56);
                     }}
                     className={`pill group flex items-center gap-4 px-5 py-2 ${kindBg(d.kind)}`}
                   >
