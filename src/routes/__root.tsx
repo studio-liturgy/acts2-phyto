@@ -10,6 +10,7 @@ import {
 
 import appCss from "../styles.css?url";
 import { MobileBlock } from "@/components/MobileBlock";
+import { SitePasswordGate } from "@/components/SitePasswordGate";
 
 function NotFoundComponent() {
   return (
@@ -121,8 +122,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <MobileBlock />
+      <SitePasswordGate>
+        <Outlet />
+        <MobileBlock />
+      </SitePasswordGate>
     </QueryClientProvider>
   );
 }
