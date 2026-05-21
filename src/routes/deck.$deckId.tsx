@@ -194,13 +194,13 @@ function DeckEditor() {
 
           <PanelCard>
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="mono text-xs uppercase tracking-wider">
-                Slides ({deck.slides.length})
-                {multiSel.size > 0 && (
-                  <span className="ml-2 text-foreground">· {multiSel.size} selected</span>
-                )}
-              </h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <h2 className="mono text-xs uppercase tracking-wider">
+                  Slides ({deck.slides.length})
+                  {multiSel.size > 0 && (
+                    <span className="ml-2 text-foreground">· {multiSel.size} selected</span>
+                  )}
+                </h2>
                 {(deck.kind === "song" || deck.kind === "scripture") && (
                   <label className="mono flex items-center gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
                     <input
@@ -211,6 +211,8 @@ function DeckEditor() {
                     Group by section
                   </label>
                 )}
+              </div>
+              <div className="flex items-center gap-2">
                 {multiSel.size > 0 && (
                   <button
                     onClick={deleteSelected}
