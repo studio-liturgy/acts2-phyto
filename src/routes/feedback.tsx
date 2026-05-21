@@ -95,10 +95,7 @@ function FeedbackPage() {
             className="w-full resize-y rounded-3xl border-2 border-foreground bg-background p-6 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
           />
 
-          <div className="flex items-center justify-between gap-4">
-            <span className="mono text-xs text-muted-foreground">
-              Sends to hello@studioliturgy.com
-            </span>
+          <div className="flex justify-end">
             <button
               type="submit"
               disabled={!canSubmit}
