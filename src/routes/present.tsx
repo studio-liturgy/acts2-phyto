@@ -112,7 +112,8 @@ function Presenter() {
         const prev = liveDeck.slides[idx - 1];
         if (prev) live.go(liveDeck.id, prev.id);
       } else if (e.key === "Escape") {
-        live.clearLive();
+        e.preventDefault();
+        live.toggleBlackout();
       }
     };
     window.addEventListener("keydown", handler);
