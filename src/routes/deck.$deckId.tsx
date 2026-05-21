@@ -273,7 +273,7 @@ function DeckEditor() {
         <aside className="space-y-5">
           <div>
             <div className="mono mb-3 text-xs uppercase tracking-wider">Preview</div>
-            <div className="overflow-hidden rounded-2xl bg-[var(--brand-black)]">
+            <div className="overflow-hidden rounded-lg bg-[var(--brand-black)]">
               <SlideView slide={selected} variant="preview" />
             </div>
           </div>
@@ -401,7 +401,7 @@ function SlideGrid({
               onReorder(ids);
             }}
             onClick={(e) => onSelect(s.id, e)}
-            className={`group relative cursor-pointer overflow-hidden rounded-2xl border-2 transition ${
+            className={`group relative cursor-pointer overflow-hidden rounded-md border-2 transition ${
               isSelected
                 ? "border-foreground"
                 : inMulti
