@@ -388,8 +388,8 @@ function SlideGrid({
 }) {
   const dragId = useRef<string | null>(null);
   const cols = dense
-    ? "grid-cols-3 md:grid-cols-5 lg:grid-cols-6"
-    : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+    ? "grid-cols-3 md:grid-cols-4"
+    : "grid-cols-2 md:grid-cols-4";
   const selColor = kindColor(kind);
   return (
     <div className={`grid gap-3 ${cols}`}>
