@@ -1,0 +1,19 @@
+# phyto
+
+> A lightweight, open-source presentation tool for worship gatherings. Build sets of songs, scripture, and media — group them into gatherings — and present them live.
+
+## Pages
+
+- [Create](/): Build and manage sets of songs, scripture, and media. Group them into gatherings for live presentation.
+- [Present](/present): Live presentation mode for projecting lyrics, scripture, and media during worship gatherings.
+- [Output](/output): Configure and display the active slide for projection.
+- [About](/about): What phyto is and how it works.
+- [Change Log](/change-log): Release history and updates.
+- [Feedback](/feedback): Submit feedback, report bugs, or request features.
+- [Privacy Policy](/privacy): How user data is collected, stored, and used.
+- [Terms of Use](/terms): Terms and conditions for using phyto.
+
+## Optional
+
+- [phyto on Instagram](https://www.instagram.com/phyto.live): Follow for updates and community content.
+- [Support phyto on Ko-fi](https://ko-fi.com/valiantchan): Donate to support ongoing development.
