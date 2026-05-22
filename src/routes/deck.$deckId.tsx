@@ -12,7 +12,12 @@ import type { Slide, DeckKind } from "@/lib/types";
 import { z } from "zod";
 
 const searchSchema = z.object({
-  redirectTo: z.string().optional(),
+  redirectTo: z
+    .string()
+    .optional()
+    .transform((s) =>
+      typeof s === "string" && s.startsWith("/") && !s.startsWith("//") ? s : undefined,
+    ),
 });
 
 export const Route = createFileRoute("/deck/$deckId")({
