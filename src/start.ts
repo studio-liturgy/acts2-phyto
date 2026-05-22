@@ -2,7 +2,7 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
 
-const SITE_PASSWORD = "acts24247";
+const SITE_PASSWORD = process.env.SITE_PASSWORD ?? "acts24247";
 const COOKIE_NAME = "phyto_access";
 const COOKIE_VALUE = "1";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
