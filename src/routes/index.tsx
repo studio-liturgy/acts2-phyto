@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMemo, useRef, useState } from "react";
-import type { DeckKind } from "@/lib/types";
+import type { SetKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
@@ -33,10 +33,10 @@ const KIND_COLOR: Record<string, string> = {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "phyto — Create" },
-      { name: "description", content: "Build sets, group them into gatherings, and present them live." },
-      { property: "og:title", content: "phyto — Create" },
-      { property: "og:description", content: "Build sets, group them into gatherings, and present them live." },
+      { title: "Home | phyto" },
+      { name: "description", content: "Prepare sets, group them into gatherings, and present them live!" },
+      { property: "og:title", content: "Home | phyto" },
+      { property: "og:description", content: "Prepare sets, group them into gatherings, and present them live!" },
       { property: "og:url", content: "https://phyto.live/" },
     ],
     links: [
@@ -52,14 +52,14 @@ export const Route = createFileRoute("/")({
               "@type": "WebSite",
               name: "phyto",
               url: "https://phyto.live/",
-              description: "A lightweight, open-source presentation tool for worship gatherings.",
+              description: "A lightweight, open-source presentation tool for small home worship gatherings.",
             },
             {
               "@type": "SoftwareApplication",
               name: "phyto",
               applicationCategory: "PresentationApplication",
               operatingSystem: "Any",
-              description: "Build sets of songs, scripture, and media — group them into gatherings — and present them live.",
+              description: "Prepare sets of songs, scripture, and media – group them into gatherings – and present them live.",
               url: "https://phyto.live/",
               offers: {
                 "@type": "Offer",
@@ -75,12 +75,12 @@ export const Route = createFileRoute("/")({
   component: Library,
 });
 
-const DECK_DRAG_TYPE = "application/x-stage-deck-id";
+const SET_DRAG_TYPE = "application/x-stage-set-id";
 
 type SortMode = "az" | "za" | "newest" | "oldest";
-type KindFilter = "all" | DeckKind;
+type KindFilter = "all" | SetKind;
 
-function kindBg(kind: DeckKind | string): string {
+function kindBg(kind: SetKind | string): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
   if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
   if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
@@ -115,18 +115,18 @@ function kindChip(kind: KindFilter, active: boolean): string {
 function Library() {
   const navigate = useNavigate();
   const {
-    decks,
+    sets,
     order,
-    createDeck,
-    deleteDeck,
+    createSet,
+    deleteSet,
     playlists,
     playlistOrder,
     createPlaylist,
     renamePlaylist,
     deletePlaylist,
-    addDeckToPlaylist,
-    removeDeckFromPlaylist,
-    reorderPlaylistDecks,
+    addSetToPlaylist,
+    removeSetFromPlaylist,
+    reorderPlaylistSets,
   } = useLibrary();
 
   const [playlistFilter, setPlaylistFilter] = useState("");
@@ -136,13 +136,13 @@ function Library() {
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("az");
 
-  const newDeck = (kind: DeckKind) => {
-    const id = createDeck({
+  const newSet = (kind: SetKind) => {
+    const id = createSet({
       name: kind === "song" ? "New Song" : kind === "scripture" ? "New Scripture" : "New Media",
       kind,
       slides: [],
     });
-    navigate({ to: "/deck/$deckId", params: { deckId: id } });
+    navigate({ to: "/set/$setId", params: { setId: id } });
   };
 
   const createNewPlaylist = () => {
@@ -157,7 +157,7 @@ function Library() {
   const catalogueRows = useMemo(() => {
     const q = catalogueFilter.trim().toLowerCase();
     let rows = order
-      .map((id) => decks[id])
+      .map((id) => sets[id])
       .filter(Boolean)
       .filter((d) => kindFilter === "all" || d.kind === kindFilter)
       .filter((d) => !q || d.name.toLowerCase().includes(q));
@@ -170,7 +170,7 @@ function Library() {
       }
     });
     return rows;
-  }, [order, decks, catalogueFilter, sortMode, kindFilter]);
+  }, [order, sets, catalogueFilter, sortMode, kindFilter]);
 
   const filteredPlaylistIds = useMemo(() => {
     const q = playlistFilter.trim().toLowerCase();
@@ -197,7 +197,7 @@ function Library() {
       <header className="px-6 pt-6 md:pt-10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4">
           <p className="mono hidden text-xs italic text-muted-foreground md:block">
-            Build sets, group them into gatherings, and present them live!
+            Prepare sets, group them into gatherings, and present them live!
           </p>
 
           <div className="ml-auto flex flex-wrap items-center gap-4">
@@ -248,7 +248,7 @@ function Library() {
 
           {playlistOrder.length === 0 ? (
             <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
-              No gatherings yet. Click <b>New</b> to plan a service.
+              No gatherings yet. Click <b>New</b> to plan a gathering.
             </div>
           ) : filteredPlaylistIds.length === 0 ? (
             <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
@@ -264,13 +264,13 @@ function Library() {
                     key={pid}
                     playlistId={pid}
                     name={p.name}
-                    deckIds={p.deckIds}
-                    allDecks={Object.values(decks)}
+                    setIds={p.setIds}
+                    allSets={Object.values(sets)}
                     onRename={(name) => renamePlaylist(pid, name)}
                     onDelete={() => deletePlaylist(pid)}
-                    onAdd={(deckId) => addDeckToPlaylist(pid, deckId)}
-                    onRemoveAt={(i) => removeDeckFromPlaylist(pid, i)}
-                    onReorder={(ids) => reorderPlaylistDecks(pid, ids)}
+                    onAdd={(setId) => addSetToPlaylist(pid, setId)}
+                    onRemoveAt={(i) => removeSetFromPlaylist(pid, i)}
+                    onReorder={(ids) => reorderPlaylistSets(pid, ids)}
                   />
                 );
               })}
@@ -337,13 +337,13 @@ function Library() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => newDeck("song")}>
+                  <DropdownMenuItem onClick={() => newSet("song")}>
                     <Music className="mr-2 h-4 w-4" /> New Song
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => newDeck("scripture")}>
+                  <DropdownMenuItem onClick={() => newSet("scripture")}>
                     <BookOpen className="mr-2 h-4 w-4" /> New Scripture
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => newDeck("media")}>
+                  <DropdownMenuItem onClick={() => newSet("media")}>
                     <ImageIcon className="mr-2 h-4 w-4" /> New Media
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -365,7 +365,7 @@ function Library() {
                     key={d.id}
                     draggable
                     onDragStart={(e) => {
-                      e.dataTransfer.setData(DECK_DRAG_TYPE, d.id);
+                      e.dataTransfer.setData(SET_DRAG_TYPE, d.id);
                       e.dataTransfer.setData("text/plain", d.id);
                       e.dataTransfer.effectAllowed = "copy";
                       setCircleDragGhost(e, KIND_COLOR[d.kind] ?? "#212121", 56);
@@ -378,8 +378,8 @@ function Library() {
                       {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
                     </span>
                     <Link
-                      to="/deck/$deckId"
-                      params={{ deckId: d.id }}
+                      to="/set/$setId"
+                      params={{ setId: d.id }}
                       className="rounded-full p-1.5 transition hover:bg-white/20"
                       title="Edit set"
                       aria-label="Edit set"
@@ -404,8 +404,8 @@ function Library() {
 
 function PlaylistCard({
   name,
-  deckIds,
-  allDecks,
+  setIds,
+  allSets,
   onRename,
   onDelete,
   onAdd,
@@ -415,11 +415,11 @@ function PlaylistCard({
 }: {
   playlistId: string;
   name: string;
-  deckIds: string[];
-  allDecks: { id: string; name: string; kind: DeckKind }[];
+  setIds: string[];
+  allSets: { id: string; name: string; kind: SetKind }[];
   onRename: (name: string) => void;
   onDelete: () => void;
-  onAdd: (deckId: string) => void;
+  onAdd: (setId: string) => void;
   onRemoveAt: (index: number) => void;
   onReorder: (ids: string[]) => void;
 }) {
@@ -432,14 +432,14 @@ function PlaylistCard({
   const [editMode, setEditMode] = useState(false);
 
   const nameLookup = useMemo(
-    () => Object.fromEntries(allDecks.map((d) => [d.id, d])),
-    [allDecks]
+    () => Object.fromEntries(allSets.map((d) => [d.id, d])),
+    [allSets]
   );
 
   const matches = useMemo(() => {
     const q = addQuery.trim().toLowerCase();
-    return allDecks.filter((d) => !q || d.name.toLowerCase().includes(q)).slice(0, 8);
-  }, [allDecks, addQuery]);
+    return allSets.filter((d) => !q || d.name.toLowerCase().includes(q)).slice(0, 8);
+  }, [allSets, addQuery]);
 
   return (
     <div
@@ -457,8 +457,8 @@ function PlaylistCard({
           return;
         }
         const incoming =
-          e.dataTransfer.getData(DECK_DRAG_TYPE) || e.dataTransfer.getData("text/plain");
-        if (incoming && allDecks.some((d) => d.id === incoming)) onAdd(incoming);
+          e.dataTransfer.getData(SET_DRAG_TYPE) || e.dataTransfer.getData("text/plain");
+        if (incoming && allSets.some((d) => d.id === incoming)) onAdd(incoming);
       }}
       className={`rounded-3xl border border-foreground bg-background p-5 transition ${
         dropActive ? "ring-2 ring-foreground ring-offset-2 ring-offset-background" : ""
@@ -514,13 +514,13 @@ function PlaylistCard({
         )}
       </div>
 
-      {deckIds.length === 0 ? (
+      {setIds.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-muted-foreground p-3 text-center text-xs text-muted-foreground">
           Drag a set in to add it to this gathering.
         </p>
       ) : (
         <ol className="space-y-1">
-          {deckIds.map((id, i) => {
+          {setIds.map((id, i) => {
             const d = nameLookup[id];
             return (
               <li
@@ -544,7 +544,7 @@ function PlaylistCard({
                   e.preventDefault();
                   dragIndex.current = null;
                   if (from === i) return;
-                  const ids = [...deckIds];
+                  const ids = [...setIds];
                   const [moved] = ids.splice(from, 1);
                   ids.splice(i, 0, moved);
                   onReorder(ids);

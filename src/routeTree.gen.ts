@@ -18,6 +18,7 @@ import { Route as OutputRouteImport } from './routes/output'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SetSetIdRouteImport } from './routes/set.$setId'
 import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedback'
 
 const UpdatesRoute = UpdatesRouteImport.update({
@@ -65,6 +66,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SetSetIdRoute = SetSetIdRouteImport.update({
+  id: '/set/$setId',
+  path: '/set/$setId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicFeedbackRoute = ApiPublicFeedbackRouteImport.update({
   id: '/api/public/feedback',
   path: '/api/public/feedback',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
+  '/set/$setId': typeof SetSetIdRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
+  '/set/$setId': typeof SetSetIdRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
+  '/set/$setId': typeof SetSetIdRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/updates'
+    | '/set/$setId'
     | '/api/public/feedback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/updates'
+    | '/set/$setId'
     | '/api/public/feedback'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/updates'
+    | '/set/$setId'
     | '/api/public/feedback'
   fileRoutesById: FileRoutesById
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   UpdatesRoute: typeof UpdatesRoute
+  SetSetIdRoute: typeof SetSetIdRoute
   ApiPublicFeedbackRoute: typeof ApiPublicFeedbackRoute
 }
 
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/set/$setId': {
+      id: '/set/$setId'
+      path: '/set/$setId'
+      fullPath: '/set/$setId'
+      preLoaderRoute: typeof SetSetIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/feedback': {
       id: '/api/public/feedback'
       path: '/api/public/feedback'
@@ -245,18 +265,9 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   UpdatesRoute: UpdatesRoute,
+  SetSetIdRoute: SetSetIdRoute,
   ApiPublicFeedbackRoute: ApiPublicFeedbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
