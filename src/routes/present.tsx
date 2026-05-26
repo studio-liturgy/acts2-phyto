@@ -16,27 +16,27 @@ import {
   House,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { Deck, DeckKind, Slide } from "@/lib/types";
+import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
 
 
 type LiveApi = ReturnType<typeof useLive.getState>;
 
-function kindBadgeBg(kind: DeckKind): string {
+function kindBadgeBg(kind: SetKind): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
   if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
   if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
   return "bg-muted text-foreground";
 }
 
-function kindHoverBg(kind: DeckKind): string {
+function kindHoverBg(kind: SetKind): string {
   if (kind === "song") return "hover:bg-[var(--brand-blue)]/10";
   if (kind === "scripture") return "hover:bg-[var(--brand-green)]/10";
   if (kind === "media") return "hover:bg-[var(--brand-orange)]/10";
   return "hover:bg-muted/50";
 }
 
-function KindBadge({ kind }: { kind: DeckKind }) {
+function KindBadge({ kind }: { kind: SetKind }) {
   return (
     <span className={`pill mono px-2 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(kind)}`}>
       {kind === "mixed" ? "Mixed" : kind}
@@ -45,7 +45,7 @@ function KindBadge({ kind }: { kind: DeckKind }) {
 }
 
 const searchSchema = z.object({
-  deck: z.string().optional(),
+  set: z.string().optional(),
   playlist: z.string().optional(),
 });
 
@@ -55,14 +55,14 @@ export const Route = createFileRoute("/present")({
 });
 
 function Presenter() {
-  const { deck: deckFromUrl, playlist: playlistFromUrl } = Route.useSearch();
-  const decks = useLibrary((s) => s.decks);
+  const { set: setFromUrl, playlist: playlistFromUrl } = Route.useSearch();
+  const sets = useLibrary((s) => s.sets);
   const order = useLibrary((s) => s.order);
   const playlists = useLibrary((s) => s.playlists);
   const playlistOrder = useLibrary((s) => s.playlistOrder);
-  const addDeckToPlaylist = useLibrary((s) => s.addDeckToPlaylist);
-  const removeDeckFromPlaylist = useLibrary((s) => s.removeDeckFromPlaylist);
-  const reorderPlaylistDecks = useLibrary((s) => s.reorderPlaylistDecks);
+  const addSetToPlaylist = useLibrary((s) => s.addSetToPlaylist);
+  const removeSetFromPlaylist = useLibrary((s) => s.removeSetFromPlaylist);
+  const reorderPlaylistSets = useLibrary((s) => s.reorderPlaylistSets);
   const live = useLive();
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
@@ -70,12 +70,12 @@ function Presenter() {
 
   const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
 
-  const deckList = activePlaylist
-    ? activePlaylist.deckIds.filter((id) => decks[id])
+  const setList = activePlaylist
+    ? activePlaylist.setIds.filter((id) => sets[id])
     : order;
 
-  const [activeDeckId, setActiveDeckId] = useState<string | null>(
-    deckFromUrl ?? deckList[0] ?? null
+  const [activeSetId, setActiveSetId] = useState<string | null>(
+    setFromUrl ?? setList[0] ?? null
   );
   const [query, setQuery] = useState("");
   const [groupView, setGroupView] = useState(true);
@@ -86,42 +86,42 @@ function Presenter() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   useEffect(() => {
-    if (deckFromUrl) setActiveDeckId(deckFromUrl);
-  }, [deckFromUrl]);
+    if (setFromUrl) setActiveSetId(setFromUrl);
+  }, [setFromUrl]);
   useEffect(() => {
-    if (activePlaylist && !activeDeckId) {
-      setActiveDeckId(activePlaylist.deckIds[0] ?? null);
+    if (activePlaylist && !activeSetId) {
+      setActiveSetId(activePlaylist.setIds[0] ?? null);
     }
-  }, [activePlaylist, activeDeckId]);
+  }, [activePlaylist, activeSetId]);
 
-  const activeDeck = activeDeckId ? decks[activeDeckId] : null;
-  const liveDeck = live.deckId ? decks[live.deckId] : null;
+  const activeSet = activeSetId ? sets[activeSetId] : null;
+  const liveSet = live.setId ? sets[live.setId] : null;
   const liveSlide = useMemo(
-    () => liveDeck?.slides.find((s) => s.id === live.slideId) ?? null,
-    [liveDeck, live.slideId]
+    () => liveSet?.slides.find((s) => s.id === live.slideId) ?? null,
+    [liveSet, live.slideId]
   );
 
   const q = query.trim().toLowerCase();
   const showAll = !activePlaylist;
-  const filteredDecks = deckList.filter(
-    (id) => !q || decks[id]?.name.toLowerCase().includes(q)
+  const filteredSets = setList.filter(
+    (id) => !q || sets[id]?.name.toLowerCase().includes(q)
   );
   const filteredPlaylists = showAll ? playlistOrder : [];
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!liveDeck || !liveSlide) return;
+      if (!liveSet || !liveSlide) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-      const idx = liveDeck.slides.findIndex((s) => s.id === liveSlide.id);
+      const idx = liveSet.slides.findIndex((s) => s.id === liveSlide.id);
       if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
         e.preventDefault();
-        const next = liveDeck.slides[idx + 1];
-        if (next) live.go(liveDeck.id, next.id);
+        const next = liveSet.slides[idx + 1];
+        if (next) live.go(liveSet.id, next.id);
       } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
         e.preventDefault();
-        const prev = liveDeck.slides[idx - 1];
-        if (prev) live.go(liveDeck.id, prev.id);
+        const prev = liveSet.slides[idx - 1];
+        if (prev) live.go(liveSet.id, prev.id);
       } else if (e.key === "Escape") {
         e.preventDefault();
         live.toggleBlackout();
@@ -129,7 +129,7 @@ function Presenter() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [liveDeck, liveSlide, live]);
+  }, [liveSet, liveSlide, live]);
 
   const openOutput = () => window.open("/output", "_blank", "noopener,noreferrer");
 
@@ -220,7 +220,7 @@ function Presenter() {
                           to="/present"
                           search={{ playlist: pid }}
                           onDragOver={(e) => {
-                            if (e.dataTransfer.types.includes("application/x-deck-id")) {
+                            if (e.dataTransfer.types.includes("application/x-set-id")) {
                               e.preventDefault();
                               e.dataTransfer.dropEffect = "copy";
                               if (dragOverPlaylist !== pid) setDragOverPlaylist(pid);
@@ -230,18 +230,18 @@ function Presenter() {
                             if (dragOverPlaylist === pid) setDragOverPlaylist(null);
                           }}
                           onDrop={(e) => {
-                            const deckId = e.dataTransfer.getData("application/x-deck-id");
+                            const setId = e.dataTransfer.getData("application/x-set-id");
                             setDragOverPlaylist(null);
-                            if (!deckId) return;
+                            if (!setId) return;
                             e.preventDefault();
-                            if (!p.deckIds.includes(deckId)) addDeckToPlaylist(pid, deckId);
+                            if (!p.setIds.includes(setId)) addSetToPlaylist(pid, setId);
                           }}
                           className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-muted ${
                             isDragOver ? "bg-foreground/10 ring-1 ring-foreground" : ""
                           }`}
                         >
                           <span className="truncate">{p.name}</span>
-                          <span className="mono text-[10px] text-muted-foreground">{p.deckIds.length}</span>
+                          <span className="mono text-[10px] text-muted-foreground">{p.setIds.length}</span>
                         </Link>
                       );
                     })}
@@ -263,16 +263,16 @@ function Presenter() {
                   )}
                 </div>
                 <div className="space-y-1">
-                  {filteredDecks.length === 0 && (
+                  {filteredSets.length === 0 && (
                     <p className="px-2 text-xs text-muted-foreground">
                       {activePlaylist ? "Gathering is empty." : q ? "No matches." : "No sets yet."}
                     </p>
                   )}
-                  {filteredDecks.map((id, i) => {
-                    const d = decks[id];
+                  {filteredSets.map((id, i) => {
+                    const d = sets[id];
                     if (!d) return null;
-                    const isActive = id === activeDeckId;
-                    const isLive = id === live.deckId;
+                    const isActive = id === activeSetId;
+                    const isLive = id === live.setId;
                     const inGathering = !!activePlaylist;
                     const isReorderTarget = inGathering && reorderOverIndex === i && reorderDragIndex !== null;
                     return (
@@ -288,10 +288,10 @@ function Presenter() {
                           if (!inGathering || reorderDragIndex === null || !activePlaylist) return;
                           e.preventDefault();
                           e.stopPropagation();
-                          const ids = [...activePlaylist.deckIds];
+                          const ids = [...activePlaylist.setIds];
                           const [moved] = ids.splice(reorderDragIndex, 1);
                           ids.splice(i, 0, moved);
-                          reorderPlaylistDecks(activePlaylist.id, ids);
+                          reorderPlaylistSets(activePlaylist.id, ids);
                           setReorderDragIndex(null);
                           setReorderOverIndex(null);
                         }}
@@ -300,7 +300,7 @@ function Presenter() {
                         <button
                           draggable
                           onDragStart={(e) => {
-                            e.dataTransfer.setData("application/x-deck-id", id);
+                            e.dataTransfer.setData("application/x-set-id", id);
                             e.dataTransfer.effectAllowed = inGathering ? "move" : "copy";
                             if (inGathering) setReorderDragIndex(i);
                           }}
@@ -309,9 +309,9 @@ function Presenter() {
                             setReorderOverIndex(null);
                           }}
                           onClick={() => {
-                            setActiveDeckId(id);
+                            setActiveSetId(id);
                             if (activePlaylist) {
-                              const el = document.getElementById(`deck-section-${id}`);
+                              const el = document.getElementById(`set-section-${id}`);
                               el?.scrollIntoView({ behavior: "smooth", block: "start" });
                             }
                           }}
@@ -337,12 +337,12 @@ function Presenter() {
                                 tabIndex={0}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  removeDeckFromPlaylist(activePlaylist.id, i);
+                                  removeSetFromPlaylist(activePlaylist.id, i);
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter" || e.key === " ") {
                                     e.stopPropagation();
-                                    removeDeckFromPlaylist(activePlaylist.id, i);
+                                    removeSetFromPlaylist(activePlaylist.id, i);
                                   }
                                 }}
                                 className="rounded-full p-0.5 text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground hover:opacity-100"
@@ -365,21 +365,21 @@ function Presenter() {
         {/* Main */}
         <main className="overflow-auto p-6">
           {activePlaylist ? (
-            deckList.length === 0 ? (
+            setList.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 Gathering is empty. Drag sets here.
               </div>
             ) : null
-          ) : !activeDeck ? (
+          ) : !activeSet ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               Select a set to begin.
             </div>
-          ) : activeDeck.slides.length === 0 ? (
+          ) : activeSet.slides.length === 0 ? (
             <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
               This set has no slides.
               <Link
-                to="/deck/$deckId"
-                params={{ deckId: activeDeck.id }}
+                to="/set/$setId"
+                params={{ setId: activeSet.id }}
                 search={{ redirectTo: "/present" }}
                 className="underline"
                 title="Edit set"
@@ -390,11 +390,11 @@ function Presenter() {
           ) : (
             <>
               <div className="mb-4 flex items-center gap-3">
-                <h2 className="text-2xl">{activeDeck.name}</h2>
-                <KindBadge kind={activeDeck.kind} />
+                <h2 className="text-2xl">{activeSet.name}</h2>
+                <KindBadge kind={activeSet.kind} />
                 <Link
-                  to="/deck/$deckId"
-                  params={{ deckId: activeDeck.id }}
+                  to="/set/$setId"
+                  params={{ setId: activeSet.id }}
                   search={{ redirectTo: "/present" }}
                   className="pill flex h-8 w-8 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                   title="Edit set"
@@ -402,7 +402,7 @@ function Presenter() {
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </Link>
-                {(activeDeck.kind === "song" || activeDeck.kind === "scripture") && (
+                {(activeSet.kind === "song" || activeSet.kind === "scripture") && (
                   <label className="mono flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
                     <input
                       type="checkbox"
@@ -414,20 +414,20 @@ function Presenter() {
                 )}
               </div>
               <SlideGridForPresenter
-                deck={activeDeck}
+                phytoSet={activeSet}
                 live={live}
-                grouped={groupView && (activeDeck.kind === "song" || activeDeck.kind === "scripture")}
+                grouped={groupView && (activeSet.kind === "song" || activeSet.kind === "scripture")}
               />
             </>
           )}
 
-          {activePlaylist && deckList.length > 0 && (
+          {activePlaylist && setList.length > 0 && (
             <div className="space-y-8">
-              {deckList.map((id, i) => {
-                const d = decks[id];
+              {setList.map((id, i) => {
+                const d = sets[id];
                 if (!d) return null;
                 return (
-                  <section key={id} id={`deck-section-${id}`}>
+                  <section key={id} id={`set-section-${id}`}>
                     <div className="mb-2 flex items-center gap-3">
                       <h3 className="text-lg">
                         <span className="mono mr-2 text-sm text-muted-foreground">{i + 1}.</span>
@@ -435,8 +435,8 @@ function Presenter() {
                       </h3>
                       <KindBadge kind={d.kind} />
                       <Link
-                        to="/deck/$deckId"
-                        params={{ deckId: d.id }}
+                        to="/set/$setId"
+                        params={{ setId: d.id }}
                         search={{ redirectTo: "/present" }}
                         className="pill flex h-7 w-7 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                         title="Edit set"
@@ -444,7 +444,7 @@ function Presenter() {
                       >
                         <Pencil className="h-3 w-3" />
                       </Link>
-                      {id === live.deckId && (
+                      {id === live.setId && (
                         <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" title="Live" />
                       )}
                     </div>
@@ -452,7 +452,7 @@ function Presenter() {
                       <p className="text-xs text-muted-foreground">No slides.</p>
                     ) : (
                       <SlideGridForPresenter
-                        deck={d}
+                        phytoSet={d}
                         live={live}
                         grouped={groupView && (d.kind === "song" || d.kind === "scripture")}
                       />
@@ -469,13 +469,13 @@ function Presenter() {
           <div>
             <div className="mono mb-2 text-[10px] uppercase tracking-wider">Live output</div>
             <div className="relative overflow-hidden rounded-lg bg-[var(--brand-black)]">
-              {liveDeck?.kind === "media" ? (
-                <DissolveSlide slide={liveSlide} variant="preview" durationMs={liveDeck.dissolveMs ?? 0} template={liveDeck.template} />
+              {liveSet?.kind === "media" ? (
+                <DissolveSlide slide={liveSlide} variant="preview" durationMs={liveSet.dissolveMs ?? 0} template={liveSet.template} />
               ) : (
                 <SlideView
                   slide={liveSlide}
                   variant="preview"
-                  template={liveDeck?.kind === "song" ? effectiveSongTemplate : liveDeck?.template}
+                  template={liveSet?.kind === "song" ? effectiveSongTemplate : liveSet?.template}
                 />
               )}
               <div
@@ -491,21 +491,21 @@ function Presenter() {
                 BLACKOUT
               </div>
             </div>
-            {liveDeck && liveSlide && (
+            {liveSet && liveSlide && (
               <p className="mono mt-2 text-xs text-muted-foreground">
-                {liveDeck.name} · {liveDeck.slides.findIndex((s) => s.id === liveSlide.id) + 1}
+                {liveSet.name} · {liveSet.slides.findIndex((s) => s.id === liveSlide.id) + 1}
               </p>
             )}
           </div>
 
-          {liveDeck?.kind === "media" && (
+          {liveSet?.kind === "media" && (
             <div className="rounded-2xl border border-foreground p-4">
               <div className="mono mb-3 text-[10px] uppercase tracking-wider">Media functions</div>
-              <MediaPlaybackControls deckId={liveDeck.id} />
+              <MediaPlaybackControls setId={liveSet.id} />
             </div>
           )}
 
-          {liveDeck?.kind === "song" && <SongTemplateEditor />}
+          {liveSet?.kind === "song" && <SongTemplateEditor />}
 
           <div className="rounded-2xl border border-foreground">
             <button
@@ -533,33 +533,33 @@ function Presenter() {
 }
 
 function MediaAutoAdvance() {
-  const deckId = useLive((s) => s.deckId);
+  const setId = useLive((s) => s.setId);
   const slideId = useLive((s) => s.slideId);
   const blackout = useLive((s) => s.blackout);
-  const deck = useLibrary((s) => (deckId ? s.decks[deckId] : null));
+  const phytoSet = useLibrary((s) => (setId ? s.sets[setId] : null));
   useEffect(() => {
-    if (!deck || deck.kind !== "media") return;
-    const ms = deck.autoAdvanceMs ?? 0;
+    if (!phytoSet || phytoSet.kind !== "media") return;
+    const ms = phytoSet.autoAdvanceMs ?? 0;
     if (ms <= 0 || !slideId || blackout) return;
-    const idx = deck.slides.findIndex((s) => s.id === slideId);
+    const idx = phytoSet.slides.findIndex((s) => s.id === slideId);
     if (idx === -1) return;
     const t = setTimeout(() => {
       const go = useLive.getState().go;
-      const next = deck.slides[idx + 1];
-      if (next) go(deck.id, next.id);
-      else if (deck.loop && deck.slides[0]) go(deck.id, deck.slides[0].id);
+      const next = phytoSet.slides[idx + 1];
+      if (next) go(phytoSet.id, next.id);
+      else if (phytoSet.loop && phytoSet.slides[0]) go(phytoSet.id, phytoSet.slides[0].id);
     }, ms);
     return () => clearTimeout(t);
-  }, [deck, slideId, blackout]);
+  }, [phytoSet, slideId, blackout]);
   return null;
 }
 
-function MediaPlaybackControls({ deckId }: { deckId: string }) {
-  const deck = useLibrary((s) => s.decks[deckId]);
-  const updateDeck = useLibrary((s) => s.updateDeck);
-  if (!deck) return null;
-  const auto = deck.autoAdvanceMs ?? 0;
-  const dissolve = deck.dissolveMs ?? 0;
+function MediaPlaybackControls({ setId }: { setId: string }) {
+  const phytoSet = useLibrary((s) => s.sets[setId]);
+  const updateSet = useLibrary((s) => s.updateSet);
+  if (!phytoSet) return null;
+  const auto = phytoSet.autoAdvanceMs ?? 0;
+  const dissolve = phytoSet.dissolveMs ?? 0;
   return (
     <div className="space-y-3 text-sm">
       <div className="flex items-center justify-between gap-2">
@@ -573,7 +573,7 @@ function MediaPlaybackControls({ deckId }: { deckId: string }) {
             placeholder="off"
             onChange={(e) => {
               const n = Number(e.target.value);
-              updateDeck(deckId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
+              updateSet(setId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
             }}
             className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
           />
@@ -592,7 +592,7 @@ function MediaPlaybackControls({ deckId }: { deckId: string }) {
             placeholder="0"
             onChange={(e) => {
               const n = Math.min(2, Math.max(0, Number(e.target.value) || 0));
-              updateDeck(deckId, { dissolveMs: Math.round(n * 1000) });
+              updateSet(setId, { dissolveMs: Math.round(n * 1000) });
             }}
             className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
           />
@@ -603,8 +603,8 @@ function MediaPlaybackControls({ deckId }: { deckId: string }) {
         <span className="mono text-[10px] uppercase tracking-wider">Loop</span>
         <input
           type="checkbox"
-          checked={!!deck.loop}
-          onChange={(e) => updateDeck(deckId, { loop: e.target.checked })}
+          checked={!!phytoSet.loop}
+          onChange={(e) => updateSet(setId, { loop: e.target.checked })}
         />
       </div>
     </div>
@@ -622,14 +622,14 @@ function sectionOf(s: Slide): string | null {
   return null;
 }
 
-function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: number; deck: Deck; live: LiveApi }) {
-  const isLive = live.deckId === deck.id && live.slideId === slide.id;
+function PresenterThumb({ slide, index, phytoSet, live }: { slide: Slide; index: number; phytoSet: PhytoSet; live: LiveApi }) {
+  const isLive = live.setId === phytoSet.id && live.slideId === slide.id;
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
-  const template = deck.kind === "song" ? (songDraft ?? songTemplate) : deck.template;
+  const template = phytoSet.kind === "song" ? (songDraft ?? songTemplate) : phytoSet.template;
   return (
     <button
-      onClick={() => live.go(deck.id, slide.id)}
+      onClick={() => live.go(phytoSet.id, slide.id)}
       className={`group relative overflow-hidden rounded-lg border-2 text-left transition ${
         isLive
           ? "border-[var(--brand-red)]"
@@ -643,7 +643,7 @@ function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: num
         )}
         {index + 1}
       </div>
-      {slide.reference && deck.kind === "scripture" && (
+      {slide.reference && phytoSet.kind === "scripture" && (
         <div className="mono absolute bottom-1.5 left-1.5 right-1.5 truncate rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
           {slide.reference}
         </div>
@@ -652,19 +652,19 @@ function PresenterThumb({ slide, index, deck, live }: { slide: Slide; index: num
   );
 }
 
-function SlideGridForPresenter({ deck, live, grouped }: { deck: Deck; live: LiveApi; grouped: boolean }) {
+function SlideGridForPresenter({ phytoSet, live, grouped }: { phytoSet: PhytoSet; live: LiveApi; grouped: boolean }) {
   if (!grouped) {
     return (
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-        {deck.slides.map((s, i) => (
-          <PresenterThumb key={s.id} slide={s} index={i} deck={deck} live={live} />
+        {phytoSet.slides.map((s, i) => (
+          <PresenterThumb key={s.id} slide={s} index={i} phytoSet={phytoSet} live={live} />
         ))}
       </div>
     );
   }
   const groups: { label: string; items: { slide: Slide; index: number }[] }[] = [];
   let current = "Section";
-  deck.slides.forEach((s, i) => {
+  phytoSet.slides.forEach((s, i) => {
     const sec = sectionOf(s);
     if (sec) current = sec;
     const last = groups[groups.length - 1];
@@ -678,7 +678,7 @@ function SlideGridForPresenter({ deck, live, grouped }: { deck: Deck; live: Live
           <h3 className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">{g.label}</h3>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
             {g.items.map(({ slide, index }) => (
-              <PresenterThumb key={slide.id} slide={slide} index={index} deck={deck} live={live} />
+              <PresenterThumb key={slide.id} slide={slide} index={index} phytoSet={phytoSet} live={live} />
             ))}
           </div>
         </section>

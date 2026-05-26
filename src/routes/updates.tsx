@@ -6,10 +6,10 @@ import { BackToTop } from "@/components/BackToTop";
 export const Route = createFileRoute("/updates")({
   head: () => ({
     meta: [
-      { title: "Updates — phyto" },
-      { name: "description", content: "Release notes for phyto." },
-      { property: "og:title", content: "Updates — phyto" },
-      { property: "og:description", content: "Release notes for phyto." },
+      { title: "Updates | phyto" },
+      { name: "description", content: "Release notes and updates for phyto." },
+      { property: "og:title", content: "Updates | phyto" },
+      { property: "og:description", content: "Release notes and updates for phyto." },
       { property: "og:url", content: "https://phyto.live/updates" },
     ],
     links: [
@@ -28,7 +28,7 @@ function Updates() {
         <ul className="mt-8 space-y-6">
           <li>
             <div className="mono text-xs uppercase tracking-wider opacity-80">MAY 21, 2026</div>
-            <p className="mt-1">Releasing beta for test users.</p>
+            <p className="mt-1">Released beta for test users.</p>
           </li>
         </ul>
         <div className="mt-12">

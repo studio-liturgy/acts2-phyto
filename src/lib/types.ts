@@ -15,9 +15,9 @@ export interface Slide {
   imageUrl?: string;
 }
 
-export type DeckKind = "song" | "scripture" | "media" | "mixed";
+export type SetKind = "song" | "scripture" | "media" | "mixed";
 
-export interface DeckTemplate {
+export interface SetTemplate {
   /** Multiplier on slide text sizes. 1 = current/smallest. */
   fontScale?: number;
   /** CSS font-family stack applied to slide content. */
@@ -26,13 +26,13 @@ export interface DeckTemplate {
   bg?: "black" | "white";
 }
 
-export interface Deck {
+export interface Set {
   id: string;
   name: string;
-  kind: DeckKind;
+  kind: SetKind;
   slides: Slide[];
-  /** Visual template applied to all slides in this deck. */
-  template?: DeckTemplate;
+  /** Visual template applied to all slides in this set. */
+  template?: SetTemplate;
   /** Media-only: auto-advance to next slide after N ms. 0 = off. */
   autoAdvanceMs?: number;
   /** Media-only: when auto-advancing, loop from end back to start. */
@@ -47,13 +47,13 @@ export interface Deck {
 export interface Playlist {
   id: string;
   name: string;
-  deckIds: string[];
+  setIds: string[];
   createdAt: number;
   updatedAt: number;
 }
 
 export interface LiveState {
-  deckId: string | null;
+  setId: string | null;
   slideId: string | null;
   blackout: boolean;
   clear: boolean; // logo / clear screen

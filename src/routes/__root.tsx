@@ -22,12 +22,18 @@ function NotFoundComponent() {
         <p className="mt-2 text-sm text-muted-foreground">
           The page you're looking for doesn't exist or has been moved.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Go home
+          </Link>
+          <Link
+            to="/feedback"
+            className="pill inline-flex items-center justify-center border border-[var(--brand-blue)] bg-[var(--brand-blue)] px-6 py-2 text-sm font-medium text-[var(--brand-white)] transition hover:opacity-90"
+          >
+            Feedback
           </Link>
         </div>
       </div>
@@ -64,6 +70,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           >
             Go home
           </a>
+          <Link
+            to="/feedback"
+            className="pill inline-flex items-center justify-center border border-[var(--brand-blue)] bg-[var(--brand-blue)] px-6 py-2 text-sm font-medium text-[var(--brand-white)] transition hover:opacity-90"
+          >
+            Feedback
+          </Link>
         </div>
       </div>
     </div>
@@ -75,16 +87,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "phyto — Stage Presenter for Worship" },
-      { name: "description", content: "phyto is a lightweight, open-source presentation tool for worship gatherings. Build sets of songs, scripture, and media — group them into gatherings — and present them live." },
-      { property: "og:title", content: "phyto — Stage Presenter for Worship" },
-      { property: "og:description", content: "phyto is a lightweight, open-source presentation tool for worship gatherings. Build sets of songs, scripture, and media — group them into gatherings — and present them live." },
+      { title: "phyto | home gatherings" },
+      { name: "description", content: "phyto is a free, open source presentation tool built for small home worship gatherings. Prepare your verses and lyrics beforehand, then run it live." },
+      { property: "og:title", content: "phyto | home gatherings" },
+      { property: "og:description", content: "phyto is a free, open source presentation tool built for small home worship gatherings. Prepare your verses and lyrics beforehand, then run it live." },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "phyto" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@phyto_live" },
-      { name: "twitter:title", content: "phyto — Stage Presenter for Worship" },
-      { name: "twitter:description", content: "phyto is a lightweight, open-source presentation tool for worship gatherings. Build sets of songs, scripture, and media — group them into gatherings — and present them live." },
+      { name: "twitter:site", content: "@phyto.live" },
+      { name: "twitter:title", content: "phyto | home gatherings" },
+      { name: "twitter:description", content: "phyto is a free, open source presentation tool built for small home worship gatherings. Prepare your verses and lyrics beforehand, then run it live." },
       { property: "og:image", content: "https://phyto.live/og-image.png" },
       { name: "twitter:image", content: "https://phyto.live/og-image.png" },
     ],

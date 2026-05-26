@@ -6,10 +6,10 @@ import { Footer } from "@/components/Footer";
 export const Route = createFileRoute("/feedback")({
   head: () => ({
     meta: [
-      { title: "Submit Feedback — phyto" },
-      { name: "description", content: "Send feedback, bug reports, feature requests, and encouragement to the phyto team." },
-      { property: "og:title", content: "Submit Feedback — phyto" },
-      { property: "og:description", content: "Send feedback, bug reports, feature requests, and encouragement to the phyto team." },
+      { title: "Feedback | phyto" },
+      { name: "description", content: "Send your feedback, bug reports, feature requests, and encouragement to phyto." },
+      { property: "og:title", content: "Feedback | phyto" },
+      { property: "og:description", content: "Send your feedback, bug reports, feature requests, and encouragement to phyto." },
       { property: "og:url", content: "https://phyto.live/feedback" },
     ],
     links: [
@@ -85,7 +85,7 @@ function FeedbackPage() {
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) {
         setStatus("error");
-        setErrorMsg(data.error ?? "Something went wrong. Please try again.");
+        setErrorMsg(data.error ?? "Something went wrong. Please try again!");
         return;
       }
       setStatus("success");
@@ -94,7 +94,7 @@ function FeedbackPage() {
       setEmail("");
     } catch {
       setStatus("error");
-      setErrorMsg("Network error. Please try again.");
+      setErrorMsg("Something went wrong. Please try again!");
     }
   };
 
@@ -162,7 +162,7 @@ function FeedbackPage() {
           <div className="flex flex-col items-end gap-3">
             {status === "success" && (
               <p className="mono text-xs uppercase tracking-wider text-[var(--brand-green)]">
-                Thanks — we got your feedback.
+                Thanks for sending in your feedback! We appreciate your time in checking out phyto :)
               </p>
             )}
             {status === "error" && (

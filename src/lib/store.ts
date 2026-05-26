@@ -1,86 +1,86 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Deck, Slide, LiveState, Playlist, DeckTemplate } from "./types";
+import type { Set as PhytoSet, Slide, LiveState, Playlist, SetTemplate } from "./types";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
 interface LibraryState {
-  decks: Record<string, Deck>;
+  sets: Record<string, PhytoSet>;
   order: string[];
   playlists: Record<string, Playlist>;
   playlistOrder: string[];
-  /** Global template applied to ALL song decks. */
-  songTemplate: DeckTemplate;
-  setSongTemplate: (patch: DeckTemplate) => void;
-  createDeck: (deck: Omit<Deck, "id" | "createdAt" | "updatedAt">) => string;
-  updateDeck: (id: string, patch: Partial<Deck>) => void;
-  deleteDeck: (id: string) => void;
-  addSlide: (deckId: string, slide: Omit<Slide, "id">) => string;
-  updateSlide: (deckId: string, slideId: string, patch: Partial<Slide>) => void;
-  removeSlide: (deckId: string, slideId: string) => void;
-  reorderSlides: (deckId: string, ids: string[]) => void;
+  /** Global template applied to ALL song sets. */
+  songTemplate: SetTemplate;
+  setSongTemplate: (patch: SetTemplate) => void;
+  createSet: (set: Omit<PhytoSet, "id" | "createdAt" | "updatedAt">) => string;
+  updateSet: (id: string, patch: Partial<PhytoSet>) => void;
+  deleteSet: (id: string) => void;
+  addSlide: (setId: string, slide: Omit<Slide, "id">) => string;
+  updateSlide: (setId: string, slideId: string, patch: Partial<Slide>) => void;
+  removeSlide: (setId: string, slideId: string) => void;
+  reorderSlides: (setId: string, ids: string[]) => void;
   createPlaylist: (name: string) => string;
   renamePlaylist: (id: string, name: string) => void;
   deletePlaylist: (id: string) => void;
-  addDeckToPlaylist: (playlistId: string, deckId: string) => void;
-  removeDeckFromPlaylist: (playlistId: string, deckIdOrIndex: string | number) => void;
-  reorderPlaylistDecks: (playlistId: string, deckIds: string[]) => void;
+  addSetToPlaylist: (playlistId: string, setId: string) => void;
+  removeSetFromPlaylist: (playlistId: string, setIdOrIndex: string | number) => void;
+  reorderPlaylistSets: (playlistId: string, setIds: string[]) => void;
 }
 
 export const useLibrary = create<LibraryState>()(
   persist(
     (set) => ({
-      decks: {},
+      sets: {},
       order: [],
       playlists: {},
       playlistOrder: [],
       songTemplate: { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" },
       setSongTemplate: (patch) =>
         set((s) => ({ songTemplate: { ...s.songTemplate, ...patch } })),
-      createDeck: (deck) => {
+      createSet: (newSet) => {
         const id = uid();
         const now = Date.now();
         set((s) => ({
-          decks: { ...s.decks, [id]: { ...deck, id, createdAt: now, updatedAt: now } },
+          sets: { ...s.sets, [id]: { ...newSet, id, createdAt: now, updatedAt: now } },
           order: [id, ...s.order],
         }));
         return id;
       },
-      updateDeck: (id, patch) =>
+      updateSet: (id, patch) =>
         set((s) => {
-          const d = s.decks[id];
+          const d = s.sets[id];
           if (!d) return s;
-          return { decks: { ...s.decks, [id]: { ...d, ...patch, updatedAt: Date.now() } } };
+          return { sets: { ...s.sets, [id]: { ...d, ...patch, updatedAt: Date.now() } } };
         }),
-      deleteDeck: (id) =>
+      deleteSet: (id) =>
         set((s) => {
-          const { [id]: _gone, ...rest } = s.decks;
-          return { decks: rest, order: s.order.filter((x) => x !== id) };
+          const { [id]: _gone, ...rest } = s.sets;
+          return { sets: rest, order: s.order.filter((x) => x !== id) };
         }),
-      addSlide: (deckId, slide) => {
+      addSlide: (setId, slide) => {
         const id = uid();
         set((s) => {
-          const d = s.decks[deckId];
+          const d = s.sets[setId];
           if (!d) return s;
           return {
-            decks: {
-              ...s.decks,
-              [deckId]: { ...d, slides: [...d.slides, { ...slide, id }], updatedAt: Date.now() },
+            sets: {
+              ...s.sets,
+              [setId]: { ...d, slides: [...d.slides, { ...slide, id }], updatedAt: Date.now() },
             },
           };
         });
         return id;
       },
-      updateSlide: (deckId, slideId, patch) =>
+      updateSlide: (setId, slideId, patch) =>
         set((s) => {
-          const d = s.decks[deckId];
+          const d = s.sets[setId];
           if (!d) return s;
           return {
-            decks: {
-              ...s.decks,
-              [deckId]: {
+            sets: {
+              ...s.sets,
+              [setId]: {
                 ...d,
                 slides: d.slides.map((sl) => (sl.id === slideId ? { ...sl, ...patch } : sl)),
                 updatedAt: Date.now(),
@@ -88,14 +88,14 @@ export const useLibrary = create<LibraryState>()(
             },
           };
         }),
-      removeSlide: (deckId, slideId) =>
+      removeSlide: (setId, slideId) =>
         set((s) => {
-          const d = s.decks[deckId];
+          const d = s.sets[setId];
           if (!d) return s;
           return {
-            decks: {
-              ...s.decks,
-              [deckId]: {
+            sets: {
+              ...s.sets,
+              [setId]: {
                 ...d,
                 slides: d.slides.filter((sl) => sl.id !== slideId),
                 updatedAt: Date.now(),
@@ -103,13 +103,13 @@ export const useLibrary = create<LibraryState>()(
             },
           };
         }),
-      reorderSlides: (deckId, ids) =>
+      reorderSlides: (setId, ids) =>
         set((s) => {
-          const d = s.decks[deckId];
+          const d = s.sets[setId];
           if (!d) return s;
           const map = new Map(d.slides.map((sl) => [sl.id, sl]));
           const slides = ids.map((i) => map.get(i)!).filter(Boolean);
-          return { decks: { ...s.decks, [deckId]: { ...d, slides, updatedAt: Date.now() } } };
+          return { sets: { ...s.sets, [setId]: { ...d, slides, updatedAt: Date.now() } } };
         }),
       createPlaylist: (name) => {
         const id = uid();
@@ -117,7 +117,7 @@ export const useLibrary = create<LibraryState>()(
         set((s) => ({
           playlists: {
             ...s.playlists,
-            [id]: { id, name, deckIds: [], createdAt: now, updatedAt: now },
+            [id]: { id, name, setIds: [], createdAt: now, updatedAt: now },
           },
           playlistOrder: [id, ...s.playlistOrder],
         }));
@@ -134,51 +134,75 @@ export const useLibrary = create<LibraryState>()(
           const { [id]: _gone, ...rest } = s.playlists;
           return { playlists: rest, playlistOrder: s.playlistOrder.filter((x) => x !== id) };
         }),
-      addDeckToPlaylist: (playlistId, deckId) =>
+      addSetToPlaylist: (playlistId, setId) =>
         set((s) => {
           const p = s.playlists[playlistId];
           if (!p) return s;
-          // Allow the same deck to appear multiple times in a gathering.
+          // Allow the same set to appear multiple times in a gathering.
           return {
             playlists: {
               ...s.playlists,
-              [playlistId]: { ...p, deckIds: [...p.deckIds, deckId], updatedAt: Date.now() },
+              [playlistId]: { ...p, setIds: [...p.setIds, setId], updatedAt: Date.now() },
             },
           };
         }),
-      removeDeckFromPlaylist: (playlistId, deckIdOrIndex) =>
+      removeSetFromPlaylist: (playlistId, setIdOrIndex) =>
         set((s) => {
           const p = s.playlists[playlistId];
           if (!p) return s;
-          let deckIds: string[];
-          if (typeof deckIdOrIndex === "number") {
-            deckIds = p.deckIds.filter((_, i) => i !== deckIdOrIndex);
+          let setIds: string[];
+          if (typeof setIdOrIndex === "number") {
+            setIds = p.setIds.filter((_, i) => i !== setIdOrIndex);
           } else {
             // Remove only the first occurrence so duplicates are preserved.
-            const idx = p.deckIds.indexOf(deckIdOrIndex);
+            const idx = p.setIds.indexOf(setIdOrIndex);
             if (idx === -1) return s;
-            deckIds = p.deckIds.filter((_, i) => i !== idx);
+            setIds = p.setIds.filter((_, i) => i !== idx);
           }
           return {
             playlists: {
               ...s.playlists,
-              [playlistId]: { ...p, deckIds, updatedAt: Date.now() },
+              [playlistId]: { ...p, setIds, updatedAt: Date.now() },
             },
           };
         }),
-      reorderPlaylistDecks: (playlistId, deckIds) =>
+      reorderPlaylistSets: (playlistId, setIds) =>
         set((s) => {
           const p = s.playlists[playlistId];
           if (!p) return s;
           return {
             playlists: {
               ...s.playlists,
-              [playlistId]: { ...p, deckIds, updatedAt: Date.now() },
+              [playlistId]: { ...p, setIds, updatedAt: Date.now() },
             },
           };
         }),
     }),
-    { name: "stage-library-v1" }
+    {
+      name: "stage-library-v1",
+      version: 2,
+      // Migrate v1 (Deck-named) shape -> v2 (Set-named) shape.
+      // Old: { decks, playlists[*].deckIds }. New: { sets, playlists[*].setIds }.
+      migrate: (persistedState, _version) => {
+        if (!persistedState || typeof persistedState !== "object") return persistedState as LibraryState;
+        const ps = persistedState as Record<string, unknown>;
+        if (ps.decks && !ps.sets) {
+          ps.sets = ps.decks;
+          delete ps.decks;
+        }
+        if (ps.playlists && typeof ps.playlists === "object") {
+          const next: Record<string, Playlist> = {};
+          for (const [pid, raw] of Object.entries(ps.playlists as Record<string, unknown>)) {
+            const p = (raw ?? {}) as Record<string, unknown>;
+            const setIds = (p.setIds as string[] | undefined) ?? (p.deckIds as string[] | undefined) ?? [];
+            const { deckIds: _drop, ...rest } = p;
+            next[pid] = { ...(rest as Omit<Playlist, "setIds">), setIds };
+          }
+          ps.playlists = next;
+        }
+        return ps as unknown as LibraryState;
+      },
+    }
   )
 );
 
@@ -186,8 +210,8 @@ export const useLibrary = create<LibraryState>()(
 // open. When non-null, slide views should render with this draft instead of
 // the saved `songTemplate` so the user can see changes live.
 interface SongTemplateDraftStore {
-  draft: DeckTemplate | null;
-  setDraft: (d: DeckTemplate | null) => void;
+  draft: SetTemplate | null;
+  setDraft: (d: SetTemplate | null) => void;
 }
 export const useSongTemplateDraft = create<SongTemplateDraftStore>((set) => ({
   draft: null,
@@ -196,12 +220,12 @@ export const useSongTemplateDraft = create<SongTemplateDraftStore>((set) => ({
 
 // --- Live presentation state, synced across windows via BroadcastChannel ---
 
-const CHANNEL = "stage-live-v1";
-const STORAGE_KEY = "stage-live-v1";
+const CHANNEL = "stage-live-v2";
+const STORAGE_KEY = "stage-live-v2";
 
 export interface LiveStore extends LiveState {
   setLive: (patch: Partial<LiveState>) => void;
-  go: (deckId: string, slideId: string) => void;
+  go: (setId: string, slideId: string) => void;
   clearLive: () => void;
   toggleBlackout: () => void;
   toggleClear: () => void;
@@ -209,12 +233,12 @@ export interface LiveStore extends LiveState {
 
 function readInitial(): LiveState {
   if (typeof window === "undefined")
-    return { deckId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 };
+    return { setId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return { blackoutFadeMs: 0, ...JSON.parse(raw) };
   } catch {}
-  return { deckId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 };
+  return { setId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 };
 }
 
 let bc: BroadcastChannel | null = null;
@@ -230,7 +254,7 @@ export const useLive = create<LiveStore>((set, get) => ({
     set(patch);
     const s = get();
     const snapshot: LiveState = {
-      deckId: s.deckId,
+      setId: s.setId,
       slideId: s.slideId,
       blackout: s.blackout,
       clear: s.clear,
@@ -241,13 +265,13 @@ export const useLive = create<LiveStore>((set, get) => ({
       try { getChannel()?.postMessage(snapshot); } catch {}
     }
   },
-  go: (deckId, slideId) => get().setLive({ deckId, slideId, blackout: false, clear: false, blackoutFadeMs: 0 }),
+  go: (setId, slideId) => get().setLive({ setId, slideId, blackout: false, clear: false, blackoutFadeMs: 0 }),
   clearLive: () => {
     // Dissolve to black over 0.5s, then fully clear.
     get().setLive({ blackout: true, blackoutFadeMs: 500 });
     if (typeof window !== "undefined") {
       setTimeout(() => {
-        get().setLive({ deckId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 });
+        get().setLive({ setId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 });
       }, 520);
     }
   },
