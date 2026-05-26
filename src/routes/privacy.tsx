@@ -52,8 +52,25 @@ function Privacy() {
 
           <section>
             <h2 className="text-2xl">3. Feedback Form</h2>
-            <p className="mt-2">Phyto includes an optional feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>. If you choose to submit feedback, the content of your message (and any contact information you voluntarily include) is transmitted to the developer via a third-party messaging or email service. This information is used solely to respond to your feedback and improve the App. We do not share it with any other parties.</p>
-            <p className="mt-2">Positive feedback such as testimonies and encouragement may be shared publicly on Phyto's social media channels (e.g. Instagram). Personally sensitive information will not be shared publicly. Submitting feedback is entirely optional and not required to use any feature of the App.</p>
+            <p className="mt-2">
+              Phyto includes an optional feedback form at{" "}
+              <a href="https://phyto.live/feedback" className="underline hover:opacity-60">
+                https://phyto.live/feedback
+              </a>
+              . If you choose to submit feedback, the content of your message and any contact information you voluntarily provide (such as your email address) will be transmitted to and stored by the developer in Google Sheets, a service provided by Google.
+            </p>
+            <p className="mt-2">
+              This information is used solely to review feedback, improve the App, and, if you provide contact details, to respond to your message or follow up where appropriate. We do not sell your information or share it with unrelated third parties. Data may be processed and stored on servers outside your jurisdiction in accordance with Google’s privacy practices.
+            </p>
+            <p className="mt-2">
+              We retain feedback and any associated personal data only for as long as necessary to fulfill the purposes described above, after which it will be securely deleted or anonymized.
+            </p>
+            <p className="mt-2">
+              Positive feedback, such as testimonials or general comments, may be shared publicly on Phyto’s social media channels (for example, Instagram). We will not intentionally publish personally sensitive information without your consent.
+            </p>
+            <p className="mt-2">
+              Submitting feedback is entirely optional and is not required to use any feature of the App.
+            </p>
           </section>
 
           <section>
