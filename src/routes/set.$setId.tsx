@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowUpLeft, ArrowUpRight, Plus, Trash2, GripVertical, Search, Loader2, Pencil } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Slide, DeckKind } from "@/lib/types";
+import type { Slide, SetKind } from "@/lib/types";
 import { z } from "zod";
 
 const searchSchema = z.object({
@@ -20,16 +20,22 @@ const searchSchema = z.object({
     ),
 });
 
-export const Route = createFileRoute("/deck/$deckId")({
+export const Route = createFileRoute("/set/$setId")({
   validateSearch: searchSchema,
-  component: DeckEditor,
+  head: () => ({
+    meta: [
+      { title: "Set Editor | phyto" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: SetEditor,
 });
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function kindBadgeBg(kind: DeckKind): string {
+function kindBadgeBg(kind: SetKind): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
   if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
   if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
@@ -56,61 +62,61 @@ function PanelCard({
   );
 }
 
-function DeckEditor() {
-  const { deckId } = Route.useParams();
+function SetEditor() {
+  const { setId } = Route.useParams();
   const { redirectTo } = Route.useSearch();
   const navigate = useNavigate();
-  const deck = useLibrary((s) => s.decks[deckId]);
-  const { updateDeck, addSlide, updateSlide, removeSlide, reorderSlides, deleteDeck } = useLibrary();
+  const phytoSet = useLibrary((s) => s.sets[setId]);
+  const { updateSet, addSlide, updateSlide, removeSlide, reorderSlides, deleteSet } = useLibrary();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
   const [groupView, setGroupView] = useState(true);
   const [editingName, setEditingName] = useState(false);
 
   const selected = useMemo(
-    () => deck?.slides.find((s) => s.id === selectedId) ?? deck?.slides[0] ?? null,
-    [deck, selectedId]
+    () => phytoSet?.slides.find((s) => s.id === selectedId) ?? phytoSet?.slides[0] ?? null,
+    [phytoSet, selectedId]
   );
 
   useEffect(() => {
-    if (!deck) return;
+    if (!phytoSet) return;
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.key === "ArrowRight" || e.key === "ArrowDown") {
         e.preventDefault();
-        const idx = deck.slides.findIndex((s) => s.id === (selected?.id ?? ""));
-        const next = deck.slides[Math.min(deck.slides.length - 1, idx + 1)];
+        const idx = phytoSet.slides.findIndex((s) => s.id === (selected?.id ?? ""));
+        const next = phytoSet.slides[Math.min(phytoSet.slides.length - 1, idx + 1)];
         if (next) { setSelectedId(next.id); setMultiSel(new Set([next.id])); }
       } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
         e.preventDefault();
-        const idx = deck.slides.findIndex((s) => s.id === (selected?.id ?? ""));
-        const prev = deck.slides[Math.max(0, idx - 1)];
+        const idx = phytoSet.slides.findIndex((s) => s.id === (selected?.id ?? ""));
+        const prev = phytoSet.slides[Math.max(0, idx - 1)];
         if (prev) { setSelectedId(prev.id); setMultiSel(new Set([prev.id])); }
       } else if (e.key === "Delete" || e.key === "Backspace") {
         if (multiSel.size > 0) {
           e.preventDefault();
-          multiSel.forEach((id) => removeSlide(deck.id, id));
+          multiSel.forEach((id) => removeSlide(phytoSet.id, id));
           setMultiSel(new Set());
         }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [deck, selected, multiSel, removeSlide]);
+  }, [phytoSet, selected, multiSel, removeSlide]);
 
-  if (!deck) {
+  if (!phytoSet) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <p className="text-muted-foreground">Deck not found.</p>
+          <p className="text-muted-foreground">Set not found.</p>
           <Link to="/" className="mt-3 inline-block underline">Back to library</Link>
         </div>
       </div>
     );
   }
 
-  const dense = deck.slides.length > 20;
+  const dense = phytoSet.slides.length > 20;
 
   const handleSelect = (id: string, e?: React.MouseEvent) => {
     setSelectedId(id);
@@ -121,7 +127,7 @@ function DeckEditor() {
         return next;
       });
     } else if (e && e.shiftKey && selected) {
-      const ids = deck.slides.map((s) => s.id);
+      const ids = phytoSet.slides.map((s) => s.id);
       const a = ids.indexOf(selected.id);
       const b = ids.indexOf(id);
       const [lo, hi] = a < b ? [a, b] : [b, a];
@@ -132,7 +138,7 @@ function DeckEditor() {
   };
 
   const deleteSelected = () => {
-    multiSel.forEach((id) => removeSlide(deck.id, id));
+    multiSel.forEach((id) => removeSlide(phytoSet.id, id));
     setMultiSel(new Set());
   };
 
@@ -145,8 +151,8 @@ function DeckEditor() {
             {editingName ? (
               <Input
                 autoFocus
-                value={deck.name}
-                onChange={(e) => updateDeck(deck.id, { name: e.target.value })}
+                value={phytoSet.name}
+                onChange={(e) => updateSet(phytoSet.id, { name: e.target.value })}
                 onBlur={() => setEditingName(false)}
                 onKeyDown={(e) => e.key === "Enter" && setEditingName(false)}
                 className="h-10 w-72 border-foreground text-xl"
@@ -157,7 +163,7 @@ function DeckEditor() {
                 className="cursor-text truncate text-xl text-muted-foreground"
                 title="Click to rename"
               >
-                {deck.name}
+                {phytoSet.name}
               </h1>
             )}
             <button
@@ -169,9 +175,9 @@ function DeckEditor() {
               <Pencil className="h-4 w-4" />
             </button>
             <span
-              className={`pill mono px-3 py-1 text-[10px] uppercase tracking-wider ${kindBadgeBg(deck.kind)}`}
+              className={`pill mono px-3 py-1 text-[10px] uppercase tracking-wider ${kindBadgeBg(phytoSet.kind)}`}
             >
-              {deck.kind}
+              {phytoSet.kind}
             </span>
           </div>
 
@@ -187,9 +193,9 @@ function DeckEditor() {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
-            <AddToGathering deckId={deck.id} />
+            <AddToGathering setId={phytoSet.id} />
             <button
-              onClick={() => navigate({ to: "/present", search: { deck: deck.id } })}
+              onClick={() => navigate({ to: "/present", search: { set: phytoSet.id } })}
               className="pill flex items-center gap-2 border border-foreground bg-background px-6 py-2.5 text-base transition hover:bg-foreground hover:text-background"
             >
               Present <ArrowUpRight className="h-4 w-4" />
@@ -200,7 +206,7 @@ function DeckEditor() {
 
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 md:px-10 lg:grid-cols-[1fr_340px]">
         <div className="space-y-5">
-          <Importers deckId={deck.id} kind={deck.kind} />
+          <Importers setId={phytoSet.id} kind={phytoSet.kind} />
 
 
 
@@ -208,12 +214,12 @@ function DeckEditor() {
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <h2 className="mono text-xs uppercase tracking-wider">
-                  Slides ({deck.slides.length})
+                  Slides ({phytoSet.slides.length})
                   {multiSel.size > 0 && (
                     <span className="ml-2 text-foreground">· {multiSel.size} selected</span>
                   )}
                 </h2>
-                {(deck.kind === "song" || deck.kind === "scripture") && (
+                {(phytoSet.kind === "song" || phytoSet.kind === "scripture") && (
                   <label className="mono flex items-center gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
                     <input
                       type="checkbox"
@@ -235,7 +241,7 @@ function DeckEditor() {
                 )}
                 <button
                   onClick={() =>
-                    addSlide(deck.id, { id: uid(), kind: "blank", lines: [""] } as Slide)
+                    addSlide(phytoSet.id, { id: uid(), kind: "blank", lines: [""] } as Slide)
                   }
                   className="pill flex items-center gap-1 border border-foreground px-3 py-1.5 text-xs transition hover:bg-foreground hover:text-background"
                 >
@@ -243,33 +249,33 @@ function DeckEditor() {
                 </button>
               </div>
             </div>
-            {deck.slides.length === 0 ? (
+            {phytoSet.slides.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 No slides yet, use the importer above to get started!
               </p>
             ) : (
               <div className="max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
-                {groupView && (deck.kind === "song" || deck.kind === "scripture") ? (
+                {groupView && (phytoSet.kind === "song" || phytoSet.kind === "scripture") ? (
                   <GroupedSongGrid
-                    slides={deck.slides}
+                    slides={phytoSet.slides}
                     selectedId={selected?.id ?? null}
                     multiSel={multiSel}
                     onSelect={handleSelect}
-                    onRemove={(id) => removeSlide(deck.id, id)}
-                    onReorder={(ids) => reorderSlides(deck.id, ids)}
+                    onRemove={(id) => removeSlide(phytoSet.id, id)}
+                    onReorder={(ids) => reorderSlides(phytoSet.id, ids)}
                     dense={dense}
-                    kind={deck.kind}
+                    kind={phytoSet.kind}
                   />
                 ) : (
                   <SlideGrid
-                    slides={deck.slides}
+                    slides={phytoSet.slides}
                     selectedId={selected?.id ?? null}
                     multiSel={multiSel}
                     onSelect={handleSelect}
-                    onRemove={(id) => removeSlide(deck.id, id)}
-                    onReorder={(ids) => reorderSlides(deck.id, ids)}
+                    onRemove={(id) => removeSlide(phytoSet.id, id)}
+                    onReorder={(ids) => reorderSlides(phytoSet.id, ids)}
                     dense={dense}
-                    kind={deck.kind}
+                    kind={phytoSet.kind}
                   />
                 )}
               </div>
@@ -291,15 +297,15 @@ function DeckEditor() {
                 <Field label="Group">
                   <PillInput
                     value={selected.section ?? ""}
-                    onChange={(v) => updateSlide(deck.id, selected.id, { section: v })}
+                    onChange={(v) => updateSlide(phytoSet.id, selected.id, { section: v })}
                     placeholder="Chorus, Verse 1…"
                   />
                 </Field>
-                {deck.kind === "scripture" && (
+                {phytoSet.kind === "scripture" && (
                   <Field label="Reference">
                     <PillInput
                       value={selected.reference ?? ""}
-                      onChange={(v) => updateSlide(deck.id, selected.id, { reference: v })}
+                      onChange={(v) => updateSlide(phytoSet.id, selected.id, { reference: v })}
                       placeholder="e.g. John 3:16"
                     />
                   </Field>
@@ -310,7 +316,7 @@ function DeckEditor() {
                     rows={6}
                     value={selected.lines?.join("\n") ?? ""}
                     onChange={(e) =>
-                      updateSlide(deck.id, selected.id, { lines: e.target.value.split("\n") })
+                      updateSlide(phytoSet.id, selected.id, { lines: e.target.value.split("\n") })
                     }
                     className="rounded-lg border-foreground"
                   />
@@ -322,7 +328,7 @@ function DeckEditor() {
           <button
             onClick={() => {
               if (confirm("Delete this set?")) {
-                deleteDeck(deck.id);
+                deleteSet(phytoSet.id);
                 navigate({ to: "/" });
               }
             }}
@@ -365,7 +371,7 @@ function PillInput({
 }
 
 
-function kindColor(kind?: DeckKind): string {
+function kindColor(kind?: SetKind): string {
   if (kind === "song") return "var(--brand-blue)";
   if (kind === "scripture") return "var(--brand-green)";
   if (kind === "media") return "var(--brand-orange)";
@@ -389,7 +395,7 @@ function SlideGrid({
   onRemove: (id: string) => void;
   onReorder: (ids: string[]) => void;
   dense?: boolean;
-  kind?: DeckKind;
+  kind?: SetKind;
 }) {
   const dragId = useRef<string | null>(null);
   const cols = dense
@@ -457,7 +463,7 @@ function GroupedSongGrid(props: {
   onRemove: (id: string) => void;
   onReorder: (ids: string[]) => void;
   dense?: boolean;
-  kind?: DeckKind;
+  kind?: SetKind;
 }) {
   const SECTION_RE = /^\s*\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?\s*$/i;
   const sectionOf = (s: Slide): string | null => {
@@ -501,8 +507,8 @@ function GroupedSongGrid(props: {
   );
 }
 
-function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
-  const { addSlide, updateDeck } = useLibrary();
+function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
+  const { addSlide, updateSet } = useLibrary();
 
   const [linesPer, setLinesPer] = useState(2);
   const [lyrics, setLyrics] = useState("");
@@ -523,7 +529,7 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
 
   const importLyrics = () => {
     const slides = parseLyrics(lyrics, linesPer);
-    slides.forEach((s) => addSlide(deckId, s));
+    slides.forEach((s) => addSlide(setId, s));
     setLyrics("");
   };
 
@@ -545,8 +551,8 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
 
   const importSong = (s: SongResult) => {
     const slides = parseLyrics(s.lyrics, linesPer);
-    slides.forEach((sl) => addSlide(deckId, sl));
-    updateDeck(deckId, { name: s.title });
+    slides.forEach((sl) => addSlide(setId, sl));
+    updateSet(setId, { name: s.title });
   };
 
   const importScripture = async () => {
@@ -561,8 +567,8 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
       // Annotate each slide's reference so the translation shows on the slide.
       const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks })
         .map((s) => ({ ...s, reference: s.reference ? `${s.reference} ${translation}` : labelled }));
-      slides.forEach((s) => addSlide(deckId, s));
-      updateDeck(deckId, { name: labelled });
+      slides.forEach((s) => addSlide(setId, s));
+      updateSet(setId, { name: labelled });
       setRef("");
     } catch (e) {
       setErr((e as Error).message);
@@ -580,7 +586,7 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
       list.map((f) => fileToCompressedImageDataUrl(f).catch(() => null))
     );
     urls.forEach((url) => {
-      if (url) addSlide(deckId, { kind: "image", imageUrl: url, lines: [] });
+      if (url) addSlide(setId, { kind: "image", imageUrl: url, lines: [] });
     });
   };
 
@@ -670,8 +676,8 @@ function Importers({ deckId, kind }: { deckId: string; kind: DeckKind }) {
         : `${refRaw} ${translation}`;
       const verses = lines.map((text, i) => ({ verse: i + 1, text }));
       const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks });
-      slides.forEach((s) => addSlide(deckId, s));
-      updateDeck(deckId, { name: reference });
+      slides.forEach((s) => addSlide(setId, s));
+      updateSet(setId, { name: reference });
       setManualRef("");
       setManualText("");
     };
@@ -785,10 +791,10 @@ function MediaImporter({ onImport }: { onImport: (files: FileList | null) => voi
   );
 }
 
-function AddToGathering({ deckId }: { deckId: string }) {
+function AddToGathering({ setId }: { setId: string }) {
   const playlists = useLibrary((s) => s.playlists);
   const playlistOrder = useLibrary((s) => s.playlistOrder);
-  const addDeckToPlaylist = useLibrary((s) => s.addDeckToPlaylist);
+  const addSetToPlaylist = useLibrary((s) => s.addSetToPlaylist);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
@@ -821,7 +827,7 @@ function AddToGathering({ deckId }: { deckId: string }) {
               key={p.id}
               onMouseDown={(e) => {
                 e.preventDefault();
-                addDeckToPlaylist(p.id, deckId);
+                addSetToPlaylist(p.id, setId);
                 setAdded(p.name);
                 setQuery("");
                 setOpen(false);
@@ -830,7 +836,7 @@ function AddToGathering({ deckId }: { deckId: string }) {
             >
               <span className="truncate">{p.name}</span>
               <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                {p.deckIds.length} sets
+                {p.setIds.length} sets
               </span>
             </button>
           ))}
