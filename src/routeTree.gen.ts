@@ -19,6 +19,7 @@ import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DeckDeckIdRouteImport } from './routes/deck.$deckId'
+import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedback'
 
 const UpdatesRoute = UpdatesRouteImport.update({
   id: '/updates',
@@ -70,6 +71,11 @@ const DeckDeckIdRoute = DeckDeckIdRouteImport.update({
   path: '/deck/$deckId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicFeedbackRoute = ApiPublicFeedbackRouteImport.update({
+  id: '/api/public/feedback',
+  path: '/api/public/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
+  '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
+  '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/deck/$deckId': typeof DeckDeckIdRoute
+  '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/updates'
     | '/deck/$deckId'
+    | '/api/public/feedback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/updates'
     | '/deck/$deckId'
+    | '/api/public/feedback'
   id:
     | '__root__'
     | '/'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/updates'
     | '/deck/$deckId'
+    | '/api/public/feedback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -158,6 +170,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   UpdatesRoute: typeof UpdatesRoute
   DeckDeckIdRoute: typeof DeckDeckIdRoute
+  ApiPublicFeedbackRoute: typeof ApiPublicFeedbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeckDeckIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/feedback': {
+      id: '/api/public/feedback'
+      path: '/api/public/feedback'
+      fullPath: '/api/public/feedback'
+      preLoaderRoute: typeof ApiPublicFeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -246,7 +266,18 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   UpdatesRoute: UpdatesRoute,
   DeckDeckIdRoute: DeckDeckIdRoute,
+  ApiPublicFeedbackRoute: ApiPublicFeedbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
