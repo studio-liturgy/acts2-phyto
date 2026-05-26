@@ -1,4 +1,4 @@
-import type { Slide, DeckTemplate } from "@/lib/types";
+import type { Slide, SetTemplate } from "@/lib/types";
 import { useEffect, useRef, useState } from "react";
 
 interface Props {
@@ -8,8 +8,8 @@ interface Props {
   className?: string;
   /** Background-size for image slides. Defaults to "contain" so vertical images aren't cropped. */
   imageFit?: "contain" | "cover";
-  /** Visual template (font size/family/background) from the parent deck. */
-  template?: DeckTemplate;
+  /** Visual template (font size/family/background) from the parent set. */
+  template?: SetTemplate;
 }
 
 // Canonical stage size — all variants render at this size, then scale-to-fit.

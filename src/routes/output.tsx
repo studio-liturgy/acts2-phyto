@@ -6,7 +6,7 @@ import { useEffect, useMemo } from "react";
 export const Route = createFileRoute("/output")({
   head: () => ({
     meta: [
-      { title: "Stage — Output" },
+      { title: "Stage Output | phyto" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -15,14 +15,14 @@ export const Route = createFileRoute("/output")({
 
 function Output() {
   const live = useLive();
-  const deck = useLibrary((s) => (live.deckId ? s.decks[live.deckId] : null));
+  const phytoSet = useLibrary((s) => (live.setId ? s.sets[live.setId] : null));
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
   const slide = useMemo(
-    () => deck?.slides.find((s) => s.id === live.slideId) ?? null,
-    [deck, live.slideId]
+    () => phytoSet?.slides.find((s) => s.id === live.slideId) ?? null,
+    [phytoSet, live.slideId]
   );
-  const template = deck?.kind === "song" ? (songDraft ?? songTemplate) : deck?.template;
+  const template = phytoSet?.kind === "song" ? (songDraft ?? songTemplate) : phytoSet?.template;
 
   useEffect(() => {
     const prev = document.body.style.background;
@@ -34,7 +34,7 @@ function Output() {
     };
   }, []);
 
-  const isMedia = deck?.kind === "media";
+  const isMedia = phytoSet?.kind === "media";
   const fadeMs = live.blackoutFadeMs ?? 0;
   const hideContent = live.clear || !slide;
 
@@ -46,7 +46,7 @@ function Output() {
         <DissolveSlide
           slide={slide}
           variant="stage"
-          durationMs={deck?.dissolveMs ?? 0}
+          durationMs={phytoSet?.dissolveMs ?? 0}
           template={template}
           className="h-full w-full"
         />
