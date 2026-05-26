@@ -6,9 +6,9 @@ import { BackToTop } from "@/components/BackToTop";
 export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
-      { title: "Privacy Policy — phyto" },
+      { title: "Privacy Policy | phyto" },
       { name: "description", content: "Privacy policy for phyto." },
-      { property: "og:title", content: "Privacy Policy — phyto" },
+      { property: "og:title", content: "Privacy Policy | phyto" },
       { property: "og:description", content: "Privacy policy for phyto." },
       { property: "og:url", content: "https://phyto.live/privacy" },
     ],

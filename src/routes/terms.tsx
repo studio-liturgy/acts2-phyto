@@ -6,9 +6,9 @@ import { BackToTop } from "@/components/BackToTop";
 export const Route = createFileRoute("/terms")({
   head: () => ({
     meta: [
-      { title: "Terms of Use — phyto" },
+      { title: "Terms of Use | phyto" },
       { name: "description", content: "Terms of use for phyto." },
-      { property: "og:title", content: "Terms of Use — phyto" },
+      { property: "og:title", content: "Terms of Use | phyto" },
       { property: "og:description", content: "Terms of use for phyto." },
       { property: "og:url", content: "https://phyto.live/terms" },
     ],
@@ -37,7 +37,7 @@ function Terms() {
 
           <section>
             <h2 className="text-2xl">2. Always Free</h2>
-            <p className="mt-2">Phyto is, and will always remain, free to use. There is no fee, subscription, paywall, or in-app purchase required to access any feature of the App — now or in the future.</p>
+            <p className="mt-2">Phyto is, and will always remain, free to use. There is no fee, subscription, paywall, or in-app purchase required to access any feature of the App. Now or in the future.</p>
           </section>
 
           <section>
@@ -51,7 +51,7 @@ function Terms() {
           </section>
 
           <section>
-            <h2 className="text-2xl">5. Music Licensing — Your Responsibility</h2>
+            <h2 className="text-2xl">5. Music Licensing Is Your Responsibility</h2>
             <p className="mt-2">Phyto is a presentation tool only. It does not license, distribute, or authorise the public performance, reproduction, or display of copyrighted musical works.</p>
             <p className="mt-2">If you use Phyto to display song lyrics or other copyrighted content in a public or congregational setting, you are solely responsible for obtaining the appropriate licences. We strongly recommend licensing through one or more of the following, depending on your context:</p>
             <ul className="mt-2 list-disc space-y-1 pl-6">
