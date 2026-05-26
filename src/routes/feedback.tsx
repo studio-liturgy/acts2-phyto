@@ -47,18 +47,55 @@ const ACTIVE_CHIP: Record<Category, string> = {
   "Design Feedback": "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]",
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type Status = "idle" | "submitting" | "success" | "error";
+
 function FeedbackPage() {
   const [category, setCategory] = useState<Category | null>(null);
   const [message, setMessage] = useState("");
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMsg, setErrorMsg] = useState<string>("");
 
-  const canSubmit = category !== null && message.trim().length > 0;
+  const trimmedEmail = email.trim();
+  const emailValid = trimmedEmail.length === 0 || (trimmedEmail.length <= 255 && EMAIL_RE.test(trimmedEmail));
+  const canSubmit =
+    category !== null &&
+    message.trim().length > 0 &&
+    message.trim().length <= 5000 &&
+    emailValid &&
+    status !== "submitting";
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit) return;
-    const subject = `phyto - ${category}`;
-    const mailto = `mailto:hello@studioliturgy.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
-    window.location.href = mailto;
+    if (!canSubmit || !category) return;
+    setStatus("submitting");
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/public/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category,
+          message: message.trim(),
+          email: trimmedEmail || undefined,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setStatus("error");
+        setErrorMsg(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setStatus("success");
+      setCategory(null);
+      setMessage("");
+      setEmail("");
+    } catch {
+      setStatus("error");
+      setErrorMsg("Network error. Please try again.");
+    }
   };
 
   return (
@@ -97,16 +134,48 @@ function FeedbackPage() {
             onChange={(e) => setMessage(e.target.value)}
             placeholder={category ? `Share your ${category.toLowerCase()}...` : "Select a category, then write here..."}
             rows={10}
+            maxLength={5000}
             className="w-full resize-y rounded-3xl border-2 border-foreground bg-background p-6 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
           />
 
-          <div className="flex justify-end">
+          <div className="space-y-2">
+            <label htmlFor="reply-email" className="mono block text-xs uppercase tracking-wider opacity-80">
+              Your email <span className="opacity-60">(optional, if you'd like a reply)</span>
+            </label>
+            <input
+              id="reply-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              maxLength={255}
+              autoComplete="email"
+              className="w-full rounded-full border-2 border-foreground bg-background px-6 py-3 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
+            />
+            {!emailValid && (
+              <p className="mono text-xs uppercase tracking-wider text-[var(--brand-red)]">
+                Please enter a valid email or leave blank.
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col items-end gap-3">
+            {status === "success" && (
+              <p className="mono text-xs uppercase tracking-wider text-[var(--brand-green)]">
+                Thanks — we got your feedback.
+              </p>
+            )}
+            {status === "error" && (
+              <p className="mono text-xs uppercase tracking-wider text-[var(--brand-red)]">
+                {errorMsg}
+              </p>
+            )}
             <button
               type="submit"
               disabled={!canSubmit}
               className="pill mono bg-foreground px-6 py-2.5 text-sm uppercase tracking-wider text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Send Feedback
+              {status === "submitting" ? "Sending..." : "Send Feedback"}
             </button>
           </div>
         </form>
