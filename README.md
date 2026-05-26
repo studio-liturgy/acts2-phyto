@@ -38,3 +38,8 @@ phyto is licensed under the GNU General Public License v3.0.
 - Instagram: [@phyto.live](https://www.instagram.com/phyto.live)
 - Email: [hello@studioliturgy.com](mailto:hello@studioliturgy.com)
 - Donate: [Ko-fi](https://ko-fi.com/valiantchan)
+
+
+### "phyto"
+
+phyto is short for phytoplankton. Organisms that use sunlight, freely available in abundance, to survive, live, and breathe. Our times of worship together should work the same way.
