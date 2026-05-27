@@ -248,7 +248,7 @@ function Library() {
 
           {playlistOrder.length === 0 ? (
             <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
-              No gatherings yet. Click <b>New</b> to plan a gathering.
+              No gatherings yet. Click New to plan a gathering.
             </div>
           ) : filteredPlaylistIds.length === 0 ? (
             <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
