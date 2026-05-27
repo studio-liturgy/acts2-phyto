@@ -15,7 +15,7 @@ export function Footer() {
           <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className={linkCls}>Instagram</a>
           <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className={linkCls}>Donate</a>
           <Link to="/feedback" className={linkCls}>Feedback</Link>
-          <a href="#" target="_blank" rel="noopener noreferrer" className={linkCls}>Source</a>
+          <a href="https://github.com/studio-liturgy" target="_blank" rel="noopener noreferrer" className={linkCls}>Source</a>
         </nav>
         <div className="flex justify-center">
           <Link to="/">
