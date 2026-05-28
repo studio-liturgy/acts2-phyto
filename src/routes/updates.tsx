@@ -27,6 +27,13 @@ function Updates() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-6">
           <li>
+            <div className="mono text-xs uppercase tracking-wider opacity-80">MAY 28, 2026</div>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              <li>Reviewed and adjusted all copy for coherence</li>
+              <li>Removed password and publicized GitHub repo. The app is now completely free and open source!</li>
+            </ul>
+          </li>
+          <li>
             <div className="mono text-xs uppercase tracking-wider opacity-80">MAY 21, 2026</div>
             <p className="mt-1">Released beta for test users.</p>
           </li>
