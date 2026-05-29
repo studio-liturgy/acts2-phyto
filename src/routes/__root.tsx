@@ -17,6 +17,17 @@ import { supabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
+import { checkForRemoteChanges, pullFromSupabase } from "@/lib/sync";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 function NotFoundComponent() {
   return (
@@ -134,7 +145,7 @@ const themeInitScript = `(function(){try{var m=localStorage.getItem('phyto-theme
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
@@ -156,15 +167,26 @@ function RootComponent() {
   const showOutlet = !isMobile || allowedOnMobile;
   const { session, setSession } = useAuthStore();
   const loadFromDb = useLibrary((s) => s.loadFromDb);
+  const [showSyncDialog, setShowSyncDialog] = useState(false);
 
   useEffect(() => {
     loadFromDb();
     getSession().then((s) => {
       setSession(s);
+      if (s) {
+        checkForRemoteChanges().then((hasRemote) => {
+          if (hasRemote) setShowSyncDialog(true);
+        });
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
+      if (s && event === "SIGNED_IN") {
+        checkForRemoteChanges().then((hasRemote) => {
+          if (hasRemote) setShowSyncDialog(true);
+        });
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -176,10 +198,34 @@ function RootComponent() {
     }
   }, [session, pathname, navigate]);
 
+  const handleApplyRemote = async () => {
+    await pullFromSupabase();
+    await loadFromDb();
+    setShowSyncDialog(false);
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       {showOutlet && <Outlet />}
       <MobileBlock />
+      <AlertDialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Changes from another device</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your catalogue has been updated on another device. Would you like to apply those changes?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowSyncDialog(false)}>
+              Keep Local
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleApplyRemote}>
+              Apply
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </QueryClientProvider>
   );
 }

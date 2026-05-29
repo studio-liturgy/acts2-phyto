@@ -2,9 +2,20 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import type { Set as PhytoSet, Slide, LiveState, Playlist, SetTemplate } from "./types";
 import { db } from "./db";
+import { pushToSupabase } from "./sync";
 
 function uid() {
-  return Math.random().toString(36).slice(2, 10);
+  return crypto.randomUUID();
+}
+
+// Debounce pushToSupabase so rapid consecutive mutations fire only one push.
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+function schedulePush() {
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    pushTimer = null;
+    pushToSupabase();
+  }, 500);
 }
 
 interface LibraryState {
@@ -74,7 +85,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       sets: { ...s.sets, [id]: record },
       order: [id, ...s.order],
     }));
-    db.sets.add(record);
+    db.sets.add(record).then(() => schedulePush());
     return id;
   },
 
@@ -83,14 +94,14 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const d = s.sets[id];
       if (!d) return s;
       const updated = { ...d, ...patch, updatedAt: Date.now() };
-      db.sets.put(updated);
+      db.sets.put(updated).then(() => schedulePush());
       return { sets: { ...s.sets, [id]: updated } };
     }),
 
   deleteSet: (id) =>
     set((s) => {
       const { [id]: _gone, ...rest } = s.sets;
-      db.sets.delete(id);
+      db.sets.delete(id).then(() => schedulePush());
       return { sets: rest, order: s.order.filter((x) => x !== id) };
     }),
 
@@ -100,7 +111,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const d = s.sets[setId];
       if (!d) return s;
       const updated = { ...d, slides: [...d.slides, { ...slide, id }], updatedAt: Date.now() };
-      db.sets.put(updated);
+      db.sets.put(updated).then(() => schedulePush());
       return { sets: { ...s.sets, [setId]: updated } };
     });
     return id;
@@ -115,7 +126,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         slides: d.slides.map((sl) => (sl.id === slideId ? { ...sl, ...patch } : sl)),
         updatedAt: Date.now(),
       };
-      db.sets.put(updated);
+      db.sets.put(updated).then(() => schedulePush());
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
@@ -128,7 +139,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         slides: d.slides.filter((sl) => sl.id !== slideId),
         updatedAt: Date.now(),
       };
-      db.sets.put(updated);
+      db.sets.put(updated).then(() => schedulePush());
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
@@ -139,7 +150,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const map = new Map(d.slides.map((sl) => [sl.id, sl]));
       const slides = ids.map((i) => map.get(i)!).filter(Boolean);
       const updated = { ...d, slides, updatedAt: Date.now() };
-      db.sets.put(updated);
+      db.sets.put(updated).then(() => schedulePush());
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
@@ -158,7 +169,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       playlists: { ...s.playlists, [id]: record },
       playlistOrder: [id, ...s.playlistOrder],
     }));
-    db.gatherings.add(record);
+    db.gatherings.add(record).then(() => schedulePush());
     return id;
   },
 
@@ -167,14 +178,14 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const p = s.playlists[id];
       if (!p) return s;
       const updated = { ...p, name, updatedAt: Date.now() };
-      db.gatherings.put(updated);
+      db.gatherings.put(updated).then(() => schedulePush());
       return { playlists: { ...s.playlists, [id]: updated } };
     }),
 
   deletePlaylist: (id) =>
     set((s) => {
       const { [id]: _gone, ...rest } = s.playlists;
-      db.gatherings.delete(id);
+      db.gatherings.delete(id).then(() => schedulePush());
       return { playlists: rest, playlistOrder: s.playlistOrder.filter((x) => x !== id) };
     }),
 
@@ -183,7 +194,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const p = s.playlists[playlistId];
       if (!p) return s;
       const updated = { ...p, setIds: [...p.setIds, setId], updatedAt: Date.now() };
-      db.gatherings.put(updated);
+      db.gatherings.put(updated).then(() => schedulePush());
       return { playlists: { ...s.playlists, [playlistId]: updated } };
     }),
 
@@ -200,7 +211,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         setIds = p.setIds.filter((_, i) => i !== idx);
       }
       const updated = { ...p, setIds, updatedAt: Date.now() };
-      db.gatherings.put(updated);
+      db.gatherings.put(updated).then(() => schedulePush());
       return { playlists: { ...s.playlists, [playlistId]: updated } };
     }),
 
@@ -209,7 +220,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const p = s.playlists[playlistId];
       if (!p) return s;
       const updated = { ...p, setIds, updatedAt: Date.now() };
-      db.gatherings.put(updated);
+      db.gatherings.put(updated).then(() => schedulePush());
       return { playlists: { ...s.playlists, [playlistId]: updated } };
     }),
 }));

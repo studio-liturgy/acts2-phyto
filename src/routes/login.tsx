@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { signInWithEmail } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -32,6 +33,12 @@ function LoginPage() {
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}
+      >
+        Continue with Google
+      </button>
       <form onSubmit={handleSubmit}>
         <input
           type="email"

@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { useIsSignedIn } from "@/lib/authStore";
+import { useSyncStatus } from "@/hooks/use-sync-status";
 import { Input } from "@/components/ui/input";
 import {
   Plus,
@@ -132,6 +133,7 @@ function Library() {
   } = useLibrary();
 
   const isSignedIn = useIsSignedIn();
+  const syncStatus = useSyncStatus();
   const [showGoLivePrompt, setShowGoLivePrompt] = useState(false);
 
   const [playlistFilter, setPlaylistFilter] = useState("");
@@ -211,6 +213,13 @@ function Library() {
           </a>
 
           <div className="ml-auto flex flex-wrap items-center gap-4">
+            {isSignedIn && (
+              <span data-sync={syncStatus}>
+                {syncStatus === 'synced' && 'Synced'}
+                {syncStatus === 'syncing' && 'Syncing…'}
+                {syncStatus === 'offline' && 'Offline'}
+              </span>
+            )}
             {isSignedIn ? (
               <button onClick={() => signOut()}>Sign out</button>
             ) : (
