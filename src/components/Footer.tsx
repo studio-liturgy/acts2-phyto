@@ -1,14 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import wordmark from "@/assets/wordmark.svg";
 import { ThemeToggle } from "@/components/ThemeToggle";
-
-
+import { cn } from "@/lib/utils";
 
 const linkCls = "transition-opacity duration-200 hover:opacity-60";
 
-export function Footer() {
+export function Footer({ className }: { className?: string }) {
   return (
-    <footer className="mt-20 hidden bg-[var(--brand-blue)] text-[var(--brand-white)] md:block">
+    <footer className={cn("mt-20 hidden bg-[var(--brand-blue)] text-[var(--brand-white)] md:block", className)}>
       <div className="mx-auto grid max-w-6xl grid-cols-3 items-center gap-4 px-6 py-8">
         <nav className="flex items-center gap-6 text-sm">
           <Link to="/about" className={linkCls}>About</Link>

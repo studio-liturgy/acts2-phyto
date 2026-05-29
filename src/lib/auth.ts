@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 export async function signInWithEmail(email: string) {
   return supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.origin },
+    options: { emailRedirectTo: window.location.origin + '/auth/callback' },
   });
 }
 

@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
-import aboutBg from "@/assets/about-bg.jpg";
+import { BackToTop } from "@/components/BackToTop";
+const aboutBg = "/about-bg.jpg";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -22,9 +23,9 @@ export const Route = createFileRoute("/about")({
 
 function About() {
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
+    <div className="flex flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
       <section
-        className="relative w-full bg-[var(--brand-blue)]"
+        className="relative flex-1 w-full bg-[var(--brand-blue)]"
         style={{
           backgroundImage: `url(${aboutBg})`,
           backgroundSize: "cover",
@@ -82,10 +83,13 @@ function About() {
           <p className="mono mt-20 max-w-4xl text-xs leading-relaxed text-[var(--brand-white)]">
             phyto is short for phytoplankton. Organisms that use sunlight, freely available in abundance, to survive, live, and breathe. Our times of worship together should work the same way.
           </p>
+          <div className="mt-12">
+            <BackToTop />
+          </div>
         </div>
       </section>
 
-      <Footer />
+      <Footer className="mt-0" />
     </div>
   );
 }
