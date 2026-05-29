@@ -2,18 +2,24 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import type { Set as PhytoSet, Slide, LiveState, Playlist, SetTemplate } from "./types";
 import { db } from "./db";
-import { pushToSupabase } from "./sync";
+import { pushToSupabase, shouldSkipPush } from "./sync";
 
 function uid() {
   return crypto.randomUUID();
 }
 
 // Debounce pushToSupabase so rapid consecutive mutations fire only one push.
+// If another tab just completed a push and broadcast sync-complete, skip this
+// tab's push — the data is already in Supabase and loadFromDb has been called.
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 function schedulePush() {
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
     pushTimer = null;
+    if (shouldSkipPush()) {
+      console.log('[sync] schedulePush: skipped — another tab synced recently');
+      return;
+    }
     pushToSupabase();
   }, 500);
 }

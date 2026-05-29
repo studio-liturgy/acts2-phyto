@@ -90,16 +90,50 @@ function fromSupabaseGathering(
 }
 
 // ---------------------------------------------------------------------------
+// BroadcastChannel — cross-tab coordination
+// ---------------------------------------------------------------------------
+
+const SYNC_CHANNEL = 'phyto-sync-channel';
+let syncChannel: BroadcastChannel | null = null;
+
+// Flag set when another tab just completed a push. The next schedulePush call
+// will skip its own push since the data is already in Supabase.
+let remoteSyncedRecently = false;
+
+function getSyncChannel(): BroadcastChannel | null {
+  if (typeof window === 'undefined') return null;
+  if (!syncChannel) {
+    syncChannel = new BroadcastChannel(SYNC_CHANNEL);
+    syncChannel.addEventListener('message', async (e) => {
+      if (e.data?.type === 'sync-complete') {
+        console.log('[sync] received sync-complete from another tab — refreshing from Dexie');
+        remoteSyncedRecently = true;
+        // Import lazily to avoid circular dependency at module load time.
+        const { useLibrary } = await import('./store');
+        await useLibrary.getState().loadFromDb();
+        useSyncStatusStore.getState().setStatus('synced');
+        // Clear the flag after a brief window so future local changes still push.
+        setTimeout(() => { remoteSyncedRecently = false; }, 1000);
+      }
+    });
+  }
+  return syncChannel;
+}
+
+// Initialise the channel eagerly on the client side.
+if (typeof window !== 'undefined') getSyncChannel();
+
+/** Call this from store.ts instead of pushToSupabase directly. Skips the push
+ *  if another tab just completed one, preventing redundant writes. */
+export function shouldSkipPush(): boolean {
+  return remoteSyncedRecently;
+}
+
+// ---------------------------------------------------------------------------
 // Push local → Supabase
 // ---------------------------------------------------------------------------
 
-export async function pushToSupabase(): Promise<void> {
-  const session = getSession();
-  if (!session) {
-    console.log('[sync] pushToSupabase: skipped — no session');
-    return;
-  }
-  const userId = session.user.id;
+async function doPush(userId: string): Promise<void> {
   const { setStatus } = useSyncStatusStore.getState();
 
   console.log('[sync] pushToSupabase: starting push for user', userId);
@@ -152,9 +186,31 @@ export async function pushToSupabase(): Promise<void> {
 
     console.log('[sync] pushToSupabase: done');
     setStatus('synced');
+    getSyncChannel()?.postMessage({ type: 'sync-complete' });
   } catch (e) {
     console.error('[sync] pushToSupabase: unexpected error', e);
     setStatus('synced');
+  }
+}
+
+export async function pushToSupabase(): Promise<void> {
+  const session = getSession();
+  if (!session) {
+    console.log('[sync] pushToSupabase: skipped — no session');
+    return;
+  }
+  const userId = session.user.id;
+
+  // Use Web Locks API if available so only one tab pushes at a time.
+  // Other tabs queue and wait; they will receive sync-complete via BroadcastChannel
+  // and can skip their own push.
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    await navigator.locks.request('phyto-sync', async () => {
+      await doPush(userId);
+    });
+  } else {
+    // Fallback: no locking, run directly.
+    await doPush(userId);
   }
 }
 

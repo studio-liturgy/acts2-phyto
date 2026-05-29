@@ -3,6 +3,17 @@ import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { useIsSignedIn } from "@/lib/authStore";
 import { useSyncStatus } from "@/hooks/use-sync-status";
+import { exportCatalogue, importCatalogue } from "@/lib/catalogue-io";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Plus,
@@ -135,6 +146,34 @@ function Library() {
   const isSignedIn = useIsSignedIn();
   const syncStatus = useSyncStatus();
   const [showGoLivePrompt, setShowGoLivePrompt] = useState(false);
+
+  // Catalogue import/export
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const [importedCount, setImportedCount] = useState<number | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+
+  const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPendingImportFile(file);
+    setImportedCount(null);
+    setImportError(null);
+    e.target.value = '';
+  };
+
+  const handleImport = async (mode: 'merge' | 'replace') => {
+    if (!pendingImportFile) return;
+    try {
+      const count = await importCatalogue(pendingImportFile, mode);
+      setImportedCount(count);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Import failed.');
+    } finally {
+      setPendingImportFile(null);
+    }
+  };
 
   const [playlistFilter, setPlaylistFilter] = useState("");
   const [showPlaylistSearch, setShowPlaylistSearch] = useState(false);
@@ -317,6 +356,19 @@ function Library() {
                     {k === "all" ? "All" : k === "song" ? "Songs" : k === "scripture" ? "Scriptures" : "Media"}
                   </button>
                 ))}
+                <button type="button" onClick={() => importFileRef.current?.click()}>
+                  Import
+                </button>
+                <input
+                  ref={importFileRef}
+                  type="file"
+                  accept=".phyto"
+                  style={{ display: 'none' }}
+                  onChange={handleImportFileChange}
+                />
+                <button type="button" onClick={() => setShowExportConfirm(true)}>
+                  Export
+                </button>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -422,6 +474,44 @@ function Library() {
       </main>
 
       <Footer />
+
+      {importedCount !== null && (
+        <p>{importedCount} set{importedCount === 1 ? '' : 's'} imported successfully.</p>
+      )}
+      {importError && <p>{importError}</p>}
+
+      <AlertDialog open={showExportConfirm} onOpenChange={setShowExportConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Export Catalogue</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will download all your sets as a .phyto file.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowExportConfirm(false); exportCatalogue(); }}>
+              Download
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={pendingImportFile !== null} onOpenChange={(open) => { if (!open) setPendingImportFile(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Import Catalogue</AlertDialogTitle>
+            <AlertDialogDescription>
+              Merge with existing catalogue or replace it? Merge adds and overwrites sets by ID without deleting anything. Replace clears your current catalogue first.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingImportFile(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleImport('merge')}>Merge</AlertDialogAction>
+            <AlertDialogAction onClick={() => handleImport('replace')}>Replace</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {showGoLivePrompt && (
         <div>
