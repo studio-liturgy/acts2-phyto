@@ -3,8 +3,15 @@ import wordmark from "@/assets/wordmark.svg";
 
 const linkCls = "transition-opacity duration-200 hover:opacity-60";
 
-// Routes that remain viewable on mobile (informational pages).
-export const MOBILE_ALLOWED = ["/about", "/updates", "/terms", "/privacy", "/feedback"];
+const EXACT_ALLOWED = ["/about", "/updates", "/terms", "/privacy", "/feedback"];
+const PREFIX_ALLOWED = ["/g/"];
+
+// Supports exact paths and prefix patterns. __root.tsx calls MOBILE_ALLOWED.includes(pathname).
+export const MOBILE_ALLOWED = {
+  includes: (pathname: string) =>
+    EXACT_ALLOWED.includes(pathname) ||
+    PREFIX_ALLOWED.some((p) => pathname.startsWith(p)),
+};
 
 /**
  * Shown only on small screens (<md). Blocks the app on mobile and

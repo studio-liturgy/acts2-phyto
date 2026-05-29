@@ -20,6 +20,7 @@ import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SetSetIdRouteImport } from './routes/set.$setId'
+import { Route as GTokenRouteImport } from './routes/g.$token'
 import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedback'
 
 const UpdatesRoute = UpdatesRouteImport.update({
@@ -77,6 +78,11 @@ const SetSetIdRoute = SetSetIdRouteImport.update({
   path: '/set/$setId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GTokenRoute = GTokenRouteImport.update({
+  id: '/g/$token',
+  path: '/g/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicFeedbackRoute = ApiPublicFeedbackRouteImport.update({
   id: '/api/public/feedback',
   path: '/api/public/feedback',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
+  '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
+  '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
+  '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/updates'
+    | '/g/$token'
     | '/set/$setId'
     | '/api/public/feedback'
   fileRoutesByTo: FileRoutesByTo
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/updates'
+    | '/g/$token'
     | '/set/$setId'
     | '/api/public/feedback'
   id:
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/updates'
+    | '/g/$token'
     | '/set/$setId'
     | '/api/public/feedback'
   fileRoutesById: FileRoutesById
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   UpdatesRoute: typeof UpdatesRoute
+  GTokenRoute: typeof GTokenRoute
   SetSetIdRoute: typeof SetSetIdRoute
   ApiPublicFeedbackRoute: typeof ApiPublicFeedbackRoute
 }
@@ -265,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetSetIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/g/$token': {
+      id: '/g/$token'
+      path: '/g/$token'
+      fullPath: '/g/$token'
+      preLoaderRoute: typeof GTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/feedback': {
       id: '/api/public/feedback'
       path: '/api/public/feedback'
@@ -286,6 +306,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   UpdatesRoute: UpdatesRoute,
+  GTokenRoute: GTokenRoute,
   SetSetIdRoute: SetSetIdRoute,
   ApiPublicFeedbackRoute: ApiPublicFeedbackRoute,
 }

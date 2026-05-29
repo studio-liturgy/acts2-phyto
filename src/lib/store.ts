@@ -22,6 +22,7 @@ function schedulePush() {
       console.log('[sync] schedulePush: skipped — another tab synced recently');
       return;
     }
+    console.log('[sync] schedulePush: debounce elapsed, calling pushToSupabase at', new Date().toISOString());
     pushToSupabase();
   }, 500);
 }
@@ -229,7 +230,11 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const p = s.playlists[playlistId];
       if (!p) return s;
       const updated = { ...p, setIds: [...p.setIds, setId], updatedAt: Date.now() };
-      db.gatherings.put(updated).then(() => schedulePush());
+      console.log('[addSetToPlaylist] gathering', playlistId, '| added set', setId, '| setIds now:', updated.setIds, '| is_live:', updated.is_live, '| scheduling push in 500ms');
+      db.gatherings.put(updated).then(() => {
+        console.log('[addSetToPlaylist] Dexie write done, firing schedulePush');
+        schedulePush();
+      });
       return { playlists: { ...s.playlists, [playlistId]: updated } };
     }),
 
@@ -279,6 +284,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }
     const userId = session.user.id;
 
+    console.log('[goLive] started at', new Date().toISOString(), '| target is_live in store:', target.is_live, '| setIds:', target.setIds);
     console.log('[goLive] upserting gathering to Supabase before going live...');
     const { error: upsertErr } = await supabase
       .from('gatherings')
@@ -333,7 +339,8 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       }
       return { playlists: updated };
     });
-    console.log('[goLive] done — gathering is live:', gatheringId);
+    const finalStore = get().playlists[gatheringId];
+    console.log('[goLive] done at', new Date().toISOString(), '| Zustand is_live:', finalStore?.is_live, '| gathering:', gatheringId);
   },
 
   endSession: async (gatheringId) => {

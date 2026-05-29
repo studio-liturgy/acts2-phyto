@@ -54,12 +54,13 @@ function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
 }
 
 function toSupabaseGathering(p: Playlist, userId: string, deviceId: string) {
+  console.log('[toSupabaseGathering] pushing gathering', p.id, '| is_live:', p.is_live, '| updatedAt:', new Date(p.updatedAt).toISOString());
   return {
     id: p.id,
     user_id: userId,
     title: p.name,
     share_token: p.share_token,
-    is_live: false,
+    is_live: p.is_live,
     current_set_index: 0,
     current_slide_index: 0,
     created_at: new Date(p.createdAt).toISOString(),
