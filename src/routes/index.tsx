@@ -196,9 +196,14 @@ function Library() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="px-6 pt-6 md:pt-10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4">
-          <p className="mono hidden text-xs italic text-muted-foreground md:block">
-            Prepare sets, group them into gatherings, and present them live!
-          </p>
+          <a
+            href="https://www.instagram.com/p/DY51Nn4yylm/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pill flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+          >
+            Quick Tutorial
+          </a>
 
           <div className="ml-auto flex flex-wrap items-center gap-4">
             <Link
