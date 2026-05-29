@@ -17,17 +17,20 @@ import { supabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
-import { checkForRemoteChanges, pullFromSupabase } from "@/lib/sync";
 import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
+  diffWithSupabase,
+  hasDifferences,
+  applyMerge,
+  type SyncDiff,
+} from "@/lib/sync";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 function NotFoundComponent() {
   return (
@@ -167,26 +170,23 @@ function RootComponent() {
   const showOutlet = !isMobile || allowedOnMobile;
   const { session, setSession } = useAuthStore();
   const loadFromDb = useLibrary((s) => s.loadFromDb);
-  const [showSyncDialog, setShowSyncDialog] = useState(false);
+  const [syncDiff, setSyncDiff] = useState<SyncDiff | null>(null);
+
+  const runDiff = async () => {
+    const diff = await diffWithSupabase();
+    if (diff && hasDifferences(diff)) setSyncDiff(diff);
+  };
 
   useEffect(() => {
     loadFromDb();
     getSession().then((s) => {
       setSession(s);
-      if (s) {
-        checkForRemoteChanges().then((hasRemote) => {
-          if (hasRemote) setShowSyncDialog(true);
-        });
-      }
+      if (s) runDiff();
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
-      if (s && event === "SIGNED_IN") {
-        checkForRemoteChanges().then((hasRemote) => {
-          if (hasRemote) setShowSyncDialog(true);
-        });
-      }
+      if (s && event === "SIGNED_IN") runDiff();
     });
 
     return () => subscription.unsubscribe();
@@ -198,34 +198,51 @@ function RootComponent() {
     }
   }, [session, pathname, navigate]);
 
-  const handleApplyRemote = async () => {
-    await pullFromSupabase();
+  const handleMerge = async () => {
+    if (!syncDiff) return;
+    await applyMerge(syncDiff);
     await loadFromDb();
-    setShowSyncDialog(false);
+    setSyncDiff(null);
   };
 
   return (
     <QueryClientProvider client={queryClient}>
       {showOutlet && <Outlet />}
       <MobileBlock />
-      <AlertDialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Changes from another device</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your catalogue has been updated on another device. Would you like to apply those changes?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowSyncDialog(false)}>
-              Keep Local
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleApplyRemote}>
-              Apply
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Dialog open={syncDiff !== null} onOpenChange={(open) => { if (!open) setSyncDiff(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sync conflict detected</DialogTitle>
+            <DialogDescription>
+              {syncDiff && (
+                <>
+                  {syncDiff.onlyLocal.sets.length > 0 && (
+                    <span>{syncDiff.onlyLocal.sets.length} set(s) only on this device. </span>
+                  )}
+                  {syncDiff.onlyLocal.gatherings.length > 0 && (
+                    <span>{syncDiff.onlyLocal.gatherings.length} gathering(s) only on this device. </span>
+                  )}
+                  {syncDiff.onlyRemote.sets.length > 0 && (
+                    <span>{syncDiff.onlyRemote.sets.length} set(s) only in Supabase. </span>
+                  )}
+                  {syncDiff.onlyRemote.gatherings.length > 0 && (
+                    <span>{syncDiff.onlyRemote.gatherings.length} gathering(s) only in Supabase. </span>
+                  )}
+                  {syncDiff.modified.sets.length > 0 && (
+                    <span>{syncDiff.modified.sets.length} set(s) modified. </span>
+                  )}
+                  {syncDiff.modified.gatherings.length > 0 && (
+                    <span>{syncDiff.modified.gatherings.length} gathering(s) modified. </span>
+                  )}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button onClick={handleMerge}>Merge</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </QueryClientProvider>
   );
 }

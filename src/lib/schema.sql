@@ -3,6 +3,15 @@
 -- ============================================================
 
 -- ------------------------------------------------------------
+-- UPGRADE MIGRATION — Run this in Supabase SQL Editor if
+-- upgrading from a schema version that predates last_modified_by.
+-- Safe to run multiple times (IF NOT EXISTS / DO NOTHING).
+-- ------------------------------------------------------------
+-- alter table sets      add column if not exists last_modified_by text;
+-- alter table gatherings add column if not exists last_modified_by text;
+-- ------------------------------------------------------------
+
+-- ------------------------------------------------------------
 -- Helper: auto-update updated_at
 -- ------------------------------------------------------------
 create or replace function update_updated_at()
@@ -24,9 +33,10 @@ create table if not exists sets (
   title       text        not null,
   type        text        not null,   -- 'song' | 'scripture' | 'image'
   content     jsonb       not null default '{"en": ""}',
-  created_at  timestamptz default now(),
-  updated_at  timestamptz default now(),
-  synced_at   timestamptz default now()
+  created_at        timestamptz default now(),
+  updated_at        timestamptz default now(),
+  synced_at         timestamptz default now(),
+  last_modified_by  text
 );
 
 create trigger sets_updated_at
@@ -66,7 +76,8 @@ create table if not exists gatherings (
   current_set_index   int         default 0,
   current_slide_index int         default 0,
   created_at          timestamptz default now(),
-  updated_at          timestamptz default now()
+  updated_at          timestamptz default now(),
+  last_modified_by    text
 );
 
 create trigger gatherings_updated_at

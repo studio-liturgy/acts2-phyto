@@ -20,6 +20,11 @@ export class PhytoDB extends Dexie {
       gatherings: 'id, &share_token, createdAt, updatedAt',
       gathering_sets: 'id, gathering_id, set_id, position',
     });
+    this.version(2).stores({
+      sets: 'id, createdAt, updatedAt',
+      gatherings: 'id, share_token, createdAt, updatedAt',
+      gathering_sets: 'id, gathering_id, set_id, position',
+    });
   }
 }
 

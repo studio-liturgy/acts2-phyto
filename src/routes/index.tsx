@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { QRCodeSVG } from "qrcode.react";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { useIsSignedIn } from "@/lib/authStore";
@@ -33,6 +34,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { useMemo, useRef, useState } from "react";
 import type { SetKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
@@ -141,11 +150,14 @@ function Library() {
     addSetToPlaylist,
     removeSetFromPlaylist,
     reorderPlaylistSets,
+    goLive,
+    endSession,
   } = useLibrary();
 
   const isSignedIn = useIsSignedIn();
   const syncStatus = useSyncStatus();
   const [showGoLivePrompt, setShowGoLivePrompt] = useState(false);
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
 
   // Catalogue import/export
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -260,7 +272,7 @@ function Library() {
               </span>
             )}
             {isSignedIn ? (
-              <button onClick={() => signOut()}>Sign out</button>
+              <button onClick={() => setShowSignOutDialog(true)}>Sign out</button>
             ) : (
               <Link to="/login">Sign in</Link>
             )}
@@ -328,12 +340,16 @@ function Library() {
                     playlistId={pid}
                     name={p.name}
                     setIds={p.setIds}
+                    isLive={p.is_live}
+                    shareToken={p.share_token}
                     allSets={Object.values(sets)}
                     onRename={(name) => renamePlaylist(pid, name)}
                     onDelete={() => deletePlaylist(pid)}
                     onAdd={(setId) => addSetToPlaylist(pid, setId)}
                     onRemoveAt={(i) => removeSetFromPlaylist(pid, i)}
                     onReorder={(ids) => reorderPlaylistSets(pid, ids)}
+                    onGoLive={() => isSignedIn ? goLive(pid) : setShowGoLivePrompt(true)}
+                    onEndSession={() => endSession(pid)}
                   />
                 );
               })}
@@ -480,6 +496,23 @@ function Library() {
       )}
       {importError && <p>{importError}</p>}
 
+      <AlertDialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Any live sessions you've started will remain live and accessible to viewers until you end them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowSignOutDialog(false); signOut(); }}>
+              Sign out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={showExportConfirm} onOpenChange={setShowExportConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -534,16 +567,24 @@ function PlaylistCard({
   onRemoveAt,
   onReorder,
   playlistId,
+  isLive,
+  shareToken,
+  onGoLive,
+  onEndSession,
 }: {
   playlistId: string;
   name: string;
   setIds: string[];
+  isLive: boolean;
+  shareToken: string;
   allSets: { id: string; name: string; kind: SetKind }[];
   onRename: (name: string) => void;
   onDelete: () => void;
   onAdd: (setId: string) => void;
   onRemoveAt: (index: number) => void;
   onReorder: (ids: string[]) => void;
+  onGoLive: () => void;
+  onEndSession: () => void;
 }) {
   const dragIndex = useRef<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
@@ -552,6 +593,15 @@ function PlaylistCard({
   const [editingName, setEditingName] = useState(false);
   // Edit mode reveals destructive controls + the "search for a set" input.
   const [editMode, setEditMode] = useState(false);
+
+  const isSignedIn = useIsSignedIn();
+  const [showGoLiveDialog, setShowGoLiveDialog] = useState(false);
+  const [showEndSessionDialog, setShowEndSessionDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+
+  const shareUrl = `https://phyto.live/g/${shareToken}`;
 
   const nameLookup = useMemo(
     () => Object.fromEntries(allSets.map((d) => [d.id, d])),
@@ -624,6 +674,26 @@ function PlaylistCard({
         >
           <ArrowUpRight className="h-4 w-4" />
         </Link>
+        {isSignedIn && shareToken && (
+          <button
+            type="button"
+            onClick={() => setShowShareDialog(true)}
+            aria-label="Share gathering"
+          >
+            Share
+          </button>
+        )}
+        {isSignedIn && (
+          isLive ? (
+            <button onClick={() => setShowEndSessionDialog(true)} aria-label="End session">
+              End Session
+            </button>
+          ) : (
+            <button onClick={() => setShowGoLiveDialog(true)} aria-label="Go live">
+              Go Live
+            </button>
+          )
+        )}
         {editMode && (
           <button
             onClick={onDelete}
@@ -732,6 +802,116 @@ function PlaylistCard({
           )}
         </div>
       )}
+
+      {/* Share dialog — always visible when gathering has a share_token */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share — {name}</DialogTitle>
+            <DialogDescription>
+              Share this link so others can follow along live.
+            </DialogDescription>
+          </DialogHeader>
+          {!isLive && (
+            <p>This gathering is not currently live. The link below won't be accessible to viewers until you start a live session.</p>
+          )}
+          <div>
+            <span>{shareUrl}</span>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(shareUrl)}
+            >
+              Copy URL
+            </button>
+          </div>
+          <QRCodeSVG value={shareUrl} />
+          <DialogClose asChild>
+            <button type="button">Close</button>
+          </DialogClose>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sign-in prompt for unauthenticated users trying to go live */}
+      <AlertDialog open={showSignInPrompt} onOpenChange={setShowSignInPrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign in to go live</AlertDialogTitle>
+            <AlertDialogDescription>
+              Live sharing requires an account so others can join your gathering from their device. Sign in or create a free account to use this feature.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowSignInPrompt(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Link to="/login" onClick={() => setShowSignInPrompt(false)}>
+                Sign In
+              </Link>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Go Live confirmation dialog */}
+      <AlertDialog open={showGoLiveDialog} onOpenChange={(open) => { setShowGoLiveDialog(open); if (!open) setShowQr(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Go Live — {name}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Once live, this gathering will be publicly accessible via the link below. Anyone with the link can view the current slide in real time. The session stays live until you end it or start a new one.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div>
+            <div>
+              <span>{shareUrl}</span>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(shareUrl)}
+              >
+                Copy URL
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowQr((v) => !v)}
+            >
+              {showQr ? "Hide QR Code" : "View QR Code"}
+            </button>
+            {showQr && <QRCodeSVG value={shareUrl} />}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setShowGoLiveDialog(false); setShowQr(false); }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => { onGoLive(); setShowGoLiveDialog(false); setShowQr(false); }}>
+              Go Live
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* End Session confirmation dialog */}
+      <AlertDialog open={showEndSessionDialog} onOpenChange={setShowEndSessionDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>End Session — {name}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ending the session will take this gathering offline. The public link will stop working and viewers will no longer be able to see the live slide. You can go live again at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowEndSessionDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => { onEndSession(); setShowEndSessionDialog(false); }}>
+              End Session
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

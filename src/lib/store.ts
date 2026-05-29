@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import type { Set as PhytoSet, Slide, LiveState, Playlist, SetTemplate } from "./types";
 import { db } from "./db";
+import { supabase } from "./supabase";
+import { useAuthStore } from "./authStore";
 import { pushToSupabase, shouldSkipPush } from "./sync";
 
 function uid() {
@@ -45,6 +47,10 @@ interface LibraryState {
   addSetToPlaylist: (playlistId: string, setId: string) => void;
   removeSetFromPlaylist: (playlistId: string, setIdOrIndex: string | number) => void;
   reorderPlaylistSets: (playlistId: string, setIds: string[]) => void;
+  /** Set this gathering live (and take all others offline) in Dexie + Supabase. */
+  goLive: (gatheringId: string) => Promise<void>;
+  /** End the live session for this gathering in Dexie + Supabase. */
+  endSession: (gatheringId: string) => Promise<void>;
   /** Populate store from Dexie — call once on app mount. */
   loadFromDb: () => Promise<void>;
 }
@@ -61,6 +67,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       db.sets.toArray(),
       db.gatherings.toArray(),
     ]);
+    console.log('[loadFromDb] sets from Dexie:', allSets.length, '| gatherings from Dexie:', allGatherings.length);
+    console.log('[loadFromDb] gatherings:', allGatherings.map((p) => ({ id: p.id, name: p.name, share_token: p.share_token, is_live: p.is_live })));
+
     const sets: Record<string, PhytoSet> = {};
     const order: string[] = [];
     for (const s of allSets) {
@@ -168,6 +177,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       name,
       setIds: [],
       share_token: nanoid(10),
+      is_live: false,
       createdAt: now,
       updatedAt: now,
     };
@@ -188,12 +198,31 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       return { playlists: { ...s.playlists, [id]: updated } };
     }),
 
-  deletePlaylist: (id) =>
+  deletePlaylist: async (id) => {
+    const session = useAuthStore.getState().session;
+    if (session) {
+      const userId = session.user.id;
+      const { error: gsErr } = await supabase
+        .from('gathering_sets')
+        .delete()
+        .eq('gathering_id', id);
+      if (gsErr) console.error('[deletePlaylist] gathering_sets delete error:', gsErr);
+
+      const { error: gErr } = await supabase
+        .from('gatherings')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+      if (gErr) console.error('[deletePlaylist] gatherings delete error:', gErr);
+    }
+
+    await db.gatherings.delete(id);
+
     set((s) => {
       const { [id]: _gone, ...rest } = s.playlists;
-      db.gatherings.delete(id).then(() => schedulePush());
       return { playlists: rest, playlistOrder: s.playlistOrder.filter((x) => x !== id) };
-    }),
+    });
+  },
 
   addSetToPlaylist: (playlistId, setId) =>
     set((s) => {
@@ -229,6 +258,96 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       db.gatherings.put(updated).then(() => schedulePush());
       return { playlists: { ...s.playlists, [playlistId]: updated } };
     }),
+
+  goLive: async (gatheringId) => {
+    const { playlists } = get();
+    const target = playlists[gatheringId];
+    console.log('[goLive] target gathering:', target);
+    if (!target) {
+      console.error('[goLive] aborted — gathering not found in store:', gatheringId);
+      return;
+    }
+    const now = Date.now();
+
+    // ── Step 1: Supabase ──────────────────────────────────────────────────────
+    // Ensure the gathering row exists in Supabase before updating is_live.
+    // A gathering created locally may never have been pushed, so upsert it first.
+    const session = useAuthStore.getState().session;
+    if (!session) {
+      console.error('[goLive] aborted — no session');
+      return;
+    }
+    const userId = session.user.id;
+
+    console.log('[goLive] upserting gathering to Supabase before going live...');
+    const { error: upsertErr } = await supabase
+      .from('gatherings')
+      .upsert({
+        id: target.id,
+        user_id: userId,
+        title: target.name,
+        share_token: target.share_token,
+        is_live: false,
+        current_set_index: 0,
+        current_slide_index: 0,
+        created_at: new Date(target.createdAt).toISOString(),
+        updated_at: new Date(target.updatedAt).toISOString(),
+      }, { onConflict: 'id' });
+    if (upsertErr) console.error('[goLive] upsert error:', upsertErr);
+
+    console.log('[goLive] setting all other gatherings offline...');
+    const { error: offlineErr } = await supabase
+      .from('gatherings')
+      .update({ is_live: false })
+      .neq('id', gatheringId);
+    if (offlineErr) console.error('[goLive] offline-others error:', offlineErr);
+
+    console.log('[goLive] setting target gathering live...');
+    const { data: liveData, error: liveErr } = await supabase
+      .from('gatherings')
+      .update({ is_live: true })
+      .eq('id', gatheringId)
+      .select();
+    console.log('[goLive] live update response — data:', liveData, 'error:', liveErr);
+    if (liveErr) console.error('[goLive] live update error:', liveErr);
+
+    // ── Step 2: Dexie ─────────────────────────────────────────────────────────
+    console.log('[goLive] updating Dexie...');
+    const allGatherings = await db.gatherings.toArray();
+    await db.transaction('rw', db.gatherings, async () => {
+      for (const p of allGatherings) {
+        if (p.id === gatheringId) {
+          await db.gatherings.put({ ...p, is_live: true, updatedAt: now });
+        } else if (p.is_live) {
+          await db.gatherings.put({ ...p, is_live: false, updatedAt: now });
+        }
+      }
+    });
+    console.log('[goLive] Dexie updated');
+
+    // ── Step 3: Zustand ───────────────────────────────────────────────────────
+    set((s) => {
+      const updated = { ...s.playlists };
+      for (const id of Object.keys(updated)) {
+        updated[id] = { ...updated[id], is_live: id === gatheringId, updatedAt: now };
+      }
+      return { playlists: updated };
+    });
+    console.log('[goLive] done — gathering is live:', gatheringId);
+  },
+
+  endSession: async (gatheringId) => {
+    const { playlists } = get();
+    const target = playlists[gatheringId];
+    if (!target) return;
+    const updated = { ...target, is_live: false, updatedAt: Date.now() };
+    set((s) => ({ playlists: { ...s.playlists, [gatheringId]: updated } }));
+    await db.gatherings.put(updated);
+    await supabase
+      .from('gatherings')
+      .update({ is_live: false })
+      .eq('id', gatheringId);
+  },
 }));
 
 // Ephemeral, non-persisted preview of the song template while the editor is
