@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary } from "@/lib/store";
+import { signOut } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import {
   Plus,
@@ -206,6 +207,9 @@ function Library() {
           </a>
 
           <div className="ml-auto flex flex-wrap items-center gap-4">
+            <button onClick={() => signOut()}>
+              Sign out
+            </button>
             <Link
               to="/present"
               className="pill flex items-center gap-3 border border-foreground px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-foreground transition hover:bg-foreground hover:text-background"

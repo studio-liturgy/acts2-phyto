@@ -6,12 +6,16 @@ import {
   createRootRouteWithContext,
   useRouter,
   useLocation,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
 import { MobileBlock, MOBILE_ALLOWED } from "@/components/MobileBlock";
+import { supabase } from "@/lib/supabase";
+import { getSession } from "@/lib/auth";
+import { useAuthStore } from "@/lib/authStore";
 
 function NotFoundComponent() {
   return (
@@ -145,9 +149,33 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const allowedOnMobile = MOBILE_ALLOWED.includes(pathname);
   const showOutlet = !isMobile || allowedOnMobile;
+  const { session, setSession } = useAuthStore();
+
+  useEffect(() => {
+    getSession().then((s) => {
+      setSession(s);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [setSession]);
+
+  useEffect(() => {
+    const { isLoading } = useAuthStore.getState();
+    if (isLoading) return;
+    if (!session && pathname !== "/login") {
+      navigate({ to: "/login" });
+    } else if (session && pathname === "/login") {
+      navigate({ to: "/" });
+    }
+  }, [session, pathname, navigate]);
 
   return (
     <QueryClientProvider client={queryClient}>

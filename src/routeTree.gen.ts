@@ -15,6 +15,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PresentRouteImport } from './routes/present'
 import { Route as OutputRouteImport } from './routes/output'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -51,6 +52,11 @@ const OutputRoute = OutputRouteImport.update({
   path: '/output',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FeedbackRoute = FeedbackRouteImport.update({
   id: '/feedback',
   path: '/feedback',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/feedback': typeof FeedbackRoute
+  '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/feedback': typeof FeedbackRoute
+  '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/feedback': typeof FeedbackRoute
+  '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/feedback'
+    | '/login'
     | '/output'
     | '/present'
     | '/privacy'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/feedback'
+    | '/login'
     | '/output'
     | '/present'
     | '/privacy'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/feedback'
+    | '/login'
     | '/output'
     | '/present'
     | '/privacy'
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   FeedbackRoute: typeof FeedbackRoute
+  LoginRoute: typeof LoginRoute
   OutputRoute: typeof OutputRoute
   PresentRoute: typeof PresentRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OutputRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/feedback': {
       id: '/feedback'
       path: '/feedback'
@@ -259,6 +279,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   FeedbackRoute: FeedbackRoute,
+  LoginRoute: LoginRoute,
   OutputRoute: OutputRoute,
   PresentRoute: PresentRoute,
   PrivacyRoute: PrivacyRoute,
