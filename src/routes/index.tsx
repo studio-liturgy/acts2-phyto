@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeCanvas } from "qrcode.react";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { useIsSignedIn } from "@/lib/authStore";
@@ -27,6 +27,9 @@ import {
   ArrowUpRight,
   Pencil,
   Trash2,
+  Upload,
+  Download,
+  Wifi,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -262,20 +265,32 @@ function Library() {
           >
             Quick Tutorial
           </a>
+          {!isSignedIn && (
+            <Link
+              to="/login"
+              className="pill flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              Sign in
+            </Link>
+          )}
+          {isSignedIn && (
+            <button
+              onClick={() => setShowSignOutDialog(true)}
+              className="pill flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              Sign out
+            </button>
+          )}
+          {isSignedIn && syncStatus !== 'offline' && (
+            <span
+              data-sync={syncStatus}
+              className={`h-4 w-4 rounded-full ${syncStatus === 'syncing' ? 'bg-[var(--brand-orange)]' : 'bg-[var(--brand-green)]'}`}
+              style={{ transition: `background-color ${syncStatus === 'syncing' ? '0.5s' : '1.5s'} ease` }}
+              title={syncStatus === 'syncing' ? 'Syncing…' : 'Synced'}
+            />
+          )}
 
           <div className="ml-auto flex flex-wrap items-center gap-4">
-            {isSignedIn && (
-              <span data-sync={syncStatus}>
-                {syncStatus === 'synced' && 'Synced'}
-                {syncStatus === 'syncing' && 'Syncing…'}
-                {syncStatus === 'offline' && 'Offline'}
-              </span>
-            )}
-            {isSignedIn ? (
-              <button onClick={() => setShowSignOutDialog(true)}>Sign out</button>
-            ) : (
-              <Link to="/login">Sign in</Link>
-            )}
             <Link
               to="/present"
               className="pill flex items-center gap-3 border border-foreground px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-foreground transition hover:bg-foreground hover:text-background"
@@ -360,20 +375,27 @@ function Library() {
         {/* Catalogue */}
         <section>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-4">
+            {/* Left: heading + import/export icons */}
+            <div className="flex items-center gap-2">
               <h2 className="text-4xl md:text-5xl leading-none">Catalogue</h2>
-              <div className="flex items-center gap-2 pl-[80px]">
-                {(["all", "song", "scripture", "media"] as KindFilter[]).map((k) => (
-                  <button
-                    key={k}
-                    onClick={() => setKindFilter(k)}
-                    className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, kindFilter === k)}`}
-                  >
-                    {k === "all" ? "All" : k === "song" ? "Songs" : k === "scripture" ? "Scriptures" : "Media"}
-                  </button>
-                ))}
-                <button type="button" onClick={() => importFileRef.current?.click()}>
-                  Import
+              <div className="ml-8 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowExportConfirm(true)}
+                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                  title="Export catalogue"
+                  aria-label="Export catalogue"
+                >
+                  <Upload className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => importFileRef.current?.click()}
+                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                  title="Import catalogue"
+                  aria-label="Import catalogue"
+                >
+                  <Download className="h-4 w-4" />
                 </button>
                 <input
                   ref={importFileRef}
@@ -382,12 +404,19 @@ function Library() {
                   style={{ display: 'none' }}
                   onChange={handleImportFileChange}
                 />
-                <button type="button" onClick={() => setShowExportConfirm(true)}>
-                  Export
-                </button>
               </div>
             </div>
+            {/* Right: filter chips + sort + search + new */}
             <div className="flex flex-wrap items-center gap-2">
+              {(["all", "song", "scripture", "media"] as KindFilter[]).map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setKindFilter(k)}
+                  className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, kindFilter === k)}`}
+                >
+                  {k === "all" ? "All" : k === "song" ? "Songs" : k === "scripture" ? "Scriptures" : "Media"}
+                </button>
+              ))}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="mono flex items-center gap-1 px-2 py-2 text-sm">
@@ -497,62 +526,75 @@ function Library() {
       {importError && <p>{importError}</p>}
 
       <AlertDialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sign out?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Any live sessions you've started will remain live and accessible to viewers until you end them.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowSignOutDialog(false); signOut(); }}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-4xl font-bold leading-tight">Sign out?</AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            Any live sessions you've started will remain live and accessible to viewers until you end them.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <AlertDialogAction
+              onClick={() => { setShowSignOutDialog(false); signOut(); }}
+              className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90"
+            >
               Sign out
             </AlertDialogAction>
-          </AlertDialogFooter>
+            <AlertDialogCancel className="flex-1 rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background">
+              Cancel
+            </AlertDialogCancel>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
 
       <AlertDialog open={showExportConfirm} onOpenChange={setShowExportConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Export Catalogue</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will download all your sets as a .phyto file.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowExportConfirm(false); exportCatalogue(); }}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-4xl font-bold leading-tight">Export Catalogue</AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            This will download all your sets as a .phyto file.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <AlertDialogAction
+              onClick={() => { setShowExportConfirm(false); exportCatalogue(); }}
+              className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90"
+            >
               Download
             </AlertDialogAction>
-          </AlertDialogFooter>
+            <AlertDialogCancel className="flex-1 rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background">
+              Cancel
+            </AlertDialogCancel>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
 
       <AlertDialog open={pendingImportFile !== null} onOpenChange={(open) => { if (!open) setPendingImportFile(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Import Catalogue</AlertDialogTitle>
-            <AlertDialogDescription>
-              Merge with existing catalogue or replace it? Merge adds and overwrites sets by ID without deleting anything. Replace clears your current catalogue first.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingImportFile(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => handleImport('merge')}>Merge</AlertDialogAction>
-            <AlertDialogAction onClick={() => handleImport('replace')}>Replace</AlertDialogAction>
-          </AlertDialogFooter>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-4xl font-bold leading-tight">Import Catalogue</AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            Merge adds and overwrites sets by ID without deleting anything. Replace clears your current catalogue first.
+          </AlertDialogDescription>
+          <div className="mt-8 flex flex-col gap-3">
+            <div className="flex gap-3">
+              <AlertDialogAction
+                onClick={() => handleImport('merge')}
+                className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90"
+              >
+                Merge
+              </AlertDialogAction>
+              <AlertDialogAction
+                onClick={() => handleImport('replace')}
+                className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90"
+              >
+                Replace
+              </AlertDialogAction>
+            </div>
+            <AlertDialogCancel
+              onClick={() => setPendingImportFile(null)}
+              className="w-full rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background"
+            >
+              Cancel
+            </AlertDialogCancel>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
-
-      {showGoLivePrompt && (
-        <div>
-          <p>Go Live requires an account so others can join your gathering from their device.</p>
-          <Link to="/login" onClick={() => setShowGoLivePrompt(false)}>Sign in or create an account</Link>
-          <button onClick={() => setShowGoLivePrompt(false)}>Dismiss</button>
-        </div>
-      )}
     </div>
   );
 }
@@ -597,11 +639,25 @@ function PlaylistCard({
   const isSignedIn = useIsSignedIn();
   const [showGoLiveDialog, setShowGoLiveDialog] = useState(false);
   const [showEndSessionDialog, setShowEndSessionDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const [showShareQr, setShowShareQr] = useState(false);
+  const goLiveQrRef = useRef<HTMLCanvasElement>(null);
+  const shareQrRef = useRef<HTMLCanvasElement>(null);
 
   const shareUrl = `https://phyto.live/g/${shareToken}`;
+
+  const downloadQr = (ref: React.RefObject<HTMLCanvasElement | null>, filename: string) => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+  };
 
   const nameLookup = useMemo(
     () => Object.fromEntries(allSets.map((d) => [d.id, d])),
@@ -648,10 +704,13 @@ function PlaylistCard({
           />
         ) : (
           <h3
-            className={`flex-1 truncate text-2xl ${editMode ? "cursor-text" : ""}`}
+            className={`flex items-center gap-2 flex-1 truncate text-2xl ${editMode ? "cursor-text" : ""}`}
             onClick={() => editMode && setEditingName(true)}
             title={editMode ? "Rename" : undefined}
           >
+            {isLive && (
+              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-[var(--brand-red)]" title="Live" />
+            )}
             {name}
           </h3>
         )}
@@ -665,38 +724,45 @@ function PlaylistCard({
         >
           {editMode ? "Done" : <Pencil className="h-4 w-4" />}
         </button>
-        <Link
-          to="/present"
-          search={{ playlist: playlistId }}
-          className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-          title="Present"
-          aria-label="Present"
-        >
-          <ArrowUpRight className="h-4 w-4" />
-        </Link>
-        {isSignedIn && shareToken && (
-          <button
-            type="button"
-            onClick={() => setShowShareDialog(true)}
-            aria-label="Share gathering"
-          >
-            Share
-          </button>
-        )}
-        {isSignedIn && (
-          isLive ? (
-            <button onClick={() => setShowEndSessionDialog(true)} aria-label="End session">
-              End Session
-            </button>
-          ) : (
-            <button onClick={() => setShowGoLiveDialog(true)} aria-label="Go live">
-              Go Live
-            </button>
-          )
+        {!editMode && (
+          <>
+            {isSignedIn && shareToken && (
+              <button
+                type="button"
+                onClick={() => setShowShareDialog(true)}
+                className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                title="Share gathering"
+                aria-label="Share gathering"
+              >
+                <ArrowUpRight className="h-4 w-4" />
+              </button>
+            )}
+            {isSignedIn && (
+              isLive ? (
+                <button
+                  onClick={() => setShowEndSessionDialog(true)}
+                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  title="End session"
+                  aria-label="End session"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowGoLiveDialog(true)}
+                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:border-[var(--brand-green)] hover:bg-[var(--brand-green)] hover:text-[var(--brand-white)]"
+                  title="Go live"
+                  aria-label="Go live"
+                >
+                  <Wifi className="h-4 w-4" />
+                </button>
+              )
+            )}
+          </>
         )}
         {editMode && (
           <button
-            onClick={onDelete}
+            onClick={() => setShowDeleteDialog(true)}
             className="pill flex h-10 w-10 items-center justify-center text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
             aria-label="Delete gathering"
             title="Delete gathering"
@@ -803,72 +869,90 @@ function PlaylistCard({
         </div>
       )}
 
-      {/* Share dialog — always visible when gathering has a share_token */}
-      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Share — {name}</DialogTitle>
-            <DialogDescription>
-              Share this link so others can follow along live.
-            </DialogDescription>
-          </DialogHeader>
-          {!isLive && (
-            <p>This gathering is not currently live. The link below won't be accessible to viewers until you start a live session.</p>
-          )}
-          <div>
-            <span>{shareUrl}</span>
+      {/* Share dialog */}
+      <Dialog open={showShareDialog} onOpenChange={(open) => { setShowShareDialog(open); if (!open) setShowShareQr(false); }}>
+        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+          <DialogTitle className="text-4xl font-bold leading-tight">{name}</DialogTitle>
+
+          <div className="mt-6 flex items-center gap-2">
+            <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
+              <span className="flex-1 truncate px-4 text-sm text-muted-foreground">{shareUrl}</span>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(shareUrl)}
+                className="rounded-full bg-foreground px-5 py-2.5 text-sm text-background transition hover:opacity-90"
+              >
+                Copy URL
+              </button>
+            </div>
             <button
               type="button"
-              onClick={() => navigator.clipboard.writeText(shareUrl)}
+              onClick={() => setShowShareQr((v) => !v)}
+              className="rounded-full bg-foreground px-5 py-2.5 text-sm text-background transition hover:opacity-90 whitespace-nowrap"
             >
-              Copy URL
+              QR Code
             </button>
           </div>
-          <QRCodeSVG value={shareUrl} />
-          <DialogClose asChild>
-            <button type="button">Close</button>
-          </DialogClose>
+
+          {showShareQr && (
+            <div className="mt-4 flex flex-col items-center gap-3">
+              <QRCodeCanvas ref={shareQrRef} value={shareUrl} size={180} />
+              <button
+                type="button"
+                onClick={() => downloadQr(shareQrRef, `${name}-qr.png`)}
+                className="rounded-full border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+              >
+                Download
+              </button>
+            </div>
+          )}
+
+          <p className="mt-6 text-sm text-muted-foreground">
+            Once live, all the information from this gathering will be publicly accessible via this link.
+          </p>
         </DialogContent>
       </Dialog>
 
       {/* Sign-in prompt for unauthenticated users trying to go live */}
       <AlertDialog open={showSignInPrompt} onOpenChange={setShowSignInPrompt}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sign in to go live</AlertDialogTitle>
-            <AlertDialogDescription>
-              Live sharing requires an account so others can join your gathering from their device. Sign in or create a free account to use this feature.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowSignInPrompt(false)}>
-              Cancel
-            </AlertDialogCancel>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-4xl font-bold leading-tight">Sign in to go live</AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            Live sharing requires an account so others can join your gathering from their device. Sign in or create a free account to use this feature.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
             <AlertDialogAction asChild>
-              <Link to="/login" onClick={() => setShowSignInPrompt(false)}>
-                Sign In
+              <Link
+                to="/login"
+                onClick={() => setShowSignInPrompt(false)}
+                className="flex-1 rounded-full bg-foreground py-3 text-center text-background transition hover:opacity-90"
+              >
+                Sign in
               </Link>
             </AlertDialogAction>
-          </AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowSignInPrompt(false)} className="flex-1 rounded-full border border-foreground bg-transparent py-3 text-center transition hover:bg-foreground hover:text-background">
+              Cancel
+            </AlertDialogCancel>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Go Live confirmation dialog */}
-      <AlertDialog open={showGoLiveDialog} onOpenChange={(open) => { setShowGoLiveDialog(open); if (!open) setShowQr(false); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Go Live — {name}</AlertDialogTitle>
-            <AlertDialogDescription>
-              Once live, this gathering will be publicly accessible via the link below. Anyone with the link can view the current slide in real time. The session stays live until you end it or start a new one.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+      <Dialog open={showGoLiveDialog} onOpenChange={(open) => { setShowGoLiveDialog(open); if (!open) setShowQr(false); }}>
+        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+          <DialogTitle className="text-4xl font-bold leading-tight">{name}</DialogTitle>
 
-          <div>
-            <div>
-              <span>{shareUrl}</span>
+          <p className="mt-4 text-base">
+            Once live, all the information from this gathering will be publicly accessible via the link. The session stays live until you end it or start a new one.
+          </p>
+
+          <div className="mt-6 flex items-center gap-2">
+            <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
+              <span className="flex-1 truncate px-4 text-sm text-muted-foreground">{shareUrl}</span>
               <button
                 type="button"
                 onClick={() => navigator.clipboard.writeText(shareUrl)}
+                className="rounded-full bg-foreground px-5 py-2.5 text-sm text-background transition hover:opacity-90"
               >
                 Copy URL
               </button>
@@ -876,40 +960,81 @@ function PlaylistCard({
             <button
               type="button"
               onClick={() => setShowQr((v) => !v)}
+              className="rounded-full bg-foreground px-5 py-2.5 text-sm text-background transition hover:opacity-90 whitespace-nowrap"
             >
-              {showQr ? "Hide QR Code" : "View QR Code"}
+              QR Code
             </button>
-            {showQr && <QRCodeSVG value={shareUrl} />}
           </div>
 
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setShowGoLiveDialog(false); setShowQr(false); }}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={() => { onGoLive(); setShowGoLiveDialog(false); setShowQr(false); }}>
+          {showQr && (
+            <div className="mt-4 flex flex-col items-center gap-3">
+              <QRCodeCanvas ref={goLiveQrRef} value={shareUrl} size={180} />
+              <button
+                type="button"
+                onClick={() => downloadQr(goLiveQrRef, `${name}-qr.png`)}
+                className="rounded-full border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+              >
+                Download
+              </button>
+            </div>
+          )}
+
+          <div className="mt-8">
+            <button
+              onClick={() => { onGoLive(); setShowGoLiveDialog(false); setShowQr(false); }}
+              className="w-full rounded-full bg-[var(--brand-red)] py-3 text-[var(--brand-white)] transition hover:opacity-90"
+            >
               Go Live
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* End Session confirmation dialog */}
       <AlertDialog open={showEndSessionDialog} onOpenChange={setShowEndSessionDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>End Session — {name}</AlertDialogTitle>
-            <AlertDialogDescription>
-              Ending the session will take this gathering offline. The public link will stop working and viewers will no longer be able to see the live slide. You can go live again at any time.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowEndSessionDialog(false)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={() => { onEndSession(); setShowEndSessionDialog(false); }}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-4xl font-bold leading-tight">{name}</AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            Ending the session will take this gathering offline. The public link will stop working and viewers will no longer be able to see the live slide. You can go live again at any time.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <AlertDialogAction
+              onClick={() => { onEndSession(); setShowEndSessionDialog(false); }}
+              className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90"
+            >
               End Session
             </AlertDialogAction>
-          </AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setShowEndSessionDialog(false)}
+              className="flex-1 rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background"
+            >
+              Cancel
+            </AlertDialogCancel>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete gathering confirmation dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-4xl font-bold leading-tight">{name}</AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            This will permanently delete this gathering and all its set associations. This cannot be undone.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <AlertDialogAction
+              onClick={() => { onDelete(); setShowDeleteDialog(false); }}
+              className="flex-1 rounded-full bg-[var(--brand-red)] py-3 text-[var(--brand-white)] transition hover:opacity-90"
+            >
+              Delete
+            </AlertDialogAction>
+            <AlertDialogCancel
+              onClick={() => setShowDeleteDialog(false)}
+              className="flex-1 rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background"
+            >
+              Cancel
+            </AlertDialogCancel>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
     </div>
