@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
+import { useIsSignedIn } from "@/lib/authStore";
 import { Input } from "@/components/ui/input";
 import {
   Plus,
@@ -130,6 +131,9 @@ function Library() {
     reorderPlaylistSets,
   } = useLibrary();
 
+  const isSignedIn = useIsSignedIn();
+  const [showGoLivePrompt, setShowGoLivePrompt] = useState(false);
+
   const [playlistFilter, setPlaylistFilter] = useState("");
   const [showPlaylistSearch, setShowPlaylistSearch] = useState(false);
   const [catalogueFilter, setCatalogueFilter] = useState("");
@@ -207,9 +211,11 @@ function Library() {
           </a>
 
           <div className="ml-auto flex flex-wrap items-center gap-4">
-            <button onClick={() => signOut()}>
-              Sign out
-            </button>
+            {isSignedIn ? (
+              <button onClick={() => signOut()}>Sign out</button>
+            ) : (
+              <Link to="/login">Sign in</Link>
+            )}
             <Link
               to="/present"
               className="pill flex items-center gap-3 border border-foreground px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-foreground transition hover:bg-foreground hover:text-background"
@@ -407,6 +413,14 @@ function Library() {
       </main>
 
       <Footer />
+
+      {showGoLivePrompt && (
+        <div>
+          <p>Go Live requires an account so others can join your gathering from their device.</p>
+          <Link to="/login" onClick={() => setShowGoLivePrompt(false)}>Sign in or create an account</Link>
+          <button onClick={() => setShowGoLivePrompt(false)}>Dismiss</button>
+        </div>
+      )}
     </div>
   );
 }

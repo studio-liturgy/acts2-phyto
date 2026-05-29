@@ -48,6 +48,7 @@ export interface Playlist {
   id: string;
   name: string;
   setIds: string[];
+  share_token: string;
   createdAt: number;
   updatedAt: number;
 }

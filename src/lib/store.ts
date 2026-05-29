@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { nanoid } from "nanoid";
 import type { Set as PhytoSet, Slide, LiveState, Playlist, SetTemplate } from "./types";
+import { db } from "./db";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -27,184 +28,191 @@ interface LibraryState {
   addSetToPlaylist: (playlistId: string, setId: string) => void;
   removeSetFromPlaylist: (playlistId: string, setIdOrIndex: string | number) => void;
   reorderPlaylistSets: (playlistId: string, setIds: string[]) => void;
+  /** Populate store from Dexie — call once on app mount. */
+  loadFromDb: () => Promise<void>;
 }
 
-export const useLibrary = create<LibraryState>()(
-  persist(
-    (set) => ({
-      sets: {},
-      order: [],
-      playlists: {},
-      playlistOrder: [],
-      songTemplate: { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" },
-      setSongTemplate: (patch) =>
-        set((s) => ({ songTemplate: { ...s.songTemplate, ...patch } })),
-      createSet: (newSet) => {
-        const id = uid();
-        const now = Date.now();
-        set((s) => ({
-          sets: { ...s.sets, [id]: { ...newSet, id, createdAt: now, updatedAt: now } },
-          order: [id, ...s.order],
-        }));
-        return id;
-      },
-      updateSet: (id, patch) =>
-        set((s) => {
-          const d = s.sets[id];
-          if (!d) return s;
-          return { sets: { ...s.sets, [id]: { ...d, ...patch, updatedAt: Date.now() } } };
-        }),
-      deleteSet: (id) =>
-        set((s) => {
-          const { [id]: _gone, ...rest } = s.sets;
-          return { sets: rest, order: s.order.filter((x) => x !== id) };
-        }),
-      addSlide: (setId, slide) => {
-        const id = uid();
-        set((s) => {
-          const d = s.sets[setId];
-          if (!d) return s;
-          return {
-            sets: {
-              ...s.sets,
-              [setId]: { ...d, slides: [...d.slides, { ...slide, id }], updatedAt: Date.now() },
-            },
-          };
-        });
-        return id;
-      },
-      updateSlide: (setId, slideId, patch) =>
-        set((s) => {
-          const d = s.sets[setId];
-          if (!d) return s;
-          return {
-            sets: {
-              ...s.sets,
-              [setId]: {
-                ...d,
-                slides: d.slides.map((sl) => (sl.id === slideId ? { ...sl, ...patch } : sl)),
-                updatedAt: Date.now(),
-              },
-            },
-          };
-        }),
-      removeSlide: (setId, slideId) =>
-        set((s) => {
-          const d = s.sets[setId];
-          if (!d) return s;
-          return {
-            sets: {
-              ...s.sets,
-              [setId]: {
-                ...d,
-                slides: d.slides.filter((sl) => sl.id !== slideId),
-                updatedAt: Date.now(),
-              },
-            },
-          };
-        }),
-      reorderSlides: (setId, ids) =>
-        set((s) => {
-          const d = s.sets[setId];
-          if (!d) return s;
-          const map = new Map(d.slides.map((sl) => [sl.id, sl]));
-          const slides = ids.map((i) => map.get(i)!).filter(Boolean);
-          return { sets: { ...s.sets, [setId]: { ...d, slides, updatedAt: Date.now() } } };
-        }),
-      createPlaylist: (name) => {
-        const id = uid();
-        const now = Date.now();
-        set((s) => ({
-          playlists: {
-            ...s.playlists,
-            [id]: { id, name, setIds: [], createdAt: now, updatedAt: now },
-          },
-          playlistOrder: [id, ...s.playlistOrder],
-        }));
-        return id;
-      },
-      renamePlaylist: (id, name) =>
-        set((s) => {
-          const p = s.playlists[id];
-          if (!p) return s;
-          return { playlists: { ...s.playlists, [id]: { ...p, name, updatedAt: Date.now() } } };
-        }),
-      deletePlaylist: (id) =>
-        set((s) => {
-          const { [id]: _gone, ...rest } = s.playlists;
-          return { playlists: rest, playlistOrder: s.playlistOrder.filter((x) => x !== id) };
-        }),
-      addSetToPlaylist: (playlistId, setId) =>
-        set((s) => {
-          const p = s.playlists[playlistId];
-          if (!p) return s;
-          // Allow the same set to appear multiple times in a gathering.
-          return {
-            playlists: {
-              ...s.playlists,
-              [playlistId]: { ...p, setIds: [...p.setIds, setId], updatedAt: Date.now() },
-            },
-          };
-        }),
-      removeSetFromPlaylist: (playlistId, setIdOrIndex) =>
-        set((s) => {
-          const p = s.playlists[playlistId];
-          if (!p) return s;
-          let setIds: string[];
-          if (typeof setIdOrIndex === "number") {
-            setIds = p.setIds.filter((_, i) => i !== setIdOrIndex);
-          } else {
-            // Remove only the first occurrence so duplicates are preserved.
-            const idx = p.setIds.indexOf(setIdOrIndex);
-            if (idx === -1) return s;
-            setIds = p.setIds.filter((_, i) => i !== idx);
-          }
-          return {
-            playlists: {
-              ...s.playlists,
-              [playlistId]: { ...p, setIds, updatedAt: Date.now() },
-            },
-          };
-        }),
-      reorderPlaylistSets: (playlistId, setIds) =>
-        set((s) => {
-          const p = s.playlists[playlistId];
-          if (!p) return s;
-          return {
-            playlists: {
-              ...s.playlists,
-              [playlistId]: { ...p, setIds, updatedAt: Date.now() },
-            },
-          };
-        }),
-    }),
-    {
-      name: "stage-library-v1",
-      version: 2,
-      // Migrate v1 (Deck-named) shape -> v2 (Set-named) shape.
-      // Old: { decks, playlists[*].deckIds }. New: { sets, playlists[*].setIds }.
-      migrate: (persistedState, _version) => {
-        if (!persistedState || typeof persistedState !== "object") return persistedState as LibraryState;
-        const ps = persistedState as Record<string, unknown>;
-        if (ps.decks && !ps.sets) {
-          ps.sets = ps.decks;
-          delete ps.decks;
-        }
-        if (ps.playlists && typeof ps.playlists === "object") {
-          const next: Record<string, Playlist> = {};
-          for (const [pid, raw] of Object.entries(ps.playlists as Record<string, unknown>)) {
-            const p = (raw ?? {}) as Record<string, unknown>;
-            const setIds = (p.setIds as string[] | undefined) ?? (p.deckIds as string[] | undefined) ?? [];
-            const { deckIds: _drop, ...rest } = p;
-            next[pid] = { ...(rest as Omit<Playlist, "setIds">), setIds };
-          }
-          ps.playlists = next;
-        }
-        return ps as unknown as LibraryState;
-      },
+export const useLibrary = create<LibraryState>()((set, get) => ({
+  sets: {},
+  order: [],
+  playlists: {},
+  playlistOrder: [],
+  songTemplate: { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" },
+
+  loadFromDb: async () => {
+    const [allSets, allGatherings] = await Promise.all([
+      db.sets.toArray(),
+      db.gatherings.toArray(),
+    ]);
+    const sets: Record<string, PhytoSet> = {};
+    const order: string[] = [];
+    for (const s of allSets) {
+      sets[s.id] = s;
+      order.push(s.id);
     }
-  )
-);
+    order.sort((a, b) => (sets[b].createdAt ?? 0) - (sets[a].createdAt ?? 0));
+
+    const playlists: Record<string, Playlist> = {};
+    const playlistOrder: string[] = [];
+    for (const p of allGatherings) {
+      playlists[p.id] = p;
+      playlistOrder.push(p.id);
+    }
+    playlistOrder.sort((a, b) => (playlists[b].createdAt ?? 0) - (playlists[a].createdAt ?? 0));
+
+    set({ sets, order, playlists, playlistOrder });
+  },
+
+  setSongTemplate: (patch) =>
+    set((s) => ({ songTemplate: { ...s.songTemplate, ...patch } })),
+
+  createSet: (newSet) => {
+    const id = uid();
+    const now = Date.now();
+    const record: PhytoSet = { ...newSet, id, createdAt: now, updatedAt: now };
+    set((s) => ({
+      sets: { ...s.sets, [id]: record },
+      order: [id, ...s.order],
+    }));
+    db.sets.add(record);
+    return id;
+  },
+
+  updateSet: (id, patch) =>
+    set((s) => {
+      const d = s.sets[id];
+      if (!d) return s;
+      const updated = { ...d, ...patch, updatedAt: Date.now() };
+      db.sets.put(updated);
+      return { sets: { ...s.sets, [id]: updated } };
+    }),
+
+  deleteSet: (id) =>
+    set((s) => {
+      const { [id]: _gone, ...rest } = s.sets;
+      db.sets.delete(id);
+      return { sets: rest, order: s.order.filter((x) => x !== id) };
+    }),
+
+  addSlide: (setId, slide) => {
+    const id = uid();
+    set((s) => {
+      const d = s.sets[setId];
+      if (!d) return s;
+      const updated = { ...d, slides: [...d.slides, { ...slide, id }], updatedAt: Date.now() };
+      db.sets.put(updated);
+      return { sets: { ...s.sets, [setId]: updated } };
+    });
+    return id;
+  },
+
+  updateSlide: (setId, slideId, patch) =>
+    set((s) => {
+      const d = s.sets[setId];
+      if (!d) return s;
+      const updated = {
+        ...d,
+        slides: d.slides.map((sl) => (sl.id === slideId ? { ...sl, ...patch } : sl)),
+        updatedAt: Date.now(),
+      };
+      db.sets.put(updated);
+      return { sets: { ...s.sets, [setId]: updated } };
+    }),
+
+  removeSlide: (setId, slideId) =>
+    set((s) => {
+      const d = s.sets[setId];
+      if (!d) return s;
+      const updated = {
+        ...d,
+        slides: d.slides.filter((sl) => sl.id !== slideId),
+        updatedAt: Date.now(),
+      };
+      db.sets.put(updated);
+      return { sets: { ...s.sets, [setId]: updated } };
+    }),
+
+  reorderSlides: (setId, ids) =>
+    set((s) => {
+      const d = s.sets[setId];
+      if (!d) return s;
+      const map = new Map(d.slides.map((sl) => [sl.id, sl]));
+      const slides = ids.map((i) => map.get(i)!).filter(Boolean);
+      const updated = { ...d, slides, updatedAt: Date.now() };
+      db.sets.put(updated);
+      return { sets: { ...s.sets, [setId]: updated } };
+    }),
+
+  createPlaylist: (name) => {
+    const id = uid();
+    const now = Date.now();
+    const record: Playlist = {
+      id,
+      name,
+      setIds: [],
+      share_token: nanoid(10),
+      createdAt: now,
+      updatedAt: now,
+    };
+    set((s) => ({
+      playlists: { ...s.playlists, [id]: record },
+      playlistOrder: [id, ...s.playlistOrder],
+    }));
+    db.gatherings.add(record);
+    return id;
+  },
+
+  renamePlaylist: (id, name) =>
+    set((s) => {
+      const p = s.playlists[id];
+      if (!p) return s;
+      const updated = { ...p, name, updatedAt: Date.now() };
+      db.gatherings.put(updated);
+      return { playlists: { ...s.playlists, [id]: updated } };
+    }),
+
+  deletePlaylist: (id) =>
+    set((s) => {
+      const { [id]: _gone, ...rest } = s.playlists;
+      db.gatherings.delete(id);
+      return { playlists: rest, playlistOrder: s.playlistOrder.filter((x) => x !== id) };
+    }),
+
+  addSetToPlaylist: (playlistId, setId) =>
+    set((s) => {
+      const p = s.playlists[playlistId];
+      if (!p) return s;
+      const updated = { ...p, setIds: [...p.setIds, setId], updatedAt: Date.now() };
+      db.gatherings.put(updated);
+      return { playlists: { ...s.playlists, [playlistId]: updated } };
+    }),
+
+  removeSetFromPlaylist: (playlistId, setIdOrIndex) =>
+    set((s) => {
+      const p = s.playlists[playlistId];
+      if (!p) return s;
+      let setIds: string[];
+      if (typeof setIdOrIndex === "number") {
+        setIds = p.setIds.filter((_, i) => i !== setIdOrIndex);
+      } else {
+        const idx = p.setIds.indexOf(setIdOrIndex);
+        if (idx === -1) return s;
+        setIds = p.setIds.filter((_, i) => i !== idx);
+      }
+      const updated = { ...p, setIds, updatedAt: Date.now() };
+      db.gatherings.put(updated);
+      return { playlists: { ...s.playlists, [playlistId]: updated } };
+    }),
+
+  reorderPlaylistSets: (playlistId, setIds) =>
+    set((s) => {
+      const p = s.playlists[playlistId];
+      if (!p) return s;
+      const updated = { ...p, setIds, updatedAt: Date.now() };
+      db.gatherings.put(updated);
+      return { playlists: { ...s.playlists, [playlistId]: updated } };
+    }),
+}));
 
 // Ephemeral, non-persisted preview of the song template while the editor is
 // open. When non-null, slide views should render with this draft instead of

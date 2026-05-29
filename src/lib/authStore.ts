@@ -12,3 +12,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   isLoading: true,
   setSession: (session) => set({ session, isLoading: false }),
 }));
+
+/** Returns true if the user is signed in. Use to gate auth-required features. */
+export function useIsSignedIn() {
+  return useAuthStore((s) => s.session !== null);
+}

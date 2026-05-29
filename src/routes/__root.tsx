@@ -16,6 +16,7 @@ import { MobileBlock, MOBILE_ALLOWED } from "@/components/MobileBlock";
 import { supabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { useAuthStore } from "@/lib/authStore";
+import { useLibrary } from "@/lib/store";
 
 function NotFoundComponent() {
   return (
@@ -154,8 +155,10 @@ function RootComponent() {
   const allowedOnMobile = MOBILE_ALLOWED.includes(pathname);
   const showOutlet = !isMobile || allowedOnMobile;
   const { session, setSession } = useAuthStore();
+  const loadFromDb = useLibrary((s) => s.loadFromDb);
 
   useEffect(() => {
+    loadFromDb();
     getSession().then((s) => {
       setSession(s);
     });
@@ -168,11 +171,7 @@ function RootComponent() {
   }, [setSession]);
 
   useEffect(() => {
-    const { isLoading } = useAuthStore.getState();
-    if (isLoading) return;
-    if (!session && pathname !== "/login") {
-      navigate({ to: "/login" });
-    } else if (session && pathname === "/login") {
+    if (session && pathname === "/login") {
       navigate({ to: "/" });
     }
   }, [session, pathname, navigate]);
