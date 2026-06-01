@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useLibrary, useLive, useSongTemplateDraft } from "@/lib/store";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
+import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { Input } from "@/components/ui/input";
 import {
   ArrowUpLeft,
@@ -15,7 +16,7 @@ import {
   ChevronUp,
   House,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
 
@@ -34,6 +35,13 @@ function kindHoverBg(kind: SetKind): string {
   if (kind === "scripture") return "hover:bg-[var(--brand-green)]/10";
   if (kind === "media") return "hover:bg-[var(--brand-orange)]/10";
   return "hover:bg-muted/50";
+}
+
+function kindLiveColor(kind: SetKind): string {
+  if (kind === "song") return "var(--brand-blue)";
+  if (kind === "scripture") return "var(--brand-green)";
+  if (kind === "media") return "var(--brand-orange)";
+  return "var(--brand-red)";
 }
 
 function KindBadge({ kind }: { kind: SetKind }) {
@@ -78,8 +86,12 @@ function Presenter() {
     setFromUrl ?? setList[0] ?? null
   );
   const [query, setQuery] = useState("");
-  const [groupView, setGroupView] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [slideW, setSlideW] = useState(() => {
+    if (typeof window === "undefined") return 256;
+    const saved = localStorage.getItem("presenter-slide-w");
+    return saved ? Number(saved) : 256;
+  });
   const [dragOverPlaylist, setDragOverPlaylist] = useState<string | null>(null);
   const [reorderDragIndex, setReorderDragIndex] = useState<number | null>(null);
   const [reorderOverIndex, setReorderOverIndex] = useState<number | null>(null);
@@ -103,9 +115,15 @@ function Presenter() {
 
   const q = query.trim().toLowerCase();
   const showAll = !activePlaylist;
-  const filteredSets = setList.filter(
-    (id) => !q || sets[id]?.name.toLowerCase().includes(q)
-  );
+  const filteredSets = setList.filter((id) => {
+    if (!q) return true;
+    const s = sets[id];
+    if (!s) return false;
+    if (s.name.toLowerCase().includes(q)) return true;
+    return s.slides.some((slide) =>
+      slide.lines?.some((line) => line.toLowerCase().includes(q))
+    );
+  });
   const filteredPlaylists = showAll ? playlistOrder : [];
 
   useEffect(() => {
@@ -137,8 +155,8 @@ function Presenter() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-foreground/10 bg-background">
-        <div className="grid grid-cols-3 items-center gap-4 px-6 py-4">
-          <div className="flex items-center gap-2 justify-self-start">
+        <div className="flex items-center gap-4 px-6 py-4">
+          <div className="flex shrink-0 items-center gap-2">
             <Link
               to="/"
               className="pill flex h-10 w-10 items-center justify-center bg-foreground text-background transition hover:opacity-90"
@@ -155,9 +173,24 @@ function Presenter() {
             >
               {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
             </button>
+            <input
+              type="range"
+              min={160}
+              max={400}
+              step={8}
+              value={slideW}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setSlideW(v);
+                localStorage.setItem("presenter-slide-w", String(v));
+              }}
+              style={{ width: 96 }}
+              title="Slide size"
+              aria-label="Slide size"
+            />
           </div>
 
-          <div className="flex items-center justify-center gap-3 justify-self-center">
+          <div className="flex flex-1 items-center justify-center gap-3">
             <h1 className="text-3xl">Presenter</h1>
             {activePlaylist && (
               <>
@@ -167,7 +200,7 @@ function Presenter() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 justify-self-end">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               onClick={openOutput}
               className="pill flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
@@ -317,11 +350,12 @@ function Presenter() {
                           }}
                           className={`flex w-full items-center justify-between gap-2 rounded-lg border-2 px-2 py-1.5 text-left text-sm transition ${
                             isLive
-                              ? "border-[var(--brand-red)]"
+                              ? ""
                               : isActive
                               ? "border-transparent bg-muted"
                               : `border-transparent ${kindHoverBg(d.kind)}`
                           }`}
+                          style={isLive ? { borderColor: kindLiveColor(d.kind) } : undefined}
                         >
                           <span className="flex items-center gap-1 truncate">
                             {inGathering && (
@@ -380,7 +414,7 @@ function Presenter() {
               <Link
                 to="/set/$setId"
                 params={{ setId: activeSet.id }}
-                search={{ redirectTo: "/present" }}
+                search={{ redirectTo: `/present?set=${activeSet.id}` }}
                 className="underline"
                 title="Edit set"
               >
@@ -395,29 +429,15 @@ function Presenter() {
                 <Link
                   to="/set/$setId"
                   params={{ setId: activeSet.id }}
-                  search={{ redirectTo: "/present" }}
+                  search={{ redirectTo: `/present?set=${activeSet.id}` }}
                   className="pill flex h-8 w-8 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                   title="Edit set"
                   aria-label="Edit set"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </Link>
-                {(activeSet.kind === "song" || activeSet.kind === "scripture") && (
-                  <label className="mono flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={groupView}
-                      onChange={(e) => setGroupView(e.target.checked)}
-                    />
-                    Group
-                  </label>
-                )}
               </div>
-              <SlideGridForPresenter
-                phytoSet={activeSet}
-                live={live}
-                grouped={groupView && (activeSet.kind === "song" || activeSet.kind === "scripture")}
-              />
+              <SlideGridForPresenter phytoSet={activeSet} live={live} slideW={slideW} />
             </>
           )}
 
@@ -437,7 +457,7 @@ function Presenter() {
                       <Link
                         to="/set/$setId"
                         params={{ setId: d.id }}
-                        search={{ redirectTo: "/present" }}
+                        search={{ redirectTo: `/present?set=${d.id}` }}
                         className="pill flex h-7 w-7 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                         title="Edit set"
                         aria-label="Edit set"
@@ -445,17 +465,13 @@ function Presenter() {
                         <Pencil className="h-3 w-3" />
                       </Link>
                       {id === live.setId && (
-                        <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" title="Live" />
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: kindLiveColor(d.kind) }} title="Live" />
                       )}
                     </div>
                     {d.slides.length === 0 ? (
                       <p className="text-xs text-muted-foreground">No slides.</p>
                     ) : (
-                      <SlideGridForPresenter
-                        phytoSet={d}
-                        live={live}
-                        grouped={groupView && (d.kind === "song" || d.kind === "scripture")}
-                      />
+                      <SlideGridForPresenter phytoSet={d} live={live} slideW={slideW} />
                     )}
                   </section>
                 );
@@ -630,210 +646,95 @@ function PresenterThumb({ slide, index, phytoSet, live }: { slide: Slide; index:
   return (
     <button
       onClick={() => live.go(phytoSet.id, slide.id)}
-      className={`group relative overflow-hidden rounded-lg border-2 text-left transition ${
-        isLive
-          ? "border-[var(--brand-red)]"
-          : "border-transparent hover:border-foreground"
+      className={`group relative w-full overflow-hidden rounded-lg border-2 text-left transition ${
+        isLive ? "" : "border-transparent hover:border-foreground"
       }`}
+      style={isLive ? { borderColor: kindLiveColor(phytoSet.kind) } : undefined}
     >
       <SlideView slide={slide} variant="thumb" template={template} />
       <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
         {isLive && (
-          <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: kindLiveColor(phytoSet.kind) }} />
         )}
         {index + 1}
       </div>
-      {slide.reference && phytoSet.kind === "scripture" && (
-        <div className="mono absolute bottom-1.5 left-1.5 right-1.5 truncate rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
-          {slide.reference}
-        </div>
-      )}
     </button>
   );
 }
 
-function SlideGridForPresenter({ phytoSet, live, grouped }: { phytoSet: PhytoSet; live: LiveApi; grouped: boolean }) {
-  if (!grouped) {
+const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+
+const SLIDE_GAP = 8;
+const SECTION_PAD = 8;
+
+function SlideGridForPresenter({ phytoSet, live, slideW }: { phytoSet: PhytoSet; live: LiveApi; slideW: number }) {
+  const useSections = phytoSet.kind === "song" || phytoSet.kind === "scripture";
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      setContainerWidth(entries[0].contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  if (!useSections) {
     return (
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+      <div ref={containerRef} className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         {phytoSet.slides.map((s, i) => (
           <PresenterThumb key={s.id} slide={s} index={i} phytoSet={phytoSet} live={live} />
         ))}
       </div>
     );
   }
-  const groups: { label: string; items: { slide: Slide; index: number }[] }[] = [];
-  let current = "Section";
+
+  const groups: { items: { slide: Slide; index: number }[] }[] = [];
+  let currentSection: string | null = null;
   phytoSet.slides.forEach((s, i) => {
     const sec = sectionOf(s);
-    if (sec) current = sec;
+    const resolvedSection = sec ?? currentSection;
     const last = groups[groups.length - 1];
-    if (!last || last.label !== current) groups.push({ label: current, items: [{ slide: s, index: i }] });
-    else last.items.push({ slide: s, index: i });
+    if (!last || resolvedSection !== currentSection) {
+      groups.push({ items: [{ slide: s, index: i }] });
+      currentSection = resolvedSection;
+    } else {
+      last.items.push({ slide: s, index: i });
+    }
   });
+
+  // How many slides fit in one row given the measured container width
+  const slidesPerRow = containerWidth > 0
+    ? Math.max(1, Math.floor((containerWidth + SLIDE_GAP) / (slideW + SLIDE_GAP)))
+    : 999;
+
   return (
-    <div className="space-y-5">
-      {groups.map((g, gi) => (
-        <section key={`${g.label}-${gi}`}>
-          <h3 className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">{g.label}</h3>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+    <div ref={containerRef} className="flex flex-wrap gap-2">
+      {groups.map((g, gi) => {
+        const cols = Math.min(g.items.length, slidesPerRow);
+        const sectionWidth = cols * slideW + (cols - 1) * SLIDE_GAP + SECTION_PAD * 2;
+        return (
+          <div
+            key={gi}
+            className="flex flex-wrap gap-2 rounded-xl p-2"
+            style={{
+              width: sectionWidth,
+              backgroundColor: `color-mix(in oklab, ${TINTS[gi % TINTS.length]} 20%, transparent)`,
+            }}
+          >
             {g.items.map(({ slide, index }) => (
-              <PresenterThumb key={slide.id} slide={slide} index={index} phytoSet={phytoSet} live={live} />
+              <div key={slide.id} style={{ width: slideW }}>
+                <PresenterThumb slide={slide} index={index} phytoSet={phytoSet} live={live} />
+              </div>
             ))}
           </div>
-        </section>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-const FONT_OPTIONS: { label: string; value: string }[] = [
-  { label: "System", value: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" },
-  { label: "Display", value: "'Times New Roman', Times, serif" },
-  { label: "Mono", value: "'Courier New', Courier, monospace" },
-];
 
-function SongTemplateEditor() {
-  const songTemplate = useLibrary((s) => s.songTemplate);
-  const setSongTemplate = useLibrary((s) => s.setSongTemplate);
-  const setPreviewDraft = useSongTemplateDraft((s) => s.setDraft);
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState({
-    fontScale: songTemplate.fontScale ?? 1,
-    fontFamily: songTemplate.fontFamily ?? FONT_OPTIONS[0].value,
-    bg: (songTemplate.bg ?? "black") as "black" | "white",
-  });
-
-  useEffect(() => {
-    if (!open) {
-      setDraft({
-        fontScale: songTemplate.fontScale ?? 1,
-        fontFamily: songTemplate.fontFamily ?? FONT_OPTIONS[0].value,
-        bg: (songTemplate.bg ?? "black") as "black" | "white",
-      });
-    }
-  }, [songTemplate, open]);
-
-  // Push draft into the global preview store whenever it changes while open.
-  useEffect(() => {
-    if (open) setPreviewDraft(draft);
-    else setPreviewDraft(null);
-  }, [open, draft, setPreviewDraft]);
-
-  // Always clear preview on unmount so leaving the page doesn't strand a draft.
-  useEffect(() => () => setPreviewDraft(null), [setPreviewDraft]);
-
-  const label = "Edit Song Template";
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="mono pill flex w-full items-center justify-center border border-foreground px-4 py-2 text-sm transition hover:bg-foreground hover:text-background"
-      >
-        {label}
-      </button>
-    );
-  }
-
-  const apply = () => {
-    setSongTemplate({ ...draft });
-    setPreviewDraft(null);
-    setOpen(false);
-  };
-
-  const cancel = () => {
-    setPreviewDraft(null);
-    setOpen(false);
-  };
-
-  return (
-    <div className="rounded-2xl border border-foreground p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="mono text-[10px] uppercase tracking-wider">{label}</div>
-        <button
-          onClick={cancel}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
-          Cancel
-        </button>
-      </div>
-
-      <div className="space-y-4 text-sm">
-        <div>
-          <div className="mono mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
-            <span>Font size</span>
-            <span className="text-muted-foreground">{draft.fontScale.toFixed(2)}×</span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={2}
-            step={0.05}
-            value={draft.fontScale}
-            onChange={(e) =>
-              setDraft((d) => ({ ...d, fontScale: Number(e.target.value) }))
-            }
-            className="w-full"
-          />
-        </div>
-
-        <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider">Font type</div>
-          <div className="grid grid-cols-1 gap-1">
-            {FONT_OPTIONS.map((f) => {
-              const active = draft.fontFamily === f.value;
-              return (
-                <button
-                  key={f.label}
-                  onClick={() => setDraft((d) => ({ ...d, fontFamily: f.value }))}
-                  style={{ fontFamily: f.value }}
-                  className={`rounded-lg border px-3 py-1.5 text-left text-sm transition ${
-                    active
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 hover:border-foreground"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider">Background</div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setDraft((d) => ({ ...d, bg: "black" }))}
-              className={`rounded-lg border px-3 py-2 text-xs transition ${
-                draft.bg === "black"
-                  ? "border-foreground bg-black text-white"
-                  : "border-foreground/20 bg-black text-white/60 hover:border-foreground"
-              }`}
-            >
-              Black
-            </button>
-            <button
-              onClick={() => setDraft((d) => ({ ...d, bg: "white" }))}
-              className={`rounded-lg border px-3 py-2 text-xs transition ${
-                draft.bg === "white"
-                  ? "border-foreground bg-white text-black"
-                  : "border-foreground/20 bg-white text-black/60 hover:border-foreground"
-              }`}
-            >
-              White
-            </button>
-          </div>
-        </div>
-
-        <button
-          onClick={apply}
-          className="pill flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90"
-        >
-          Apply to all songs
-        </button>
-      </div>
-    </div>
-  );
-}

@@ -175,6 +175,42 @@ input[type="checkbox"]:focus-visible {
   outline-offset: 2px;
 }
 
+/* Range inputs: thin foreground-coloured track */
+input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 1px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--foreground);
+  border-radius: 9999px;
+}
+input[type="range"]::-moz-range-track {
+  height: 1px;
+  background: var(--foreground);
+  border-radius: 9999px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5.5px;
+  border-radius: 9999px;
+  background: var(--foreground);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--foreground);
+}
+
 /* Reusable pill-shaped utilities */
 @utility pill {
   border-radius: 9999px;
@@ -202,3 +238,13 @@ input[type="checkbox"]:focus-visible {
   background-color: var(--muted);
   color: var(--foreground);
 }
+
+/* Catalogue scrollbar */
+.catalogue-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--foreground) transparent;
+}
+.catalogue-scroll::-webkit-scrollbar { width: 4px; }
+.catalogue-scroll::-webkit-scrollbar-track { background: transparent; }
+.catalogue-scroll::-webkit-scrollbar-thumb { background-color: var(--foreground); border-radius: 9999px; }
+.catalogue-scroll::-webkit-scrollbar-thumb:hover { background-color: var(--foreground); }

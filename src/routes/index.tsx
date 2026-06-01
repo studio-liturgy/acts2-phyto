@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { QRCodeCanvas } from "qrcode.react";
 import { useLibrary } from "@/lib/store";
@@ -479,7 +480,7 @@ function Library() {
                 : emptyCategoryLabel[kindFilter]}
             </div>
           ) : (
-            <div className="rounded-3xl border border-foreground p-4">
+            <div className="rounded-3xl border border-foreground p-4 max-h-[480px] overflow-y-auto catalogue-scroll">
               <ul className="space-y-1">
                 {catalogueRows.map((d) => (
                   <li
@@ -629,6 +630,9 @@ function PlaylistCard({
   onEndSession: () => void;
 }) {
   const dragIndex = useRef<number | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [liveOrder, setLiveOrder] = useState<string[] | null>(null);
+  const liveOrderRef = useRef<string[] | null>(null);
   const [dropActive, setDropActive] = useState(false);
   const [addQuery, setAddQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
@@ -672,18 +676,27 @@ function PlaylistCard({
   return (
     <div
       onDragOver={(e) => {
+        if (draggingId !== null) { e.preventDefault(); return; }
         e.preventDefault();
         e.dataTransfer.dropEffect = "copy";
         setDropActive(true);
       }}
-      onDragLeave={() => setDropActive(false)}
+      onDragLeave={(e) => {
+        // Only clear the ring when the cursor truly leaves the card, not just moves to a child element.
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        if (
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom
+        ) return;
+        setDropActive(false);
+      }}
       onDrop={(e) => {
         e.preventDefault();
         setDropActive(false);
-        if (dragIndex.current !== null) {
-          dragIndex.current = null;
-          return;
-        }
+        // Internal reorder drops are handled by the <ol> — ignore them here.
+        if (draggingId !== null) return;
         const incoming =
           e.dataTransfer.getData(SET_DRAG_TYPE) || e.dataTransfer.getData("text/plain");
         if (incoming && allSets.some((d) => d.id === incoming)) onAdd(incoming);
@@ -708,9 +721,6 @@ function PlaylistCard({
             onClick={() => editMode && setEditingName(true)}
             title={editMode ? "Rename" : undefined}
           >
-            {isLive && (
-              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-[var(--brand-red)]" title="Live" />
-            )}
             {name}
           </h3>
         )}
@@ -741,7 +751,7 @@ function PlaylistCard({
               isLive ? (
                 <button
                   onClick={() => setShowEndSessionDialog(true)}
-                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  className="pill flex h-10 w-10 items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)] transition [&>svg]:opacity-0 [&>svg]:transition-opacity [&>svg]:duration-200 hover:[&>svg]:opacity-100"
                   title="End session"
                   aria-label="End session"
                 >
@@ -750,7 +760,7 @@ function PlaylistCard({
               ) : (
                 <button
                   onClick={() => setShowGoLiveDialog(true)}
-                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:border-[var(--brand-green)] hover:bg-[var(--brand-green)] hover:text-[var(--brand-white)]"
+                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
                   title="Go live"
                   aria-label="Go live"
                 >
@@ -777,46 +787,64 @@ function PlaylistCard({
           Drag a set in to add it to this gathering.
         </p>
       ) : (
-        <ol className="space-y-1">
-          {setIds.map((id, i) => {
+        <ol
+          className="flex flex-col gap-1"
+          onDrop={(e) => {
+            e.preventDefault();
+            if (liveOrderRef.current) onReorder(liveOrderRef.current);
+            liveOrderRef.current = null;
+            setDraggingId(null);
+            setLiveOrder(null);
+            dragIndex.current = null;
+          }}
+        >
+          {(liveOrder ?? setIds).map((id, i) => {
             const d = nameLookup[id];
+            const isDragging = id === draggingId;
+            const originalIndex = setIds.indexOf(id);
             return (
               <li
                 key={`${id}-${i}`}
-                draggable
+                draggable={editMode}
                 onDragStart={(e) => {
+                  setDraggingId(id);
                   dragIndex.current = i;
                   e.dataTransfer.effectAllowed = "move";
                   hideDragGhost(e);
                 }}
                 onDragEnd={() => {
+                  if (liveOrderRef.current) onReorder(liveOrderRef.current);
+                  liveOrderRef.current = null;
+                  setDraggingId(null);
+                  setLiveOrder(null);
                   dragIndex.current = null;
                 }}
                 onDragOver={(e) => {
-                  if (dragIndex.current !== null) e.preventDefault();
-                }}
-                onDrop={(e) => {
-                  const from = dragIndex.current;
-                  if (from === null) return;
-                  e.stopPropagation();
+                  if (dragIndex.current === null) return;
                   e.preventDefault();
-                  dragIndex.current = null;
-                  if (from === i) return;
-                  const ids = [...setIds];
-                  const [moved] = ids.splice(from, 1);
-                  ids.splice(i, 0, moved);
-                  onReorder(ids);
+                  e.stopPropagation();
+                  const currentOrder = liveOrder ?? setIds;
+                  const currentFromIndex = currentOrder.indexOf(draggingId!);
+                  if (currentFromIndex === i) return;
+                  const next = [...currentOrder];
+                  next.splice(currentFromIndex, 1);
+                  next.splice(i, 0, draggingId!);
+                  liveOrderRef.current = next;
+                  setLiveOrder(next);
                 }}
-                className={`pill flex items-center gap-3 px-4 py-1.5 text-sm ${kindBg(d?.kind ?? "mixed")}`}
+                className={`pill flex items-center gap-3 px-4 py-1.5 text-sm transition ${kindBg(d?.kind ?? "mixed")} ${
+                  isDragging ? "ring-2 ring-foreground" : ""
+                }`}
               >
-                <DotsGrip className="cursor-grab opacity-80" />
-                <span className="flex-1 truncate">{d?.name ?? "(missing)"}</span>
-                <span className="mono text-[10px] uppercase tracking-wider opacity-90">
+                {editMode && <DotsGrip draggable={false} className="cursor-grab opacity-80" />}
+                <span draggable={false} className="flex-1 truncate">{d?.name ?? "(missing)"}</span>
+                <span draggable={false} className="mono text-[10px] uppercase tracking-wider opacity-90">
                   {d?.kind}
                 </span>
                 {editMode && (
                   <button
-                    onClick={() => onRemoveAt(i)}
+                    draggable={false}
+                    onClick={() => onRemoveAt(originalIndex)}
                     className="rounded-full p-0.5 transition hover:bg-white/25"
                     aria-label="Remove from gathering"
                   >

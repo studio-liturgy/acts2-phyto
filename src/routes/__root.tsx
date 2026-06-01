@@ -20,7 +20,9 @@ import { useLibrary } from "@/lib/store";
 import {
   diffWithSupabase,
   hasDifferences,
+  latestRemoteTime,
   applyMerge,
+  pushToSupabase,
   type SyncDiff,
 } from "@/lib/sync";
 import {
@@ -161,6 +163,8 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+let diffRanThisSession = false;
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const { pathname } = useLocation();
@@ -171,22 +175,36 @@ function RootComponent() {
   const { session, setSession } = useAuthStore();
   const loadFromDb = useLibrary((s) => s.loadFromDb);
   const [syncDiff, setSyncDiff] = useState<SyncDiff | null>(null);
+  const [syncing, setSyncing] = useState<'merge' | 'push' | null>(null);
 
   const runDiff = async () => {
+    if (pathname.startsWith("/g/")) return;
     const diff = await diffWithSupabase();
-    if (diff && hasDifferences(diff)) setSyncDiff(diff);
+    if (!diff) return;
+    if (hasDifferences(diff)) {
+      setSyncDiff(diff);
+    }
   };
 
   useEffect(() => {
     loadFromDb();
     getSession().then((s) => {
       setSession(s);
-      if (s) runDiff();
+      if (s && !diffRanThisSession) {
+        diffRanThisSession = true;
+        runDiff();
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
-      if (s && event === "SIGNED_IN") runDiff();
+      if (event === 'SIGNED_OUT') {
+        diffRanThisSession = false;
+      }
+      if (event === 'SIGNED_IN' && !diffRanThisSession) {
+        diffRanThisSession = true;
+        runDiff();
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -199,9 +217,19 @@ function RootComponent() {
   }, [session, pathname, navigate]);
 
   const handleMerge = async () => {
-    if (!syncDiff) return;
-    await applyMerge(syncDiff);
+    setSyncing('merge');
+    const freshDiff = await diffWithSupabase();
+    if (freshDiff) await applyMerge(freshDiff);
     await loadFromDb();
+    setSyncing(null);
+    setSyncDiff(null);
+  };
+
+  const handlePush = async () => {
+    setSyncing('push');
+    await pushToSupabase();
+    await loadFromDb();
+    setSyncing(null);
     setSyncDiff(null);
   };
 
@@ -209,38 +237,38 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {showOutlet && <Outlet />}
       <MobileBlock />
-      <Dialog open={syncDiff !== null} onOpenChange={(open) => { if (!open) setSyncDiff(null); }}>
+      <Dialog open={pathname !== "/output" && syncDiff !== null} onOpenChange={(open) => { if (!open) setSyncDiff(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Sync conflict detected</DialogTitle>
             <DialogDescription>
-              {syncDiff && (
-                <>
-                  {syncDiff.onlyLocal.sets.length > 0 && (
-                    <span>{syncDiff.onlyLocal.sets.length} set(s) only on this device. </span>
-                  )}
-                  {syncDiff.onlyLocal.gatherings.length > 0 && (
-                    <span>{syncDiff.onlyLocal.gatherings.length} gathering(s) only on this device. </span>
-                  )}
-                  {syncDiff.onlyRemote.sets.length > 0 && (
-                    <span>{syncDiff.onlyRemote.sets.length} set(s) only in Supabase. </span>
-                  )}
-                  {syncDiff.onlyRemote.gatherings.length > 0 && (
-                    <span>{syncDiff.onlyRemote.gatherings.length} gathering(s) only in Supabase. </span>
-                  )}
-                  {syncDiff.modified.sets.length > 0 && (
-                    <span>{syncDiff.modified.sets.length} set(s) modified. </span>
-                  )}
-                  {syncDiff.modified.gatherings.length > 0 && (
-                    <span>{syncDiff.modified.gatherings.length} gathering(s) modified. </span>
-                  )}
-                </>
-              )}
+              {syncing
+                ? syncing === 'merge' ? "Merging…" : "Pushing…"
+                : syncDiff && (() => {
+                    const remoteTime = latestRemoteTime(syncDiff);
+                    return remoteTime
+                      ? `Supabase was last modified ${remoteTime.toLocaleString()}. Merge to receive the Supabase version, or Push to overwrite Supabase with your local version.`
+                      : "Your local version has changes not in Supabase. Push to upload them, or Merge to sync both ways.";
+                  })()
+              }
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <button onClick={handleMerge}>Merge</button>
-          </DialogFooter>
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={handleMerge}
+              disabled={syncing !== null}
+              className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90 disabled:opacity-50"
+            >
+              {syncing === 'merge' ? "Merging…" : "Merge"}
+            </button>
+            <button
+              onClick={handlePush}
+              disabled={syncing !== null}
+              className="flex-1 rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background disabled:opacity-50"
+            >
+              {syncing === 'push' ? "Pushing…" : "Push (overwrite Supabase)"}
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </QueryClientProvider>

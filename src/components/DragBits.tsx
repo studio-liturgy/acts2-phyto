@@ -28,6 +28,19 @@ export function DotsGrip({
   );
 }
 
+/** Off-screen host element for drag ghost images. */
+const _circleCache: Record<string, HTMLDivElement> = {};
+let _ghostHost: HTMLDivElement | null = null;
+function ensureGhostHost(): HTMLDivElement {
+  if (_ghostHost) return _ghostHost;
+  const host = document.createElement("div");
+  host.style.cssText =
+    "position:fixed;top:-1000px;left:-1000px;pointer-events:none;z-index:-1;";
+  document.body.appendChild(host);
+  _ghostHost = host;
+  return host;
+}
+
 /** Cached empty 1×1 transparent image to suppress the default drag ghost. */
 let _emptyDragImage: HTMLImageElement | null = null;
 function emptyDragImage(): HTMLImageElement {
@@ -35,9 +48,13 @@ function emptyDragImage(): HTMLImageElement {
   const img = new Image();
   img.src =
     "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+  ensureGhostHost().appendChild(img);
   _emptyDragImage = img;
   return img;
 }
+
+// Pre-warm on module load so the ghost is ready before any drag starts.
+if (typeof document !== "undefined") emptyDragImage();
 
 /**
  * Hide the rectangular browser drag preview so dragged pills stay visually
@@ -49,19 +66,6 @@ export function hideDragGhost(e: React.DragEvent) {
   } catch {
     /* noop */
   }
-}
-
-/** Cache colored circle drag elements by color string. */
-const _circleCache: Record<string, HTMLDivElement> = {};
-let _ghostHost: HTMLDivElement | null = null;
-function ensureGhostHost(): HTMLDivElement {
-  if (_ghostHost) return _ghostHost;
-  const host = document.createElement("div");
-  host.style.cssText =
-    "position:fixed;top:-1000px;left:-1000px;pointer-events:none;z-index:-1;";
-  document.body.appendChild(host);
-  _ghostHost = host;
-  return host;
 }
 function circleDragElement(color: string, size = 56): HTMLDivElement {
   const key = `${color}-${size}`;

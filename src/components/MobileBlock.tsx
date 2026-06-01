@@ -3,7 +3,7 @@ import wordmark from "@/assets/wordmark.svg";
 
 const linkCls = "transition-opacity duration-200 hover:opacity-60";
 
-const EXACT_ALLOWED = ["/about", "/updates", "/terms", "/privacy", "/feedback", "/auth/callback"];
+const EXACT_ALLOWED = ["/about", "/updates", "/terms", "/privacy", "/feedback", "/auth/callback", "/output"];
 const PREFIX_ALLOWED = ["/g/"];
 
 // Supports exact paths and prefix patterns. __root.tsx calls MOBILE_ALLOWED.includes(pathname).

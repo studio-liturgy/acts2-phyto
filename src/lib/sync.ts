@@ -177,7 +177,10 @@ async function fetchRemote(userId: string) {
 export type SyncDiff = {
   onlyLocal: { sets: PhytoSet[]; gatherings: Playlist[] };
   onlyRemote: { sets: PhytoSet[]; gatherings: Playlist[] };
-  modified: { sets: PhytoSet[]; gatherings: Playlist[] }; // remote (winning) versions
+  modified: {
+    sets: { local: PhytoSet; remote: PhytoSet }[];
+    gatherings: { local: Playlist; remote: Playlist }[];
+  };
 };
 
 export function hasDifferences(diff: SyncDiff): boolean {
@@ -189,6 +192,16 @@ export function hasDifferences(diff: SyncDiff): boolean {
     diff.modified.sets.length > 0 ||
     diff.modified.gatherings.length > 0
   );
+}
+
+export function latestRemoteTime(diff: SyncDiff): Date | null {
+  const times = [
+    ...diff.onlyRemote.sets.map((s) => s.updatedAt),
+    ...diff.onlyRemote.gatherings.map((p) => p.updatedAt),
+    ...diff.modified.sets.map(({ remote }) => remote.updatedAt),
+    ...diff.modified.gatherings.map(({ remote }) => remote.updatedAt),
+  ];
+  return times.length ? new Date(Math.max(...times)) : null;
 }
 
 export async function diffWithSupabase(): Promise<SyncDiff | null> {
@@ -217,15 +230,18 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
       gatherings: remoteGatherings.filter((p) => !localGatheringMap.has(p.id)),
     },
     modified: {
-      // Remote version of rows that exist in both but have differing updatedAt
-      sets: remoteSets.filter((s) => {
-        const local = localSetMap.get(s.id);
-        return local && local.updatedAt !== s.updatedAt;
-      }),
-      gatherings: remoteGatherings.filter((p) => {
-        const local = localGatheringMap.get(p.id);
-        return local && local.updatedAt !== p.updatedAt;
-      }),
+      sets: remoteSets
+        .filter((s) => {
+          const local = localSetMap.get(s.id);
+          return local && Math.round(local.updatedAt / 1000) !== Math.round(s.updatedAt / 1000);
+        })
+        .map((s) => ({ local: localSetMap.get(s.id)!, remote: s })),
+      gatherings: remoteGatherings
+        .filter((p) => {
+          const local = localGatheringMap.get(p.id);
+          return local && Math.round(local.updatedAt / 1000) !== Math.round(p.updatedAt / 1000);
+        })
+        .map((p) => ({ local: localGatheringMap.get(p.id)!, remote: p })),
     },
   };
 }
@@ -237,9 +253,16 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
 export async function applyMerge(diff: SyncDiff): Promise<void> {
   const session = getSession();
 
-  // Write remote-only and modified (remote version) into Dexie
-  const setsToWrite = [...diff.onlyRemote.sets, ...diff.modified.sets];
-  const gatheringsToWrite = [...diff.onlyRemote.gatherings, ...diff.modified.gatherings];
+  // Merge = "accept remote." Write ALL remote items (remote-only and every modified)
+  // to Dexie regardless of timestamps — user chose to receive the Supabase version.
+  const setsToWrite = [
+    ...diff.onlyRemote.sets,
+    ...diff.modified.sets.map(({ remote }) => remote),
+  ];
+  const gatheringsToWrite = [
+    ...diff.onlyRemote.gatherings,
+    ...diff.modified.gatherings.map(({ remote }) => remote),
+  ];
   if (setsToWrite.length) await db.sets.bulkPut(setsToWrite);
   if (gatheringsToWrite.length) {
     try {
@@ -253,7 +276,7 @@ export async function applyMerge(diff: SyncDiff): Promise<void> {
     }
   }
 
-  // Push local-only items to Supabase
+  // Push only-local items (items Supabase doesn't know about at all)
   if (session) {
     const userId = session.user.id;
     const deviceId = getDeviceId();
@@ -310,20 +333,56 @@ async function doPush(userId: string): Promise<void> {
     console.log('[sync] pushToSupabase: pushing', sets.length, 'sets,', gatherings.length, 'gatherings');
 
     if (sets.length) {
-      const { error } = await supabase
+      const { data: savedSets, error } = await supabase
         .from('sets')
-        .upsert(sets.map((s) => toSupabaseSet(s, userId, deviceId)), { onConflict: 'id' });
+        .upsert(sets.map((s) => toSupabaseSet(s, userId, deviceId)), { onConflict: 'id' })
+        .select();
       if (error) console.error('[sync] pushToSupabase: sets upsert error', error);
+      if (savedSets?.length) {
+        for (const row of savedSets as Record<string, unknown>[]) {
+          await db.sets.where('id').equals(row.id as string).modify({
+            updatedAt: new Date(row.updated_at as string).getTime(),
+          });
+        }
+      }
     }
 
     if (gatherings.length) {
-      const { error: gErr } = await supabase
+      const { data: savedGatherings, error: gErr } = await supabase
         .from('gatherings')
-        .upsert(gatherings.map((p) => toSupabaseGathering(p, userId, deviceId)), { onConflict: 'id' });
+        .upsert(gatherings.map((p) => toSupabaseGathering(p, userId, deviceId)), { onConflict: 'id' })
+        .select();
       if (gErr) console.error('[sync] pushToSupabase: gatherings upsert error', gErr);
+      // Sync server-side timestamps back to Dexie. The server may have a trigger
+      // that updates updated_at, so we need the exact value Supabase stored —
+      // otherwise the next diff sees a stale local timestamp and fires a false conflict.
+      // We only update the timestamp field, not setIds (gathering_sets haven't been
+      // written yet so reading them back would produce the wrong order).
+      if (savedGatherings?.length) {
+        for (const row of savedGatherings as Record<string, unknown>[]) {
+          await db.gatherings.where('id').equals(row.id as string).modify({
+            updatedAt: new Date(row.updated_at as string).getTime(),
+          });
+        }
+      }
+
+      const { data: existingGs } = await supabase
+        .from('gathering_sets')
+        .select('set_id, position, gathering_id')
+        .in('gathering_id', gatherings.map((p) => p.id));
+
+      const existingByGathering = new Map<string, string[]>();
+      for (const row of (existingGs ?? []) as { gathering_id: string; set_id: string; position: number }[]) {
+        const arr = existingByGathering.get(row.gathering_id) ?? [];
+        arr[row.position] = row.set_id;
+        existingByGathering.set(row.gathering_id, arr);
+      }
+
+      // Always sync all gatherings — local state is authoritative during a push.
+      const gatheringsToSync = gatherings;
 
       const gatheringSetRows = await Promise.all(
-        gatherings.flatMap((p) =>
+        gatheringsToSync.flatMap((p) =>
           p.setIds.map(async (setId, i) => ({
             id: await deterministicUuid(p.id, String(i)),
             gathering_id: p.id,
@@ -337,7 +396,7 @@ async function doPush(userId: string): Promise<void> {
         const { error: delErr } = await supabase
           .from('gathering_sets')
           .delete()
-          .in('gathering_id', gatherings.map((p) => p.id));
+          .in('gathering_id', gatheringsToSync.map((p) => p.id));
         if (delErr) console.error('[sync] pushToSupabase: gathering_sets delete error', delErr);
 
         const { error: insErr } = await supabase.from('gathering_sets').insert(gatheringSetRows);

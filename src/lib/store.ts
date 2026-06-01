@@ -10,9 +10,33 @@ function uid() {
   return crypto.randomUUID();
 }
 
+// --- Song template persistence + cross-window sync ---
+const TEMPLATE_KEY = "song-template-v1";
+
+function readSongTemplate(): SetTemplate {
+  if (typeof window === "undefined")
+    return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" };
+  try {
+    const raw = localStorage.getItem(TEMPLATE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" };
+}
+
 // Debounce pushToSupabase so rapid consecutive mutations fire only one push.
 // If another tab just completed a push and broadcast sync-complete, skip this
 // tab's push — the data is already in Supabase and loadFromDb has been called.
+const SET_SYNC_CHANNEL = "set-sync-v1";
+
+let setSyncTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleSyncBroadcast(updated: PhytoSet) {
+  if (setSyncTimer) clearTimeout(setSyncTimer);
+  setSyncTimer = setTimeout(() => {
+    setSyncTimer = null;
+    try { new BroadcastChannel(SET_SYNC_CHANNEL).postMessage(updated); } catch {}
+  }, 250);
+}
+
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 function schedulePush() {
   if (pushTimer) clearTimeout(pushTimer);
@@ -61,7 +85,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   order: [],
   playlists: {},
   playlistOrder: [],
-  songTemplate: { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" },
+  songTemplate: typeof window !== "undefined" ? readSongTemplate() : { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" },
 
   loadFromDb: async () => {
     const [allSets, allGatherings] = await Promise.all([
@@ -91,7 +115,14 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   },
 
   setSongTemplate: (patch) =>
-    set((s) => ({ songTemplate: { ...s.songTemplate, ...patch } })),
+    set((s) => {
+      const next = { ...s.songTemplate, ...patch };
+      try {
+        localStorage.setItem(TEMPLATE_KEY, JSON.stringify(next));
+        new BroadcastChannel(TEMPLATE_KEY).postMessage(next);
+      } catch {}
+      return { songTemplate: next };
+    }),
 
   createSet: (newSet) => {
     const id = uid();
@@ -111,15 +142,51 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       if (!d) return s;
       const updated = { ...d, ...patch, updatedAt: Date.now() };
       db.sets.put(updated).then(() => schedulePush());
+      // Broadcast updated set so other windows (output) stay in sync (debounced).
+      scheduleSyncBroadcast(updated);
+      // Keep live slideId at same position index when slides are regenerated.
+      if (patch.slides) {
+        const live = useLive.getState();
+        if (live.setId === id && !patch.slides.find((sl) => sl.id === live.slideId)) {
+          const oldIdx = d.slides.findIndex((sl) => sl.id === live.slideId);
+          const newSlide = patch.slides[Math.min(Math.max(oldIdx, 0), patch.slides.length - 1)];
+          if (newSlide) useLive.getState().setLive({ slideId: newSlide.id });
+        }
+      }
       return { sets: { ...s.sets, [id]: updated } };
     }),
 
-  deleteSet: (id) =>
+  deleteSet: async (id) => {
+    const session = useAuthStore.getState().session;
+    if (session) {
+      const { error } = await supabase
+        .from('sets')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', session.user.id);
+      if (error) console.error('[deleteSet] Supabase delete error:', error);
+    }
+    await db.sets.delete(id);
     set((s) => {
       const { [id]: _gone, ...rest } = s.sets;
-      db.sets.delete(id).then(() => schedulePush());
       return { sets: rest, order: s.order.filter((x) => x !== id) };
-    }),
+    });
+    // Remove deleted set from all gatherings to avoid FK violations on next push
+    const playlists = get().playlists;
+    const toUpdate: Playlist[] = [];
+    for (const p of Object.values(playlists)) {
+      if (p.setIds.includes(id)) {
+        toUpdate.push({ ...p, setIds: p.setIds.filter((s) => s !== id), updatedAt: Date.now() });
+      }
+    }
+    if (toUpdate.length) {
+      await Promise.all(toUpdate.map((p) => db.gatherings.put(p)));
+      set((s) => ({
+        playlists: { ...s.playlists, ...Object.fromEntries(toUpdate.map((p) => [p.id, p])) },
+      }));
+      schedulePush();
+    }
+  },
 
   addSlide: (setId, slide) => {
     const id = uid();
@@ -443,5 +510,23 @@ if (typeof window !== "undefined") {
         useLive.setState(JSON.parse(e.newValue));
       } catch {}
     }
+    if (e.key === TEMPLATE_KEY && e.newValue) {
+      try {
+        useLibrary.setState({ songTemplate: JSON.parse(e.newValue) });
+      } catch {}
+    }
+  });
+
+  const tc = new BroadcastChannel(TEMPLATE_KEY);
+  tc.addEventListener("message", (e) => {
+    useLibrary.setState({ songTemplate: e.data });
+  });
+
+  const sc = new BroadcastChannel(SET_SYNC_CHANNEL);
+  sc.addEventListener("message", (e) => {
+    const updatedSet = e.data as PhytoSet;
+    useLibrary.setState((s) => ({
+      sets: { ...s.sets, [updatedSet.id]: updatedSet },
+    }));
   });
 }

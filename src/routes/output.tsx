@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLibrary, useLive, useSongTemplateDraft } from "@/lib/store";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import type { Slide } from "@/lib/types";
 
 export const Route = createFileRoute("/output")({
   head: () => ({
@@ -18,10 +19,13 @@ function Output() {
   const phytoSet = useLibrary((s) => (live.setId ? s.sets[live.setId] : null));
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
-  const slide = useMemo(
+  const rawSlide = useMemo(
     () => phytoSet?.slides.find((s) => s.id === live.slideId) ?? null,
     [phytoSet, live.slideId]
   );
+  const lastSlideRef = useRef<Slide | null>(null);
+  if (rawSlide) lastSlideRef.current = rawSlide;
+  const slide = rawSlide ?? (live.setId && live.slideId ? lastSlideRef.current : null);
   const template = phytoSet?.kind === "song" ? (songDraft ?? songTemplate) : phytoSet?.template;
 
   useEffect(() => {

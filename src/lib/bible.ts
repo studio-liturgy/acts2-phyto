@@ -13,6 +13,8 @@ export const TRANSLATIONS = [
   { code: "NASB", label: "NASB — New American Standard" },
   { code: "NKJV", label: "NKJV — New King James Version" },
   { code: "KJV", label: "KJV — King James Version" },
+  { code: "AMP", label: "AMP — Amplified Version" },
+  { code: "MSG", label: "MSG — The Message" },
 ] as const;
 
 const BOOKS: { id: number; names: string[] }[] = [
@@ -170,7 +172,7 @@ export async function fetchScriptureBolls(
   ref: string,
   translation: string,
   opts: { removeLineBreaks?: boolean } = {}
-): Promise<{ reference: string; verses: FetchedVerse[] }> {
+): Promise<{ reference: string; bookName: string; verses: FetchedVerse[] }> {
   const parsed = parseReference(ref);
   if (!parsed)
     throw new Error(
@@ -212,7 +214,7 @@ export async function fetchScriptureBolls(
   } else {
     reference = `${parsed.bookName} ${parsed.startChapter}:${parsed.startVerse}-${parsed.endChapter}:${parsed.endVerse}`;
   }
-  return { reference, verses: collected };
+  return { reference, bookName: parsed.bookName, verses: collected };
 }
 
 function cleanVerseText(s: string, { removeLineBreaks }: { removeLineBreaks: boolean }) {

@@ -66,7 +66,7 @@ export function scriptureToSlides(
   versesPerSlide = 1,
   opts: { keepLineBreaks?: boolean } = {}
 ): Slide[] {
-  const perSlide = Math.min(2, Math.max(1, versesPerSlide));
+  const perSlide = Math.min(3, Math.max(1, versesPerSlide));
   const keepLineBreaks = opts.keepLineBreaks ?? false;
   // Derive book name from the passage reference, e.g. "John 3:16-18" -> "John".
   const bookName = ref.match(/^(.+?)\s+\d/)?.[1]?.trim() ?? ref;

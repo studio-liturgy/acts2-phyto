@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useLibrary } from "@/lib/store";
+import { useLibrary, useSongTemplateDraft } from "@/lib/store";
+import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { parseLyrics, fileToCompressedImageDataUrl, scriptureToSlides } from "@/lib/parsers";
 import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
 import { searchSongs, type SongResult } from "@/lib/songs";
@@ -42,7 +43,6 @@ function kindBadgeBg(kind: SetKind): string {
   return "bg-muted text-foreground";
 }
 
-/* Reusable card frame matching the mockup: thin foreground border, large radius */
 function PanelCard({
   label,
   className = "",
@@ -62,12 +62,105 @@ function PanelCard({
   );
 }
 
+function SetHeader({
+  phytoSet,
+  redirectTo,
+  editingName,
+  setEditingName,
+  updateSet,
+  navigate,
+  deleteSet,
+}: {
+  phytoSet: { id: string; name: string; kind: SetKind };
+  redirectTo?: string;
+  editingName: boolean;
+  setEditingName: (v: boolean | ((prev: boolean) => boolean)) => void;
+  updateSet: (id: string, patch: object) => void;
+  navigate: ReturnType<typeof useNavigate>;
+  deleteSet: (id: string) => void;
+}) {
+  return (
+    <header className="flex shrink-0 items-center gap-3 border-b border-foreground px-6 py-4 md:px-10">
+      {/* Back */}
+      <Link
+        to={redirectTo ?? "/"}
+        className="pill flex h-10 w-10 shrink-0 items-center justify-center bg-foreground text-background transition hover:opacity-90"
+        title="Back"
+        aria-label="Back"
+      >
+        <ArrowUpLeft className="h-5 w-5" />
+      </Link>
+
+      {/* Title + badge */}
+      <div className="flex min-w-0 items-center gap-2">
+        {editingName ? (
+          <Input
+            autoFocus
+            value={phytoSet.name}
+            onChange={(e) => updateSet(phytoSet.id, { name: e.target.value })}
+            onBlur={() => setEditingName(false)}
+            onKeyDown={(e) => e.key === "Enter" && setEditingName(false)}
+            className="h-9 w-56 border-foreground text-base"
+          />
+        ) : (
+          <h1
+            onClick={() => setEditingName(true)}
+            className="cursor-text truncate text-base text-muted-foreground"
+            title="Click to rename"
+          >
+            {phytoSet.name}
+          </h1>
+        )}
+        <button
+          onClick={() => setEditingName((v) => !v)}
+          className="shrink-0 rounded-full p-1.5 hover:bg-muted"
+          title="Rename"
+          aria-label="Rename"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <span
+          className={`pill mono shrink-0 px-2.5 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(phytoSet.kind)}`}
+        >
+          {phytoSet.kind}
+        </span>
+      </div>
+
+      <div className="flex-1" />
+
+      {/* Right actions */}
+      <button
+        onClick={() => {
+          if (confirm("Delete this set?")) {
+            deleteSet(phytoSet.id);
+            navigate({ to: "/" });
+          }
+        }}
+        className="pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+      >
+        Delete
+      </button>
+      <AddToGathering setId={phytoSet.id} />
+      <button
+        onClick={() => navigate({ to: "/present", search: { set: phytoSet.id } })}
+        className="pill flex shrink-0 items-center gap-2 border border-foreground bg-background px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+      >
+        Present <ArrowUpRight className="h-4 w-4" />
+      </button>
+    </header>
+  );
+}
+
 function SetEditor() {
   const { setId } = Route.useParams();
   const { redirectTo } = Route.useSearch();
   const navigate = useNavigate();
   const phytoSet = useLibrary((s) => s.sets[setId]);
   const { updateSet, addSlide, updateSlide, removeSlide, reorderSlides, deleteSet } = useLibrary();
+  const songTemplate = useLibrary((s) => s.songTemplate);
+  const songDraft = useSongTemplateDraft((s) => s.draft);
+  const effectiveTemplate = songDraft ?? songTemplate;
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
   const [groupView, setGroupView] = useState(true);
@@ -116,6 +209,138 @@ function SetEditor() {
     );
   }
 
+  const headerProps = {
+    phytoSet,
+    redirectTo,
+    editingName,
+    setEditingName,
+    updateSet,
+    navigate,
+    deleteSet,
+  };
+
+  // Song: full-page two-column layout
+  if (phytoSet.kind === "song") {
+    return (
+      <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+        <SetHeader {...headerProps} />
+        <div className="flex min-h-0 flex-1 divide-x divide-foreground">
+          {/* Left: song editor */}
+          <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
+            <Importers setId={phytoSet.id} kind={phytoSet.kind} />
+          </div>
+          {/* Right: template editor + live slide grid */}
+          <div className="w-1/2 overflow-y-auto p-6">
+            <div className="mb-4">
+              <SongTemplateEditor />
+            </div>
+            {phytoSet.slides.length === 0 ? (
+              <p className="py-16 text-center text-sm text-muted-foreground">
+                Slides will appear here as you type
+              </p>
+            ) : (() => {
+              const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+              const groups: { label: string | undefined; slides: Slide[] }[] = [];
+              for (const s of phytoSet.slides) {
+                const last = groups[groups.length - 1];
+                if (!last || s.section !== last.label) {
+                  groups.push({ label: s.section, slides: [s] });
+                } else {
+                  last.slides.push(s);
+                }
+              }
+              return (
+                <div className="space-y-4">
+                  {groups.map((g, gi) => (
+                    <div key={gi}>
+                      {g.label && (
+                        <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                          {g.label}
+                        </div>
+                      )}
+                      <div
+                        className="rounded-xl p-2"
+                        style={{ backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 20%, transparent)` }}
+                      >
+                        <div className="grid grid-cols-2 gap-2">
+                          {g.slides.map((s) => (
+                            <div key={s.id} className="overflow-hidden rounded-md">
+                              <SlideView slide={s} variant="thumb" template={effectiveTemplate} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Scripture: full-page two-column layout (mirrors song layout)
+  if (phytoSet.kind === "scripture") {
+    return (
+      <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+        <SetHeader {...headerProps} />
+        <div className="flex min-h-0 flex-1 divide-x divide-foreground">
+          {/* Left: import controls */}
+          <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
+            <Importers setId={phytoSet.id} kind={phytoSet.kind} />
+          </div>
+          {/* Right: live slide grid */}
+          <div className="w-1/2 overflow-y-auto p-6">
+            {phytoSet.slides.length === 0 ? (
+              <p className="py-16 text-center text-sm text-muted-foreground">
+                Slides will appear here after you import
+              </p>
+            ) : (() => {
+              const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+              const groups: { label: string | undefined; slides: Slide[] }[] = [];
+              for (const s of phytoSet.slides) {
+                const last = groups[groups.length - 1];
+                if (!last || s.section !== last.label) {
+                  groups.push({ label: s.section, slides: [s] });
+                } else {
+                  last.slides.push(s);
+                }
+              }
+              return (
+                <div className="space-y-4">
+                  {groups.map((g, gi) => (
+                    <div key={gi}>
+                      {g.label && (
+                        <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                          {g.label}
+                        </div>
+                      )}
+                      <div
+                        className="rounded-xl p-2"
+                        style={{ backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 20%, transparent)` }}
+                      >
+                        <div className="grid grid-cols-2 gap-2">
+                          {g.slides.map((s) => (
+                            <div key={s.id} className="overflow-hidden rounded-md">
+                              <SlideView slide={s} variant="thumb" template={phytoSet.template} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Media: original layout
   const dense = phytoSet.slides.length > 20;
 
   const handleSelect = (id: string, e?: React.MouseEvent) => {
@@ -144,71 +369,11 @@ function SetEditor() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="px-6 pt-6 md:px-10 md:pt-8">
-        <div className="relative mx-auto flex max-w-7xl items-center justify-center gap-4">
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-3">
-            {editingName ? (
-              <Input
-                autoFocus
-                value={phytoSet.name}
-                onChange={(e) => updateSet(phytoSet.id, { name: e.target.value })}
-                onBlur={() => setEditingName(false)}
-                onKeyDown={(e) => e.key === "Enter" && setEditingName(false)}
-                className="h-10 w-72 border-foreground text-xl"
-              />
-            ) : (
-              <h1
-                onClick={() => setEditingName(true)}
-                className="cursor-text truncate text-xl text-muted-foreground"
-                title="Click to rename"
-              >
-                {phytoSet.name}
-              </h1>
-            )}
-            <button
-              onClick={() => setEditingName((v) => !v)}
-              className="rounded-full p-2 hover:bg-muted"
-              title="Rename"
-              aria-label="Rename"
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-            <span
-              className={`pill mono px-3 py-1 text-[10px] uppercase tracking-wider ${kindBadgeBg(phytoSet.kind)}`}
-            >
-              {phytoSet.kind}
-            </span>
-          </div>
-
-          <div className="mr-auto">
-            <Link
-              to={redirectTo ?? "/"}
-              className="pill flex h-12 w-12 items-center justify-center bg-foreground text-background transition hover:opacity-90"
-              title="Back"
-              aria-label="Back"
-            >
-              <ArrowUpLeft className="h-5 w-5" />
-            </Link>
-          </div>
-
-          <div className="ml-auto flex items-center gap-3">
-            <AddToGathering setId={phytoSet.id} />
-            <button
-              onClick={() => navigate({ to: "/present", search: { set: phytoSet.id } })}
-              className="pill flex items-center gap-2 border border-foreground bg-background px-6 py-2.5 text-base transition hover:bg-foreground hover:text-background"
-            >
-              Present <ArrowUpRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <SetHeader {...headerProps} />
 
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 md:px-10 lg:grid-cols-[1fr_340px]">
         <div className="space-y-5">
           <Importers setId={phytoSet.id} kind={phytoSet.kind} />
-
-
 
           <PanelCard>
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -219,16 +384,6 @@ function SetEditor() {
                     <span className="ml-2 text-foreground">· {multiSel.size} selected</span>
                   )}
                 </h2>
-                {(phytoSet.kind === "song" || phytoSet.kind === "scripture") && (
-                  <label className="mono flex items-center gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={groupView}
-                      onChange={(e) => setGroupView(e.target.checked)}
-                    />
-                    Group by section
-                  </label>
-                )}
               </div>
               <div className="flex items-center gap-2">
                 {multiSel.size > 0 && (
@@ -255,29 +410,16 @@ function SetEditor() {
               </p>
             ) : (
               <div className="max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
-                {groupView && (phytoSet.kind === "song" || phytoSet.kind === "scripture") ? (
-                  <GroupedSongGrid
-                    slides={phytoSet.slides}
-                    selectedId={selected?.id ?? null}
-                    multiSel={multiSel}
-                    onSelect={handleSelect}
-                    onRemove={(id) => removeSlide(phytoSet.id, id)}
-                    onReorder={(ids) => reorderSlides(phytoSet.id, ids)}
-                    dense={dense}
-                    kind={phytoSet.kind}
-                  />
-                ) : (
-                  <SlideGrid
-                    slides={phytoSet.slides}
-                    selectedId={selected?.id ?? null}
-                    multiSel={multiSel}
-                    onSelect={handleSelect}
-                    onRemove={(id) => removeSlide(phytoSet.id, id)}
-                    onReorder={(ids) => reorderSlides(phytoSet.id, ids)}
-                    dense={dense}
-                    kind={phytoSet.kind}
-                  />
-                )}
+                <SlideGrid
+                  slides={phytoSet.slides}
+                  selectedId={selected?.id ?? null}
+                  multiSel={multiSel}
+                  onSelect={handleSelect}
+                  onRemove={(id) => removeSlide(phytoSet.id, id)}
+                  onReorder={(ids) => reorderSlides(phytoSet.id, ids)}
+                  dense={dense}
+                  kind={phytoSet.kind}
+                />
               </div>
             )}
           </PanelCard>
@@ -301,15 +443,6 @@ function SetEditor() {
                     placeholder="Chorus, Verse 1…"
                   />
                 </Field>
-                {phytoSet.kind === "scripture" && (
-                  <Field label="Reference">
-                    <PillInput
-                      value={selected.reference ?? ""}
-                      onChange={(v) => updateSlide(phytoSet.id, selected.id, { reference: v })}
-                      placeholder="e.g. John 3:16"
-                    />
-                  </Field>
-                )}
                 <div>
                   <div className="mono mb-2 text-[10px] uppercase tracking-wider">Text</div>
                   <Textarea
@@ -324,18 +457,6 @@ function SetEditor() {
               </div>
             </PanelCard>
           )}
-
-          <button
-            onClick={() => {
-              if (confirm("Delete this set?")) {
-                deleteSet(phytoSet.id);
-                navigate({ to: "/" });
-              }
-            }}
-            className="pill w-full bg-[var(--brand-red)] py-2.5 text-sm text-[var(--brand-white)] transition hover:opacity-90"
-          >
-            Delete this set
-          </button>
         </aside>
       </div>
     </div>
@@ -369,7 +490,6 @@ function PillInput({
     />
   );
 }
-
 
 function kindColor(kind?: SetKind): string {
   if (kind === "song") return "var(--brand-blue)";
@@ -507,11 +627,125 @@ function GroupedSongGrid(props: {
   );
 }
 
+// Strips existing --- lines, then re-inserts --- every linesPer non-empty lines,
+// preserving empty lines in their original positions.
+function applyDividers(text: string, linesPer: number): string {
+  const lines = text.replace(/^---\s*$/gm, "").split("\n");
+  const out: string[] = [];
+  let nonEmptyCount = 0;
+  for (const line of lines) {
+    if (line.trim() !== "") {
+      if (nonEmptyCount > 0 && nonEmptyCount % linesPer === 0) {
+        out.push("---");
+      }
+      nonEmptyCount++;
+    }
+    out.push(line);
+  }
+  // Trim trailing blank lines / dividers
+  while (out.length > 0 && out[out.length - 1].trim() === "") out.pop();
+  while (out.length > 0 && out[out.length - 1] === "---") out.pop();
+  return out.join("\n");
+}
+
+// Parses lyrics using only --- as slide breaks, never re-splitting by linesPer.
+// Lines matching /^\[.+\]$/ set the current group label for following slides.
+// Used for the live right-column preview on every keystroke.
+function parseLyricsFromText(text: string): Slide[] {
+  const rawLines = text.split("\n");
+  const slides: Slide[] = [];
+  let currentSection: string | undefined;
+  let currentLines: string[] = [];
+
+  const flushSlide = () => {
+    const content = currentLines.join("\n").trim();
+    if (content) {
+      slides.push({
+        id: uid(),
+        kind: "lyric" as const,
+        lines: content.split("\n").map((l) => l.trim()),
+        section: currentSection,
+      });
+    }
+    currentLines = [];
+  };
+
+  for (const line of rawLines) {
+    if (/^---\s*$/.test(line)) {
+      flushSlide();
+    } else if (/^\[.+\]$/.test(line.trim())) {
+      flushSlide();
+      currentSection = line.trim().slice(1, -1);
+    } else {
+      currentLines.push(line);
+    }
+  }
+  flushSlide();
+  return slides;
+}
+
+function lyricsToSlides(text: string): Slide[] {
+  return parseLyricsFromText(text);
+}
+
+// Parses scripture textarea format into slides.
+// Lines matching /^\[.+\]$/ set the current verse reference.
+// --- forces a slide boundary; versesPer groups verses within each segment.
+// Segments with no [ref] inherit the last seen ref from previous segments.
+function parseScriptureFromText(text: string, versesPer: number): Slide[] {
+  const segments = text.split(/^---\s*$/m);
+  const slides: Slide[] = [];
+  let inheritedRef = "";
+
+  for (const segment of segments) {
+    const verses: { ref: string; lines: string[] }[] = [];
+    let currentRef = inheritedRef;
+    let currentLines: string[] = [];
+
+    const flushVerse = () => {
+      const content = currentLines.join("\n").trim();
+      if (content || currentRef) {
+        verses.push({ ref: currentRef, lines: content ? content.split("\n") : [] });
+      }
+      currentLines = [];
+    };
+
+    for (const line of segment.split("\n")) {
+      if (/^\[.+\]$/.test(line.trim())) {
+        flushVerse();
+        currentRef = line.trim().slice(1, -1);
+        inheritedRef = currentRef;
+      } else {
+        currentLines.push(line);
+      }
+    }
+    flushVerse();
+
+    for (let i = 0; i < verses.length; i += versesPer) {
+      const group = verses.slice(i, i + versesPer);
+      const lines = group.flatMap((v) => v.lines);
+      if (lines.length === 0) continue;
+      slides.push({
+        id: uid(),
+        kind: "scripture" as const,
+        reference: group[0].ref,
+        lines,
+        section: group[0].ref,
+      });
+    }
+  }
+  return slides;
+}
+
 function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const { addSlide, updateSet } = useLibrary();
 
-  const [linesPer, setLinesPer] = useState(2);
+  const [linesPer, setLinesPer] = useState<number>(() => {
+    const stored = localStorage.getItem("phyto_lines_per_slide");
+    return stored ? Math.max(1, Number(stored) || 2) : 2;
+  });
   const [lyrics, setLyrics] = useState("");
+  const prevLinesPer = useRef(linesPer);
 
   const [songQuery, setSongQuery] = useState("");
   const [songResults, setSongResults] = useState<SongResult[]>([]);
@@ -527,11 +761,57 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [manualRef, setManualRef] = useState("");
   const [manualText, setManualText] = useState("");
 
-  const importLyrics = () => {
-    const slides = parseLyrics(lyrics, linesPer);
-    slides.forEach((s) => addSlide(setId, s));
-    setLyrics("");
-  };
+  // On mount: reconstruct textarea from existing slides.
+  const initialised = useRef(false);
+  useEffect(() => {
+    if (initialised.current) return;
+    initialised.current = true;
+    const currentSlides = useLibrary.getState().sets[setId]?.slides ?? [];
+    if (currentSlides.length === 0) return;
+
+    if (kind === "song") {
+      let prevSection: string | undefined;
+      const parts: string[] = [];
+      for (const s of currentSlides) {
+        if (s.section !== prevSection) {
+          if (s.section) parts.push(`[${s.section}]`);
+          prevSection = s.section;
+        }
+        parts.push(s.lines?.join("\n") ?? "");
+      }
+      setLyrics(parts.join("\n---\n"));
+    } else if (kind === "scripture") {
+      const slideParts: string[] = [];
+      let lastRef = "";
+      for (const s of currentSlides) {
+        const ref = s.reference ?? "";
+        const text = (s.lines ?? []).join("\n");
+        slideParts.push(ref !== lastRef ? `[${ref}]\n${text}` : text);
+        lastRef = ref;
+      }
+      setManualText(slideParts.join("\n---\n"));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist linesPer across navigations.
+  useEffect(() => {
+    localStorage.setItem("phyto_lines_per_slide", String(linesPer));
+  }, [linesPer]);
+
+  // Live sync: replace all slides whenever lyrics change (song only).
+  useEffect(() => {
+    if (kind !== "song") return;
+    const slides = lyrics.trim() ? lyricsToSlides(lyrics) : [];
+    updateSet(setId, { slides });
+  }, [lyrics, kind, setId, updateSet]);
+
+  // Live sync: replace all slides whenever scripture textarea changes.
+  useEffect(() => {
+    if (kind !== "scripture") return;
+    const slides = manualText.trim() ? parseScriptureFromText(manualText, versesPer) : [];
+    updateSet(setId, { slides });
+  }, [manualText, versesPer, kind, setId, updateSet]);
 
   const runSongSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -549,12 +829,6 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     }
   };
 
-  const importSong = (s: SongResult) => {
-    const slides = parseLyrics(s.lyrics, linesPer);
-    slides.forEach((sl) => addSlide(setId, sl));
-    updateSet(setId, { name: s.title });
-  };
-
   const importScripture = async () => {
     if (!ref.trim()) return;
     setBusy(true);
@@ -564,10 +838,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         removeLineBreaks: !keepLineBreaks,
       });
       const labelled = `${reference} ${translation}`;
-      // Annotate each slide's reference so the translation shows on the slide.
-      const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks })
-        .map((s) => ({ ...s, reference: s.reference ? `${s.reference} ${translation}` : labelled }));
-      slides.forEach((s) => addSlide(setId, s));
+      const parts: string[] = [];
+      for (let i = 0; i < verses.length; i += versesPer) {
+        if (i > 0) parts.push("---");
+        const group = verses.slice(i, i + versesPer);
+        const verseTexts = group.map((v) => v.text.trim()).join(" ");
+        parts.push(i === 0 ? `[${labelled}]\n${verseTexts}` : verseTexts);
+      }
+      setManualText(parts.join("\n\n"));
       updateSet(setId, { name: labelled });
       setRef("");
     } catch (e) {
@@ -592,8 +870,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
 
   if (kind === "song") {
     return (
-      <div className="grid gap-5 lg:grid-cols-2">
-        <PanelCard label="Search for a song">
+      <div className="flex h-full flex-col gap-0 overflow-hidden">
+        {/* Search bar */}
+        <div className="shrink-0 border-b border-foreground/20 p-4">
           <form onSubmit={runSongSearch} className="flex gap-2">
             <div className="pill flex flex-1 items-center gap-2 border border-foreground bg-background px-4 py-2">
               <input
@@ -613,23 +892,31 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             </button>
           </form>
           {songErr && <p className="mt-2 text-xs text-destructive">{songErr}</p>}
-          <div className="mt-3 max-h-72 space-y-1 overflow-auto">
-            {songResults.map((s, idx) => (
-              <button
-                key={`${s.title}-${s.artist}-${idx}`}
-                onClick={() => importSong(s)}
-                className="group flex w-full items-center gap-2 rounded-xl p-2 text-left text-sm transition hover:bg-muted"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-bold">{s.title}</div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {s.artist}{s.album ? ` · ${s.album}` : ""}
+          {songResults.length > 0 && (
+            <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-2xl border border-foreground bg-background p-1">
+              {songResults.map((s, idx) => (
+                <button
+                  key={`${s.title}-${s.artist}-${idx}`}
+                  onClick={() => {
+                    setLyrics(applyDividers(s.lyrics, linesPer));
+                    setSongResults([]);
+                    updateSet(setId, { name: s.title });
+                  }}
+                  className="group flex w-full items-center gap-2 rounded-xl p-2 text-left text-sm transition hover:bg-muted"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-bold">{s.title}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {s.artist}{s.album ? ` · ${s.album}` : ""}
+                    </div>
                   </div>
-                </div>
-                <Plus className="h-5 w-5" />
-              </button>
-            ))}
-          </div>
+                  <Plus className="h-4 w-4 opacity-40 group-hover:opacity-100" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Lines per slide */}
           <div className="mt-3 flex items-center gap-2">
             <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
             <input
@@ -637,57 +924,51 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               min={1}
               max={8}
               value={linesPer}
-              onChange={(e) => setLinesPer(Math.max(1, Number(e.target.value) || 1))}
+              onChange={(e) => {
+                const next = Math.max(1, Number(e.target.value) || 1);
+                if (lyrics.trim()) {
+                  const ok = confirm(
+                    "This will reset your slide dividers. Your text edits will be kept. Continue?"
+                  );
+                  if (ok) {
+                    prevLinesPer.current = next;
+                    setLinesPer(next);
+                    setLyrics(applyDividers(lyrics, next));
+                  } else {
+                    setLinesPer(prevLinesPer.current);
+                  }
+                } else {
+                  prevLinesPer.current = next;
+                  setLinesPer(next);
+                }
+              }}
               className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
             />
           </div>
-        </PanelCard>
+        </div>
 
-        <PanelCard label="Or paste lyrics">
-          <div className="overflow-hidden rounded-2xl border border-foreground">
-            <Textarea
-              value={lyrics}
-              onChange={(e) => setLyrics(e.target.value)}
-              rows={8}
-              placeholder={`[Verse 1]\nAmazing grace, how sweet the sound\nThat saved a wretch like me\n\n[Chorus]\n...`}
-              className="mono block w-full resize-none border-0 bg-transparent px-4 py-3 text-xs shadow-none focus-visible:ring-0"
-            />
-          </div>
-          <button
-            onClick={importLyrics}
-            disabled={!lyrics.trim()}
-            className="pill mt-3 w-full bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
-          >
-            Import
-          </button>
-        </PanelCard>
+        {/* Lyrics textarea — fills remaining height */}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <Textarea
+            value={lyrics}
+            onChange={(e) => setLyrics(e.target.value)}
+            placeholder={`Paste lyrics here, or select a song above.\nUse --- on its own line to split slides.`}
+            className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
+          />
+        </div>
       </div>
     );
   }
 
   if (kind === "scripture") {
-    const importManualScripture = () => {
-      const refRaw = manualRef.trim();
-      const lines = manualText.split("\n").map((l) => l.trim()).filter(Boolean);
-      if (!refRaw || lines.length === 0) return;
-      // Append translation abbreviation, e.g. "John 3:1-2 NIV".
-      const reference = refRaw.match(/\b(NIV|NLT|ESV|NRSVCE|NASB|NKJV|KJV)\b\s*$/i)
-        ? refRaw
-        : `${refRaw} ${translation}`;
-      const verses = lines.map((text, i) => ({ verse: i + 1, text }));
-      const slides = scriptureToSlides(reference, verses, versesPer, { keepLineBreaks });
-      slides.forEach((s) => addSlide(setId, s));
-      updateSet(setId, { name: reference });
-      setManualRef("");
-      setManualText("");
-    };
     return (
-      <div className="grid gap-5 lg:grid-cols-2">
-        <PanelCard label="Import scripture">
+      <div className="flex h-full flex-col gap-0 overflow-hidden">
+        {/* API lookup section */}
+        <div className="shrink-0 border-b border-foreground/20 p-4">
           <PillInput value={ref} onChange={setRef} placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2" />
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
-              <div className="mono mb-1 text-[10px] uppercase tracking-wider">Translation</div>
+              <div className="mono mb-1 text-[10px] uppercase tracking-wider">Version</div>
               <select
                 value={translation}
                 onChange={(e) => setTranslation(e.target.value)}
@@ -703,10 +984,10 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               <input
                 type="number"
                 min={1}
-                max={2}
+                max={3}
                 value={versesPer}
                 onChange={(e) =>
-                  setVersesPer(Math.min(2, Math.max(1, Number(e.target.value) || 1)))
+                  setVersesPer(Math.min(3, Math.max(1, Number(e.target.value) || 1)))
                 }
                 className="pill h-9 w-full border border-foreground bg-background px-3 text-sm outline-none"
               />
@@ -728,42 +1009,96 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           >
             {busy ? "Fetching…" : "Import"}
           </button>
-        </PanelCard>
+        </div>
 
-        <PanelCard label="Or enter manually">
-          <div className="mono mb-1 text-[10px] uppercase tracking-wider">Reference</div>
-          <PillInput value={manualRef} onChange={setManualRef} placeholder="e.g. John 3:16-17" />
-          <div className="mono mb-1 mt-3 text-[10px] uppercase tracking-wider">Verses</div>
-          <div className="overflow-hidden rounded-2xl border border-foreground">
-            <Textarea
-              rows={5}
-              value={manualText}
-              onChange={(e) => setManualText(e.target.value)}
-              placeholder={`For God so loved the world…`}
-              className="mono block w-full resize-none border-0 bg-transparent px-4 py-3 text-xs italic shadow-none focus-visible:ring-0"
-            />
-          </div>
-          <button
-            onClick={importManualScripture}
-            disabled={!manualRef.trim() || !manualText.trim()}
-            className="pill mt-3 w-full bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
-          >
-            Import
-          </button>
-        </PanelCard>
+        {/* Verses textarea — fills remaining height, live sync */}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <Textarea
+            value={manualText}
+            onChange={(e) => setManualText(e.target.value)}
+            placeholder={"Paste verses here, or import above.\n\n[John 3:16-17]\nFor God so loved the world…\n---\nFor God did not send his Son…"}
+            className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
+          />
+        </div>
       </div>
     );
   }
 
-  return <MediaImporter onImport={importImages} />;
+  return <MediaImporter setId={setId} onImport={importImages} />;
 }
 
-function MediaImporter({ onImport }: { onImport: (files: FileList | null) => void }) {
+async function pdfToImageUrls(file: File): Promise<string[]> {
+  const pdfjsLib = await import("pdfjs-dist");
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const urls: string[] = [];
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    try {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 2.0 });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext("2d")!;
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      urls.push(canvas.toDataURL("image/jpeg"));
+    } catch {
+      // skip failed pages silently
+    }
+  }
+
+  return urls;
+}
+
+function MediaImporter({
+  setId,
+  onImport,
+}: {
+  setId: string;
+  onImport: (files: FileList | null) => void;
+}) {
+  const { addSlide } = useLibrary();
   const [over, setOver] = useState(false);
+  const [converting, setConverting] = useState(false);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || converting) return;
+    const imageFiles = Array.from(files).filter((f) =>
+      /^image\/(png|jpe?g|webp|gif|bmp)$/i.test(f.type)
+    );
+    const pdfFiles = Array.from(files).filter((f) => f.type === "application/pdf");
+
+    if (imageFiles.length > 0) {
+      const imageList = new DataTransfer();
+      imageFiles.forEach((f) => imageList.items.add(f));
+      onImport(imageList.files);
+    }
+
+    if (pdfFiles.length > 0) {
+      setConverting(true);
+      for (const pdf of pdfFiles) {
+        try {
+          const urls = await pdfToImageUrls(pdf);
+          urls.forEach((url) =>
+            addSlide(setId, { kind: "image", imageUrl: url, lines: [] })
+          );
+        } catch {
+          // skip failed files silently
+        }
+      }
+      setConverting(false);
+    }
+  };
+
   return (
     <PanelCard label="Import images">
       <label
         onDragOver={(e) => {
+          if (converting) return;
           e.preventDefault();
           e.dataTransfer.dropEffect = "copy";
           setOver(true);
@@ -772,19 +1107,33 @@ function MediaImporter({ onImport }: { onImport: (files: FileList | null) => voi
         onDrop={(e) => {
           e.preventDefault();
           setOver(false);
-          if (e.dataTransfer.files?.length) onImport(e.dataTransfer.files);
+          if (!converting && e.dataTransfer.files?.length) handleFiles(e.dataTransfer.files);
         }}
-        className={`mono flex h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed text-xs uppercase tracking-wider transition ${
-          over ? "border-foreground bg-foreground/5" : "border-foreground/60 text-muted-foreground hover:border-foreground"
+        className={`mono flex h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-xs uppercase tracking-wider transition ${
+          converting
+            ? "cursor-wait border-foreground/30 text-muted-foreground"
+            : over
+            ? "border-foreground bg-foreground/5"
+            : "border-foreground/60 text-muted-foreground hover:border-foreground"
         }`}
       >
-        {over ? "Drop to upload" : "Drop images here or click to browse"}
+        {converting ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Converting…
+          </>
+        ) : over ? (
+          "Drop to upload"
+        ) : (
+          "Drop images or PDFs here or click to browse"
+        )}
         <input
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf"
           multiple
+          disabled={converting}
           className="hidden"
-          onChange={(e) => onImport(e.target.files)}
+          onChange={(e) => handleFiles(e.target.files)}
         />
       </label>
     </PanelCard>
@@ -817,7 +1166,7 @@ function AddToGathering({ setId }: { setId: string }) {
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder={added ? `Added to ${added}` : "Add to a gathering…"}
-          className="mono w-56 bg-transparent text-sm italic outline-none placeholder:text-muted-foreground"
+          className="mono w-44 bg-transparent text-sm italic outline-none placeholder:text-muted-foreground"
         />
       </div>
       {open && matches.length > 0 && (
