@@ -23,6 +23,19 @@ function readSongTemplate(): SetTemplate {
   return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" };
 }
 
+// --- Scripture template persistence + cross-window sync ---
+const SCRIPTURE_TEMPLATE_KEY = "scripture-template-v1";
+
+function readScriptureTemplate(): SetTemplate {
+  if (typeof window === "undefined")
+    return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black", align: "left", referencePosition: "below" };
+  try {
+    const raw = localStorage.getItem(SCRIPTURE_TEMPLATE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black", align: "left", referencePosition: "below" };
+}
+
 // Debounce pushToSupabase so rapid consecutive mutations fire only one push.
 // If another tab just completed a push and broadcast sync-complete, skip this
 // tab's push — the data is already in Supabase and loadFromDb has been called.
@@ -59,6 +72,9 @@ interface LibraryState {
   /** Global template applied to ALL song sets. */
   songTemplate: SetTemplate;
   setSongTemplate: (patch: SetTemplate) => void;
+  /** Global template applied to ALL scripture sets. */
+  scriptureTemplate: SetTemplate;
+  setScriptureTemplate: (patch: SetTemplate) => void;
   createSet: (set: Omit<PhytoSet, "id" | "createdAt" | "updatedAt">) => string;
   updateSet: (id: string, patch: Partial<PhytoSet>) => void;
   deleteSet: (id: string) => void;
@@ -86,6 +102,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   playlists: {},
   playlistOrder: [],
   songTemplate: typeof window !== "undefined" ? readSongTemplate() : { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" },
+  scriptureTemplate: typeof window !== "undefined" ? readScriptureTemplate() : { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black", align: "left", referencePosition: "below" },
 
   loadFromDb: async () => {
     const [allSets, allGatherings] = await Promise.all([
@@ -122,6 +139,16 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         new BroadcastChannel(TEMPLATE_KEY).postMessage(next);
       } catch {}
       return { songTemplate: next };
+    }),
+
+  setScriptureTemplate: (patch) =>
+    set((s) => {
+      const next = { ...s.scriptureTemplate, ...patch };
+      try {
+        localStorage.setItem(SCRIPTURE_TEMPLATE_KEY, JSON.stringify(next));
+        new BroadcastChannel(SCRIPTURE_TEMPLATE_KEY).postMessage(next);
+      } catch {}
+      return { scriptureTemplate: next };
     }),
 
   createSet: (newSet) => {
@@ -436,6 +463,16 @@ export const useSongTemplateDraft = create<SongTemplateDraftStore>((set) => ({
   setDraft: (d) => set({ draft: d }),
 }));
 
+// Ephemeral draft for scripture template preview.
+interface ScriptureTemplateDraftStore {
+  draft: SetTemplate | null;
+  setDraft: (d: SetTemplate | null) => void;
+}
+export const useScriptureTemplateDraft = create<ScriptureTemplateDraftStore>((set) => ({
+  draft: null,
+  setDraft: (d) => set({ draft: d }),
+}));
+
 // --- Live presentation state, synced across windows via BroadcastChannel ---
 
 const CHANNEL = "stage-live-v2";
@@ -515,11 +552,21 @@ if (typeof window !== "undefined") {
         useLibrary.setState({ songTemplate: JSON.parse(e.newValue) });
       } catch {}
     }
+    if (e.key === SCRIPTURE_TEMPLATE_KEY && e.newValue) {
+      try {
+        useLibrary.setState({ scriptureTemplate: JSON.parse(e.newValue) });
+      } catch {}
+    }
   });
 
   const tc = new BroadcastChannel(TEMPLATE_KEY);
   tc.addEventListener("message", (e) => {
     useLibrary.setState({ songTemplate: e.data });
+  });
+
+  const stc = new BroadcastChannel(SCRIPTURE_TEMPLATE_KEY);
+  stc.addEventListener("message", (e) => {
+    useLibrary.setState({ scriptureTemplate: e.data });
   });
 
   const sc = new BroadcastChannel(SET_SYNC_CHANNEL);

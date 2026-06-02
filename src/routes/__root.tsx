@@ -109,15 +109,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "phyto | home gatherings" },
-      { name: "description", content: "phyto is a free, open source presentation tool built for small home worship gatherings. Prepare your verses and lyrics beforehand, then run it live." },
+      { name: "description", content: "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live." },
       { property: "og:title", content: "phyto | home gatherings" },
-      { property: "og:description", content: "phyto is a free, open source presentation tool built for small home worship gatherings. Prepare your verses and lyrics beforehand, then run it live." },
+      { property: "og:description", content: "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live." },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "phyto" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@phyto.live" },
       { name: "twitter:title", content: "phyto | home gatherings" },
-      { name: "twitter:description", content: "phyto is a free, open source presentation tool built for small home worship gatherings. Prepare your verses and lyrics beforehand, then run it live." },
+      { name: "twitter:description", content: "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live." },
       { property: "og:image", content: "https://phyto.live/og-image.png" },
       { name: "twitter:image", content: "https://phyto.live/og-image.png" },
     ],
@@ -240,15 +240,15 @@ function RootComponent() {
       <Dialog open={pathname !== "/output" && syncDiff !== null} onOpenChange={(open) => { if (!open) setSyncDiff(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Sync conflict detected</DialogTitle>
+            <DialogTitle>Review versions</DialogTitle>
             <DialogDescription>
               {syncing
                 ? syncing === 'merge' ? "Merging…" : "Pushing…"
                 : syncDiff && (() => {
                     const remoteTime = latestRemoteTime(syncDiff);
                     return remoteTime
-                      ? `Supabase was last modified ${remoteTime.toLocaleString()}. Merge to receive the Supabase version, or Push to overwrite Supabase with your local version.`
-                      : "Your local version has changes not in Supabase. Push to upload them, or Merge to sync both ways.";
+                      ? `Your synced version was last updated ${remoteTime.toLocaleString()}. Merge to receive the online version, or Push to overwrite what's online with your local version.`
+                      : "Your local version has offline changes. Push to upload them, or Merge to sync both ways.";
                   })()
               }
             </DialogDescription>
@@ -266,7 +266,7 @@ function RootComponent() {
               disabled={syncing !== null}
               className="flex-1 rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background disabled:opacity-50"
             >
-              {syncing === 'push' ? "Pushing…" : "Push (overwrite Supabase)"}
+              {syncing === 'push' ? "Pushing…" : "Push"}
             </button>
           </div>
         </DialogContent>

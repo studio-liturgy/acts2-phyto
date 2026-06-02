@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useLibrary, useLive, useSongTemplateDraft } from "@/lib/store";
+import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { useEffect, useMemo, useRef } from "react";
 import type { Slide } from "@/lib/types";
@@ -19,6 +19,8 @@ function Output() {
   const phytoSet = useLibrary((s) => (live.setId ? s.sets[live.setId] : null));
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
+  const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
+  const scriptureDraft = useScriptureTemplateDraft((s) => s.draft);
   const rawSlide = useMemo(
     () => phytoSet?.slides.find((s) => s.id === live.slideId) ?? null,
     [phytoSet, live.slideId]
@@ -26,7 +28,10 @@ function Output() {
   const lastSlideRef = useRef<Slide | null>(null);
   if (rawSlide) lastSlideRef.current = rawSlide;
   const slide = rawSlide ?? (live.setId && live.slideId ? lastSlideRef.current : null);
-  const template = phytoSet?.kind === "song" ? (songDraft ?? songTemplate) : phytoSet?.template;
+  const template =
+    phytoSet?.kind === "song" ? (songDraft ?? songTemplate)
+    : phytoSet?.kind === "scripture" ? (scriptureDraft ?? scriptureTemplate)
+    : phytoSet?.template;
 
   useEffect(() => {
     const prev = document.body.style.background;

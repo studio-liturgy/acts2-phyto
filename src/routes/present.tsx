@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useLibrary, useLive, useSongTemplateDraft } from "@/lib/store";
+import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
+import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { Input } from "@/components/ui/input";
 import {
   ArrowUpLeft,
@@ -75,6 +76,9 @@ function Presenter() {
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
   const effectiveSongTemplate = songDraft ?? songTemplate;
+  const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
+  const scriptureDraft = useScriptureTemplateDraft((s) => s.draft);
+  const effectiveScriptureTemplate = scriptureDraft ?? scriptureTemplate;
 
   const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
 
@@ -491,7 +495,11 @@ function Presenter() {
                 <SlideView
                   slide={liveSlide}
                   variant="preview"
-                  template={liveSet?.kind === "song" ? effectiveSongTemplate : liveSet?.template}
+                  template={
+                    liveSet?.kind === "song" ? effectiveSongTemplate
+                    : liveSet?.kind === "scripture" ? effectiveScriptureTemplate
+                    : liveSet?.template
+                  }
                 />
               )}
               <div
@@ -504,7 +512,7 @@ function Presenter() {
                       : undefined,
                 }}
               >
-                BLACKOUT
+                BLACK
               </div>
             </div>
             {liveSet && liveSlide && (
@@ -521,7 +529,8 @@ function Presenter() {
             </div>
           )}
 
-          {liveSet?.kind === "song" && <SongTemplateEditor />}
+          {activeSet?.kind === "song" && <SongTemplateEditor />}
+          {activeSet?.kind === "scripture" && <ScriptureTemplateEditor />}
 
           <div className="rounded-2xl border border-foreground">
             <button
@@ -642,7 +651,12 @@ function PresenterThumb({ slide, index, phytoSet, live }: { slide: Slide; index:
   const isLive = live.setId === phytoSet.id && live.slideId === slide.id;
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
-  const template = phytoSet.kind === "song" ? (songDraft ?? songTemplate) : phytoSet.template;
+  const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
+  const scriptureDraft = useScriptureTemplateDraft((s) => s.draft);
+  const template =
+    phytoSet.kind === "song" ? (songDraft ?? songTemplate)
+    : phytoSet.kind === "scripture" ? (scriptureDraft ?? scriptureTemplate)
+    : phytoSet.template;
   return (
     <button
       onClick={() => live.go(phytoSet.id, slide.id)}

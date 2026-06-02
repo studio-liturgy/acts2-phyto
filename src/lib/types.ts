@@ -24,6 +24,10 @@ export interface SetTemplate {
   fontFamily?: string;
   /** Background mode for the slide. */
   bg?: "black" | "white";
+  /** Text alignment. Default "center". */
+  align?: "center" | "left";
+  /** Where the verse reference is rendered relative to the text. Default "below". */
+  referencePosition?: "above" | "below";
 }
 
 export interface Set {

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useLibrary, useSongTemplateDraft } from "@/lib/store";
+import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
+import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { parseLyrics, fileToCompressedImageDataUrl, scriptureToSlides } from "@/lib/parsers";
 import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
 import { searchSongs, type SongResult } from "@/lib/songs";
@@ -80,7 +81,7 @@ function SetHeader({
   deleteSet: (id: string) => void;
 }) {
   return (
-    <header className="flex shrink-0 items-center gap-3 border-b border-foreground px-6 py-4 md:px-10">
+    <header className="flex shrink-0 items-center gap-3 border-b border-foreground px-6 py-4">
       {/* Back */}
       <Link
         to={redirectTo ?? "/"}
@@ -160,6 +161,9 @@ function SetEditor() {
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
   const effectiveTemplate = songDraft ?? songTemplate;
+  const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
+  const scriptureDraft = useScriptureTemplateDraft((s) => s.draft);
+  const effectiveScriptureTemplate = scriptureDraft ?? scriptureTemplate;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
@@ -291,11 +295,14 @@ function SetEditor() {
           <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
             <Importers setId={phytoSet.id} kind={phytoSet.kind} />
           </div>
-          {/* Right: live slide grid */}
+          {/* Right: template editor + live slide grid */}
           <div className="w-1/2 overflow-y-auto p-6">
+            <div className="mb-4">
+              <ScriptureTemplateEditor />
+            </div>
             {phytoSet.slides.length === 0 ? (
               <p className="py-16 text-center text-sm text-muted-foreground">
-                Slides will appear here after you import
+                Slides will appear here as you type
               </p>
             ) : (() => {
               const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
@@ -324,7 +331,7 @@ function SetEditor() {
                         <div className="grid grid-cols-2 gap-2">
                           {g.slides.map((s) => (
                             <div key={s.id} className="overflow-hidden rounded-md">
-                              <SlideView slide={s} variant="thumb" template={phytoSet.template} />
+                              <SlideView slide={s} variant="thumb" template={effectiveScriptureTemplate} />
                             </div>
                           ))}
                         </div>
@@ -755,6 +762,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [ref, setRef] = useState("");
   const [translation, setTranslation] = useState("NIV");
   const [versesPer, setVersesPer] = useState(1);
+  const prevVersesPer = useRef(1);
+  const rawVerses = useRef<{ text: string; verse: number; chapter: number }[]>([]);
+  const rawLabel = useRef("");
   const [keepLineBreaks, setKeepLineBreaks] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -829,7 +839,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     }
   };
 
-  const importScripture = async () => {
+  const importScriptureWith = async (vPer: number) => {
     if (!ref.trim()) return;
     setBusy(true);
     setErr(null);
@@ -838,21 +848,36 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         removeLineBreaks: !keepLineBreaks,
       });
       const labelled = `${reference} ${translation}`;
+      rawVerses.current = verses;
+      rawLabel.current = labelled;
       const parts: string[] = [];
-      for (let i = 0; i < verses.length; i += versesPer) {
+      for (let i = 0; i < verses.length; i += vPer) {
         if (i > 0) parts.push("---");
-        const group = verses.slice(i, i + versesPer);
+        const group = verses.slice(i, i + vPer);
         const verseTexts = group.map((v) => v.text.trim()).join(" ");
         parts.push(i === 0 ? `[${labelled}]\n${verseTexts}` : verseTexts);
       }
       setManualText(parts.join("\n\n"));
       updateSet(setId, { name: labelled });
-      setRef("");
     } catch (e) {
       setErr((e as Error).message);
     } finally {
       setBusy(false);
     }
+  };
+
+  const importScripture = () => importScriptureWith(versesPer);
+
+  const reshuffleVerses = (vPer: number) => {
+    if (!rawVerses.current.length) return;
+    const parts: string[] = [];
+    for (let i = 0; i < rawVerses.current.length; i += vPer) {
+      if (i > 0) parts.push("---");
+      const group = rawVerses.current.slice(i, i + vPer);
+      const verseTexts = group.map((v) => v.text.trim()).join(" ");
+      parts.push(i === 0 ? `[${rawLabel.current}]\n${verseTexts}` : verseTexts);
+    }
+    setManualText(parts.join("\n\n"));
   };
 
   const importImages = async (files: FileList | null) => {
@@ -986,9 +1011,24 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 min={1}
                 max={3}
                 value={versesPer}
-                onChange={(e) =>
-                  setVersesPer(Math.min(3, Math.max(1, Number(e.target.value) || 1)))
-                }
+                onChange={(e) => {
+                  const next = Math.min(3, Math.max(1, Number(e.target.value) || 1));
+                  if (manualText.trim()) {
+                    const ok = confirm(
+                      "This will re-import the passage with the new verses-per-slide setting. Your manual text edits will be lost. Continue?"
+                    );
+                    if (ok) {
+                      prevVersesPer.current = next;
+                      setVersesPer(next);
+                      reshuffleVerses(next);
+                    } else {
+                      setVersesPer(prevVersesPer.current);
+                    }
+                  } else {
+                    prevVersesPer.current = next;
+                    setVersesPer(next);
+                  }
+                }}
                 className="pill h-9 w-full border border-foreground bg-background px-3 text-sm outline-none"
               />
             </div>

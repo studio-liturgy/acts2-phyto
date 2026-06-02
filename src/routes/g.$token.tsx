@@ -50,8 +50,6 @@ interface ViewerPrefs {
   fontFamily: FontFamily;
 }
 
-const FONT_SIZES = [0.85, 1, 1.2, 1.5, 1.8];
-const FONT_SIZE_LABELS = ["A", "A", "A", "A", "A"];
 
 const FONT_FAMILY_CSS: Record<FontFamily, string> = {
   sans: "ui-sans-serif, system-ui, sans-serif",
@@ -230,7 +228,7 @@ function GatheringViewer() {
   if (status === "not-found") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-white">
-        <p>Gathering not found</p>
+        <p>Gathering not found.</p>
       </div>
     );
   }
@@ -238,7 +236,7 @@ function GatheringViewer() {
   if (status === "not-live") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-white">
-        <p>This gathering hasn't started yet</p>
+        <p>This gathering hasn't started yet!</p>
       </div>
     );
   }
@@ -246,12 +244,10 @@ function GatheringViewer() {
   if (status === "ended") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-white">
-        <p>This gathering has ended</p>
+        <p>This gathering has ended.</p>
       </div>
     );
   }
-
-  const fontSizeIdx = FONT_SIZES.indexOf(prefs.fontSize);
 
   // Live
   return (
@@ -297,33 +293,25 @@ function GatheringViewer() {
             >
               {/* Text size */}
               <div className="mb-4">
-                <p
-                  className={`mb-2 text-xs uppercase tracking-widest ${mutedClass}`}
-                >
-                  Text size
-                </p>
-                <div className="flex gap-1">
-                  {FONT_SIZES.map((size, i) => (
-                    <button
-                      key={size}
-                      onClick={() =>
-                        setPrefs((p) => ({ ...p, fontSize: size }))
-                      }
-                      className={`flex-1 rounded py-1 text-center transition-colors ${
-                        prefs.fontSize === size
-                          ? prefs.isDark
-                            ? "bg-white text-black"
-                            : "bg-black text-white"
-                          : prefs.isDark
-                            ? "hover:bg-white/10"
-                            : "hover:bg-black/10"
-                      }`}
-                      style={{ fontSize: `${0.6 + i * 0.1}rem` }}
-                    >
-                      {FONT_SIZE_LABELS[i]}
-                    </button>
-                  ))}
+                <div className="mb-2 flex items-center justify-between">
+                  <p className={`text-xs uppercase tracking-widest ${mutedClass}`}>
+                    Text size
+                  </p>
+                  <p className={`text-xs ${mutedClass}`}>
+                    {prefs.fontSize.toFixed(2)}×
+                  </p>
                 </div>
+                <input
+                  type="range"
+                  min={0.85}
+                  max={1.8}
+                  step={0.05}
+                  value={prefs.fontSize}
+                  onChange={(e) =>
+                    setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))
+                  }
+                  className="w-full"
+                />
               </div>
 
               {/* Font family */}
@@ -464,7 +452,12 @@ function SetContent({ set, isDark }: { set: SetRow; isDark: boolean }) {
     return (
       <div className="space-y-6 px-4 py-6">
         {slides.map((slide, i) => (
-          <SlideBlock key={slide.id ?? i} slide={slide} isDark={isDark} />
+          <SlideBlock
+            key={slide.id ?? i}
+            slide={slide}
+            isDark={isDark}
+            showSection={slide.section !== slides[i - 1]?.section}
+          />
         ))}
       </div>
     );
@@ -492,14 +485,16 @@ function SetContent({ set, isDark }: { set: SetRow; isDark: boolean }) {
 function SlideBlock({
   slide,
   isDark,
+  showSection = true,
 }: {
   slide: SlideRow;
   isDark: boolean;
+  showSection?: boolean;
 }) {
   const mutedClass = isDark ? "opacity-40" : "opacity-50";
   return (
     <div className="space-y-1">
-      {slide.section && (
+      {showSection && slide.section && (
         <p className={`text-xs uppercase tracking-widest ${mutedClass}`}>
           {slide.section}
         </p>

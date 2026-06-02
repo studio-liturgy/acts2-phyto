@@ -60,6 +60,8 @@ export function SlideView({
   const surfaceBg = bgMode === "white" ? "bg-white" : "bg-black";
   const surfaceText = bgMode === "white" ? "text-black" : "text-white";
   const placeholderText = bgMode === "white" ? "text-black/40" : "text-white/40";
+  const alignClass = template?.align === "left" ? "items-start text-left" : "items-center text-center";
+  const refAbove = template?.referencePosition === "above";
 
   return (
     <div
@@ -77,13 +79,21 @@ export function SlideView({
         }}
       >
         {slide?.imageUrl && hasText ? <div className="absolute inset-0 bg-black/40" /> : null}
-        <div className="relative flex h-full w-full flex-col items-center justify-center px-24 py-20 text-center">
+        <div className={`relative flex h-full w-full flex-col justify-center px-24 py-20 ${alignClass}`}>
           {slide?.title && (
             <div
               className="mb-10 font-semibold leading-tight"
               style={{ fontSize: `${4.5 * fontScale}rem` }}
             >
               {slide.title}
+            </div>
+          )}
+          {slide?.reference && slide.kind === "scripture" && refAbove && (
+            <div
+              className="mb-12 opacity-80"
+              style={{ fontSize: `${1.875 * fontScale}rem` }}
+            >
+              {slide.reference}
             </div>
           )}
           {slide?.lines?.map((l, i) => (
@@ -95,7 +105,7 @@ export function SlideView({
               {l}
             </div>
           ))}
-          {slide?.reference && slide.kind === "scripture" && (
+          {slide?.reference && slide.kind === "scripture" && !refAbove && (
             <div
               className="mt-12 opacity-80"
               style={{ fontSize: `${1.875 * fontScale}rem` }}

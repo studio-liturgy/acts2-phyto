@@ -31,6 +31,8 @@ import {
   Upload,
   Download,
   Wifi,
+  Copy,
+  QrCode,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -302,7 +304,7 @@ function Library() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 lg:px-0">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
         {/* Gatherings */}
         <section className="mb-24">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -339,7 +341,7 @@ function Library() {
 
           {playlistOrder.length === 0 ? (
             <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
-              No gatherings yet. Click New to plan a gathering.
+              No gatherings yet. Click New to plan a gathering!
             </div>
           ) : filteredPlaylistIds.length === 0 ? (
             <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
@@ -384,8 +386,8 @@ function Library() {
                   type="button"
                   onClick={() => setShowExportConfirm(true)}
                   className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                  title="Export catalogue"
-                  aria-label="Export catalogue"
+                  title="Export"
+                  aria-label="Export"
                 >
                   <Upload className="h-4 w-4" />
                 </button>
@@ -393,8 +395,8 @@ function Library() {
                   type="button"
                   onClick={() => importFileRef.current?.click()}
                   className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                  title="Import catalogue"
-                  aria-label="Import catalogue"
+                  title="Import"
+                  aria-label="Import"
                 >
                   <Download className="h-4 w-4" />
                 </button>
@@ -548,7 +550,7 @@ function Library() {
 
       <AlertDialog open={showExportConfirm} onOpenChange={setShowExportConfirm}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-4xl font-bold leading-tight">Export Catalogue</AlertDialogTitle>
+          <AlertDialogTitle className="text-4xl font-bold leading-tight">Export</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             This will download all your sets as a .phyto file.
           </AlertDialogDescription>
@@ -568,9 +570,9 @@ function Library() {
 
       <AlertDialog open={pendingImportFile !== null} onOpenChange={(open) => { if (!open) setPendingImportFile(null); }}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-4xl font-bold leading-tight">Import Catalogue</AlertDialogTitle>
+          <AlertDialogTitle className="text-4xl font-bold leading-tight">Import</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            Merge adds and overwrites sets by ID without deleting anything. Replace clears your current catalogue first.
+            Merge adds and overwrites sets with the same name without deleting anything. Replace clears your current catalogue.
           </AlertDialogDescription>
           <div className="mt-8 flex flex-col gap-3">
             <div className="flex gap-3">
@@ -908,17 +910,19 @@ function PlaylistCard({
               <button
                 type="button"
                 onClick={() => navigator.clipboard.writeText(shareUrl)}
-                className="rounded-full bg-foreground px-5 py-2.5 text-sm text-background transition hover:opacity-90"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
+                aria-label="Copy URL"
               >
-                Copy URL
+                <Copy className="h-4 w-4" />
               </button>
             </div>
             <button
               type="button"
               onClick={() => setShowShareQr((v) => !v)}
-              className="rounded-full bg-foreground px-5 py-2.5 text-sm text-background transition hover:opacity-90 whitespace-nowrap"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
+              aria-label="QR Code"
             >
-              QR Code
+              <QrCode className="h-4 w-4" />
             </button>
           </div>
 
@@ -936,34 +940,10 @@ function PlaylistCard({
           )}
 
           <p className="mt-6 text-sm text-muted-foreground">
-            Once live, all the information from this gathering will be publicly accessible via this link.
+            Once live, this gathering will be accessible via this link.
           </p>
         </DialogContent>
       </Dialog>
-
-      {/* Sign-in prompt for unauthenticated users trying to go live */}
-      <AlertDialog open={showSignInPrompt} onOpenChange={setShowSignInPrompt}>
-        <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-4xl font-bold leading-tight">Sign in to go live</AlertDialogTitle>
-          <AlertDialogDescription className="mt-4 text-base text-foreground">
-            Live sharing requires an account so others can join your gathering from their device. Sign in or create a free account to use this feature.
-          </AlertDialogDescription>
-          <div className="mt-8 flex gap-3">
-            <AlertDialogAction asChild>
-              <Link
-                to="/login"
-                onClick={() => setShowSignInPrompt(false)}
-                className="flex-1 rounded-full bg-foreground py-3 text-center text-background transition hover:opacity-90"
-              >
-                Sign in
-              </Link>
-            </AlertDialogAction>
-            <AlertDialogCancel onClick={() => setShowSignInPrompt(false)} className="flex-1 rounded-full border border-foreground bg-transparent py-3 text-center transition hover:bg-foreground hover:text-background">
-              Cancel
-            </AlertDialogCancel>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Go Live confirmation dialog */}
       <Dialog open={showGoLiveDialog} onOpenChange={(open) => { setShowGoLiveDialog(open); if (!open) setShowQr(false); }}>
@@ -971,7 +951,7 @@ function PlaylistCard({
           <DialogTitle className="text-4xl font-bold leading-tight">{name}</DialogTitle>
 
           <p className="mt-4 text-base">
-            Once live, all the information from this gathering will be publicly accessible via the link. The session stays live until you end it or start a new one.
+            Once live, this gathering will be accessible via the link. It will stay live until you end it or start a new one.
           </p>
 
           <div className="mt-6 flex items-center gap-2">
@@ -980,17 +960,19 @@ function PlaylistCard({
               <button
                 type="button"
                 onClick={() => navigator.clipboard.writeText(shareUrl)}
-                className="rounded-full bg-foreground px-5 py-2.5 text-sm text-background transition hover:opacity-90"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
+                aria-label="Copy URL"
               >
-                Copy URL
+                <Copy className="h-4 w-4" />
               </button>
             </div>
             <button
               type="button"
               onClick={() => setShowQr((v) => !v)}
-              className="rounded-full bg-foreground px-5 py-2.5 text-sm text-background transition hover:opacity-90 whitespace-nowrap"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
+              aria-label="QR Code"
             >
-              QR Code
+              <QrCode className="h-4 w-4" />
             </button>
           </div>
 
@@ -1023,7 +1005,7 @@ function PlaylistCard({
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-4xl font-bold leading-tight">{name}</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            Ending the session will take this gathering offline. The public link will stop working and viewers will no longer be able to see the live slide. You can go live again at any time.
+            Ending the session will take this gathering offline. You can go live again at any time.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <AlertDialogAction
@@ -1047,7 +1029,7 @@ function PlaylistCard({
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-4xl font-bold leading-tight">{name}</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            This will permanently delete this gathering and all its set associations. This cannot be undone.
+            This will permanently delete this gathering. This cannot be undone.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <AlertDialogAction
