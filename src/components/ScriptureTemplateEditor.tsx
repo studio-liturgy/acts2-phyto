@@ -45,7 +45,7 @@ export function ScriptureTemplateEditor() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="mono pill flex w-full items-center justify-center border border-foreground px-4 py-2 text-sm transition hover:bg-foreground hover:text-background"
+        className="mono uppercase pill flex w-full items-center justify-center border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
       >
         {label}
       </button>
@@ -188,7 +188,7 @@ export function ScriptureTemplateEditor() {
 
         <button
           onClick={apply}
-          className="pill flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90"
+          className="pill mono uppercase flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
         >
           Apply to all scripture
         </button>

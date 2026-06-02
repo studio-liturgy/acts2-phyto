@@ -106,8 +106,10 @@ function Presenter() {
     return saved ? Number(saved) : 256;
   });
   const [dragOverPlaylist, setDragOverPlaylist] = useState<string | null>(null);
-  const [reorderDragIndex, setReorderDragIndex] = useState<number | null>(null);
-  const [reorderOverIndex, setReorderOverIndex] = useState<number | null>(null);
+  const [reorderDraggingId, setReorderDraggingId] = useState<string | null>(null);
+  const [reorderLiveOrder, setReorderLiveOrder] = useState<string[] | null>(null);
+  const reorderLiveRef = useRef<string[] | null>(null);
+  const reorderDragIndex = useRef<number | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [mediaFunctionsOpen, setMediaFunctionsOpen] = useState(false);
 
@@ -119,6 +121,13 @@ function Presenter() {
       setActiveSetId(activePlaylist.setIds[0] ?? null);
     }
   }, [activePlaylist, activeSetId]);
+
+  useEffect(() => {
+    reorderLiveRef.current = null;
+    setReorderLiveOrder(null);
+    setReorderDraggingId(null);
+    reorderDragIndex.current = null;
+  }, [activePlaylist?.id]);
 
   const activeSet = activeSetId ? sets[activeSetId] : null;
   const liveSet = live.setId ? sets[live.setId] : null;
@@ -217,7 +226,7 @@ function Presenter() {
           <div className="flex shrink-0 items-center gap-2">
             <button
               onClick={openOutput}
-              className="pill flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+              className="pill mono uppercase flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
               title="Output window"
             >
               Output <ArrowUpRight className="h-4 w-4" />
@@ -240,7 +249,7 @@ function Presenter() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search for a set"
-                className="mono w-full bg-transparent text-xs italic outline-none placeholder:text-muted-foreground"
+                className="mono uppercase w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
               />
             </div>
 
@@ -307,47 +316,47 @@ function Presenter() {
                       {activePlaylist ? "Gathering is empty." : q ? "No matches." : "No sets yet."}
                     </p>
                   )}
-                  {filteredSets.map((id, i) => {
+                  {(reorderLiveOrder ?? filteredSets).map((id, i) => {
                     const d = sets[id];
                     if (!d) return null;
                     const isActive = id === activeSetId;
                     const isLive = id === live.setId;
                     const inGathering = !!activePlaylist;
-                    const isReorderTarget = inGathering && reorderOverIndex === i && reorderDragIndex !== null;
+                    const isDragging = id === reorderDraggingId;
                     return (
-                      <div
-                        key={`${id}-${i}`}
+                      <button
+                        key={id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("application/x-set-id", id);
+                          e.dataTransfer.effectAllowed = inGathering ? "move" : "copy";
+                          if (inGathering) {
+                            setReorderDraggingId(id);
+                            reorderDragIndex.current = i;
+                          }
+                        }}
                         onDragOver={(e) => {
-                          if (!inGathering || reorderDragIndex === null) return;
+                          if (!inGathering || reorderDragIndex.current === null) return;
                           e.preventDefault();
                           e.dataTransfer.dropEffect = "move";
-                          if (reorderOverIndex !== i) setReorderOverIndex(i);
+                          const current = reorderLiveOrder ?? filteredSets;
+                          const fromIdx = current.indexOf(reorderDraggingId!);
+                          if (fromIdx === i || fromIdx === -1) return;
+                          const next = [...current];
+                          next.splice(fromIdx, 1);
+                          next.splice(i, 0, reorderDraggingId!);
+                          reorderLiveRef.current = next;
+                          setReorderLiveOrder(next);
                         }}
-                        onDrop={(e) => {
-                          if (!inGathering || reorderDragIndex === null || !activePlaylist) return;
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const ids = [...activePlaylist.setIds];
-                          const [moved] = ids.splice(reorderDragIndex, 1);
-                          ids.splice(i, 0, moved);
-                          reorderPlaylistSets(activePlaylist.id, ids);
-                          setReorderDragIndex(null);
-                          setReorderOverIndex(null);
+                        onDragEnd={() => {
+                          if (reorderLiveRef.current && activePlaylist)
+                            reorderPlaylistSets(activePlaylist.id, reorderLiveRef.current);
+                          reorderLiveRef.current = null;
+                          setReorderLiveOrder(null);
+                          setReorderDraggingId(null);
+                          reorderDragIndex.current = null;
                         }}
-                        className={isReorderTarget ? "rounded-lg ring-1 ring-foreground" : ""}
-                      >
-                        <button
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("application/x-set-id", id);
-                            e.dataTransfer.effectAllowed = inGathering ? "move" : "copy";
-                            if (inGathering) setReorderDragIndex(i);
-                          }}
-                          onDragEnd={() => {
-                            setReorderDragIndex(null);
-                            setReorderOverIndex(null);
-                          }}
-                          onClick={() => {
+                        onClick={() => {
                             setActiveSetId(id);
                             if (activePlaylist) {
                               const el = document.getElementById(`set-section-${id}`);
@@ -355,6 +364,8 @@ function Presenter() {
                             }
                           }}
                           className={`flex w-full items-center justify-between gap-2 rounded-lg border-2 px-2 py-1.5 text-left text-sm transition ${
+                            isDragging ? "opacity-50" : ""
+                          } ${
                             isLive
                               ? ""
                               : isActive
@@ -393,7 +404,6 @@ function Presenter() {
                             )}
                           </span>
                         </button>
-                      </div>
                     );
                   })}
                 </div>
@@ -515,7 +525,7 @@ function Presenter() {
               </div>
             </div>
             {liveSet && liveSlide && (
-              <p className="mono mt-2 text-xs text-muted-foreground">
+              <p className="mono uppercase mt-2 text-xs text-muted-foreground">
                 {liveSet.name} · {liveSet.slides.findIndex((s) => s.id === liveSlide.id) + 1}
               </p>
             )}
@@ -564,7 +574,7 @@ function Presenter() {
                 <MediaPlaybackControls setId={activeSet.id} />
                 <button
                   onClick={() => setMediaFunctionsOpen(false)}
-                  className="pill mt-3 flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90"
+                  className="pill mono uppercase mt-3 flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
                 >
                   Apply to this media set
                 </button>
@@ -572,7 +582,7 @@ function Presenter() {
             ) : (
               <button
                 onClick={() => setMediaFunctionsOpen(true)}
-                className="mono pill flex w-full items-center justify-center border border-foreground px-4 py-2 text-sm transition hover:bg-foreground hover:text-background"
+                className="mono uppercase pill flex w-full items-center justify-center border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
               >
                 Edit Media Functions
               </button>
@@ -585,13 +595,13 @@ function Presenter() {
           <div className="rounded-2xl border border-foreground">
             <button
               onClick={() => setShortcutsOpen((v) => !v)}
-              className="mono flex w-full items-center justify-between px-4 py-3 text-sm"
+              className="mono uppercase flex w-full items-center justify-between px-4 py-1.5 text-xs tracking-wider"
             >
               <span>Shortcuts</span>
               {shortcutsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
             {shortcutsOpen && (
-              <div className="mono space-y-1 border-t border-foreground/20 px-4 py-3 text-xs text-muted-foreground">
+              <div className="mono uppercase space-y-1 border-t border-foreground/20 px-4 py-3 text-xs text-muted-foreground">
                 <div>→ / Space — next slide</div>
                 <div>← — previous slide</div>
                 <div>Esc — stop (fade to black)</div>

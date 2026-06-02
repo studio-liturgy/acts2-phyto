@@ -8,7 +8,8 @@ import { searchSongs, type SongResult } from "@/lib/songs";
 import { SlideView } from "@/components/SlideView";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowUpLeft, ArrowUpRight, Plus, Trash2, GripVertical, Search, Loader2, Pencil } from "lucide-react";
+import { ArrowUpLeft, ArrowUpRight, Plus, Trash2, GripVertical, Search, Loader2, Pencil, Upload } from "lucide-react";
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Slide, SetKind } from "@/lib/types";
 import { z } from "zod";
@@ -80,6 +81,7 @@ function SetHeader({
   navigate: ReturnType<typeof useNavigate>;
   deleteSet: (id: string) => void;
 }) {
+  const [showDeleteSetDialog, setShowDeleteSetDialog] = useState(false);
   return (
     <header className="flex shrink-0 items-center gap-3 border-b border-foreground px-6 py-4">
       {/* Back */}
@@ -131,16 +133,35 @@ function SetHeader({
 
       {/* Right actions */}
       <button
-        onClick={() => {
-          if (confirm("Delete this set?")) {
-            deleteSet(phytoSet.id);
-            navigate({ to: "/" });
-          }
-        }}
+        onClick={() => setShowDeleteSetDialog(true)}
         className="pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
       >
         Delete
       </button>
+      <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">Delete this set?</AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            This cannot be undone.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={() => { deleteSet(phytoSet.id); navigate({ to: redirectTo ?? "/" }); }}
+              className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+            >
+              Delete
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteSetDialog(false)}
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              Cancel
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
       <AddToGathering setId={phytoSet.id} />
       <button
         onClick={() => navigate({ to: "/present", search: { set: phytoSet.id } })}
@@ -347,8 +368,11 @@ function SetEditor() {
     );
   }
 
-  // Media: original layout
+  // Media: merged import + slides panel
   const dense = phytoSet.slides.length > 20;
+  const [fileOver, setFileOver] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSelect = (id: string, e?: React.MouseEvent) => {
     setSelectedId(id);
@@ -374,24 +398,70 @@ function SetEditor() {
     setMultiSel(new Set());
   };
 
+  const handleMediaFiles = async (files: FileList | null) => {
+    if (!files || converting) return;
+    const imageFiles = Array.from(files).filter((f) =>
+      /^image\/(png|jpe?g|webp|gif|bmp)$/i.test(f.type)
+    );
+    const pdfFiles = Array.from(files).filter((f) => f.type === "application/pdf");
+
+    if (imageFiles.length > 0) {
+      const urls = await Promise.all(
+        imageFiles.map((f) => fileToCompressedImageDataUrl(f).catch(() => null))
+      );
+      urls.forEach((url) => {
+        if (url) addSlide(phytoSet.id, { kind: "image", imageUrl: url, lines: [] });
+      });
+    }
+
+    if (pdfFiles.length > 0) {
+      setConverting(true);
+      for (const pdf of pdfFiles) {
+        try {
+          const urls = await pdfToImageUrls(pdf);
+          urls.forEach((url) =>
+            addSlide(phytoSet.id, { kind: "image", imageUrl: url, lines: [] })
+          );
+        } catch {
+          // skip failed files silently
+        }
+      }
+      setConverting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SetHeader {...headerProps} />
 
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 md:px-10 lg:grid-cols-[1fr_340px]">
-        <div className="space-y-5">
-          <Importers setId={phytoSet.id} kind={phytoSet.kind} />
-
-          <PanelCard>
+        <div>
+          {/* Merged import + slides panel */}
+          <section
+            className={`rounded-3xl border bg-background p-5 transition ${fileOver ? "border-foreground ring-2 ring-foreground" : "border-foreground"}`}
+            onDragOver={(e) => {
+              if (e.dataTransfer.types.includes("Files")) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
+                setFileOver(true);
+              }
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setFileOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setFileOver(false);
+              if (e.dataTransfer.files?.length) handleMediaFiles(e.dataTransfer.files);
+            }}
+          >
             <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <h2 className="mono text-xs uppercase tracking-wider">
-                  Slides ({phytoSet.slides.length})
-                  {multiSel.size > 0 && (
-                    <span className="ml-2 text-foreground">· {multiSel.size} selected</span>
-                  )}
-                </h2>
-              </div>
+              <h2 className="mono text-xs uppercase tracking-wider">
+                Slides ({phytoSet.slides.length})
+                {multiSel.size > 0 && (
+                  <span className="ml-2 text-foreground">· {multiSel.size} selected</span>
+                )}
+              </h2>
               <div className="flex items-center gap-2">
                 {multiSel.size > 0 && (
                   <button
@@ -402,6 +472,25 @@ function SetEditor() {
                   </button>
                 )}
                 <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={converting}
+                  className="pill flex items-center gap-1 border border-foreground px-3 py-1.5 text-xs transition hover:bg-foreground hover:text-background disabled:opacity-50"
+                >
+                  {converting ? (
+                    <><Loader2 className="h-3 w-3 animate-spin" /> Converting…</>
+                  ) : (
+                    <><Upload className="h-3 w-3" /> Import</>
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleMediaFiles(e.target.files)}
+                />
+                <button
                   onClick={() =>
                     addSlide(phytoSet.id, { id: uid(), kind: "blank", lines: [""] } as Slide)
                   }
@@ -411,12 +500,38 @@ function SetEditor() {
                 </button>
               </div>
             </div>
+
             {phytoSet.slides.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No slides yet, use the importer above to get started!
-              </p>
+              <label
+                className={`mono flex h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-xs uppercase tracking-wider transition ${
+                  converting
+                    ? "cursor-wait border-foreground/30 text-muted-foreground"
+                    : fileOver
+                    ? "border-foreground bg-foreground/5"
+                    : "border-foreground/60 text-muted-foreground hover:border-foreground"
+                }`}
+              >
+                {converting ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Converting…</>
+                ) : fileOver ? (
+                  "Drop to upload"
+                ) : (
+                  "Drop images or PDFs here or click to browse"
+                )}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf"
+                  multiple
+                  disabled={converting}
+                  className="hidden"
+                  onChange={(e) => handleMediaFiles(e.target.files)}
+                />
+              </label>
             ) : (
               <div className="max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
+                {fileOver && (
+                  <p className="mono mb-3 text-center text-xs text-muted-foreground">Drop to add images</p>
+                )}
                 <SlideGrid
                   slides={phytoSet.slides}
                   selectedId={selected?.id ?? null}
@@ -429,7 +544,7 @@ function SetEditor() {
                 />
               </div>
             )}
-          </PanelCard>
+          </section>
         </div>
 
         <aside className="space-y-5">
@@ -439,31 +554,6 @@ function SetEditor() {
               <SlideView slide={selected} variant="preview" />
             </div>
           </div>
-
-          {selected && (
-            <PanelCard label="Edit slide">
-              <div className="space-y-3">
-                <Field label="Group">
-                  <PillInput
-                    value={selected.section ?? ""}
-                    onChange={(v) => updateSlide(phytoSet.id, selected.id, { section: v })}
-                    placeholder="Chorus, Verse 1…"
-                  />
-                </Field>
-                <div>
-                  <div className="mono mb-2 text-[10px] uppercase tracking-wider">Text</div>
-                  <Textarea
-                    rows={6}
-                    value={selected.lines?.join("\n") ?? ""}
-                    onChange={(e) =>
-                      updateSlide(phytoSet.id, selected.id, { lines: e.target.value.split("\n") })
-                    }
-                    className="rounded-lg border-foreground"
-                  />
-                </div>
-              </div>
-            </PanelCard>
-          )}
         </aside>
       </div>
     </div>
@@ -524,16 +614,32 @@ function SlideGrid({
   dense?: boolean;
   kind?: SetKind;
 }) {
-  const dragId = useRef<string | null>(null);
-  const cols = dense
-    ? "grid-cols-3 md:grid-cols-4"
-    : "grid-cols-2 md:grid-cols-4";
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [liveOrder, setLiveOrder] = useState<Slide[] | null>(null);
+  const liveOrderRef = useRef<Slide[] | null>(null);
+  const dragIndex = useRef<number | null>(null);
+
+  const cols = dense ? "grid-cols-3 md:grid-cols-4" : "grid-cols-2 md:grid-cols-4";
   const selColor = kindColor(kind);
+  const displaySlides = liveOrder ?? slides;
+
+  const commitOrder = () => {
+    if (liveOrderRef.current) onReorder(liveOrderRef.current.map((s) => s.id));
+    liveOrderRef.current = null;
+    setLiveOrder(null);
+    setDraggingId(null);
+    dragIndex.current = null;
+  };
+
   return (
-    <div className={`grid gap-3 ${cols}`}>
-      {slides.map((s, i) => {
+    <div
+      className={`grid gap-3 ${cols}`}
+      onDrop={(e) => { e.stopPropagation(); commitOrder(); }}
+    >
+      {displaySlides.map((s, i) => {
         const isSelected = selectedId === s.id;
         const inMulti = multiSel.has(s.id);
+        const isDragging = s.id === draggingId;
         const borderStyle: React.CSSProperties | undefined = isSelected
           ? { borderColor: selColor }
           : inMulti
@@ -543,23 +649,30 @@ function SlideGrid({
           <div
             key={s.id}
             draggable
-            onDragStart={() => (dragId.current = s.id)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => {
-              const from = dragId.current;
-              dragId.current = null;
-              if (!from || from === s.id) return;
-              const ids = slides.map((x) => x.id);
-              const fromIdx = ids.indexOf(from);
-              const toIdx = ids.indexOf(s.id);
-              ids.splice(toIdx, 0, ids.splice(fromIdx, 1)[0]);
-              onReorder(ids);
+            onDragStart={(e) => {
+              setDraggingId(s.id);
+              dragIndex.current = i;
+              e.dataTransfer.effectAllowed = "move";
             }}
+            onDragOver={(e) => {
+              if (dragIndex.current === null) return;
+              e.preventDefault();
+              e.stopPropagation();
+              const current = liveOrder ?? slides;
+              const fromIdx = current.findIndex((x) => x.id === draggingId);
+              if (fromIdx === i || fromIdx === -1) return;
+              const next = [...current];
+              const [moved] = next.splice(fromIdx, 1);
+              next.splice(i, 0, moved);
+              liveOrderRef.current = next;
+              setLiveOrder(next);
+            }}
+            onDragEnd={commitOrder}
             onClick={(e) => onSelect(s.id, e)}
             style={borderStyle}
-            className={`group relative cursor-pointer overflow-hidden rounded-md border-2 transition ${
-              isSelected || inMulti ? "" : "border-transparent hover:border-muted-foreground"
-            }`}
+            className={`group relative cursor-grab overflow-hidden rounded-md border-2 transition ${
+              isDragging ? "opacity-50" : ""
+            } ${isSelected || inMulti ? "" : "border-transparent hover:border-muted-foreground"}`}
           >
             <SlideView slide={s} variant="thumb" />
             <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
@@ -1206,7 +1319,7 @@ function AddToGathering({ setId }: { setId: string }) {
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder={added ? `Added to ${added}` : "Add to a gathering…"}
-          className="mono w-44 bg-transparent text-sm italic outline-none placeholder:text-muted-foreground"
+          className="mono uppercase w-44 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
         />
       </div>
       {open && matches.length > 0 && (

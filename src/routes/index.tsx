@@ -32,6 +32,7 @@ import {
   Download,
   Wifi,
   Copy,
+  Check,
   QrCode,
 } from "lucide-react";
 import {
@@ -258,20 +259,20 @@ function Library() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="px-6 pt-6 md:pt-10">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4">
+      <header className="pt-6 md:pt-10">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6">
           <a
             href="https://www.instagram.com/p/DY51Nn4yylm/"
             target="_blank"
             rel="noopener noreferrer"
-            className="pill flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+            className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
           >
             Quick Tutorial
           </a>
           {!isSignedIn && (
             <Link
               to="/login"
-              className="pill flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+              className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
             >
               Sign in
             </Link>
@@ -279,7 +280,7 @@ function Library() {
           {isSignedIn && (
             <button
               onClick={() => setShowSignOutDialog(true)}
-              className="pill flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+              className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
             >
               Sign out
             </button>
@@ -319,20 +320,20 @@ function Library() {
                     onChange={(e) => setPlaylistFilter(e.target.value)}
                     onBlur={() => !playlistFilter && setShowPlaylistSearch(false)}
                     placeholder="Search"
-                    className="w-40 bg-transparent text-sm outline-none"
+                    className="mono uppercase w-40 bg-transparent text-xs outline-none"
                   />
                 </div>
               ) : (
                 <button
                   onClick={() => setShowPlaylistSearch(true)}
-                  className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2 text-sm transition hover:bg-foreground hover:text-background"
+                  className="pill mono uppercase flex items-center gap-2 border border-foreground bg-background px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
                 >
                   <Search className="h-4 w-4" /> Search
                 </button>
               )}
               <button
                 onClick={createNewPlaylist}
-                className="pill flex items-center gap-2 bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90"
+                className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
               >
                 <Plus className="h-4 w-4" /> New
               </button>
@@ -340,12 +341,12 @@ function Library() {
           </div>
 
           {playlistOrder.length === 0 ? (
-            <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
+            <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
               No gatherings yet. Click New to plan a gathering!
             </div>
           ) : filteredPlaylistIds.length === 0 ? (
-            <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
-              No gatherings match “{playlistFilter}”.
+            <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
+              {`No gatherings match "${playlistFilter}".`}
             </div>
           ) : (
             <div className="grid gap-1.5 lg:grid-cols-2">
@@ -422,13 +423,13 @@ function Library() {
               ))}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="mono flex items-center gap-1 px-2 py-2 text-sm">
+                  <button className="mono uppercase flex items-center gap-1 px-2 py-1.5 text-xs tracking-wider">
                     {sortLabel[sortMode]} <ChevronDown className="h-3.5 w-3.5" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {(Object.keys(sortLabel) as SortMode[]).map((m) => (
-                    <DropdownMenuItem key={m} onClick={() => setSortMode(m)}>
+                    <DropdownMenuItem key={m} onClick={() => setSortMode(m)} className="mono uppercase text-xs tracking-wider">
                       {sortLabel[m]}
                     </DropdownMenuItem>
                   ))}
@@ -443,32 +444,32 @@ function Library() {
                     onChange={(e) => setCatalogueFilter(e.target.value)}
                     onBlur={() => !catalogueFilter && setShowCatalogueSearch(false)}
                     placeholder="Search"
-                    className="w-40 bg-transparent text-sm outline-none"
+                    className="mono uppercase w-40 bg-transparent text-xs outline-none"
                   />
                 </div>
               ) : (
                 <button
                   onClick={() => setShowCatalogueSearch(true)}
-                  className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2 text-sm transition hover:bg-foreground hover:text-background"
+                  className="pill mono uppercase flex items-center gap-2 border border-foreground bg-background px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
                 >
                   <Search className="h-4 w-4" /> Search
                 </button>
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="pill flex items-center gap-2 bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90">
+                  <button className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90">
                     <Plus className="h-4 w-4" /> New
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => newSet("song")}>
-                    <Music className="mr-2 h-4 w-4" /> New Song
+                  <DropdownMenuItem onClick={() => newSet("song")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]">
+                    New Song
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => newSet("scripture")}>
-                    <BookOpen className="mr-2 h-4 w-4" /> New Scripture
+                  <DropdownMenuItem onClick={() => newSet("scripture")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]">
+                    New Scripture
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => newSet("media")}>
-                    <ImageIcon className="mr-2 h-4 w-4" /> New Media
+                  <DropdownMenuItem onClick={() => newSet("media")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]">
+                    New Media
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -476,9 +477,9 @@ function Library() {
           </div>
 
           {catalogueRows.length === 0 ? (
-            <div className="rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
+            <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
               {catalogueFilter.trim()
-                ? `Nothing matches “${catalogueFilter}”.`
+                ? `Nothing matches "${catalogueFilter}".`
                 : emptyCategoryLabel[kindFilter]}
             </div>
           ) : (
@@ -515,7 +516,7 @@ function Library() {
               </ul>
             </div>
           )}
-          <p className="mono mt-10 text-xs italic text-muted-foreground">
+          <p className="mono uppercase mt-10 text-xs text-muted-foreground">
             Tip: Drag a set into a gathering.
           </p>
         </section>
@@ -530,71 +531,84 @@ function Library() {
 
       <AlertDialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-4xl font-bold leading-tight">Sign out?</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">Sign out?</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             Any live sessions you've started will remain live and accessible to viewers until you end them.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
-            <AlertDialogAction
+            <button
+              type="button"
               onClick={() => { setShowSignOutDialog(false); signOut(); }}
-              className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90"
+              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
             >
               Sign out
-            </AlertDialogAction>
-            <AlertDialogCancel className="flex-1 rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background">
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSignOutDialog(false)}
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
               Cancel
-            </AlertDialogCancel>
+            </button>
           </div>
         </AlertDialogContent>
       </AlertDialog>
 
       <AlertDialog open={showExportConfirm} onOpenChange={setShowExportConfirm}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-4xl font-bold leading-tight">Export</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">Export</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             This will download all your sets as a .phyto file.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
-            <AlertDialogAction
+            <button
+              type="button"
               onClick={() => { setShowExportConfirm(false); exportCatalogue(); }}
-              className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90"
+              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
             >
               Download
-            </AlertDialogAction>
-            <AlertDialogCancel className="flex-1 rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background">
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowExportConfirm(false)}
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
               Cancel
-            </AlertDialogCancel>
+            </button>
           </div>
         </AlertDialogContent>
       </AlertDialog>
 
       <AlertDialog open={pendingImportFile !== null} onOpenChange={(open) => { if (!open) setPendingImportFile(null); }}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-4xl font-bold leading-tight">Import</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">Import</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             Merge adds and overwrites sets with the same name without deleting anything. Replace clears your current catalogue.
           </AlertDialogDescription>
           <div className="mt-8 flex flex-col gap-3">
             <div className="flex gap-3">
-              <AlertDialogAction
+              <button
+                type="button"
                 onClick={() => handleImport('merge')}
-                className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90"
+                className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
               >
                 Merge
-              </AlertDialogAction>
-              <AlertDialogAction
+              </button>
+              <button
+                type="button"
                 onClick={() => handleImport('replace')}
-                className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90"
+                className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
               >
                 Replace
-              </AlertDialogAction>
+              </button>
             </div>
-            <AlertDialogCancel
+            <button
+              type="button"
               onClick={() => setPendingImportFile(null)}
-              className="w-full rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background"
+              className="mono uppercase w-full rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
             >
               Cancel
-            </AlertDialogCancel>
+            </button>
           </div>
         </AlertDialogContent>
       </AlertDialog>
@@ -651,15 +665,35 @@ function PlaylistCard({
   const [showQr, setShowQr] = useState(false);
   const [isGoingLive, setIsGoingLive] = useState(false);
   const [showShareQr, setShowShareQr] = useState(false);
+  const [copiedShare, setCopiedShare] = useState(false);
+  const [copiedGoLive, setCopiedGoLive] = useState(false);
+  const [qrFg, setQrFg] = useState("#000000");
+  const [qrBg, setQrBg] = useState("#ffffff");
+  const [qrTransparent, setQrTransparent] = useState(false);
   const goLiveQrRef = useRef<HTMLCanvasElement>(null);
   const shareQrRef = useRef<HTMLCanvasElement>(null);
+  const qrFgCustomRef = useRef<HTMLInputElement>(null);
+  const qrBgCustomRef = useRef<HTMLInputElement>(null);
+
+  const QR_FG_PRESETS = ['#212121', '#F5EFEF', '#2E7299', '#538844', '#E07D31', '#C01E21'];
+  const QR_BG_PRESETS = ['#ffffff', '#fef3c7', '#ede9fe', '#fee2e2', '#d1fae5', '#fef9c3'];
 
   const shareUrl = `https://phyto.live/g/${shareToken}`;
 
   const downloadQr = (ref: React.RefObject<HTMLCanvasElement | null>, filename: string) => {
     const canvas = ref.current;
     if (!canvas) return;
-    const url = canvas.toDataURL('image/png');
+    const padding = 20;
+    const out = document.createElement('canvas');
+    out.width = canvas.width + padding * 2;
+    out.height = canvas.height + padding * 2;
+    const ctx = out.getContext('2d')!;
+    if (!qrTransparent) {
+      ctx.fillStyle = qrBg;
+      ctx.fillRect(0, 0, out.width, out.height);
+    }
+    ctx.drawImage(canvas, padding, padding);
+    const url = out.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
@@ -730,7 +764,7 @@ function PlaylistCard({
         <button
           onClick={() => setEditMode((v) => !v)}
           className={`pill flex items-center justify-center border border-foreground transition ${
-            editMode ? "bg-foreground text-background px-3 h-10 text-sm" : "h-10 w-10 hover:bg-foreground hover:text-background"
+            editMode ? "mono uppercase bg-foreground text-background px-4 py-1.5 text-xs tracking-wider" : "h-10 w-10 hover:bg-foreground hover:text-background"
           }`}
           title={editMode ? "Done editing" : "Edit"}
           aria-label={editMode ? "Done editing" : "Edit"}
@@ -874,7 +908,7 @@ function PlaylistCard({
               onFocus={() => setShowResults(true)}
               onBlur={() => setTimeout(() => setShowResults(false), 150)}
               placeholder="Search for a set and add more!"
-              className="mono w-full bg-transparent text-sm italic outline-none placeholder:text-muted-foreground"
+              className="mono uppercase w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
             />
           </div>
           {showResults && matches.length > 0 && (
@@ -903,18 +937,20 @@ function PlaylistCard({
       {/* Share dialog */}
       <Dialog open={showShareDialog} onOpenChange={(open) => { setShowShareDialog(open); if (!open) setShowShareQr(false); }}>
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-          <DialogTitle className="text-4xl font-bold leading-tight">{name}</DialogTitle>
+          <DialogTitle className="text-2xl font-normal leading-tight">Share this gathering!</DialogTitle>
 
           <div className="mt-6 flex items-center gap-2">
             <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
-              <span className="flex-1 truncate px-4 text-sm text-muted-foreground">{shareUrl}</span>
+              <span className="flex-1 truncate px-4 font-mono uppercase text-sm text-muted-foreground">{shareUrl}</span>
               <button
                 type="button"
-                onClick={() => navigator.clipboard.writeText(shareUrl)}
+                onClick={() => { navigator.clipboard.writeText(shareUrl); setCopiedShare(true); setTimeout(() => setCopiedShare(false), 2000); }}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
                 aria-label="Copy URL"
               >
-                <Copy className="h-4 w-4" />
+                <span className="transition-all duration-300">
+                  {copiedShare ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </span>
               </button>
             </div>
             <button
@@ -929,11 +965,74 @@ function PlaylistCard({
 
           {showShareQr && (
             <div className="mt-4 flex flex-col items-center gap-3">
-              <QRCodeCanvas ref={shareQrRef} value={shareUrl} size={180} />
+              <div
+                className="rounded-xl p-4"
+                style={qrTransparent ? {
+                  backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
+                  backgroundSize: '10px 10px',
+                  backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px',
+                } : { backgroundColor: qrBg }}
+              >
+                <QRCodeCanvas ref={shareQrRef} value={shareUrl} size={180} fgColor={qrFg} bgColor={qrTransparent ? 'transparent' : qrBg} />
+              </div>
+              <div className="flex flex-col gap-2 self-stretch">
+                <div className="flex items-center gap-3">
+                  <span className="w-28 font-mono text-xs uppercase text-foreground">Dots</span>
+                  <div className="flex gap-1.5">
+                    {QR_FG_PRESETS.map(c => (
+                      <button key={c} type="button" onClick={() => setQrFg(c)}
+                        className="h-7 w-7 rounded-full border-2 transition"
+                        style={{ backgroundColor: c, borderColor: qrFg === c ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
+                      />
+                    ))}
+                    <button type="button" onClick={() => qrFgCustomRef.current?.click()}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
+                      style={{
+                        borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
+                        backgroundColor: QR_FG_PRESETS.includes(qrFg) ? 'transparent' : qrFg,
+                        color: 'var(--foreground)',
+                      }}
+                    >
+                      {QR_FG_PRESETS.includes(qrFg) && <span className="text-sm leading-none">+</span>}
+                    </button>
+                    <input ref={qrFgCustomRef} type="color" value={qrFg} onChange={e => setQrFg(e.target.value)} className="sr-only" />
+                  </div>
+                </div>
+                <div className={`flex items-center gap-3 transition-opacity ${qrTransparent ? 'pointer-events-none opacity-40' : ''}`}>
+                  <span className="w-28 font-mono text-xs uppercase text-foreground">Background</span>
+                  <div className="flex gap-1.5">
+                    {QR_BG_PRESETS.map(c => (
+                      <button key={c} type="button" onClick={() => setQrBg(c)}
+                        className="h-7 w-7 rounded-full border-2 transition"
+                        style={{ backgroundColor: c, borderColor: qrBg === c ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
+                      />
+                    ))}
+                    <button type="button" onClick={() => qrBgCustomRef.current?.click()}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
+                      style={{
+                        borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
+                        backgroundColor: QR_BG_PRESETS.includes(qrBg) ? 'transparent' : qrBg,
+                        color: 'var(--foreground)',
+                      }}
+                    >
+                      {QR_BG_PRESETS.includes(qrBg) && <span className="text-sm leading-none">+</span>}
+                    </button>
+                    <input ref={qrBgCustomRef} type="color" value={qrBg} onChange={e => setQrBg(e.target.value)} className="sr-only" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-28 font-mono text-xs uppercase text-foreground">No BG</span>
+                  <button type="button" onClick={() => setQrTransparent(v => !v)}
+                    className={`relative h-5 w-9 rounded-full transition-colors ${qrTransparent ? 'bg-foreground' : 'bg-foreground/20'}`}
+                  >
+                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all ${qrTransparent ? 'left-4' : 'left-0.5'}`} />
+                  </button>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => downloadQr(shareQrRef, `${name}-qr.png`)}
-                className="rounded-full border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+                className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
               >
                 Download
               </button>
@@ -949,22 +1048,24 @@ function PlaylistCard({
       {/* Go Live confirmation dialog */}
       <Dialog open={showGoLiveDialog} onOpenChange={(open) => { if (isGoingLive) return; setShowGoLiveDialog(open); if (!open) setShowQr(false); }}>
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-          <DialogTitle className="text-4xl font-bold leading-tight">{name}</DialogTitle>
+          <DialogTitle className="text-2xl font-normal leading-tight">Go live!</DialogTitle>
 
           <p className="mt-4 text-base">
-            Once live, this gathering will be accessible via the link. It will stay live until you end it or start a new one.
+            Once this session is live, it will be accessible via this link. It will stay live until you end it or start a new one.
           </p>
 
           <div className="mt-6 flex items-center gap-2">
             <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
-              <span className="flex-1 truncate px-4 text-sm text-muted-foreground">{shareUrl}</span>
+              <span className="flex-1 truncate px-4 font-mono uppercase text-sm text-muted-foreground">{shareUrl}</span>
               <button
                 type="button"
-                onClick={() => navigator.clipboard.writeText(shareUrl)}
+                onClick={() => { navigator.clipboard.writeText(shareUrl); setCopiedGoLive(true); setTimeout(() => setCopiedGoLive(false), 2000); }}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
                 aria-label="Copy URL"
               >
-                <Copy className="h-4 w-4" />
+                <span className="transition-all duration-300">
+                  {copiedGoLive ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </span>
               </button>
             </div>
             <button
@@ -979,11 +1080,74 @@ function PlaylistCard({
 
           {showQr && (
             <div className="mt-4 flex flex-col items-center gap-3">
-              <QRCodeCanvas ref={goLiveQrRef} value={shareUrl} size={180} />
+              <div
+                className="rounded-xl p-4"
+                style={qrTransparent ? {
+                  backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
+                  backgroundSize: '10px 10px',
+                  backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px',
+                } : { backgroundColor: qrBg }}
+              >
+                <QRCodeCanvas ref={goLiveQrRef} value={shareUrl} size={180} fgColor={qrFg} bgColor={qrTransparent ? 'transparent' : qrBg} />
+              </div>
+              <div className="flex flex-col gap-2 self-stretch">
+                <div className="flex items-center gap-3">
+                  <span className="w-28 font-mono text-xs uppercase text-foreground">Dots</span>
+                  <div className="flex gap-1.5">
+                    {QR_FG_PRESETS.map(c => (
+                      <button key={c} type="button" onClick={() => setQrFg(c)}
+                        className="h-7 w-7 rounded-full border-2 transition"
+                        style={{ backgroundColor: c, borderColor: qrFg === c ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
+                      />
+                    ))}
+                    <button type="button" onClick={() => qrFgCustomRef.current?.click()}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
+                      style={{
+                        borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
+                        backgroundColor: QR_FG_PRESETS.includes(qrFg) ? 'transparent' : qrFg,
+                        color: 'var(--foreground)',
+                      }}
+                    >
+                      {QR_FG_PRESETS.includes(qrFg) && <span className="text-sm leading-none">+</span>}
+                    </button>
+                    <input ref={qrFgCustomRef} type="color" value={qrFg} onChange={e => setQrFg(e.target.value)} className="sr-only" />
+                  </div>
+                </div>
+                <div className={`flex items-center gap-3 transition-opacity ${qrTransparent ? 'pointer-events-none opacity-40' : ''}`}>
+                  <span className="w-28 font-mono text-xs uppercase text-foreground">Background</span>
+                  <div className="flex gap-1.5">
+                    {QR_BG_PRESETS.map(c => (
+                      <button key={c} type="button" onClick={() => setQrBg(c)}
+                        className="h-7 w-7 rounded-full border-2 transition"
+                        style={{ backgroundColor: c, borderColor: qrBg === c ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
+                      />
+                    ))}
+                    <button type="button" onClick={() => qrBgCustomRef.current?.click()}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
+                      style={{
+                        borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
+                        backgroundColor: QR_BG_PRESETS.includes(qrBg) ? 'transparent' : qrBg,
+                        color: 'var(--foreground)',
+                      }}
+                    >
+                      {QR_BG_PRESETS.includes(qrBg) && <span className="text-sm leading-none">+</span>}
+                    </button>
+                    <input ref={qrBgCustomRef} type="color" value={qrBg} onChange={e => setQrBg(e.target.value)} className="sr-only" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-28 font-mono text-xs uppercase text-foreground">No BG</span>
+                  <button type="button" onClick={() => setQrTransparent(v => !v)}
+                    className={`relative h-5 w-9 rounded-full transition-colors ${qrTransparent ? 'bg-foreground' : 'bg-foreground/20'}`}
+                  >
+                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all ${qrTransparent ? 'left-4' : 'left-0.5'}`} />
+                  </button>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => downloadQr(goLiveQrRef, `${name}-qr.png`)}
-                className="rounded-full border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+                className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
               >
                 Download
               </button>
@@ -994,7 +1158,7 @@ function PlaylistCard({
             <button
               onClick={async () => { setIsGoingLive(true); await onGoLive(); setIsGoingLive(false); setShowGoLiveDialog(false); setShowQr(false); }}
               disabled={isGoingLive}
-              className="w-full rounded-full bg-[var(--brand-red)] py-3 text-[var(--brand-white)] transition hover:opacity-90 disabled:opacity-70"
+              className="mono uppercase w-full rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90 disabled:opacity-70"
             >
               {isGoingLive ? "Going Live..." : "Go Live"}
             </button>
@@ -1005,23 +1169,25 @@ function PlaylistCard({
       {/* End Session confirmation dialog */}
       <AlertDialog open={showEndSessionDialog} onOpenChange={setShowEndSessionDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-4xl font-bold leading-tight">{name}</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">End this session?</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             Ending the session will take this gathering offline. You can go live again at any time.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
-            <AlertDialogAction
+            <button
+              type="button"
               onClick={() => { onEndSession(); setShowEndSessionDialog(false); }}
-              className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90"
+              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
             >
               End Session
-            </AlertDialogAction>
-            <AlertDialogCancel
+            </button>
+            <button
+              type="button"
               onClick={() => setShowEndSessionDialog(false)}
-              className="flex-1 rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background"
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
             >
               Cancel
-            </AlertDialogCancel>
+            </button>
           </div>
         </AlertDialogContent>
       </AlertDialog>
@@ -1029,23 +1195,25 @@ function PlaylistCard({
       {/* Delete gathering confirmation dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-4xl font-bold leading-tight">{name}</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">Delete this gathering?</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             This will permanently delete this gathering. This cannot be undone.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
-            <AlertDialogAction
+            <button
+              type="button"
               onClick={() => { onDelete(); setShowDeleteDialog(false); }}
-              className="flex-1 rounded-full bg-[var(--brand-red)] py-3 text-[var(--brand-white)] transition hover:opacity-90"
+              className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
             >
               Delete
-            </AlertDialogAction>
-            <AlertDialogCancel
+            </button>
+            <button
+              type="button"
               onClick={() => setShowDeleteDialog(false)}
-              className="flex-1 rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background"
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
             >
               Cancel
-            </AlertDialogCancel>
+            </button>
           </div>
         </AlertDialogContent>
       </AlertDialog>

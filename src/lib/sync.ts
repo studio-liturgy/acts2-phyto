@@ -276,26 +276,43 @@ export async function applyMerge(diff: SyncDiff): Promise<void> {
     }
   }
 
-  // Push only-local items (items Supabase doesn't know about at all)
+  // Push only-local items to Supabase.
+  // Re-ID them with fresh UUIDs first so we never try to UPDATE a row already
+  // owned by a different user_id in Supabase (which would fail RLS).
   if (session) {
     const userId = session.user.id;
     const deviceId = getDeviceId();
 
+    // Build old→new ID maps upfront so gathering setIds can be updated too.
+    const setIdMap = new Map(diff.onlyLocal.sets.map((s) => [s.id, crypto.randomUUID() as string]));
+    const gatheringIdMap = new Map(diff.onlyLocal.gatherings.map((p) => [p.id, crypto.randomUUID() as string]));
+
     if (diff.onlyLocal.sets.length) {
+      const reIded = diff.onlyLocal.sets.map((s) => ({ ...s, id: setIdMap.get(s.id)! }));
+      await db.sets.bulkDelete(diff.onlyLocal.sets.map((s) => s.id));
+      await db.sets.bulkPut(reIded);
       const { error } = await supabase
         .from('sets')
-        .upsert(diff.onlyLocal.sets.map((s) => toSupabaseSet(s, userId, deviceId)), { onConflict: 'id' });
+        .upsert(reIded.map((s) => toSupabaseSet(s, userId, deviceId)), { onConflict: 'id' });
       if (error) console.error('[applyMerge] sets upsert error:', error);
     }
 
     if (diff.onlyLocal.gatherings.length) {
+      const reIded = diff.onlyLocal.gatherings.map((p) => ({
+        ...p,
+        id: gatheringIdMap.get(p.id)!,
+        share_token: nanoid(10),
+        setIds: p.setIds.map((sid) => setIdMap.get(sid) ?? sid),
+      }));
+      await db.gatherings.bulkDelete(diff.onlyLocal.gatherings.map((p) => p.id));
+      await db.gatherings.bulkPut(reIded);
       const { error } = await supabase
         .from('gatherings')
-        .upsert(diff.onlyLocal.gatherings.map((p) => toSupabaseGathering(p, userId, deviceId)), { onConflict: 'id' });
+        .upsert(reIded.map((p) => toSupabaseGathering(p, userId, deviceId)), { onConflict: 'id' });
       if (error) console.error('[applyMerge] gatherings upsert error:', error);
 
       const gatheringSetRows = await Promise.all(
-        diff.onlyLocal.gatherings.flatMap((p) =>
+        reIded.flatMap((p) =>
           p.setIds.map(async (setId, i) => ({
             id: await deterministicUuid(p.id, String(i)),
             gathering_id: p.id,

@@ -3,13 +3,13 @@ import wordmark from "@/assets/wordmark.svg";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
-const linkCls = "transition-opacity duration-200 hover:opacity-60";
+const linkCls = "mono uppercase transition-opacity duration-200 hover:opacity-60";
 
 export function Footer({ className }: { className?: string }) {
   return (
     <footer className={cn("mt-20 hidden bg-[var(--brand-blue)] text-[var(--brand-white)] md:block", className)}>
       <div className="mx-auto grid max-w-6xl grid-cols-3 items-center gap-4 px-6 py-8">
-        <nav className="flex items-center gap-6 text-sm">
+        <nav className="flex items-center gap-6 text-xs">
           <Link to="/about" className={linkCls}>About</Link>
           <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className={linkCls}>Instagram</a>
           <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className={linkCls}>Donate</a>
@@ -21,7 +21,7 @@ export function Footer({ className }: { className?: string }) {
             <img src={wordmark} alt="phyto" className="h-12 w-auto" />
           </Link>
         </div>
-        <nav className="flex items-center justify-end gap-4 text-sm flex-nowrap">
+        <nav className="flex items-center justify-end gap-4 text-xs flex-nowrap">
           <Link to="/updates" className={`${linkCls} whitespace-nowrap`}>Updates</Link>
           <Link to="/terms" className={`${linkCls} whitespace-nowrap`}>Terms of Use</Link>
           <Link to="/privacy" className={`${linkCls} whitespace-nowrap`}>Privacy Policy</Link>

@@ -63,7 +63,7 @@ function LoginPage() {
           <div className="w-full max-w-sm">
             {sent ? (
               <div className="space-y-3 text-center text-white">
-                <p className="text-lg">Check your email for a sign-in link.</p>
+                <p className="mono uppercase text-lg">Check your email for a sign-in link.</p>
                 <p className="text-sm opacity-70">
                   Redirecting in {countdown} second{countdown !== 1 ? 's' : ''}…
                 </p>
@@ -77,11 +77,11 @@ function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="email address"
                     required
-                    className="w-full rounded-full border border-white/60 bg-transparent px-6 py-3 text-center text-white placeholder-white/50 outline-none focus:border-white"
+                    className="mono uppercase text-sm w-full rounded-full border border-white/60 bg-transparent px-6 py-3 text-center text-white placeholder-white/50 outline-none focus:border-white"
                   />
                   <button
                     type="submit"
-                    className="w-full rounded-full bg-white px-6 py-3 text-[var(--brand-blue)] transition hover:opacity-90"
+                    className="mono uppercase text-sm w-full rounded-full bg-white px-6 py-3 text-[var(--brand-blue)] transition hover:opacity-90"
                   >
                     continue
                   </button>
@@ -101,7 +101,7 @@ function LoginPage() {
                       options: { redirectTo: window.location.origin + '/auth/callback' },
                     })
                   }
-                  className="w-full rounded-full bg-white px-6 py-3 text-[var(--brand-blue)] transition hover:opacity-90"
+                  className="mono uppercase text-sm w-full rounded-full bg-white px-6 py-3 text-[var(--brand-blue)] transition hover:opacity-90"
                 >
                   sign in with Google
                 </button>
