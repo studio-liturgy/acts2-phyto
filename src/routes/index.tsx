@@ -366,7 +366,7 @@ function Library() {
                     onAdd={(setId) => addSetToPlaylist(pid, setId)}
                     onRemoveAt={(i) => removeSetFromPlaylist(pid, i)}
                     onReorder={(ids) => reorderPlaylistSets(pid, ids)}
-                    onGoLive={() => isSignedIn ? goLive(pid) : setShowGoLivePrompt(true)}
+                    onGoLive={() => isSignedIn ? goLive(pid) : (setShowGoLivePrompt(true), Promise.resolve())}
                     onEndSession={() => endSession(pid)}
                   />
                 );
@@ -628,7 +628,7 @@ function PlaylistCard({
   onAdd: (setId: string) => void;
   onRemoveAt: (index: number) => void;
   onReorder: (ids: string[]) => void;
-  onGoLive: () => void;
+  onGoLive: () => Promise<void>;
   onEndSession: () => void;
 }) {
   const dragIndex = useRef<number | null>(null);
@@ -649,6 +649,7 @@ function PlaylistCard({
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const [isGoingLive, setIsGoingLive] = useState(false);
   const [showShareQr, setShowShareQr] = useState(false);
   const goLiveQrRef = useRef<HTMLCanvasElement>(null);
   const shareQrRef = useRef<HTMLCanvasElement>(null);
@@ -946,7 +947,7 @@ function PlaylistCard({
       </Dialog>
 
       {/* Go Live confirmation dialog */}
-      <Dialog open={showGoLiveDialog} onOpenChange={(open) => { setShowGoLiveDialog(open); if (!open) setShowQr(false); }}>
+      <Dialog open={showGoLiveDialog} onOpenChange={(open) => { if (isGoingLive) return; setShowGoLiveDialog(open); if (!open) setShowQr(false); }}>
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
           <DialogTitle className="text-4xl font-bold leading-tight">{name}</DialogTitle>
 
@@ -991,10 +992,11 @@ function PlaylistCard({
 
           <div className="mt-8">
             <button
-              onClick={() => { onGoLive(); setShowGoLiveDialog(false); setShowQr(false); }}
-              className="w-full rounded-full bg-[var(--brand-red)] py-3 text-[var(--brand-white)] transition hover:opacity-90"
+              onClick={async () => { setIsGoingLive(true); await onGoLive(); setIsGoingLive(false); setShowGoLiveDialog(false); setShowQr(false); }}
+              disabled={isGoingLive}
+              className="w-full rounded-full bg-[var(--brand-red)] py-3 text-[var(--brand-white)] transition hover:opacity-90 disabled:opacity-70"
             >
-              Go Live
+              {isGoingLive ? "Going Live..." : "Go Live"}
             </button>
           </div>
         </DialogContent>

@@ -62,7 +62,7 @@ export function SongTemplateEditor() {
   return (
     <div className="rounded-2xl border border-foreground p-4">
       <div className="mb-3 flex items-center justify-between">
-        <div className="mono text-[10px] uppercase tracking-wider">{label}</div>
+        <div className="mono text-[10px] uppercase tracking-wider">Song Template</div>
         <button
           onClick={cancel}
           className="text-xs text-muted-foreground hover:text-foreground"

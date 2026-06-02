@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
-import { SlideView, DissolveSlide } from "@/components/SlideView";
+import { DissolveSlide } from "@/components/SlideView";
 import { useEffect, useMemo, useRef } from "react";
 import type { Slide } from "@/lib/types";
 
@@ -43,31 +43,29 @@ function Output() {
     };
   }, []);
 
-  const isMedia = phytoSet?.kind === "media";
-  const fadeMs = live.blackoutFadeMs ?? 0;
+  const globalFadeMs = useLibrary((s) => s.fadeMs);
+  const blackoutFadeMs = live.blackoutFadeMs ?? 0;
   const hideContent = live.clear || !slide;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black">
       {hideContent ? (
         <div className="h-full w-full bg-black" />
-      ) : isMedia ? (
+      ) : (
         <DissolveSlide
           slide={slide}
           variant="stage"
-          durationMs={phytoSet?.dissolveMs ?? 0}
+          durationMs={globalFadeMs}
           template={template}
           className="h-full w-full"
         />
-      ) : (
-        <SlideView slide={slide} variant="stage" template={template} className="h-full w-full" />
       )}
       {/* Blackout overlay — fades in/out when blackoutFadeMs > 0. */}
       <div
         className="pointer-events-none absolute inset-0 bg-black"
         style={{
           opacity: live.blackout ? 1 : 0,
-          transition: fadeMs > 0 ? `opacity ${fadeMs}ms ease-in-out` : undefined,
+          transition: blackoutFadeMs > 0 ? `opacity ${blackoutFadeMs}ms ease-in-out` : undefined,
         }}
       />
     </div>

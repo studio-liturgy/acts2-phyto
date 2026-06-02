@@ -38,6 +38,13 @@ function kindHoverBg(kind: SetKind): string {
   return "hover:bg-muted/50";
 }
 
+function kindActiveBg(kind: SetKind): string {
+  if (kind === "song") return "bg-[var(--brand-blue)]/10";
+  if (kind === "scripture") return "bg-[var(--brand-green)]/10";
+  if (kind === "media") return "bg-[var(--brand-orange)]/10";
+  return "bg-muted/50";
+}
+
 function kindLiveColor(kind: SetKind): string {
   if (kind === "song") return "var(--brand-blue)";
   if (kind === "scripture") return "var(--brand-green)";
@@ -79,6 +86,8 @@ function Presenter() {
   const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
   const scriptureDraft = useScriptureTemplateDraft((s) => s.draft);
   const effectiveScriptureTemplate = scriptureDraft ?? scriptureTemplate;
+  const fadeMs = useLibrary((s) => s.fadeMs);
+  const setFadeMs = useLibrary((s) => s.setFadeMs);
 
   const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
 
@@ -100,6 +109,7 @@ function Presenter() {
   const [reorderDragIndex, setReorderDragIndex] = useState<number | null>(null);
   const [reorderOverIndex, setReorderOverIndex] = useState<number | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [mediaFunctionsOpen, setMediaFunctionsOpen] = useState(false);
 
   useEffect(() => {
     if (setFromUrl) setActiveSetId(setFromUrl);
@@ -158,7 +168,7 @@ function Presenter() {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 border-b border-foreground/10 bg-background">
+      <header className="sticky top-0 z-30 border-b border-foreground bg-background">
         <div className="flex items-center gap-4 px-6 py-4">
           <div className="flex shrink-0 items-center gap-2">
             <Link
@@ -212,14 +222,6 @@ function Presenter() {
             >
               Output <ArrowUpRight className="h-4 w-4" />
             </button>
-            <button
-              onClick={() => live.clearLive()}
-              className="pill flex h-10 w-10 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
-              title="Stop (Esc) — fades to black"
-              aria-label="Stop"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
         </div>
       </header>
@@ -231,7 +233,7 @@ function Presenter() {
       >
         {/* Sidebar */}
         {sidebarOpen && (
-          <aside className="flex h-[calc(100vh-73px)] flex-col border-r border-foreground/10 bg-background p-4 md:sticky md:top-[73px]">
+          <aside className="flex h-[calc(100vh-73px)] flex-col border-r border-foreground bg-background p-4 md:sticky md:top-[73px]">
             <div className="pill mb-4 flex items-center gap-2 border border-foreground bg-background px-4 py-2">
               <Search className="h-4 w-4" />
               <input
@@ -356,7 +358,7 @@ function Presenter() {
                             isLive
                               ? ""
                               : isActive
-                              ? "border-transparent bg-muted"
+                              ? `border-transparent ${kindActiveBg(d.kind)}`
                               : `border-transparent ${kindHoverBg(d.kind)}`
                           }`}
                           style={isLive ? { borderColor: kindLiveColor(d.kind) } : undefined}
@@ -434,7 +436,7 @@ function Presenter() {
                   to="/set/$setId"
                   params={{ setId: activeSet.id }}
                   search={{ redirectTo: `/present?set=${activeSet.id}` }}
-                  className="pill flex h-8 w-8 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                  className="pill flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                   title="Edit set"
                   aria-label="Edit set"
                 >
@@ -462,7 +464,7 @@ function Presenter() {
                         to="/set/$setId"
                         params={{ setId: d.id }}
                         search={{ redirectTo: `/present?set=${d.id}` }}
-                        className="pill flex h-7 w-7 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                        className="pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                         title="Edit set"
                         aria-label="Edit set"
                       >
@@ -485,23 +487,20 @@ function Presenter() {
         </main>
 
         {/* Right rail */}
-        <aside className="h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground/10 bg-background p-4 md:sticky md:top-[73px]">
+        <aside className="h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground bg-background p-4 md:sticky md:top-[73px]">
           <div>
             <div className="mono mb-2 text-[10px] uppercase tracking-wider">Live output</div>
             <div className="relative overflow-hidden rounded-lg bg-[var(--brand-black)]">
-              {liveSet?.kind === "media" ? (
-                <DissolveSlide slide={liveSlide} variant="preview" durationMs={liveSet.dissolveMs ?? 0} template={liveSet.template} />
-              ) : (
-                <SlideView
-                  slide={liveSlide}
-                  variant="preview"
-                  template={
-                    liveSet?.kind === "song" ? effectiveSongTemplate
-                    : liveSet?.kind === "scripture" ? effectiveScriptureTemplate
-                    : liveSet?.template
-                  }
-                />
-              )}
+              <DissolveSlide
+                slide={liveSlide}
+                variant="preview"
+                durationMs={fadeMs}
+                template={
+                  liveSet?.kind === "song" ? effectiveSongTemplate
+                  : liveSet?.kind === "scripture" ? effectiveScriptureTemplate
+                  : liveSet?.template
+                }
+              />
               <div
                 className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black text-xs text-white/40"
                 style={{
@@ -520,13 +519,64 @@ function Presenter() {
                 {liveSet.name} · {liveSet.slides.findIndex((s) => s.id === liveSlide.id) + 1}
               </p>
             )}
+            <div className="mt-2 flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={0}
+                  max={5}
+                  step={0.1}
+                  value={fadeMs ? (fadeMs / 1000).toFixed(1) : ""}
+                  placeholder="0"
+                  onChange={(e) => {
+                    const n = Math.min(5, Math.max(0, Number(e.target.value) || 0));
+                    setFadeMs(Math.round(n * 1000));
+                  }}
+                  className="pill h-7 w-14 border border-foreground bg-background px-2 text-xs outline-none"
+                  title="Slide fade duration"
+                  aria-label="Slide fade duration"
+                />
+                <span className="text-xs text-muted-foreground">s</span>
+              </div>
+              <button
+                onClick={() => live.toggleBlackout()}
+                className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
+                title="Stop (Esc) — fades to black"
+                aria-label="Stop"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
-          {liveSet?.kind === "media" && (
-            <div className="rounded-2xl border border-foreground p-4">
-              <div className="mono mb-3 text-[10px] uppercase tracking-wider">Media functions</div>
-              <MediaPlaybackControls setId={liveSet.id} />
-            </div>
+          {activeSet?.kind === "media" && (
+            mediaFunctionsOpen ? (
+              <div className="rounded-2xl border border-foreground p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="mono text-[10px] uppercase tracking-wider">Media Functions</div>
+                  <button
+                    onClick={() => setMediaFunctionsOpen(false)}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <MediaPlaybackControls setId={activeSet.id} />
+                <button
+                  onClick={() => setMediaFunctionsOpen(false)}
+                  className="pill mt-3 flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90"
+                >
+                  Apply to this media set
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setMediaFunctionsOpen(true)}
+                className="mono pill flex w-full items-center justify-center border border-foreground px-4 py-2 text-sm transition hover:bg-foreground hover:text-background"
+              >
+                Edit Media Functions
+              </button>
+            )
           )}
 
           {activeSet?.kind === "song" && <SongTemplateEditor />}
@@ -584,7 +634,6 @@ function MediaPlaybackControls({ setId }: { setId: string }) {
   const updateSet = useLibrary((s) => s.updateSet);
   if (!phytoSet) return null;
   const auto = phytoSet.autoAdvanceMs ?? 0;
-  const dissolve = phytoSet.dissolveMs ?? 0;
   return (
     <div className="space-y-3 text-sm">
       <div className="flex items-center justify-between gap-2">
@@ -599,25 +648,6 @@ function MediaPlaybackControls({ setId }: { setId: string }) {
             onChange={(e) => {
               const n = Number(e.target.value);
               updateSet(setId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
-            }}
-            className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
-          />
-          <span className="text-xs text-muted-foreground">s</span>
-        </div>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="mono text-[10px] uppercase tracking-wider">Fade duration</span>
-        <div className="flex items-center gap-1">
-          <input
-            type="number"
-            min={0}
-            max={2}
-            step={0.1}
-            value={dissolve ? (dissolve / 1000).toString() : ""}
-            placeholder="0"
-            onChange={(e) => {
-              const n = Math.min(2, Math.max(0, Number(e.target.value) || 0));
-              updateSet(setId, { dissolveMs: Math.round(n * 1000) });
             }}
             className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
           />
@@ -698,9 +728,11 @@ function SlideGridForPresenter({ phytoSet, live, slideW }: { phytoSet: PhytoSet;
 
   if (!useSections) {
     return (
-      <div ref={containerRef} className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+      <div ref={containerRef} className="flex flex-wrap gap-2">
         {phytoSet.slides.map((s, i) => (
-          <PresenterThumb key={s.id} slide={s} index={i} phytoSet={phytoSet} live={live} />
+          <div key={s.id} style={{ width: slideW }}>
+            <PresenterThumb slide={s} index={i} phytoSet={phytoSet} live={live} />
+          </div>
         ))}
       </div>
     );

@@ -26,6 +26,18 @@ function readSongTemplate(): SetTemplate {
 // --- Scripture template persistence + cross-window sync ---
 const SCRIPTURE_TEMPLATE_KEY = "scripture-template-v1";
 
+// --- Global fade duration persistence + cross-window sync ---
+const FADE_KEY = "fade-ms-v1";
+
+function readFadeMs(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const raw = localStorage.getItem(FADE_KEY);
+    if (raw) return Number(raw);
+  } catch {}
+  return 0;
+}
+
 function readScriptureTemplate(): SetTemplate {
   if (typeof window === "undefined")
     return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black", align: "left", referencePosition: "below" };
@@ -75,6 +87,9 @@ interface LibraryState {
   /** Global template applied to ALL scripture sets. */
   scriptureTemplate: SetTemplate;
   setScriptureTemplate: (patch: SetTemplate) => void;
+  /** Global slide crossfade duration in milliseconds (applies to all set types). */
+  fadeMs: number;
+  setFadeMs: (ms: number) => void;
   createSet: (set: Omit<PhytoSet, "id" | "createdAt" | "updatedAt">) => string;
   updateSet: (id: string, patch: Partial<PhytoSet>) => void;
   deleteSet: (id: string) => void;
@@ -103,6 +118,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   playlistOrder: [],
   songTemplate: typeof window !== "undefined" ? readSongTemplate() : { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" },
   scriptureTemplate: typeof window !== "undefined" ? readScriptureTemplate() : { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black", align: "left", referencePosition: "below" },
+  fadeMs: typeof window !== "undefined" ? readFadeMs() : 0,
 
   loadFromDb: async () => {
     const [allSets, allGatherings] = await Promise.all([
@@ -149,6 +165,15 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         new BroadcastChannel(SCRIPTURE_TEMPLATE_KEY).postMessage(next);
       } catch {}
       return { scriptureTemplate: next };
+    }),
+
+  setFadeMs: (ms) =>
+    set(() => {
+      try {
+        localStorage.setItem(FADE_KEY, String(ms));
+        new BroadcastChannel(FADE_KEY).postMessage(ms);
+      } catch {}
+      return { fadeMs: ms };
     }),
 
   createSet: (newSet) => {
@@ -567,6 +592,11 @@ if (typeof window !== "undefined") {
   const stc = new BroadcastChannel(SCRIPTURE_TEMPLATE_KEY);
   stc.addEventListener("message", (e) => {
     useLibrary.setState({ scriptureTemplate: e.data });
+  });
+
+  const ftc = new BroadcastChannel(FADE_KEY);
+  ftc.addEventListener("message", (e) => {
+    useLibrary.setState({ fadeMs: e.data });
   });
 
   const sc = new BroadcastChannel(SET_SYNC_CHANNEL);
