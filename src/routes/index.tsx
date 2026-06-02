@@ -26,6 +26,7 @@ import {
   ChevronDown,
   Search,
   ArrowUpRight,
+  Share2,
   Pencil,
   Trash2,
   Upload,
@@ -662,15 +663,12 @@ function PlaylistCard({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
-  const [showQr, setShowQr] = useState(false);
   const [isGoingLive, setIsGoingLive] = useState(false);
   const [showShareQr, setShowShareQr] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
-  const [copiedGoLive, setCopiedGoLive] = useState(false);
   const [qrFg, setQrFg] = useState("#000000");
   const [qrBg, setQrBg] = useState("#ffffff");
   const [qrTransparent, setQrTransparent] = useState(false);
-  const goLiveQrRef = useRef<HTMLCanvasElement>(null);
   const shareQrRef = useRef<HTMLCanvasElement>(null);
   const qrFgCustomRef = useRef<HTMLInputElement>(null);
   const qrBgCustomRef = useRef<HTMLInputElement>(null);
@@ -750,7 +748,7 @@ function PlaylistCard({
             onChange={(e) => onRename(e.target.value)}
             onBlur={() => setEditingName(false)}
             onKeyDown={(e) => e.key === "Enter" && setEditingName(false)}
-            className="h-9 flex-1 border-foreground text-lg"
+            className="h-9 flex-1 border-foreground text-lg shadow-none focus-visible:ring-0"
           />
         ) : (
           <h3
@@ -773,22 +771,31 @@ function PlaylistCard({
         </button>
         {!editMode && (
           <>
+            <Link
+              to="/present"
+              search={{ playlist: playlistId }}
+              className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+              title="Present gathering"
+              aria-label="Present gathering"
+            >
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
             {isSignedIn && shareToken && (
               <button
                 type="button"
-                onClick={() => setShowShareDialog(true)}
+                onClick={() => { setShowShareQr(false); setShowShareDialog(true); }}
                 className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                 title="Share gathering"
                 aria-label="Share gathering"
               >
-                <ArrowUpRight className="h-4 w-4" />
+                <Share2 className="h-4 w-4" />
               </button>
             )}
             {isSignedIn && (
               isLive ? (
                 <button
                   onClick={() => setShowEndSessionDialog(true)}
-                  className="pill flex h-10 w-10 items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)] transition [&>svg]:opacity-0 [&>svg]:transition-opacity [&>svg]:duration-200 hover:[&>svg]:opacity-100"
+                  className="pill flex h-10 w-10 items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)] transition animate-pulse hover:animate-none [&>svg]:opacity-0 [&>svg]:transition-opacity [&>svg]:duration-200 hover:[&>svg]:opacity-100"
                   title="End session"
                   aria-label="End session"
                 >
@@ -820,7 +827,7 @@ function PlaylistCard({
       </div>
 
       {setIds.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-muted-foreground p-3 text-center text-xs text-muted-foreground">
+        <p className="mono uppercase rounded-2xl border border-dashed border-muted-foreground p-3 text-center text-xs text-muted-foreground">
           Drag a set in to add it to this gathering.
         </p>
       ) : (
@@ -935,7 +942,7 @@ function PlaylistCard({
       )}
 
       {/* Share dialog */}
-      <Dialog open={showShareDialog} onOpenChange={(open) => { setShowShareDialog(open); if (!open) setShowShareQr(false); }}>
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
           <DialogTitle className="text-2xl font-normal leading-tight">Share this gathering!</DialogTitle>
 
@@ -1039,124 +1046,26 @@ function PlaylistCard({
             </div>
           )}
 
-          <p className="mt-6 text-sm text-muted-foreground">
-            Once live, this gathering will be accessible via this link.
-          </p>
+          {!isLive && (
+            <p className="mt-6 text-sm text-muted-foreground">
+              Once live, this gathering will be accessible via this link.
+            </p>
+          )}
         </DialogContent>
       </Dialog>
 
       {/* Go Live confirmation dialog */}
-      <Dialog open={showGoLiveDialog} onOpenChange={(open) => { if (isGoingLive) return; setShowGoLiveDialog(open); if (!open) setShowQr(false); }}>
+      <Dialog open={showGoLiveDialog} onOpenChange={(open) => { if (isGoingLive) return; setShowGoLiveDialog(open); }}>
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
           <DialogTitle className="text-2xl font-normal leading-tight">Go live!</DialogTitle>
 
           <p className="mt-4 text-base">
-            Once this session is live, it will be accessible via this link. It will stay live until you end it or start a new one.
+            This gathering will stay live until you end it or start a new one.
           </p>
-
-          <div className="mt-6 flex items-center gap-2">
-            <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
-              <span className="flex-1 truncate px-4 font-mono uppercase text-sm text-muted-foreground">{shareUrl}</span>
-              <button
-                type="button"
-                onClick={() => { navigator.clipboard.writeText(shareUrl); setCopiedGoLive(true); setTimeout(() => setCopiedGoLive(false), 2000); }}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
-                aria-label="Copy URL"
-              >
-                <span className="transition-all duration-300">
-                  {copiedGoLive ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </span>
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowQr((v) => !v)}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
-              aria-label="QR Code"
-            >
-              <QrCode className="h-4 w-4" />
-            </button>
-          </div>
-
-          {showQr && (
-            <div className="mt-4 flex flex-col items-center gap-3">
-              <div
-                className="rounded-xl p-4"
-                style={qrTransparent ? {
-                  backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
-                  backgroundSize: '10px 10px',
-                  backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px',
-                } : { backgroundColor: qrBg }}
-              >
-                <QRCodeCanvas ref={goLiveQrRef} value={shareUrl} size={180} fgColor={qrFg} bgColor={qrTransparent ? 'transparent' : qrBg} />
-              </div>
-              <div className="flex flex-col gap-2 self-stretch">
-                <div className="flex items-center gap-3">
-                  <span className="w-28 font-mono text-xs uppercase text-foreground">Dots</span>
-                  <div className="flex gap-1.5">
-                    {QR_FG_PRESETS.map(c => (
-                      <button key={c} type="button" onClick={() => setQrFg(c)}
-                        className="h-7 w-7 rounded-full border-2 transition"
-                        style={{ backgroundColor: c, borderColor: qrFg === c ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
-                      />
-                    ))}
-                    <button type="button" onClick={() => qrFgCustomRef.current?.click()}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
-                      style={{
-                        borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
-                        backgroundColor: QR_FG_PRESETS.includes(qrFg) ? 'transparent' : qrFg,
-                        color: 'var(--foreground)',
-                      }}
-                    >
-                      {QR_FG_PRESETS.includes(qrFg) && <span className="text-sm leading-none">+</span>}
-                    </button>
-                    <input ref={qrFgCustomRef} type="color" value={qrFg} onChange={e => setQrFg(e.target.value)} className="sr-only" />
-                  </div>
-                </div>
-                <div className={`flex items-center gap-3 transition-opacity ${qrTransparent ? 'pointer-events-none opacity-40' : ''}`}>
-                  <span className="w-28 font-mono text-xs uppercase text-foreground">Background</span>
-                  <div className="flex gap-1.5">
-                    {QR_BG_PRESETS.map(c => (
-                      <button key={c} type="button" onClick={() => setQrBg(c)}
-                        className="h-7 w-7 rounded-full border-2 transition"
-                        style={{ backgroundColor: c, borderColor: qrBg === c ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
-                      />
-                    ))}
-                    <button type="button" onClick={() => qrBgCustomRef.current?.click()}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
-                      style={{
-                        borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
-                        backgroundColor: QR_BG_PRESETS.includes(qrBg) ? 'transparent' : qrBg,
-                        color: 'var(--foreground)',
-                      }}
-                    >
-                      {QR_BG_PRESETS.includes(qrBg) && <span className="text-sm leading-none">+</span>}
-                    </button>
-                    <input ref={qrBgCustomRef} type="color" value={qrBg} onChange={e => setQrBg(e.target.value)} className="sr-only" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="w-28 font-mono text-xs uppercase text-foreground">No BG</span>
-                  <button type="button" onClick={() => setQrTransparent(v => !v)}
-                    className={`relative h-5 w-9 rounded-full transition-colors ${qrTransparent ? 'bg-foreground' : 'bg-foreground/20'}`}
-                  >
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all ${qrTransparent ? 'left-4' : 'left-0.5'}`} />
-                  </button>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => downloadQr(goLiveQrRef, `${name}-qr.png`)}
-                className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-              >
-                Download
-              </button>
-            </div>
-          )}
 
           <div className="mt-8">
             <button
-              onClick={async () => { setIsGoingLive(true); await onGoLive(); setIsGoingLive(false); setShowGoLiveDialog(false); setShowQr(false); }}
+              onClick={async () => { setIsGoingLive(true); await onGoLive(); setIsGoingLive(false); setShowGoLiveDialog(false); setShowShareQr(false); setShowShareDialog(true); }}
               disabled={isGoingLive}
               className="mono uppercase w-full rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90 disabled:opacity-70"
             >

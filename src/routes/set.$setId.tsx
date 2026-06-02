@@ -8,7 +8,7 @@ import { searchSongs, type SongResult } from "@/lib/songs";
 import { SlideView } from "@/components/SlideView";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowUpLeft, ArrowUpRight, Plus, Trash2, GripVertical, Search, Loader2, Pencil, Upload } from "lucide-react";
+import { ArrowUpLeft, ArrowUpRight, Plus, Trash2, GripVertical, Search, Loader2, Pencil, Upload, ChevronDown } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Slide, SetKind } from "@/lib/types";
@@ -37,6 +37,13 @@ export const Route = createFileRoute("/set/$setId")({
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
+
+// Ephemeral per-session cache of the pristine fetched verses, keyed by setId.
+// Survives editor unmount/remount (in-app navigation) but resets on page reload.
+const scriptureSourceCache = new Map<
+  string,
+  { verses: { text: string; verse: number; chapter: number }[]; label: string }
+>();
 
 function kindBadgeBg(kind: SetKind): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
@@ -103,7 +110,7 @@ function SetHeader({
             onChange={(e) => updateSet(phytoSet.id, { name: e.target.value })}
             onBlur={() => setEditingName(false)}
             onKeyDown={(e) => e.key === "Enter" && setEditingName(false)}
-            className="h-9 w-56 border-foreground text-base"
+            className="h-9 w-56 border-foreground text-base shadow-none focus-visible:ring-0"
           />
         ) : (
           <h1
@@ -114,14 +121,7 @@ function SetHeader({
             {phytoSet.name}
           </h1>
         )}
-        <button
-          onClick={() => setEditingName((v) => !v)}
-          className="shrink-0 rounded-full p-1.5 hover:bg-muted"
-          title="Rename"
-          aria-label="Rename"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
+
         <span
           className={`pill mono shrink-0 px-2.5 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(phytoSet.kind)}`}
         >
@@ -872,12 +872,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [songSearching, setSongSearching] = useState(false);
   const [songErr, setSongErr] = useState<string | null>(null);
 
+  const [pendingLinesPerConfirm, setPendingLinesPerConfirm] = useState<number | null>(null);
+  const [pendingVersesPerConfirm, setPendingVersesPerConfirm] = useState<number | null>(null);
+  const [versionOpen, setVersionOpen] = useState(false);
+
   const [ref, setRef] = useState("");
   const [translation, setTranslation] = useState("NIV");
   const [versesPer, setVersesPer] = useState(1);
   const prevVersesPer = useRef(1);
-  const rawVerses = useRef<{ text: string; verse: number; chapter: number }[]>([]);
-  const rawLabel = useRef("");
   const [keepLineBreaks, setKeepLineBreaks] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -961,8 +963,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         removeLineBreaks: !keepLineBreaks,
       });
       const labelled = `${reference} ${translation}`;
-      rawVerses.current = verses;
-      rawLabel.current = labelled;
+      scriptureSourceCache.set(setId, { verses, label: labelled });
       const parts: string[] = [];
       for (let i = 0; i < verses.length; i += vPer) {
         if (i > 0) parts.push("---");
@@ -982,13 +983,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const importScripture = () => importScriptureWith(versesPer);
 
   const reshuffleVerses = (vPer: number) => {
-    if (!rawVerses.current.length) return;
+    const cached = scriptureSourceCache.get(setId);
+    if (!cached?.verses.length) return;
     const parts: string[] = [];
-    for (let i = 0; i < rawVerses.current.length; i += vPer) {
+    for (let i = 0; i < cached.verses.length; i += vPer) {
       if (i > 0) parts.push("---");
-      const group = rawVerses.current.slice(i, i + vPer);
+      const group = cached.verses.slice(i, i + vPer);
       const verseTexts = group.map((v) => v.text.trim()).join(" ");
-      parts.push(i === 0 ? `[${rawLabel.current}]\n${verseTexts}` : verseTexts);
+      parts.push(i === 0 ? `[${cached.label}]\n${verseTexts}` : verseTexts);
     }
     setManualText(parts.join("\n\n"));
   };
@@ -1017,7 +1019,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 value={songQuery}
                 onChange={(e) => setSongQuery(e.target.value)}
                 placeholder="e.g. How Great is Our God"
-                className="w-full bg-transparent text-sm outline-none placeholder:italic placeholder:text-muted-foreground"
+                className="mono uppercase w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
             <button
@@ -1044,7 +1046,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-bold">{s.title}</div>
-                    <div className="truncate text-xs text-muted-foreground">
+                    <div className="mono uppercase truncate text-xs text-muted-foreground">
                       {s.artist}{s.album ? ` · ${s.album}` : ""}
                     </div>
                   </div>
@@ -1065,16 +1067,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               onChange={(e) => {
                 const next = Math.max(1, Number(e.target.value) || 1);
                 if (lyrics.trim()) {
-                  const ok = confirm(
-                    "This will reset your slide dividers. Your text edits will be kept. Continue?"
-                  );
-                  if (ok) {
-                    prevLinesPer.current = next;
-                    setLinesPer(next);
-                    setLyrics(applyDividers(lyrics, next));
-                  } else {
-                    setLinesPer(prevLinesPer.current);
-                  }
+                  setPendingLinesPerConfirm(next);
                 } else {
                   prevLinesPer.current = next;
                   setLinesPer(next);
@@ -1094,6 +1087,37 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
         </div>
+
+        <AlertDialog open={pendingLinesPerConfirm !== null} onOpenChange={(o) => { if (!o) { setPendingLinesPerConfirm(null); setLinesPer(prevLinesPer.current); } }}>
+          <AlertDialogContent className="gap-0 rounded-3xl p-8">
+            <AlertDialogTitle className="text-2xl font-normal leading-tight">Reset slide dividers?</AlertDialogTitle>
+            <AlertDialogDescription className="mt-4 text-base text-foreground">
+              This will reset your slide dividers. Your text edits will be kept.
+            </AlertDialogDescription>
+            <div className="mt-8 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = pendingLinesPerConfirm!;
+                  prevLinesPer.current = next;
+                  setLinesPer(next);
+                  setLyrics(applyDividers(lyrics, next));
+                  setPendingLinesPerConfirm(null);
+                }}
+                className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
+              >
+                Continue
+              </button>
+              <button
+                type="button"
+                onClick={() => { setPendingLinesPerConfirm(null); setLinesPer(prevLinesPer.current); }}
+                className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+              >
+                Cancel
+              </button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
@@ -1107,15 +1131,34 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <div className="mono mb-1 text-[10px] uppercase tracking-wider">Version</div>
-              <select
-                value={translation}
-                onChange={(e) => setTranslation(e.target.value)}
-                className="pill h-9 w-full border border-foreground bg-background px-3 text-sm outline-none"
-              >
-                {TRANSLATIONS.map((t) => (
-                  <option key={t.code} value={t.code}>{t.label}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <div className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-2 cursor-pointer"
+                  onClick={() => setVersionOpen((o) => !o)}
+                  onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setVersionOpen(false); }}
+                  tabIndex={0}
+                >
+                  <span className="mono uppercase flex-1 truncate text-xs">{translation}</span>
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                </div>
+                {versionOpen && (
+                  <div className="catalogue-scroll absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-foreground bg-popover shadow-md">
+                    {TRANSLATIONS.map((t) => (
+                      <button
+                        key={t.code}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setTranslation(t.code);
+                          setVersionOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-muted ${t.code === translation ? "bg-muted" : ""}`}
+                      >
+                        <span className="mono uppercase text-xs shrink-0">{t.code}</span>
+                        <span className="mono uppercase text-[10px] tracking-wider text-muted-foreground truncate text-right">{t.label.replace(/^.+?—\s*/, "")}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <div className="mono mb-1 text-[10px] uppercase tracking-wider">Verses per slide</div>
@@ -1126,17 +1169,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 value={versesPer}
                 onChange={(e) => {
                   const next = Math.min(3, Math.max(1, Number(e.target.value) || 1));
-                  if (manualText.trim()) {
-                    const ok = confirm(
-                      "This will re-import the passage with the new verses-per-slide setting. Your manual text edits will be lost. Continue?"
-                    );
-                    if (ok) {
-                      prevVersesPer.current = next;
-                      setVersesPer(next);
-                      reshuffleVerses(next);
-                    } else {
-                      setVersesPer(prevVersesPer.current);
-                    }
+                  if (manualText.trim() && (scriptureSourceCache.get(setId)?.verses.length ?? 0) > 0) {
+                    setPendingVersesPerConfirm(next);
                   } else {
                     prevVersesPer.current = next;
                     setVersesPer(next);
@@ -1146,7 +1180,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               />
             </div>
           </div>
-          <label className="mt-3 flex cursor-pointer items-center gap-2">
+          <label className="mt-3 inline-flex cursor-pointer items-center gap-2">
             <span className="mono text-[10px] uppercase tracking-wider">Keep line breaks</span>
             <input
               type="checkbox"
@@ -1158,7 +1192,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           <button
             onClick={importScripture}
             disabled={!ref.trim() || busy}
-            className="pill mt-3 w-full bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
+            className="mono uppercase pill mt-3 w-full bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
           >
             {busy ? "Fetching…" : "Import"}
           </button>
@@ -1173,6 +1207,37 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
         </div>
+
+        <AlertDialog open={pendingVersesPerConfirm !== null} onOpenChange={(o) => { if (!o) { setPendingVersesPerConfirm(null); setVersesPer(prevVersesPer.current); } }}>
+          <AlertDialogContent className="gap-0 rounded-3xl p-8">
+            <AlertDialogTitle className="text-2xl font-normal leading-tight">Re-import passage?</AlertDialogTitle>
+            <AlertDialogDescription className="mt-4 text-base text-foreground">
+              This will re-import the passage with the new verses-per-slide setting. Your manual text edits will be lost.
+            </AlertDialogDescription>
+            <div className="mt-8 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = pendingVersesPerConfirm!;
+                  prevVersesPer.current = next;
+                  setVersesPer(next);
+                  reshuffleVerses(next);
+                  setPendingVersesPerConfirm(null);
+                }}
+                className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
+              >
+                Continue
+              </button>
+              <button
+                type="button"
+                onClick={() => { setPendingVersesPerConfirm(null); setVersesPer(prevVersesPer.current); }}
+                className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+              >
+                Cancel
+              </button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }

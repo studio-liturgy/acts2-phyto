@@ -21,7 +21,7 @@ export function Footer({ className }: { className?: string }) {
             <img src={wordmark} alt="phyto" className="h-12 w-auto" />
           </Link>
         </div>
-        <nav className="flex items-center justify-end gap-4 text-xs flex-nowrap">
+        <nav className="flex items-center justify-end gap-6 text-xs flex-nowrap">
           <Link to="/updates" className={`${linkCls} whitespace-nowrap`}>Updates</Link>
           <Link to="/terms" className={`${linkCls} whitespace-nowrap`}>Terms of Use</Link>
           <Link to="/privacy" className={`${linkCls} whitespace-nowrap`}>Privacy Policy</Link>

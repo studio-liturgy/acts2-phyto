@@ -545,7 +545,17 @@ export const useLive = create<LiveStore>((set, get) => ({
       try { getChannel()?.postMessage(snapshot); } catch {}
     }
   },
-  go: (setId, slideId) => get().setLive({ setId, slideId, blackout: false, clear: false, blackoutFadeMs: 0 }),
+  go: (setId, slideId) => {
+    if (get().blackout) {
+      // Swap the slide silently under the blackout, then reveal with a fade.
+      get().setLive({ setId, slideId, clear: false });
+      if (typeof window !== "undefined") {
+        setTimeout(() => get().setLive({ blackout: false, blackoutFadeMs: 500 }), 80);
+      }
+    } else {
+      get().setLive({ setId, slideId, blackout: false, clear: false, blackoutFadeMs: 0 });
+    }
+  },
   clearLive: () => {
     // Dissolve to black over 0.5s, then fully clear.
     get().setLive({ blackout: true, blackoutFadeMs: 500 });

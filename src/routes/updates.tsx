@@ -27,6 +27,23 @@ function Updates() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-6">
           <li>
+            <div className="mono text-xs uppercase tracking-wider opacity-80">COMING SOON</div>
+            <div className="mono mt-3 text-xs uppercase tracking-wider opacity-60">Offline</div>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              <li>Added the ability to edit Scripture Template</li>
+              <li>Improved flow of importing scripture verses, song lyrics and media by reducing steps</li>
+              <li>Added the ability to upload PDF files to media</li>
+              <li>Import & export: export your full catalogue as a .phyto file anytime; import it on any device to restore or share your content</li>
+              <li>Added Amplified and The Message to importing scripture verses</li>
+            </ul>
+            <div className="mono mt-3 text-xs uppercase tracking-wider opacity-60">Online</div>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              <li>Sign in: create an account using an email magic link or Google to access online features</li>
+              <li>Cross-device sync: when signed in, your catalogue and gatherings can sync across devices</li>
+              <li>Go live to view on mobile: take a gathering live with a unique share link and QR code to view on a mobile phone</li>
+            </ul>
+          </li>
+          <li>
             <div className="mono text-xs uppercase tracking-wider opacity-80">MAY 28, 2026</div>
             <ul className="mt-1 list-disc space-y-1 pl-5">
               <li>Reviewed and adjusted all copy for coherence</li>

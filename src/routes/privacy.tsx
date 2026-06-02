@@ -99,27 +99,37 @@ function Privacy() {
               </section>
 
               <section>
-                <h2 className="text-2xl">6. Ko-fi</h2>
+                <h2 className="text-2xl">6. Third-Party APIs</h2>
+                <p className="mt-2">phyto uses two external APIs to fetch content on your behalf:</p>
+                <ul className="mt-2 list-disc space-y-1 pl-6">
+                  <li><strong>bolls.life</strong> — fetches Bible verse text when you look up scripture passages. The request includes the translation name, book, and chapter you selected. No personal information is sent. <a href="https://bolls.life" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">bolls.life</a></li>
+                  <li><strong>lrclib.net</strong> — fetches song lyrics when you search for a song in the song editor. The request includes the search query you typed. No personal information is sent. <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">lrclib.net</a></li>
+                </ul>
+                <p className="mt-2">If you prefer not to use these services, you can enter scripture text or song lyrics manually instead.</p>
+              </section>
+
+              <section>
+                <h2 className="text-2xl">7. Ko-fi</h2>
                 <p className="mt-2">The app links to a voluntary donation page hosted by Ko-fi at <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">ko-fi.com/valiantchan</a>. Any payment information you provide is handled entirely by Ko-fi and subject to Ko-fi's own privacy policy. phyto does not receive or store your payment details.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">7. Instagram</h2>
+                <h2 className="text-2xl">8. Instagram</h2>
                 <p className="mt-2">The app links to phyto's Instagram profile at <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">instagram.com/phyto.live</a>. Visiting that page is subject to Instagram's privacy policy. phyto has no control over Instagram's data practices.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">8. Children's Privacy</h2>
+                <h2 className="text-2xl">9. Children's Privacy</h2>
                 <p className="mt-2">We do not knowingly collect personal information from anyone. The feedback form should not be submitted by children without parental guidance.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">9. Changes to This Policy</h2>
+                <h2 className="text-2xl">10. Changes to This Policy</h2>
                 <p className="mt-2">We may update this Privacy Policy from time to time. Updates will be reflected on this page with a revised effective date. Continued use of the app after any change constitutes acceptance of the updated policy.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">10. Contact</h2>
+                <h2 className="text-2xl">11. Contact</h2>
                 <p className="mt-2">Questions about this Privacy Policy can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>.</p>
               </section>
             </div>
@@ -170,6 +180,8 @@ function Privacy() {
                   <li><strong>Supabase</strong> — database and authentication, hosted in US East. <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Supabase Privacy Policy</a></li>
                   <li><strong>Google</strong> — optional OAuth sign-in only. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Google Privacy Policy</a></li>
                   <li><strong>Cloudflare Pages</strong> — web hosting. <a href="https://cloudflare.com/privacypolicy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Cloudflare Privacy Policy</a></li>
+                  <li><strong>bolls.life</strong> — Bible text API for scripture lookups. <a href="https://bolls.life" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">bolls.life</a></li>
+                  <li><strong>lrclib.net</strong> — song lyric search API. <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">lrclib.net</a></li>
                 </ul>
               </section>
 

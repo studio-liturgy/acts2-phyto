@@ -1,12 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
+import { useIsSignedIn } from "@/lib/authStore";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   ArrowUpLeft,
   ArrowUpRight,
+  Share2,
   X,
   Search,
   PanelLeftClose,
@@ -16,7 +19,11 @@ import {
   ChevronDown,
   ChevronUp,
   House,
+  Copy,
+  Check,
+  QrCode,
 } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
@@ -79,6 +86,7 @@ function Presenter() {
   const addSetToPlaylist = useLibrary((s) => s.addSetToPlaylist);
   const removeSetFromPlaylist = useLibrary((s) => s.removeSetFromPlaylist);
   const reorderPlaylistSets = useLibrary((s) => s.reorderPlaylistSets);
+  const renamePlaylist = useLibrary((s) => s.renamePlaylist);
   const live = useLive();
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
@@ -110,8 +118,34 @@ function Presenter() {
   const [reorderLiveOrder, setReorderLiveOrder] = useState<string[] | null>(null);
   const reorderLiveRef = useRef<string[] | null>(null);
   const reorderDragIndex = useRef<number | null>(null);
+  const [editingPlaylistName, setEditingPlaylistName] = useState(false);
+  const playlistNameInputRef = useRef<HTMLInputElement>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [mediaFunctionsOpen, setMediaFunctionsOpen] = useState(false);
+
+  const isSignedIn = useIsSignedIn();
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showShareQr, setShowShareQr] = useState(false);
+  const [copiedShare, setCopiedShare] = useState(false);
+  const [qrFg, setQrFg] = useState("#000000");
+  const [qrBg, setQrBg] = useState("#ffffff");
+  const [qrTransparent, setQrTransparent] = useState(false);
+  const shareQrRef = useRef<HTMLCanvasElement>(null);
+  const qrFgCustomRef = useRef<HTMLInputElement>(null);
+  const qrBgCustomRef = useRef<HTMLInputElement>(null);
+  const QR_FG_PRESETS = ['#212121', '#F5EFEF', '#2E7299', '#538844', '#E07D31', '#C01E21'];
+  const QR_BG_PRESETS = ['#ffffff', '#fef3c7', '#ede9fe', '#fee2e2', '#d1fae5', '#fef9c3'];
+  const activeShareToken = activePlaylist?.share_token ?? null;
+  const shareUrl = activeShareToken ? `https://phyto.live/g/${activeShareToken}` : "";
+
+  function downloadQr(ref: React.RefObject<HTMLCanvasElement | null>, filename: string) {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }
 
   useEffect(() => {
     if (setFromUrl) setActiveSetId(setFromUrl);
@@ -121,6 +155,12 @@ function Presenter() {
       setActiveSetId(activePlaylist.setIds[0] ?? null);
     }
   }, [activePlaylist, activeSetId]);
+
+  useEffect(() => {
+    if (live.setId && sets[live.setId]) {
+      setActiveSetId(live.setId);
+    }
+  }, [live.setId]);
 
   useEffect(() => {
     reorderLiveRef.current = null;
@@ -214,16 +254,50 @@ function Presenter() {
           </div>
 
           <div className="flex flex-1 items-center justify-center gap-3">
-            <h1 className="text-3xl">Presenter</h1>
+            <h1 className="shrink-0 text-3xl">Presenter</h1>
             {activePlaylist && (
               <>
-                <span className="text-muted-foreground">·</span>
-                <span className="truncate text-lg text-muted-foreground">{activePlaylist.name}</span>
+                <span
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${activePlaylist.is_live ? "bg-[var(--brand-red)] animate-pulse" : "bg-foreground"}`}
+                  title={activePlaylist.is_live ? "Live" : undefined}
+                />
+                {editingPlaylistName ? (
+                  <input
+                    ref={playlistNameInputRef}
+                    defaultValue={activePlaylist.name}
+                    className="w-48 rounded-full border border-foreground bg-transparent px-4 py-1.5 text-base font-normal outline-none"
+                    style={{ letterSpacing: "-0.045em" }}
+                    onBlur={(e) => { renamePlaylist(activePlaylist.id, e.target.value || activePlaylist.name); setEditingPlaylistName(false); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { renamePlaylist(activePlaylist.id, e.currentTarget.value || activePlaylist.name); setEditingPlaylistName(false); }
+                      if (e.key === "Escape") setEditingPlaylistName(false);
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="min-w-0 truncate cursor-text text-3xl font-normal"
+                    style={{ letterSpacing: "-0.045em", paddingRight: "0.1em" }}
+                    onClick={() => { setEditingPlaylistName(true); setTimeout(() => playlistNameInputRef.current?.select(), 0); }}
+                    title="Click to rename"
+                  >
+                    {activePlaylist.name}
+                  </span>
+                )}
               </>
             )}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            {isSignedIn && activeShareToken && (
+              <button
+                onClick={() => { setShowShareQr(false); setShowShareDialog(true); }}
+                className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                title="Share gathering"
+                aria-label="Share gathering"
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+            )}
             <button
               onClick={openOutput}
               className="pill mono uppercase flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
@@ -289,7 +363,9 @@ function Presenter() {
                           }`}
                         >
                           <span className="truncate">{p.name}</span>
-                          <span className="mono text-[10px] text-muted-foreground">{p.setIds.length}</span>
+                          {p.is_live && pid !== playlistFromUrl && (
+                            <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--brand-red)]" title="Live" />
+                          )}
                         </Link>
                       );
                     })}
@@ -613,6 +689,119 @@ function Presenter() {
       </div>
 
       <MediaAutoAdvance />
+
+      {/* Share dialog */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+          <DialogTitle className="text-2xl font-normal leading-tight">Share this gathering!</DialogTitle>
+
+          <div className="mt-6 flex items-center gap-2">
+            <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
+              <span className="flex-1 truncate px-4 font-mono uppercase text-sm text-muted-foreground">{shareUrl}</span>
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard.writeText(shareUrl); setCopiedShare(true); setTimeout(() => setCopiedShare(false), 2000); }}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
+                aria-label="Copy URL"
+              >
+                <span className="transition-all duration-300">
+                  {copiedShare ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </span>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowShareQr((v) => !v)}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
+              aria-label="QR Code"
+            >
+              <QrCode className="h-4 w-4" />
+            </button>
+          </div>
+
+          {showShareQr && (
+            <div className="mt-4 flex flex-col items-center gap-3">
+              <div
+                className="rounded-xl p-4"
+                style={qrTransparent ? {
+                  backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
+                  backgroundSize: '10px 10px',
+                  backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px',
+                } : { backgroundColor: qrBg }}
+              >
+                <QRCodeCanvas ref={shareQrRef} value={shareUrl} size={180} fgColor={qrFg} bgColor={qrTransparent ? 'transparent' : qrBg} />
+              </div>
+              <div className="flex flex-col gap-2 self-stretch">
+                <div className="flex items-center gap-3">
+                  <span className="w-28 font-mono text-xs uppercase text-foreground">Dots</span>
+                  <div className="flex gap-1.5">
+                    {QR_FG_PRESETS.map(c => (
+                      <button key={c} type="button" onClick={() => setQrFg(c)}
+                        className="h-7 w-7 rounded-full border-2 transition"
+                        style={{ backgroundColor: c, borderColor: qrFg === c ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
+                      />
+                    ))}
+                    <button type="button" onClick={() => qrFgCustomRef.current?.click()}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
+                      style={{
+                        borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
+                        backgroundColor: QR_FG_PRESETS.includes(qrFg) ? 'transparent' : qrFg,
+                        color: 'var(--foreground)',
+                      }}
+                    >
+                      {QR_FG_PRESETS.includes(qrFg) && <span className="text-sm leading-none">+</span>}
+                    </button>
+                    <input ref={qrFgCustomRef} type="color" value={qrFg} onChange={e => setQrFg(e.target.value)} className="sr-only" />
+                  </div>
+                </div>
+                <div className={`flex items-center gap-3 transition-opacity ${qrTransparent ? 'pointer-events-none opacity-40' : ''}`}>
+                  <span className="w-28 font-mono text-xs uppercase text-foreground">Background</span>
+                  <div className="flex gap-1.5">
+                    {QR_BG_PRESETS.map(c => (
+                      <button key={c} type="button" onClick={() => setQrBg(c)}
+                        className="h-7 w-7 rounded-full border-2 transition"
+                        style={{ backgroundColor: c, borderColor: qrBg === c ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
+                      />
+                    ))}
+                    <button type="button" onClick={() => qrBgCustomRef.current?.click()}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
+                      style={{
+                        borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
+                        backgroundColor: QR_BG_PRESETS.includes(qrBg) ? 'transparent' : qrBg,
+                        color: 'var(--foreground)',
+                      }}
+                    >
+                      {QR_BG_PRESETS.includes(qrBg) && <span className="text-sm leading-none">+</span>}
+                    </button>
+                    <input ref={qrBgCustomRef} type="color" value={qrBg} onChange={e => setQrBg(e.target.value)} className="sr-only" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-28 font-mono text-xs uppercase text-foreground">No BG</span>
+                  <button type="button" onClick={() => setQrTransparent(v => !v)}
+                    className={`relative h-5 w-9 rounded-full transition-colors ${qrTransparent ? 'bg-foreground' : 'bg-foreground/20'}`}
+                  >
+                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all ${qrTransparent ? 'left-4' : 'left-0.5'}`} />
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => downloadQr(shareQrRef, `${activePlaylist?.name ?? 'gathering'}-qr.png`)}
+                className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+              >
+                Download
+              </button>
+            </div>
+          )}
+
+          {!activePlaylist?.is_live && (
+            <p className="mt-6 text-sm text-muted-foreground">
+              Once live, this gathering will be accessible via this link.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -764,7 +953,7 @@ function SlideGridForPresenter({ phytoSet, live, slideW }: { phytoSet: PhytoSet;
 
   // How many slides fit in one row given the measured container width
   const slidesPerRow = containerWidth > 0
-    ? Math.max(1, Math.floor((containerWidth + SLIDE_GAP) / (slideW + SLIDE_GAP)))
+    ? Math.max(1, Math.floor((containerWidth - SECTION_PAD * 2 + SLIDE_GAP) / (slideW + SLIDE_GAP)))
     : 999;
 
   return (

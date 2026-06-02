@@ -137,8 +137,12 @@ export function DissolveSlide({
 }: Props & { durationMs?: number }) {
   const [a, setA] = useState<Slide | null | undefined>(slide);
   const [b, setB] = useState<Slide | null | undefined>(null);
+  const [templateA, setTemplateA] = useState<Props["template"]>(template);
+  const [templateB, setTemplateB] = useState<Props["template"]>(undefined);
   const [front, setFront] = useState<"a" | "b">("a");
   const lastKey = useRef<string>(slide?.id ?? "none");
+  const templateRef = useRef(template);
+  templateRef.current = template;
 
   useEffect(() => {
     const key = slide?.id ?? "none";
@@ -146,38 +150,47 @@ export function DissolveSlide({
     lastKey.current = key;
 
     if (durationMs <= 0) {
-      if (front === "a") setA(slide);
-      else setB(slide);
+      if (front === "a") { setA(slide); setTemplateA(templateRef.current); }
+      else { setB(slide); setTemplateB(templateRef.current); }
       return;
     }
 
     if (front === "a") {
       setB(slide);
+      setTemplateB(templateRef.current);
       requestAnimationFrame(() =>
         requestAnimationFrame(() => setFront("b"))
       );
     } else {
       setA(slide);
+      setTemplateA(templateRef.current);
       requestAnimationFrame(() =>
         requestAnimationFrame(() => setFront("a"))
       );
     }
   }, [slide, durationMs, front]);
 
-  const layerStyle = (isFront: boolean): React.CSSProperties => ({
-    opacity: isFront ? 1 : 0,
-    transition: durationMs > 0 ? `opacity ${durationMs}ms ease-in-out` : undefined,
-  });
+  // Outgoing layer fades out on top (zIndex 2); incoming layer snaps to full
+  // opacity below (zIndex 1). Total opacity is always 1 — no dip-to-black on
+  // light backgrounds, and the transition is symmetric for both directions.
+  const layerStyle = (isFront: boolean): React.CSSProperties =>
+    isFront
+      ? { opacity: 1, zIndex: 1 }
+      : {
+          opacity: 0,
+          zIndex: 2,
+          transition: durationMs > 0 ? `opacity ${durationMs}ms ease-in-out` : undefined,
+        };
 
   return (
     <div
-      className={`relative ${variant === "stage" ? "h-full" : "aspect-video"} w-full ${className}`}
+      className={`relative isolate ${variant === "stage" ? "h-full" : "aspect-video"} w-full ${className}`}
     >
       <div className="absolute inset-0" style={layerStyle(front === "a")}>
-        <SlideView slide={a} variant={variant} imageFit={imageFit} template={template} className="h-full w-full" />
+        <SlideView slide={a} variant={variant} imageFit={imageFit} template={templateA} className="h-full w-full" />
       </div>
       <div className="absolute inset-0" style={layerStyle(front === "b")}>
-        <SlideView slide={b} variant={variant} imageFit={imageFit} template={template} className="h-full w-full" />
+        <SlideView slide={b} variant={variant} imageFit={imageFit} template={templateB} className="h-full w-full" />
       </div>
     </div>
   );
