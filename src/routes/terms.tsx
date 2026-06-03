@@ -60,7 +60,7 @@ function Terms() {
 
               <section>
                 <h2 className="text-2xl">2. Always Free</h2>
-                <p className="mt-2">phyto is, and will always remain, free to use. There is no fee, subscription, paywall, or in-app purchase required to access any feature of the app — now or in the future.</p>
+                <p className="mt-2">phyto is, and will always remain, free to use. There is no fee, subscription, paywall, or in-app purchase required to access any feature of the app, now or in the future.</p>
               </section>
 
               <section>
@@ -75,7 +75,7 @@ function Terms() {
 
               <section>
                 <h2 className="text-2xl">5. Data Portability</h2>
-                <p className="mt-2">You can export your full catalogue at any time as a <code>.phyto</code> file using the built-in export feature. Exports are generated entirely on your device and saved locally — no data is sent to any server during export. Exports contain your sets only, not gatherings. You can import a <code>.phyto</code> file on any device to restore or share your catalogue. phyto is not liable for data loss resulting from lost, corrupted, or incompatible export files.</p>
+                <p className="mt-2">You can export your full catalogue at any time as a <code>.phyto</code> file using the built-in export feature. Exports are generated entirely on your device and saved locally. No data is sent to any server during export. Exports contain your sets only, not gatherings. You can import a <code>.phyto</code> file on any device to restore or share your catalogue. phyto is not liable for data loss resulting from lost, corrupted, or incompatible export files.</p>
               </section>
 
               <section>
@@ -83,9 +83,9 @@ function Terms() {
                 <p className="mt-2">phyto is a presentation tool only. It does not license, distribute, or authorise the public performance, reproduction, or display of copyrighted musical works.</p>
                 <p className="mt-2">If you use phyto to display song lyrics or other copyrighted content in a public or congregational setting, you are solely responsible for obtaining the appropriate licences. We strongly recommend licensing through one or more of the following:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
-                  <li>CCLI (Christian Copyright Licensing International) — <a href="https://ccli.com" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">ccli.com</a></li>
-                  <li>OneLicense — <a href="https://onelicense.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">onelicense.net</a></li>
-                  <li>LicenSing Online — <a href="https://licensingonline.org" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">licensingonline.org</a></li>
+                  <li>CCLI (Christian Copyright Licensing International): <a href="https://ccli.com" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">ccli.com</a></li>
+                  <li>OneLicense: <a href="https://onelicense.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">onelicense.net</a></li>
+                  <li>LicenSing Online: <a href="https://licensingonline.org" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">licensingonline.org</a></li>
                   <li>Direct licensing from the copyright holder</li>
                 </ul>
                 <p className="mt-2">The developer of phyto accepts no liability for any copyright infringement arising from content you choose to display using the app.</p>
@@ -143,7 +143,7 @@ function Terms() {
 
               <section>
                 <h2 className="text-2xl">1. Accounts</h2>
-                <p className="mt-2">Creating an account is optional. You may sign in using a magic link sent to your email address, or via Google OAuth. You are responsible for maintaining the security of your account. phyto currently supports one account per email address. The app is fully usable without an account — creating one unlocks cross-device sync and live sharing only.</p>
+                <p className="mt-2">Creating an account is optional. You may sign in using a magic link sent to your email address, or via Google OAuth. You are responsible for maintaining the security of your account. phyto currently supports one account per email address. The app is fully usable without an account. Creating one unlocks cross-device sync and live sharing only.</p>
               </section>
 
               <section>

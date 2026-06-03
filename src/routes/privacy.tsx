@@ -69,7 +69,7 @@ function Privacy() {
                   <li>Is not accessible to the developer or any third party</li>
                   <li>May be lost if you clear your browser data or uninstall the app</li>
                 </ul>
-                <p className="mt-2">You can export your catalogue at any time using the built-in export feature. The exported <code>.phyto</code> file is created and saved entirely on your device — it is never transmitted to any server. We strongly recommend exporting periodically to avoid data loss.</p>
+                <p className="mt-2">You can export your catalogue at any time using the built-in export feature. The exported <code>.phyto</code> file is created and saved entirely on your device. It is never transmitted to any server. We strongly recommend exporting periodically to avoid data loss.</p>
               </section>
 
               <section>
@@ -89,7 +89,7 @@ function Privacy() {
                 <p className="mt-2">phyto does not use tracking pixels, analytics services, or any monitoring technology. We do not track your usage, behaviour, or session data in any form. No advertising, analytics, or third-party tracking cookies are used.</p>
                 <p className="mt-2">phyto uses one strictly functional cookie:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
-                  <li><strong>sidebar_state</strong> — remembers whether the sidebar is open or collapsed. Retained for 7 days.</li>
+                  <li><strong>sidebar_state:</strong> remembers whether the sidebar is open or collapsed. Retained for 7 days.</li>
                 </ul>
               </section>
 
@@ -102,9 +102,9 @@ function Privacy() {
                 <h2 className="text-2xl">6. Third-Party APIs</h2>
                 <p className="mt-2">phyto uses two external APIs to fetch content on your behalf:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
-                  <li><strong>bolls.life</strong> — fetches Bible verse text when you look up scripture passages. The request includes the translation name, book, and chapter you selected. No personal information is sent. <a href="https://bolls.life" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">bolls.life</a></li>
-                  <li><strong>lrclib.net</strong> — fetches song lyrics when you search for a song in the song editor. The request includes the search query you typed. No personal information is sent. <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">lrclib.net</a></li>
-                  <li><strong>Supabase</strong> — feedback you submit via the feedback form is stored in a Supabase database hosted in the US East region (AWS us-east-1). No account is required to submit feedback. <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Supabase Privacy Policy</a></li>
+                  <li><strong>bolls.life:</strong> fetches Bible verse text when you look up scripture passages. The request includes the translation name, book, and chapter you selected. No personal information is sent. <a href="https://bolls.life" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">bolls.life</a></li>
+                  <li><strong>lrclib.net:</strong> fetches song lyrics when you search for a song in the song editor. The request includes the search query you typed. No personal information is sent. <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">lrclib.net</a></li>
+                  <li><strong>Supabase:</strong> feedback you submit via the feedback form is stored in a Supabase database hosted in the US East region (AWS us-east-1). No account is required to submit feedback. <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Supabase Privacy Policy</a></li>
                 </ul>
                 <p className="mt-2">If you prefer not to use these services, you can enter scripture text or song lyrics manually instead.</p>
               </section>
@@ -147,9 +147,9 @@ function Privacy() {
                 <h2 className="text-2xl">1. Information We Collect</h2>
                 <p className="mt-2">When you create an account, we collect:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
-                  <li><strong>Email address</strong> — used solely for authentication via magic link or Google OAuth</li>
-                  <li><strong>Catalogue content</strong> — your sets and gatherings, synced to our database so you can access them across devices</li>
-                  <li><strong>Device identifier</strong> — an anonymous ID generated locally on each device, used only to resolve sync conflicts between devices. It is never linked to your identity.</li>
+                  <li><strong>Email address:</strong> used solely for authentication via magic link or Google OAuth</li>
+                  <li><strong>Catalogue content:</strong> your sets and gatherings, synced to our database so you can access them across devices</li>
+                  <li><strong>Device identifier:</strong> an anonymous ID generated locally on each device, used only to resolve sync conflicts between devices. It is never linked to your identity.</li>
                 </ul>
                 <p className="mt-2">We do not collect your name, payment information, location, or any other personal data beyond what is listed above.</p>
               </section>
@@ -158,10 +158,10 @@ function Privacy() {
                 <h2 className="text-2xl">2. How Your Data Is Stored</h2>
                 <p className="mt-2">Your data is stored in two places:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
-                  <li><strong>Locally</strong> — on your device using IndexedDB, so the app works offline</li>
-                  <li><strong>In the cloud</strong> — in a Supabase database hosted in the US East region (AWS us-east-1), so your catalogue stays in sync across devices</li>
+                  <li><strong>Locally:</strong> on your device using IndexedDB, so the app works offline</li>
+                  <li><strong>In the cloud:</strong> in a Supabase database hosted in the US East region (AWS us-east-1), so your catalogue stays in sync across devices</li>
                 </ul>
-                <p className="mt-2">Your data is isolated by account — no other user can access your catalogue.</p>
+                <p className="mt-2">Your data is isolated by account. No other user can access your catalogue.</p>
               </section>
 
               <section>
@@ -178,11 +178,11 @@ function Privacy() {
                 <h2 className="text-2xl">5. Third-Party Services</h2>
                 <p className="mt-2">phyto uses the following third-party services for online features:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
-                  <li><strong>Supabase</strong> — database and authentication, hosted in US East. <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Supabase Privacy Policy</a></li>
-                  <li><strong>Google</strong> — optional OAuth sign-in only. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Google Privacy Policy</a></li>
-                  <li><strong>Cloudflare Pages</strong> — web hosting. <a href="https://cloudflare.com/privacypolicy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Cloudflare Privacy Policy</a></li>
-                  <li><strong>bolls.life</strong> — Bible text API for scripture lookups. <a href="https://bolls.life" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">bolls.life</a></li>
-                  <li><strong>lrclib.net</strong> — song lyric search API. <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">lrclib.net</a></li>
+                  <li><strong>Supabase:</strong> database and authentication, hosted in US East. <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Supabase Privacy Policy</a></li>
+                  <li><strong>Google:</strong> optional OAuth sign-in only. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Google Privacy Policy</a></li>
+                  <li><strong>Cloudflare Workers:</strong> web hosting. <a href="https://cloudflare.com/privacypolicy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Cloudflare Privacy Policy</a></li>
+                  <li><strong>bolls.life:</strong> Bible text API for scripture lookups. <a href="https://bolls.life" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">bolls.life</a></li>
+                  <li><strong>lrclib.net:</strong> song lyric search API. <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">lrclib.net</a></li>
                 </ul>
               </section>
 
