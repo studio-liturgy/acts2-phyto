@@ -95,7 +95,7 @@ function Privacy() {
 
               <section>
                 <h2 className="text-2xl">5. Hosting</h2>
-                <p className="mt-2">The web-hosted version of phyto is served via Cloudflare Pages. Cloudflare may collect standard server-side logs such as IP addresses as part of normal hosting operations. Please review <a href="https://cloudflare.com/privacypolicy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Cloudflare's privacy policy</a> for details. The downloadable offline version of phyto operates entirely on your device with no network dependency.</p>
+                <p className="mt-2">The web-hosted version of phyto is served via Cloudflare Workers. Cloudflare may collect standard server-side logs such as IP addresses as part of normal hosting operations. Please review <a href="https://cloudflare.com/privacypolicy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Cloudflare's privacy policy</a> for details. The downloadable offline version of phyto operates entirely on your device with no network dependency.</p>
               </section>
 
               <section>
@@ -104,6 +104,7 @@ function Privacy() {
                 <ul className="mt-2 list-disc space-y-1 pl-6">
                   <li><strong>bolls.life</strong> — fetches Bible verse text when you look up scripture passages. The request includes the translation name, book, and chapter you selected. No personal information is sent. <a href="https://bolls.life" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">bolls.life</a></li>
                   <li><strong>lrclib.net</strong> — fetches song lyrics when you search for a song in the song editor. The request includes the search query you typed. No personal information is sent. <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">lrclib.net</a></li>
+                  <li><strong>Supabase</strong> — feedback you submit via the feedback form is stored in a Supabase database hosted in the US East region (AWS us-east-1). No account is required to submit feedback. <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Supabase Privacy Policy</a></li>
                 </ul>
                 <p className="mt-2">If you prefer not to use these services, you can enter scripture text or song lyrics manually instead.</p>
               </section>
