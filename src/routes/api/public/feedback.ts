@@ -21,6 +21,22 @@ const FeedbackSchema = z.object({
     .or(z.literal("").transform(() => undefined)),
 });
 
+// Reads server env from the Cloudflare Worker runtime (.dev.vars locally,
+// encrypted secrets in production), falling back to process.env. The
+// `cloudflare:workers` module only exists in the Worker runtime, so it's
+// imported dynamically to keep it out of the client bundle.
+async function readEnv(key: string): Promise<string | undefined> {
+  try {
+    const { env } = (await import("cloudflare:workers")) as {
+      env: Record<string, string | undefined>;
+    };
+    if (env?.[key] != null) return env[key];
+  } catch {
+    // not running in the Worker runtime — fall through
+  }
+  return process.env[key];
+}
+
 // Naive in-memory rate limit: 5 requests / minute / IP.
 const RATE_LIMIT = 5;
 const WINDOW_MS = 60_000;
@@ -42,8 +58,8 @@ export const Route = createFileRoute("/api/public/feedback")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const SUPABASE_URL = process.env.SUPABASE_URL;
-        const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const SUPABASE_URL = await readEnv("SUPABASE_URL");
+        const SUPABASE_SERVICE_ROLE_KEY = await readEnv("SUPABASE_SERVICE_ROLE_KEY");
         if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
           return Response.json(
             { ok: false, error: "Feedback destination is not configured." },
