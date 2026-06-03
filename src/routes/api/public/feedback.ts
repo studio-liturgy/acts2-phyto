@@ -1,9 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-
-const SPREADSHEET_ID = "1CyehD4sCN1U6rozbdbQDcSnnmTQESVq2TMK_dwXsGhM";
-const SHEET_RANGE = "Sheet1!A:E";
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_sheets/v4";
 
 const CATEGORIES = [
   "Testimony / Encouragement",
@@ -45,9 +42,9 @@ export const Route = createFileRoute("/api/public/feedback")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
-        const GOOGLE_SHEETS_API_KEY = process.env.GOOGLE_SHEETS_API_KEY;
-        if (!LOVABLE_API_KEY || !GOOGLE_SHEETS_API_KEY) {
+        const SUPABASE_URL = process.env.SUPABASE_URL;
+        const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
           return Response.json(
             { ok: false, error: "Feedback destination is not configured." },
             { status: 500 },
@@ -82,28 +79,19 @@ export const Route = createFileRoute("/api/public/feedback")({
 
         const { category, message, email } = parsed.data;
         const userAgent = request.headers.get("user-agent") ?? "";
-        const row = [
-          new Date().toISOString(),
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+          auth: { persistSession: false },
+        });
+        const { error } = await supabase.from("feedback").insert({
           category,
           message,
-          email ?? "",
-          userAgent,
-        ];
-
-        const url = `${GATEWAY_URL}/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_RANGE}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "X-Connection-Api-Key": GOOGLE_SHEETS_API_KEY,
-          },
-          body: JSON.stringify({ values: [row] }),
+          email: email ?? null,
+          user_agent: userAgent,
         });
 
-        if (!res.ok) {
-          const detail = await res.text().catch(() => "");
-          console.error(`Sheets append failed [${res.status}]: ${detail}`);
+        if (error) {
+          console.error(`Feedback insert failed: ${error.message}`);
           return Response.json(
             { ok: false, error: "Could not save feedback. Please try again later." },
             { status: 502 },

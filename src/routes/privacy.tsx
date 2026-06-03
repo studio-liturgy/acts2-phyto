@@ -69,7 +69,7 @@ function Privacy() {
                   <li>Is not accessible to the developer or any third party</li>
                   <li>May be lost if you clear your browser data or uninstall the app</li>
                 </ul>
-                <p className="mt-2">We strongly recommend periodically exporting your catalogue using the built-in export feature to avoid data loss.</p>
+                <p className="mt-2">You can export your catalogue at any time using the built-in export feature. The exported <code>.phyto</code> file is created and saved entirely on your device — it is never transmitted to any server. We strongly recommend exporting periodically to avoid data loss.</p>
               </section>
 
               <section>
@@ -77,7 +77,7 @@ function Privacy() {
                 <p className="mt-2">
                   phyto includes an optional feedback form at{" "}
                   <a href="https://phyto.live/feedback" className="underline hover:opacity-60">phyto.live/feedback</a>.
-                  If you choose to submit feedback, the content of your message and any contact information you voluntarily provide (such as your email address) will be transmitted to and stored by the developer in Google Sheets. This information is used solely to review feedback and improve the app. We do not sell your information or share it with unrelated third parties. Submitting feedback is entirely optional and is not required to use any feature of the app.
+                  If you choose to submit feedback, the content of your message and any contact information you voluntarily provide (such as your email address) will be transmitted to and stored in our Supabase database (hosted in the US East region). This information is used solely to review feedback and improve the app. We do not sell your information or share it with unrelated third parties. Submitting feedback is entirely optional and is not required to use any feature of the app.
                 </p>
                 <p className="mt-2">
                   Positive feedback such as testimonials may be shared publicly on phyto's social media channels. We will not share personally sensitive information without your consent.

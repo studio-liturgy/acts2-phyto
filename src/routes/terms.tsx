@@ -74,7 +74,12 @@ function Terms() {
               </section>
 
               <section>
-                <h2 className="text-2xl">5. Music Licensing Is Your Responsibility</h2>
+                <h2 className="text-2xl">5. Data Portability</h2>
+                <p className="mt-2">You can export your full catalogue at any time as a <code>.phyto</code> file using the built-in export feature. Exports are generated entirely on your device and saved locally — no data is sent to any server during export. Exports contain your sets only, not gatherings. You can import a <code>.phyto</code> file on any device to restore or share your catalogue. phyto is not liable for data loss resulting from lost, corrupted, or incompatible export files.</p>
+              </section>
+
+              <section>
+                <h2 className="text-2xl">7. Music Licensing Is Your Responsibility</h2>
                 <p className="mt-2">phyto is a presentation tool only. It does not license, distribute, or authorise the public performance, reproduction, or display of copyrighted musical works.</p>
                 <p className="mt-2">If you use phyto to display song lyrics or other copyrighted content in a public or congregational setting, you are solely responsible for obtaining the appropriate licences. We strongly recommend licensing through one or more of the following:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
@@ -87,23 +92,23 @@ function Terms() {
               </section>
 
               <section>
-                <h2 className="text-2xl">6. Feedback</h2>
-                <p className="mt-2">The feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link> is provided so users can share bug reports, feature requests, and encouragement. By submitting feedback, you grant the developer a non-exclusive, royalty-free right to use that feedback to improve the app. The developer may share positive feedback such as testimonials on social media. Personally sensitive information will not be shared publicly.</p>
+                <h2 className="text-2xl">8. Feedback</h2>
+                <p className="mt-2">The feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link> is provided so users can share bug reports, feature requests, and encouragement. Feedback you submit is transmitted to and stored in our Supabase database. It is used solely to review and improve the app and is not shared with unrelated third parties. By submitting feedback, you grant the developer a non-exclusive, royalty-free right to use that feedback to improve the app. The developer may share positive feedback such as testimonials on social media. Personally sensitive information will not be shared publicly.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">7. Disclaimer of Warranties</h2>
+                <h2 className="text-2xl">9. Disclaimer of Warranties</h2>
                 <p className="mt-2 uppercase">The app is provided "as is" and "as available", without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement. The developer does not warrant that the app will be error-free, uninterrupted, or meet your specific requirements.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">8. Limitation of Liability</h2>
+                <h2 className="text-2xl">10. Limitation of Liability</h2>
                 <p className="mt-2 uppercase">To the fullest extent permitted by applicable law, the developer shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, loss of content, or interruption of service, arising from your use of or inability to use the app.</p>
                 <p className="mt-2">Because all data in offline mode is stored locally in your browser, the developer has no access to your content and cannot be held responsible for any loss of data resulting from browser clearing, device failure, or software updates.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">9. Acceptable Use</h2>
+                <h2 className="text-2xl">11. Acceptable Use</h2>
                 <p className="mt-2">You agree to use phyto only for lawful purposes. You agree not to:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
                   <li>Infringe any copyright, trademark, or other intellectual property right</li>
@@ -115,17 +120,17 @@ function Terms() {
               </section>
 
               <section>
-                <h2 className="text-2xl">10. Changes to the App and Terms</h2>
+                <h2 className="text-2xl">12. Changes to the App and Terms</h2>
                 <p className="mt-2">We reserve the right to modify, suspend, or discontinue the app at any time without notice. We may also update these Terms from time to time. Continued use of the app after any changes constitutes your acceptance of the revised Terms.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">11. Governing Law</h2>
+                <h2 className="text-2xl">13. Governing Law</h2>
                 <p className="mt-2">These Terms shall be governed by and construed in accordance with the laws of British Columbia, Canada, without regard to conflict of law principles.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">12. Contact</h2>
+                <h2 className="text-2xl">14. Contact</h2>
                 <p className="mt-2">Questions about these Terms can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>, or by reaching out on Instagram at <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">instagram.com/phyto.live</a>.</p>
               </section>
             </div>
@@ -153,28 +158,23 @@ function Terms() {
               </section>
 
               <section>
-                <h2 className="text-2xl">4. Data Portability</h2>
-                <p className="mt-2">You can export your full catalogue at any time as a `.phyto` file using the built-in export feature. Exports contain your sets only — not gatherings. You can import a `.phyto` file on any device to restore or share your catalogue. phyto is not liable for data loss resulting from lost, corrupted, or incompatible export files.</p>
-              </section>
-
-              <section>
-                <h2 className="text-2xl">5. Account Termination</h2>
+                <h2 className="text-2xl">4. Account Termination</h2>
                 <p className="mt-2">You may request deletion of your account and all associated cloud data at any time by contacting us via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>. We will process deletion requests within 30 days. Deleting your account removes your data from Supabase but does not affect data stored locally on your devices.</p>
                 <p className="mt-2">We reserve the right to suspend or terminate accounts that violate these Terms.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">6. Disclaimer of Warranties</h2>
+                <h2 className="text-2xl">5. Disclaimer of Warranties</h2>
                 <p className="mt-2 uppercase">Online features including sync and live sharing are provided "as is" without warranty of any kind. The developer does not guarantee uninterrupted sync, data integrity across devices, or availability of the live sharing feature at any given time.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">7. Limitation of Liability</h2>
+                <h2 className="text-2xl">6. Limitation of Liability</h2>
                 <p className="mt-2 uppercase">To the fullest extent permitted by applicable law, the developer shall not be liable for any loss of data, sync conflicts, or damages arising from the use of online features including cross-device sync, live sharing, or account authentication.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">8. Acceptable Use</h2>
+                <h2 className="text-2xl">7. Acceptable Use</h2>
                 <p className="mt-2">In addition to the acceptable use terms in the offline section, you agree not to:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
                   <li>Attempt to access another user's account, catalogue, or gatherings</li>
@@ -185,17 +185,17 @@ function Terms() {
               </section>
 
               <section>
-                <h2 className="text-2xl">9. Changes to Online Terms</h2>
+                <h2 className="text-2xl">8. Changes to Online Terms</h2>
                 <p className="mt-2">We may update these online terms from time to time. We will make reasonable efforts to notify signed-in users of significant changes. Continued use of online features after any update constitutes acceptance of the revised terms.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">10. Governing Law</h2>
+                <h2 className="text-2xl">9. Governing Law</h2>
                 <p className="mt-2">These Terms shall be governed by and construed in accordance with the laws of British Columbia, Canada, without regard to conflict of law principles.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">11. Contact</h2>
+                <h2 className="text-2xl">10. Contact</h2>
                 <p className="mt-2">Questions about these Terms can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>, or by reaching out on Instagram at <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">instagram.com/phyto.live</a>.</p>
               </section>
             </div>
