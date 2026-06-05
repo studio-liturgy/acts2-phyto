@@ -201,6 +201,16 @@ function RootComponent() {
       if (event === 'SIGNED_OUT') {
         diffRanThisSession = false;
       }
+      if (event === 'SIGNED_IN' && s) {
+        const u = s.user;
+        if (u.created_at === u.last_sign_in_at && u.email) {
+          fetch('/api/auth/welcome', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: u.email, name: u.user_metadata?.full_name }),
+          }).catch(() => {}); // fire-and-forget, best effort
+        }
+      }
       if (event === 'SIGNED_IN' && !diffRanThisSession) {
         diffRanThisSession = true;
         runDiff();

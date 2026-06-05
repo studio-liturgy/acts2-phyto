@@ -23,6 +23,7 @@ import { Route as SetSetIdRouteImport } from './routes/set.$setId'
 import { Route as GTokenRouteImport } from './routes/g.$token'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedback'
+import { Route as ApiAuthWelcomeRouteImport } from './routes/api/auth/welcome'
 
 const UpdatesRoute = UpdatesRouteImport.update({
   id: '/updates',
@@ -94,6 +95,11 @@ const ApiPublicFeedbackRoute = ApiPublicFeedbackRouteImport.update({
   path: '/api/public/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthWelcomeRoute = ApiAuthWelcomeRouteImport.update({
+  id: '/api/auth/welcome',
+  path: '/api/auth/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
+  '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRoutesByTo {
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
+  '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRoutesById {
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
+  '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRouteTypes {
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/g/$token'
     | '/set/$setId'
+    | '/api/auth/welcome'
     | '/api/public/feedback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/g/$token'
     | '/set/$setId'
+    | '/api/auth/welcome'
     | '/api/public/feedback'
   id:
     | '__root__'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/g/$token'
     | '/set/$setId'
+    | '/api/auth/welcome'
     | '/api/public/feedback'
   fileRoutesById: FileRoutesById
 }
@@ -209,6 +221,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   GTokenRoute: typeof GTokenRoute
   SetSetIdRoute: typeof SetSetIdRoute
+  ApiAuthWelcomeRoute: typeof ApiAuthWelcomeRoute
   ApiPublicFeedbackRoute: typeof ApiPublicFeedbackRoute
 }
 
@@ -312,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/welcome': {
+      id: '/api/auth/welcome'
+      path: '/api/auth/welcome'
+      fullPath: '/api/auth/welcome'
+      preLoaderRoute: typeof ApiAuthWelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -329,6 +349,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   GTokenRoute: GTokenRoute,
   SetSetIdRoute: SetSetIdRoute,
+  ApiAuthWelcomeRoute: ApiAuthWelcomeRoute,
   ApiPublicFeedbackRoute: ApiPublicFeedbackRoute,
 }
 export const routeTree = rootRouteImport
