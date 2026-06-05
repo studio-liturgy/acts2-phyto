@@ -589,7 +589,7 @@ function Presenter() {
         {/* Right rail */}
         <aside className="h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground bg-background p-4 md:sticky md:top-[73px]">
           <div>
-            <div className="mono mb-2 text-[10px] uppercase tracking-wider">Live output</div>
+            <div className="mono mb-2 text-[10px] uppercase tracking-wider">Output preview</div>
             <div className="relative overflow-hidden rounded-lg bg-[var(--brand-black)]">
               <DissolveSlide
                 slide={liveSlide}

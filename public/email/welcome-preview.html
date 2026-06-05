@@ -1,61 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Resend } from "resend";
-import { z } from "zod";
-
-const WelcomeSchema = z.object({
-  email: z.string().trim().max(255).email(),
-  name: z.string().trim().max(200).optional(),
-});
-
-// Reads server env from the Cloudflare Worker runtime (.dev.vars locally,
-// encrypted secrets in production), falling back to process.env. The
-// `cloudflare:workers` module only exists in the Worker runtime, so it's
-// imported dynamically to keep it out of the client bundle.
-async function readEnv(key: string): Promise<string | undefined> {
-  try {
-    const { env } = (await import("cloudflare:workers")) as {
-      env: Record<string, string | undefined>;
-    };
-    if (env?.[key] != null) return env[key];
-  } catch {
-    // not running in the Worker runtime — fall through
-  }
-  return process.env[key];
-}
-
-// Naive in-memory rate limit: 5 requests / minute / IP.
-const RATE_LIMIT = 5;
-const WINDOW_MS = 60_000;
-const hits = new Map<string, number[]>();
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const arr = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (arr.length >= RATE_LIMIT) {
-    hits.set(ip, arr);
-    return true;
-  }
-  arr.push(now);
-  hits.set(ip, arr);
-  return false;
-}
-
-function buildWelcomeHtml(): string {
-  // Source of truth lives in email-templates/welcome.html.
-  // This is an inline copy for the Cloudflare Worker runtime (no filesystem access).
-  // Keep in sync with that file. {{unsubscribe_url}} is replaced by Resend when
-  // the recipient is a contact in an audience.
-  return `<!DOCTYPE html>
+<!DOCTYPE html>
+<!--
+  LOCAL PREVIEW ONLY. Source of truth is email-templates/welcome.html.
+  Open at http://localhost:8080/email/welcome-preview.html
+-->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light only" />
-    <title>Welcome to phyto</title>
+    <title>Preview — phyto welcome email</title>
     <style>
       @font-face {
         font-family: 'Space Mono';
-        src: url('https://phyto.live/fonts/SpaceMono-Regular.ttf') format('truetype');
+        src: url('/fonts/SpaceMono-Regular.ttf') format('truetype');
         font-weight: 400;
         font-style: normal;
       }
@@ -89,7 +46,7 @@ function buildWelcomeHtml(): string {
             <!-- HEADER -->
             <tr>
               <td style="padding:0;font-size:0;line-height:0;">
-                <img src="https://phyto.live/email/magic-link-header.png" width="600" alt="phyto"
+                <img src="/email/magic-link-header.png" width="600" alt="phyto"
                      style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
               </td>
             </tr>
@@ -105,15 +62,15 @@ function buildWelcomeHtml(): string {
                 </p>
                 <br />
                 <!--[if mso]>
-                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="https://phyto.live" style="height:64px;v-text-anchor:middle;width:240px;" arcsize="50%" strokecolor="#212121" strokeweight="1.5pt" fillcolor="#F5EFEF">
+                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="#" style="height:64px;v-text-anchor:middle;width:240px;" arcsize="50%" strokecolor="#212121" strokeweight="1.5pt" fillcolor="#F5EFEF">
                   <w:anchorlock/>
                   <center style="color:#212121;font-family:Arial,sans-serif;font-size:34px;letter-spacing:-1.5px;">Get started &#8599;</center>
                 </v:roundrect>
                 <![endif]-->
                 <!--[if !mso]><!-->
-                <a href="https://phyto.live"
+                <a href="#"
                    style="display:inline-block;border:1.5px solid #212121;border-radius:9999px;color:#212121;font-family:Arial,Helvetica,sans-serif;font-size:34px;line-height:1;letter-spacing:-0.045em;text-decoration:none;padding:18px 34px;white-space:nowrap;">
-                  Get Started&nbsp;&nbsp;<img src="https://phyto.live/email/arrow-dark.png" width="22" height="22" alt="&#8599;" style="vertical-align:baseline;border:0;" />
+                  Get Started&nbsp;&nbsp;<img src="/email/arrow-dark.png" width="22" height="22" alt="&#8599;" style="vertical-align:baseline;border:0;" />
                 </a>
                 <!--<![endif]-->
               </td>
@@ -135,7 +92,7 @@ function buildWelcomeHtml(): string {
                   <tr>
                     <td class="feat-img" width="220" style="vertical-align:top;">
                       <div class="feat-box" style="background:#2E7299;border-radius:16px;width:220px;height:220px;overflow:hidden;font-size:0;line-height:0;">
-                        <img class="feat-box-img" src="https://phyto.live/email/step-1.gif" width="220" height="220" alt=""
+                        <img class="feat-box-img" src="/email/step-1.gif" width="220" height="220" alt=""
                              style="display:block;width:220px;height:220px;border:0;border-radius:16px;" />
                       </div>
                     </td>
@@ -156,7 +113,7 @@ function buildWelcomeHtml(): string {
                   <tr>
                     <td class="feat-img" width="220" style="vertical-align:top;direction:ltr;">
                       <div class="feat-box" style="background:#538844;border-radius:16px;width:220px;height:220px;overflow:hidden;font-size:0;line-height:0;">
-                        <img class="feat-box-img" src="https://phyto.live/email/step-2.gif" width="220" height="220" alt=""
+                        <img class="feat-box-img" src="/email/step-2.gif" width="220" height="220" alt=""
                              style="display:block;width:220px;height:220px;border:0;border-radius:16px;" />
                       </div>
                     </td>
@@ -177,7 +134,7 @@ function buildWelcomeHtml(): string {
                   <tr>
                     <td class="feat-img" width="220" style="vertical-align:top;">
                       <div class="feat-box" style="background:#E07D31;border-radius:16px;width:220px;height:220px;overflow:hidden;font-size:0;line-height:0;">
-                        <img class="feat-box-img" src="https://phyto.live/email/step-3.gif" width="220" height="220" alt=""
+                        <img class="feat-box-img" src="/email/step-3.gif" width="220" height="220" alt=""
                              style="display:block;width:220px;height:220px;border:0;border-radius:16px;" />
                       </div>
                     </td>
@@ -195,7 +152,7 @@ function buildWelcomeHtml(): string {
             <tr>
               <td style="background:#F5EFEF;padding:0 48px 48px;text-align:center;">
                 <p style="margin:0;color:#212121;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;line-height:1.8;">
-                  Now that you've got the basics, start using it, play around with the settings and use it for your next gathering! If you have any feedback, please send it to me through <a href="https://phyto.live/feedback" style="color:#212121;text-decoration:underline;">here</a>.
+                  Now that you've got the basics, start using it, play around with the settings and use it for your next gathering! If you have any feedback, please send it to me through <a href="#" style="color:#212121;text-decoration:underline;">here</a>.
                 </p>
               </td>
             </tr>
@@ -213,19 +170,19 @@ function buildWelcomeHtml(): string {
                 <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                   <tr>
                     <td class="btn-cell" style="padding:0 6px;">
-                      <a href="https://ko-fi.com/valiantchan"
+                      <a href="#"
                          style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;letter-spacing:-0.03em;text-decoration:none;padding:14px 24px;white-space:nowrap;">
                         Donate
                       </a>
                     </td>
                     <td class="btn-cell" style="padding:0 6px;">
-                      <a href="https://phyto.live/about"
+                      <a href="#"
                          style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;letter-spacing:-0.03em;text-decoration:none;padding:14px 24px;white-space:nowrap;">
                         About
                       </a>
                     </td>
                     <td class="btn-cell" style="padding:0 6px;">
-                      <a href="https://instagram.com/phyto.live"
+                      <a href="#"
                          style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;letter-spacing:-0.03em;text-decoration:none;padding:14px 24px;white-space:nowrap;">
                         Instagram
                       </a>
@@ -241,11 +198,11 @@ function buildWelcomeHtml(): string {
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                   <tr>
                     <td class="footer-left" style="vertical-align:middle;white-space:nowrap;">
-                      <a href="https://phyto.live/terms"   style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding-right:20px;">Terms of Use</a>
-                      <a href="https://phyto.live/privacy" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;">Privacy Policy</a>
+                      <a href="#"   style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding-right:20px;">Terms of Use</a>
+                      <a href="#" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;">Privacy Policy</a>
                     </td>
                     <td class="footer-right" align="right" style="vertical-align:middle;">
-                      <a href="{{unsubscribe_url}}" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;">Unsubscribe</a>
+                      <a href="#" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;">Unsubscribe</a>
                     </td>
                   </tr>
                 </table>
@@ -257,83 +214,4 @@ function buildWelcomeHtml(): string {
       </tr>
     </table>
   </body>
-</html>`;
-}
-
-export const Route = createFileRoute("/api/auth/welcome")({
-  server: {
-    handlers: {
-      POST: async ({ request }) => {
-        const RESEND_API_KEY = await readEnv("RESEND_API_KEY");
-        const RESEND_FROM = await readEnv("RESEND_FROM");
-        if (!RESEND_API_KEY || !RESEND_FROM) {
-          return Response.json(
-            { ok: false, error: "Email is not configured." },
-            { status: 500 },
-          );
-        }
-
-        const ip =
-          request.headers.get("cf-connecting-ip") ??
-          request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-          "unknown";
-        if (rateLimited(ip)) {
-          return Response.json(
-            { ok: false, error: "Too many requests. Please try again shortly." },
-            { status: 429 },
-          );
-        }
-
-        let body: unknown;
-        try {
-          body = await request.json();
-        } catch {
-          return Response.json({ ok: false, error: "Invalid JSON." }, { status: 400 });
-        }
-
-        const parsed = WelcomeSchema.safeParse(body);
-        if (!parsed.success) {
-          return Response.json(
-            { ok: false, error: "Invalid request." },
-            { status: 400 },
-          );
-        }
-
-        const { email, name } = parsed.data;
-        const resend = new Resend(RESEND_API_KEY);
-        const { error } = await resend.emails.send({
-          from: RESEND_FROM,
-          to: email,
-          subject: "Welcome to phyto",
-          html: buildWelcomeHtml(),
-        });
-
-        if (error) {
-          console.error(`Welcome email failed: ${error.message}`);
-          return Response.json(
-            { ok: false, error: "Could not send welcome email." },
-            { status: 502 },
-          );
-        }
-
-        // Add to Resend Audience for mailing list + unsubscribe support.
-        // Best-effort: log failures but don't block the response.
-        const RESEND_AUDIENCE_ID = await readEnv("RESEND_AUDIENCE_ID");
-        if (RESEND_AUDIENCE_ID) {
-          const nameParts = (name ?? "").trim().split(/\s+/);
-          resend.contacts.create({
-            audienceId: RESEND_AUDIENCE_ID,
-            email,
-            firstName: nameParts[0] ?? "",
-            lastName: nameParts.slice(1).join(" ") || undefined,
-            unsubscribed: false,
-          }).catch((e: unknown) => {
-            console.error(`Audience contact create failed: ${e instanceof Error ? e.message : String(e)}`);
-          });
-        }
-
-        return Response.json({ ok: true });
-      },
-    },
-  },
-});
+</html>
