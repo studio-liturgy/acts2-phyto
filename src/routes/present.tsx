@@ -127,14 +127,28 @@ function Presenter() {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showShareQr, setShowShareQr] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
-  const [qrFg, setQrFg] = useState("#000000");
+  const [qrFg, setQrFg] = useState("#212121");
   const [qrBg, setQrBg] = useState("#ffffff");
   const [qrTransparent, setQrTransparent] = useState(false);
   const shareQrRef = useRef<HTMLCanvasElement>(null);
   const qrFgCustomRef = useRef<HTMLInputElement>(null);
-  const qrBgCustomRef = useRef<HTMLInputElement>(null);
-  const QR_FG_PRESETS = ['#212121', '#F5EFEF', '#2E7299', '#538844', '#E07D31', '#C01E21'];
-  const QR_BG_PRESETS = ['#ffffff', '#fef3c7', '#ede9fe', '#fee2e2', '#d1fae5', '#fef9c3'];
+
+  const QR_FG_PRESETS = qrTransparent
+    ? ['#212121', '#F5EFEF', '#2E7299', '#538844', '#E07D31', '#C01E21']
+    : qrBg === '#000000'
+      ? ['#F5EFEF', '#2E7299', '#538844', '#E07D31', '#C01E21']
+      : ['#212121', '#2E7299', '#538844', '#E07D31', '#C01E21'];
+
+  const setQrBackground = (bg: string | null) => {
+    if (bg === null) {
+      setQrTransparent(true);
+    } else {
+      setQrTransparent(false);
+      setQrBg(bg);
+      if (bg === '#ffffff' && qrFg === '#F5EFEF') setQrFg('#212121');
+      if (bg === '#000000' && qrFg === '#212121') setQrFg('#F5EFEF');
+    }
+  };
   const activeShareToken = activePlaylist?.share_token ?? null;
   const shareUrl = activeShareToken ? `https://phyto.live/g/${activeShareToken}` : "";
 
@@ -754,35 +768,27 @@ function Presenter() {
                     <input ref={qrFgCustomRef} type="color" value={qrFg} onChange={e => setQrFg(e.target.value)} className="sr-only" />
                   </div>
                 </div>
-                <div className={`flex items-center gap-3 transition-opacity ${qrTransparent ? 'pointer-events-none opacity-40' : ''}`}>
+                <div className="flex items-center gap-3">
                   <span className="w-28 font-mono text-xs uppercase text-foreground">Background</span>
                   <div className="flex gap-1.5">
-                    {QR_BG_PRESETS.map(c => (
-                      <button key={c} type="button" onClick={() => setQrBg(c)}
-                        className="h-7 w-7 rounded-full border-2 transition"
-                        style={{ backgroundColor: c, borderColor: qrBg === c ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
-                      />
-                    ))}
-                    <button type="button" onClick={() => qrBgCustomRef.current?.click()}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
-                      style={{
-                        borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
-                        backgroundColor: QR_BG_PRESETS.includes(qrBg) ? 'transparent' : qrBg,
-                        color: 'var(--foreground)',
-                      }}
+                    <button type="button" onClick={() => setQrBackground('#000000')}
+                      className="h-7 w-7 rounded-full border-2 transition"
+                      style={{ backgroundColor: '#000000', borderColor: !qrTransparent && qrBg === '#000000' ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
+                    />
+                    <button type="button" onClick={() => setQrBackground('#ffffff')}
+                      className="h-7 w-7 rounded-full border-2 transition"
+                      style={{ backgroundColor: '#ffffff', borderColor: !qrTransparent && qrBg === '#ffffff' ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
+                    />
+                    <button type="button" onClick={() => setQrBackground(null)}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition overflow-hidden"
+                      style={{ borderColor: qrTransparent ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)', padding: 0 }}
                     >
-                      {QR_BG_PRESETS.includes(qrBg) && <span className="text-sm leading-none">+</span>}
+                      <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: 'block' }}>
+                        <path d="M12 2 A10 10 0 0 1 12 22 Z" fill="#212121"/>
+                        <path d="M12 22 A10 10 0 0 1 12 2 Z" fill="#F5EFEF"/>
+                      </svg>
                     </button>
-                    <input ref={qrBgCustomRef} type="color" value={qrBg} onChange={e => setQrBg(e.target.value)} className="sr-only" />
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="w-28 font-mono text-xs uppercase text-foreground">No BG</span>
-                  <button type="button" onClick={() => setQrTransparent(v => !v)}
-                    className={`relative h-5 w-9 rounded-full transition-colors ${qrTransparent ? 'bg-foreground' : 'bg-foreground/20'}`}
-                  >
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all ${qrTransparent ? 'left-4' : 'left-0.5'}`} />
-                  </button>
                 </div>
               </div>
               <button
