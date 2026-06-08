@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
+import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import {
   diffWithSupabase,
   hasDifferences,
@@ -187,7 +188,10 @@ function RootComponent() {
   };
 
   useEffect(() => {
-    loadFromDb();
+    (async () => {
+      await migrateLegacyLocalStorage(); // one-time; no-op after first run
+      await loadFromDb();
+    })();
     getSession().then((s) => {
       setSession(s);
       if (s && !diffRanThisSession) {
