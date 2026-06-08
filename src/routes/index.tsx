@@ -146,12 +146,17 @@ function kindChip(kind: KindFilter, active: boolean): string {
 function Library() {
   const navigate = useNavigate();
   const {
-    sets,
-    order,
+    // Default the array/record fields: during SSR + first client render the
+    // zustand store is populated from Dexie in a useEffect, so these selectors
+    // can resolve to undefined before loadFromDb runs. Without these defaults,
+    // reads like gatheringOrder.length / order.map throw and trip the route's
+    // CatchBoundaryImpl on every cold load.
+    sets = {},
+    order = [],
     createSet,
     deleteSet,
-    gatherings,
-    gatheringOrder,
+    gatherings = {},
+    gatheringOrder = [],
     createGathering,
     renameGathering,
     deleteGathering,
