@@ -48,7 +48,7 @@ export interface Set {
 }
 
 
-export interface Playlist {
+export interface Gathering {
   id: string;
   name: string;
   setIds: string[];

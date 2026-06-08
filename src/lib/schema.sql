@@ -64,7 +64,7 @@ create policy "sets: owner delete"
 
 -- ============================================================
 -- Table: gatherings
--- A gathering is a live session (playlist) with a shareable
+-- A gathering is a live session with a shareable
 -- token and real-time slide state.
 -- ============================================================
 create table if not exists gatherings (
@@ -110,7 +110,7 @@ create policy "gatherings: public select by share_token"
 
 -- ============================================================
 -- Table: gathering_sets
--- Ordered join table linking sets into a gathering (playlist).
+-- Ordered join table linking sets into a gathering.
 -- ============================================================
 create table if not exists gathering_sets (
   id           uuid primary key default gen_random_uuid(),

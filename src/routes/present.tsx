@@ -69,7 +69,7 @@ function KindBadge({ kind }: { kind: SetKind }) {
 
 const searchSchema = z.object({
   set: z.string().optional(),
-  playlist: z.string().optional(),
+  gathering: z.string().optional(),
 });
 
 export const Route = createFileRoute("/present")({
@@ -78,15 +78,15 @@ export const Route = createFileRoute("/present")({
 });
 
 function Presenter() {
-  const { set: setFromUrl, playlist: playlistFromUrl } = Route.useSearch();
+  const { set: setFromUrl, gathering: gatheringFromUrl } = Route.useSearch();
   const sets = useLibrary((s) => s.sets);
   const order = useLibrary((s) => s.order);
-  const playlists = useLibrary((s) => s.playlists);
-  const playlistOrder = useLibrary((s) => s.playlistOrder);
-  const addSetToPlaylist = useLibrary((s) => s.addSetToPlaylist);
-  const removeSetFromPlaylist = useLibrary((s) => s.removeSetFromPlaylist);
-  const reorderPlaylistSets = useLibrary((s) => s.reorderPlaylistSets);
-  const renamePlaylist = useLibrary((s) => s.renamePlaylist);
+  const gatherings = useLibrary((s) => s.gatherings);
+  const gatheringOrder = useLibrary((s) => s.gatheringOrder);
+  const addSetToGathering = useLibrary((s) => s.addSetToGathering);
+  const removeSetFromGathering = useLibrary((s) => s.removeSetFromGathering);
+  const reorderGatheringSets = useLibrary((s) => s.reorderGatheringSets);
+  const renameGathering = useLibrary((s) => s.renameGathering);
   const live = useLive();
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
@@ -97,10 +97,10 @@ function Presenter() {
   const fadeMs = useLibrary((s) => s.fadeMs);
   const setFadeMs = useLibrary((s) => s.setFadeMs);
 
-  const activePlaylist = playlistFromUrl ? playlists[playlistFromUrl] : null;
+  const activeGathering = gatheringFromUrl ? gatherings[gatheringFromUrl] : null;
 
-  const setList = activePlaylist
-    ? activePlaylist.setIds.filter((id) => sets[id])
+  const setList = activeGathering
+    ? activeGathering.setIds.filter((id) => sets[id])
     : order;
 
   const [activeSetId, setActiveSetId] = useState<string | null>(
@@ -113,13 +113,13 @@ function Presenter() {
     const saved = localStorage.getItem("presenter-slide-w");
     return saved ? Number(saved) : 256;
   });
-  const [dragOverPlaylist, setDragOverPlaylist] = useState<string | null>(null);
+  const [dragOverGathering, setDragOverGathering] = useState<string | null>(null);
   const [reorderDraggingId, setReorderDraggingId] = useState<string | null>(null);
   const [reorderLiveOrder, setReorderLiveOrder] = useState<string[] | null>(null);
   const reorderLiveRef = useRef<string[] | null>(null);
   const reorderDragIndex = useRef<number | null>(null);
-  const [editingPlaylistName, setEditingPlaylistName] = useState(false);
-  const playlistNameInputRef = useRef<HTMLInputElement>(null);
+  const [editingGatheringName, setEditingGatheringName] = useState(false);
+  const gatheringNameInputRef = useRef<HTMLInputElement>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [mediaFunctionsOpen, setMediaFunctionsOpen] = useState(false);
 
@@ -149,7 +149,7 @@ function Presenter() {
       if (bg === '#000000' && qrFg === '#212121') setQrFg('#F5EFEF');
     }
   };
-  const activeShareToken = activePlaylist?.share_token ?? null;
+  const activeShareToken = activeGathering?.share_token ?? null;
   const shareUrl = activeShareToken ? `https://phyto.live/g/${activeShareToken}` : "";
 
   function downloadQr(ref: React.RefObject<HTMLCanvasElement | null>, filename: string) {
@@ -165,10 +165,10 @@ function Presenter() {
     if (setFromUrl) setActiveSetId(setFromUrl);
   }, [setFromUrl]);
   useEffect(() => {
-    if (activePlaylist && !activeSetId) {
-      setActiveSetId(activePlaylist.setIds[0] ?? null);
+    if (activeGathering && !activeSetId) {
+      setActiveSetId(activeGathering.setIds[0] ?? null);
     }
-  }, [activePlaylist, activeSetId]);
+  }, [activeGathering, activeSetId]);
 
   useEffect(() => {
     if (live.setId && sets[live.setId]) {
@@ -181,7 +181,7 @@ function Presenter() {
     setReorderLiveOrder(null);
     setReorderDraggingId(null);
     reorderDragIndex.current = null;
-  }, [activePlaylist?.id]);
+  }, [activeGathering?.id]);
 
   const activeSet = activeSetId ? sets[activeSetId] : null;
   const liveSet = live.setId ? sets[live.setId] : null;
@@ -191,7 +191,7 @@ function Presenter() {
   );
 
   const q = query.trim().toLowerCase();
-  const showAll = !activePlaylist;
+  const showAll = !activeGathering;
   const filteredSets = setList.filter((id) => {
     if (!q) return true;
     const s = sets[id];
@@ -201,7 +201,7 @@ function Presenter() {
       slide.lines?.some((line) => line.toLowerCase().includes(q))
     );
   });
-  const filteredPlaylists = showAll ? playlistOrder : [];
+  const filteredGatherings = showAll ? gatheringOrder : [];
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -269,32 +269,32 @@ function Presenter() {
 
           <div className="flex flex-1 items-center justify-center gap-3">
             <h1 className="shrink-0 text-3xl">Presenter</h1>
-            {activePlaylist && (
+            {activeGathering && (
               <>
                 <span
-                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${activePlaylist.is_live ? "bg-[var(--brand-red)] animate-pulse" : "bg-foreground"}`}
-                  title={activePlaylist.is_live ? "Live" : undefined}
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${activeGathering.is_live ? "bg-[var(--brand-red)] animate-pulse" : "bg-foreground"}`}
+                  title={activeGathering.is_live ? "Live" : undefined}
                 />
-                {editingPlaylistName ? (
+                {editingGatheringName ? (
                   <input
-                    ref={playlistNameInputRef}
-                    defaultValue={activePlaylist.name}
+                    ref={gatheringNameInputRef}
+                    defaultValue={activeGathering.name}
                     className="w-48 rounded-full border border-foreground bg-transparent px-4 py-1.5 text-base font-normal outline-none"
                     style={{ letterSpacing: "-0.045em" }}
-                    onBlur={(e) => { renamePlaylist(activePlaylist.id, e.target.value || activePlaylist.name); setEditingPlaylistName(false); }}
+                    onBlur={(e) => { renameGathering(activeGathering.id, e.target.value || activeGathering.name); setEditingGatheringName(false); }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") { renamePlaylist(activePlaylist.id, e.currentTarget.value || activePlaylist.name); setEditingPlaylistName(false); }
-                      if (e.key === "Escape") setEditingPlaylistName(false);
+                      if (e.key === "Enter") { renameGathering(activeGathering.id, e.currentTarget.value || activeGathering.name); setEditingGatheringName(false); }
+                      if (e.key === "Escape") setEditingGatheringName(false);
                     }}
                   />
                 ) : (
                   <span
                     className="min-w-0 truncate cursor-text text-3xl font-normal"
                     style={{ letterSpacing: "-0.045em", paddingRight: "0.1em" }}
-                    onClick={() => { setEditingPlaylistName(true); setTimeout(() => playlistNameInputRef.current?.select(), 0); }}
+                    onClick={() => { setEditingGatheringName(true); setTimeout(() => gatheringNameInputRef.current?.select(), 0); }}
                     title="Click to rename"
                   >
-                    {activePlaylist.name}
+                    {activeGathering.name}
                   </span>
                 )}
               </>
@@ -342,42 +342,42 @@ function Presenter() {
             </div>
 
             <div className="flex-1 overflow-auto pr-1">
-              {showAll && filteredPlaylists.length > 0 && (
+              {showAll && filteredGatherings.length > 0 && (
                 <div className="mb-5">
                   <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">Gatherings</div>
                   <div className="space-y-1">
-                    {filteredPlaylists.map((pid) => {
-                      const p = playlists[pid];
+                    {filteredGatherings.map((pid) => {
+                      const p = gatherings[pid];
                       if (!p) return null;
-                      const isDragOver = dragOverPlaylist === pid;
+                      const isDragOver = dragOverGathering === pid;
                       return (
                         <Link
                           key={pid}
                           to="/present"
-                          search={{ playlist: pid }}
+                          search={{ gathering: pid }}
                           onDragOver={(e) => {
                             if (e.dataTransfer.types.includes("application/x-set-id")) {
                               e.preventDefault();
                               e.dataTransfer.dropEffect = "copy";
-                              if (dragOverPlaylist !== pid) setDragOverPlaylist(pid);
+                              if (dragOverGathering !== pid) setDragOverGathering(pid);
                             }
                           }}
                           onDragLeave={() => {
-                            if (dragOverPlaylist === pid) setDragOverPlaylist(null);
+                            if (dragOverGathering === pid) setDragOverGathering(null);
                           }}
                           onDrop={(e) => {
                             const setId = e.dataTransfer.getData("application/x-set-id");
-                            setDragOverPlaylist(null);
+                            setDragOverGathering(null);
                             if (!setId) return;
                             e.preventDefault();
-                            if (!p.setIds.includes(setId)) addSetToPlaylist(pid, setId);
+                            if (!p.setIds.includes(setId)) addSetToGathering(pid, setId);
                           }}
                           className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-muted ${
                             isDragOver ? "bg-foreground/10 ring-1 ring-foreground" : ""
                           }`}
                         >
                           <span className="truncate">{p.name}</span>
-                          {p.is_live && pid !== playlistFromUrl && (
+                          {p.is_live && pid !== gatheringFromUrl && (
                             <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--brand-red)]" title="Live" />
                           )}
                         </Link>
@@ -389,12 +389,12 @@ function Presenter() {
 
               <div>
                 <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">
-                  {activePlaylist ? (
+                  {activeGathering ? (
                     <span className="inline-flex items-center gap-2">
                       <Link to="/present" title="Back to all" aria-label="Back to all">
                         <ArrowUpLeft className="h-3.5 w-3.5" />
                       </Link>
-                      {activePlaylist.name}
+                      {activeGathering.name}
                     </span>
                   ) : (
                     "Sets"
@@ -403,7 +403,7 @@ function Presenter() {
                 <div className="space-y-1">
                   {filteredSets.length === 0 && (
                     <p className="px-2 text-xs text-muted-foreground">
-                      {activePlaylist ? "Gathering is empty." : q ? "No matches." : "No sets yet."}
+                      {activeGathering ? "Gathering is empty." : q ? "No matches." : "No sets yet."}
                     </p>
                   )}
                   {(reorderLiveOrder ?? filteredSets).map((id, i) => {
@@ -411,7 +411,7 @@ function Presenter() {
                     if (!d) return null;
                     const isActive = id === activeSetId;
                     const isLive = id === live.setId;
-                    const inGathering = !!activePlaylist;
+                    const inGathering = !!activeGathering;
                     const isDragging = id === reorderDraggingId;
                     return (
                       <button
@@ -439,8 +439,8 @@ function Presenter() {
                           setReorderLiveOrder(next);
                         }}
                         onDragEnd={() => {
-                          if (reorderLiveRef.current && activePlaylist)
-                            reorderPlaylistSets(activePlaylist.id, reorderLiveRef.current);
+                          if (reorderLiveRef.current && activeGathering)
+                            reorderGatheringSets(activeGathering.id, reorderLiveRef.current);
                           reorderLiveRef.current = null;
                           setReorderLiveOrder(null);
                           setReorderDraggingId(null);
@@ -448,7 +448,7 @@ function Presenter() {
                         }}
                         onClick={() => {
                             setActiveSetId(id);
-                            if (activePlaylist) {
+                            if (activeGathering) {
                               const el = document.getElementById(`set-section-${id}`);
                               el?.scrollIntoView({ behavior: "smooth", block: "start" });
                             }
@@ -472,18 +472,18 @@ function Presenter() {
                           </span>
                           <span className="flex items-center gap-1">
                             <KindBadge kind={d.kind} />
-                            {inGathering && activePlaylist && (
+                            {inGathering && activeGathering && (
                               <span
                                 role="button"
                                 tabIndex={0}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  removeSetFromPlaylist(activePlaylist.id, i);
+                                  removeSetFromGathering(activeGathering.id, i);
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter" || e.key === " ") {
                                     e.stopPropagation();
-                                    removeSetFromPlaylist(activePlaylist.id, i);
+                                    removeSetFromGathering(activeGathering.id, i);
                                   }
                                 }}
                                 className="rounded-full p-0.5 text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground hover:opacity-100"
@@ -504,7 +504,7 @@ function Presenter() {
 
         {/* Main */}
         <main className="overflow-auto p-6">
-          {activePlaylist ? (
+          {activeGathering ? (
             setList.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 Gathering is empty. Drag sets here.
@@ -547,7 +547,7 @@ function Presenter() {
             </>
           )}
 
-          {activePlaylist && setList.length > 0 && (
+          {activeGathering && setList.length > 0 && (
             <div className="space-y-8">
               {setList.map((id, i) => {
                 const d = sets[id];
@@ -793,7 +793,7 @@ function Presenter() {
               </div>
               <button
                 type="button"
-                onClick={() => downloadQr(shareQrRef, `${activePlaylist?.name ?? 'gathering'}-qr.png`)}
+                onClick={() => downloadQr(shareQrRef, `${activeGathering?.name ?? 'gathering'}-qr.png`)}
                 className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
               >
                 Download
@@ -801,7 +801,7 @@ function Presenter() {
             </div>
           )}
 
-          {!activePlaylist?.is_live && (
+          {!activeGathering?.is_live && (
             <p className="mt-6 text-sm text-muted-foreground">
               Once live, this gathering will be accessible via this link.
             </p>

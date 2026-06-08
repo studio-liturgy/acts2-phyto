@@ -150,14 +150,14 @@ function Library() {
     order,
     createSet,
     deleteSet,
-    playlists,
-    playlistOrder,
-    createPlaylist,
-    renamePlaylist,
-    deletePlaylist,
-    addSetToPlaylist,
-    removeSetFromPlaylist,
-    reorderPlaylistSets,
+    gatherings,
+    gatheringOrder,
+    createGathering,
+    renameGathering,
+    deleteGathering,
+    addSetToGathering,
+    removeSetFromGathering,
+    reorderGatheringSets,
     goLive,
     endSession,
   } = useLibrary();
@@ -195,8 +195,8 @@ function Library() {
     }
   };
 
-  const [playlistFilter, setPlaylistFilter] = useState("");
-  const [showPlaylistSearch, setShowPlaylistSearch] = useState(false);
+  const [gatheringFilter, setGatheringFilter] = useState("");
+  const [showGatheringSearch, setShowGatheringSearch] = useState(false);
   const [catalogueFilter, setCatalogueFilter] = useState("");
   const [showCatalogueSearch, setShowCatalogueSearch] = useState(false);
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
@@ -211,13 +211,13 @@ function Library() {
     navigate({ to: "/set/$setId", params: { setId: id } });
   };
 
-  const createNewPlaylist = () => {
+  const createNewGathering = () => {
     const today = new Date().toLocaleDateString(undefined, {
       month: "long",
       day: "numeric",
       year: "numeric",
     });
-    createPlaylist(today);
+    createGathering(today);
   };
 
   const catalogueRows = useMemo(() => {
@@ -238,11 +238,11 @@ function Library() {
     return rows;
   }, [order, sets, catalogueFilter, sortMode, kindFilter]);
 
-  const filteredPlaylistIds = useMemo(() => {
-    const q = playlistFilter.trim().toLowerCase();
-    if (!q) return playlistOrder;
-    return playlistOrder.filter((pid) => playlists[pid]?.name.toLowerCase().includes(q));
-  }, [playlistOrder, playlists, playlistFilter]);
+  const filteredGatheringIds = useMemo(() => {
+    const q = gatheringFilter.trim().toLowerCase();
+    if (!q) return gatheringOrder;
+    return gatheringOrder.filter((pid) => gatherings[pid]?.name.toLowerCase().includes(q));
+  }, [gatheringOrder, gatherings, gatheringFilter]);
 
   const sortLabel: Record<SortMode, string> = {
     az: "A → Z",
@@ -312,28 +312,28 @@ function Library() {
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-4xl md:text-5xl">Gatherings</h2>
             <div className="flex items-center gap-2 pl-[80px]">
-              {showPlaylistSearch ? (
+              {showGatheringSearch ? (
                 <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
                   <Search className="h-4 w-4" />
                   <input
                     autoFocus
-                    value={playlistFilter}
-                    onChange={(e) => setPlaylistFilter(e.target.value)}
-                    onBlur={() => !playlistFilter && setShowPlaylistSearch(false)}
+                    value={gatheringFilter}
+                    onChange={(e) => setGatheringFilter(e.target.value)}
+                    onBlur={() => !gatheringFilter && setShowGatheringSearch(false)}
                     placeholder="Search"
                     className="mono uppercase w-40 bg-transparent text-xs outline-none"
                   />
                 </div>
               ) : (
                 <button
-                  onClick={() => setShowPlaylistSearch(true)}
+                  onClick={() => setShowGatheringSearch(true)}
                   className="pill mono uppercase flex items-center gap-2 border border-foreground bg-background px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
                 >
                   <Search className="h-4 w-4" /> Search
                 </button>
               )}
               <button
-                onClick={createNewPlaylist}
+                onClick={createNewGathering}
                 className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
               >
                 <Plus className="h-4 w-4" /> New
@@ -341,33 +341,33 @@ function Library() {
             </div>
           </div>
 
-          {playlistOrder.length === 0 ? (
+          {gatheringOrder.length === 0 ? (
             <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
               No gatherings yet. Click New to plan a gathering!
             </div>
-          ) : filteredPlaylistIds.length === 0 ? (
+          ) : filteredGatheringIds.length === 0 ? (
             <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
-              {`No gatherings match "${playlistFilter}".`}
+              {`No gatherings match "${gatheringFilter}".`}
             </div>
           ) : (
             <div className="grid gap-1.5 lg:grid-cols-2">
-              {filteredPlaylistIds.map((pid) => {
-                const p = playlists[pid];
+              {filteredGatheringIds.map((pid) => {
+                const p = gatherings[pid];
                 if (!p) return null;
                 return (
-                  <PlaylistCard
+                  <GatheringCard
                     key={pid}
-                    playlistId={pid}
+                    gatheringId={pid}
                     name={p.name}
                     setIds={p.setIds}
                     isLive={p.is_live}
                     shareToken={p.share_token}
                     allSets={Object.values(sets)}
-                    onRename={(name) => renamePlaylist(pid, name)}
-                    onDelete={() => deletePlaylist(pid)}
-                    onAdd={(setId) => addSetToPlaylist(pid, setId)}
-                    onRemoveAt={(i) => removeSetFromPlaylist(pid, i)}
-                    onReorder={(ids) => reorderPlaylistSets(pid, ids)}
+                    onRename={(name) => renameGathering(pid, name)}
+                    onDelete={() => deleteGathering(pid)}
+                    onAdd={(setId) => addSetToGathering(pid, setId)}
+                    onRemoveAt={(i) => removeSetFromGathering(pid, i)}
+                    onReorder={(ids) => reorderGatheringSets(pid, ids)}
                     onGoLive={() => isSignedIn ? goLive(pid) : (setShowGoLivePrompt(true), Promise.resolve())}
                     onEndSession={() => endSession(pid)}
                   />
@@ -617,7 +617,7 @@ function Library() {
   );
 }
 
-function PlaylistCard({
+function GatheringCard({
   name,
   setIds,
   allSets,
@@ -626,13 +626,13 @@ function PlaylistCard({
   onAdd,
   onRemoveAt,
   onReorder,
-  playlistId,
+  gatheringId,
   isLive,
   shareToken,
   onGoLive,
   onEndSession,
 }: {
-  playlistId: string;
+  gatheringId: string;
   name: string;
   setIds: string[];
   isLive: boolean;
@@ -786,7 +786,7 @@ function PlaylistCard({
           <>
             <Link
               to="/present"
-              search={{ playlist: playlistId }}
+              search={{ gathering: gatheringId }}
               className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
               title="Present gathering"
               aria-label="Present gathering"

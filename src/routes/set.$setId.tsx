@@ -1368,9 +1368,9 @@ function MediaImporter({
 }
 
 function AddToGathering({ setId }: { setId: string }) {
-  const playlists = useLibrary((s) => s.playlists);
-  const playlistOrder = useLibrary((s) => s.playlistOrder);
-  const addSetToPlaylist = useLibrary((s) => s.addSetToPlaylist);
+  const gatherings = useLibrary((s) => s.gatherings);
+  const gatheringOrder = useLibrary((s) => s.gatheringOrder);
+  const addSetToGathering = useLibrary((s) => s.addSetToGathering);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
@@ -1378,10 +1378,10 @@ function AddToGathering({ setId }: { setId: string }) {
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     const ids = q
-      ? playlistOrder.filter((pid) => playlists[pid]?.name.toLowerCase().includes(q))
-      : playlistOrder;
-    return ids.map((pid) => playlists[pid]).filter(Boolean);
-  }, [query, playlists, playlistOrder]);
+      ? gatheringOrder.filter((pid) => gatherings[pid]?.name.toLowerCase().includes(q))
+      : gatheringOrder;
+    return ids.map((pid) => gatherings[pid]).filter(Boolean);
+  }, [query, gatherings, gatheringOrder]);
 
   return (
     <div className="relative">
@@ -1403,7 +1403,7 @@ function AddToGathering({ setId }: { setId: string }) {
               key={p.id}
               onMouseDown={(e) => {
                 e.preventDefault();
-                addSetToPlaylist(p.id, setId);
+                addSetToGathering(p.id, setId);
                 setAdded(p.name);
                 setQuery("");
                 setOpen(false);

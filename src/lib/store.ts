@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { nanoid } from "nanoid";
-import type { Set as PhytoSet, Slide, LiveState, Playlist, SetTemplate } from "./types";
+import type { Set as PhytoSet, Slide, LiveState, Gathering, SetTemplate } from "./types";
 import { db } from "./db";
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
@@ -79,8 +79,8 @@ function schedulePush() {
 interface LibraryState {
   sets: Record<string, PhytoSet>;
   order: string[];
-  playlists: Record<string, Playlist>;
-  playlistOrder: string[];
+  gatherings: Record<string, Gathering>;
+  gatheringOrder: string[];
   /** Global template applied to ALL song sets. */
   songTemplate: SetTemplate;
   setSongTemplate: (patch: SetTemplate) => void;
@@ -97,12 +97,12 @@ interface LibraryState {
   updateSlide: (setId: string, slideId: string, patch: Partial<Slide>) => void;
   removeSlide: (setId: string, slideId: string) => void;
   reorderSlides: (setId: string, ids: string[]) => void;
-  createPlaylist: (name: string) => string;
-  renamePlaylist: (id: string, name: string) => void;
-  deletePlaylist: (id: string) => void;
-  addSetToPlaylist: (playlistId: string, setId: string) => void;
-  removeSetFromPlaylist: (playlistId: string, setIdOrIndex: string | number) => void;
-  reorderPlaylistSets: (playlistId: string, setIds: string[]) => void;
+  createGathering: (name: string) => string;
+  renameGathering: (id: string, name: string) => void;
+  deleteGathering: (id: string) => void;
+  addSetToGathering: (gatheringId: string, setId: string) => void;
+  removeSetFromGathering: (gatheringId: string, setIdOrIndex: string | number) => void;
+  reorderGatheringSets: (gatheringId: string, setIds: string[]) => void;
   /** Set this gathering live (and take all others offline) in Dexie + Supabase. */
   goLive: (gatheringId: string) => Promise<void>;
   /** End the live session for this gathering in Dexie + Supabase. */
@@ -114,8 +114,8 @@ interface LibraryState {
 export const useLibrary = create<LibraryState>()((set, get) => ({
   sets: {},
   order: [],
-  playlists: {},
-  playlistOrder: [],
+  gatherings: {},
+  gatheringOrder: [],
   songTemplate: typeof window !== "undefined" ? readSongTemplate() : { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" },
   scriptureTemplate: typeof window !== "undefined" ? readScriptureTemplate() : { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black", align: "left", referencePosition: "below" },
   fadeMs: typeof window !== "undefined" ? readFadeMs() : 0,
@@ -136,15 +136,15 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }
     order.sort((a, b) => (sets[b].createdAt ?? 0) - (sets[a].createdAt ?? 0));
 
-    const playlists: Record<string, Playlist> = {};
-    const playlistOrder: string[] = [];
+    const gatherings: Record<string, Gathering> = {};
+    const gatheringOrder: string[] = [];
     for (const p of allGatherings) {
-      playlists[p.id] = p;
-      playlistOrder.push(p.id);
+      gatherings[p.id] = p;
+      gatheringOrder.push(p.id);
     }
-    playlistOrder.sort((a, b) => (playlists[b].createdAt ?? 0) - (playlists[a].createdAt ?? 0));
+    gatheringOrder.sort((a, b) => (gatherings[b].createdAt ?? 0) - (gatherings[a].createdAt ?? 0));
 
-    set({ sets, order, playlists, playlistOrder });
+    set({ sets, order, gatherings, gatheringOrder });
   },
 
   setSongTemplate: (patch) =>
@@ -224,9 +224,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       return { sets: rest, order: s.order.filter((x) => x !== id) };
     });
     // Remove deleted set from all gatherings to avoid FK violations on next push
-    const playlists = get().playlists;
-    const toUpdate: Playlist[] = [];
-    for (const p of Object.values(playlists)) {
+    const gatherings = get().gatherings;
+    const toUpdate: Gathering[] = [];
+    for (const p of Object.values(gatherings)) {
       if (p.setIds.includes(id)) {
         toUpdate.push({ ...p, setIds: p.setIds.filter((s) => s !== id), updatedAt: Date.now() });
       }
@@ -234,7 +234,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     if (toUpdate.length) {
       await Promise.all(toUpdate.map((p) => db.gatherings.put(p)));
       set((s) => ({
-        playlists: { ...s.playlists, ...Object.fromEntries(toUpdate.map((p) => [p.id, p])) },
+        gatherings: { ...s.gatherings, ...Object.fromEntries(toUpdate.map((p) => [p.id, p])) },
       }));
       schedulePush();
     }
@@ -289,10 +289,10 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
-  createPlaylist: (name) => {
+  createGathering: (name) => {
     const id = uid();
     const now = Date.now();
-    const record: Playlist = {
+    const record: Gathering = {
       id,
       name,
       setIds: [],
@@ -302,23 +302,23 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       updatedAt: now,
     };
     set((s) => ({
-      playlists: { ...s.playlists, [id]: record },
-      playlistOrder: [id, ...s.playlistOrder],
+      gatherings: { ...s.gatherings, [id]: record },
+      gatheringOrder: [id, ...s.gatheringOrder],
     }));
     db.gatherings.add(record).then(() => schedulePush());
     return id;
   },
 
-  renamePlaylist: (id, name) =>
+  renameGathering: (id, name) =>
     set((s) => {
-      const p = s.playlists[id];
+      const p = s.gatherings[id];
       if (!p) return s;
       const updated = { ...p, name, updatedAt: Date.now() };
       db.gatherings.put(updated).then(() => schedulePush());
-      return { playlists: { ...s.playlists, [id]: updated } };
+      return { gatherings: { ...s.gatherings, [id]: updated } };
     }),
 
-  deletePlaylist: async (id) => {
+  deleteGathering: async (id) => {
     const session = useAuthStore.getState().session;
     if (session) {
       const userId = session.user.id;
@@ -326,40 +326,40 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         .from('gathering_sets')
         .delete()
         .eq('gathering_id', id);
-      if (gsErr) console.error('[deletePlaylist] gathering_sets delete error:', gsErr);
+      if (gsErr) console.error('[deleteGathering] gathering_sets delete error:', gsErr);
 
       const { error: gErr } = await supabase
         .from('gatherings')
         .delete()
         .eq('id', id)
         .eq('user_id', userId);
-      if (gErr) console.error('[deletePlaylist] gatherings delete error:', gErr);
+      if (gErr) console.error('[deleteGathering] gatherings delete error:', gErr);
     }
 
     await db.gatherings.delete(id);
 
     set((s) => {
-      const { [id]: _gone, ...rest } = s.playlists;
-      return { playlists: rest, playlistOrder: s.playlistOrder.filter((x) => x !== id) };
+      const { [id]: _gone, ...rest } = s.gatherings;
+      return { gatherings: rest, gatheringOrder: s.gatheringOrder.filter((x) => x !== id) };
     });
   },
 
-  addSetToPlaylist: (playlistId, setId) =>
+  addSetToGathering: (gatheringId, setId) =>
     set((s) => {
-      const p = s.playlists[playlistId];
+      const p = s.gatherings[gatheringId];
       if (!p) return s;
       const updated = { ...p, setIds: [...p.setIds, setId], updatedAt: Date.now() };
-      console.log('[addSetToPlaylist] gathering', playlistId, '| added set', setId, '| setIds now:', updated.setIds, '| is_live:', updated.is_live, '| scheduling push in 500ms');
+      console.log('[addSetToGathering] gathering', gatheringId, '| added set', setId, '| setIds now:', updated.setIds, '| is_live:', updated.is_live, '| scheduling push in 500ms');
       db.gatherings.put(updated).then(() => {
-        console.log('[addSetToPlaylist] Dexie write done, firing schedulePush');
+        console.log('[addSetToGathering] Dexie write done, firing schedulePush');
         schedulePush();
       });
-      return { playlists: { ...s.playlists, [playlistId]: updated } };
+      return { gatherings: { ...s.gatherings, [gatheringId]: updated } };
     }),
 
-  removeSetFromPlaylist: (playlistId, setIdOrIndex) =>
+  removeSetFromGathering: (gatheringId, setIdOrIndex) =>
     set((s) => {
-      const p = s.playlists[playlistId];
+      const p = s.gatherings[gatheringId];
       if (!p) return s;
       let setIds: string[];
       if (typeof setIdOrIndex === "number") {
@@ -371,21 +371,21 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       }
       const updated = { ...p, setIds, updatedAt: Date.now() };
       db.gatherings.put(updated).then(() => schedulePush());
-      return { playlists: { ...s.playlists, [playlistId]: updated } };
+      return { gatherings: { ...s.gatherings, [gatheringId]: updated } };
     }),
 
-  reorderPlaylistSets: (playlistId, setIds) =>
+  reorderGatheringSets: (gatheringId, setIds) =>
     set((s) => {
-      const p = s.playlists[playlistId];
+      const p = s.gatherings[gatheringId];
       if (!p) return s;
       const updated = { ...p, setIds, updatedAt: Date.now() };
       db.gatherings.put(updated).then(() => schedulePush());
-      return { playlists: { ...s.playlists, [playlistId]: updated } };
+      return { gatherings: { ...s.gatherings, [gatheringId]: updated } };
     }),
 
   goLive: async (gatheringId) => {
-    const { playlists } = get();
-    const target = playlists[gatheringId];
+    const { gatherings } = get();
+    const target = gatherings[gatheringId];
     console.log('[goLive] target gathering:', target);
     if (!target) {
       console.error('[goLive] aborted — gathering not found in store:', gatheringId);
@@ -452,22 +452,22 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
 
     // ── Step 3: Zustand ───────────────────────────────────────────────────────
     set((s) => {
-      const updated = { ...s.playlists };
+      const updated = { ...s.gatherings };
       for (const id of Object.keys(updated)) {
         updated[id] = { ...updated[id], is_live: id === gatheringId, updatedAt: now };
       }
-      return { playlists: updated };
+      return { gatherings: updated };
     });
-    const finalStore = get().playlists[gatheringId];
+    const finalStore = get().gatherings[gatheringId];
     console.log('[goLive] done at', new Date().toISOString(), '| Zustand is_live:', finalStore?.is_live, '| gathering:', gatheringId);
   },
 
   endSession: async (gatheringId) => {
-    const { playlists } = get();
-    const target = playlists[gatheringId];
+    const { gatherings } = get();
+    const target = gatherings[gatheringId];
     if (!target) return;
     const updated = { ...target, is_live: false, updatedAt: Date.now() };
-    set((s) => ({ playlists: { ...s.playlists, [gatheringId]: updated } }));
+    set((s) => ({ gatherings: { ...s.gatherings, [gatheringId]: updated } }));
     await db.gatherings.put(updated);
     await supabase
       .from('gatherings')

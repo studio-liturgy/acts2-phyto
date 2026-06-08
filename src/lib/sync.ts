@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { useAuthStore } from './authStore';
 import { db } from './db';
-import type { Set as PhytoSet, Playlist } from './types';
+import type { Set as PhytoSet, Gathering } from './types';
 import { useSyncStatusStore } from '../hooks/use-sync-status';
 import { nanoid } from 'nanoid';
 
@@ -53,7 +53,7 @@ function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
   };
 }
 
-function toSupabaseGathering(p: Playlist, userId: string, deviceId: string) {
+function toSupabaseGathering(p: Gathering, userId: string, deviceId: string) {
   console.log('[toSupabaseGathering] pushing gathering', p.id, '| is_live:', p.is_live, '| updatedAt:', new Date(p.updatedAt).toISOString());
   return {
     id: p.id,
@@ -88,7 +88,7 @@ function fromSupabaseSet(row: Record<string, unknown>): PhytoSet {
 function fromSupabaseGathering(
   row: Record<string, unknown>,
   setIds: string[],
-): Playlist {
+): Gathering {
   return {
     id: row.id as string,
     name: row.title as string,
@@ -175,11 +175,11 @@ async function fetchRemote(userId: string) {
 // ---------------------------------------------------------------------------
 
 export type SyncDiff = {
-  onlyLocal: { sets: PhytoSet[]; gatherings: Playlist[] };
-  onlyRemote: { sets: PhytoSet[]; gatherings: Playlist[] };
+  onlyLocal: { sets: PhytoSet[]; gatherings: Gathering[] };
+  onlyRemote: { sets: PhytoSet[]; gatherings: Gathering[] };
   modified: {
     sets: { local: PhytoSet; remote: PhytoSet }[];
-    gatherings: { local: Playlist; remote: Playlist }[];
+    gatherings: { local: Gathering; remote: Gathering }[];
   };
 };
 

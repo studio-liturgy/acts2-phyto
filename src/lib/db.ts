@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Set as PhytoSet, Playlist } from './types';
+import type { Set as PhytoSet, Gathering } from './types';
 
 export interface GatheringSet {
   id: string;
@@ -10,7 +10,7 @@ export interface GatheringSet {
 
 export class PhytoDB extends Dexie {
   sets!: EntityTable<PhytoSet, 'id'>;
-  gatherings!: EntityTable<Playlist, 'id'>;
+  gatherings!: EntityTable<Gathering, 'id'>;
   gathering_sets!: EntityTable<GatheringSet, 'id'>;
 
   constructor() {
