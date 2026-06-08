@@ -29,7 +29,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter,
@@ -252,33 +251,31 @@ function RootComponent() {
       {showOutlet && <Outlet />}
       <MobileBlock />
       <Dialog open={pathname !== "/output" && syncDiff !== null} onOpenChange={(open) => { if (!open) setSyncDiff(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Review versions</DialogTitle>
-            <DialogDescription>
-              {syncing
-                ? syncing === 'merge' ? "Merging…" : "Pushing…"
-                : syncDiff && (() => {
-                    const remoteTime = latestRemoteTime(syncDiff);
-                    return remoteTime
-                      ? `Your synced version was last updated ${remoteTime.toLocaleString()}. Merge to receive the online version, or Push to overwrite what's online with your local version.`
-                      : "Your local version has offline changes. Push to upload them, or Merge to sync both ways.";
-                  })()
-              }
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-6 flex gap-3">
+        <DialogContent className="gap-0 rounded-3xl p-8">
+          <DialogTitle className="text-2xl font-normal leading-tight">Review versions</DialogTitle>
+          <DialogDescription className="mt-4 text-base text-foreground">
+            {syncing
+              ? syncing === 'merge' ? "Merging…" : "Pushing…"
+              : syncDiff && (() => {
+                  const remoteTime = latestRemoteTime(syncDiff);
+                  return remoteTime
+                    ? `Your synced version was last updated ${remoteTime.toLocaleString()}. Merge to receive the online version, or Push to overwrite what's online with your local version.`
+                    : "Your local version has offline changes. Push to upload them, or Merge to sync both ways.";
+                })()
+            }
+          </DialogDescription>
+          <div className="mt-8 flex gap-3">
             <button
               onClick={handleMerge}
               disabled={syncing !== null}
-              className="flex-1 rounded-full bg-foreground py-3 text-background transition hover:opacity-90 disabled:opacity-50"
+              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
             >
               {syncing === 'merge' ? "Merging…" : "Merge"}
             </button>
             <button
               onClick={handlePush}
               disabled={syncing !== null}
-              className="flex-1 rounded-full border border-foreground bg-transparent py-3 transition hover:bg-foreground hover:text-background disabled:opacity-50"
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background disabled:opacity-50"
             >
               {syncing === 'push' ? "Pushing…" : "Push"}
             </button>

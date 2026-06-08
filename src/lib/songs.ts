@@ -1,10 +1,8 @@
-// Song search + lyrics. Christian/worship-focused: results are biased toward
-// worship artists and lyric blocks are segmented + deduplicated so each
-// unique section appears once (no repeated choruses on import).
+// Song search + lyrics. Christian/worship-focused.
 //
-// Note: no free Christian-only lyrics API exists (CCLI SongSelect, PraiseCharts
-// and Worship Together require auth). We use lrclib.net (the most reliable
-// open lyrics index) and filter/boost worship results, then segment sections.
+// Search order:
+//   1. Local OpenSong worship database (public/songs-en.json, 3 060 curated songs)
+//   2. lrclib.net fallback, restricted to known worship artists only
 
 export interface SongResult {
   title: string;
@@ -23,21 +21,42 @@ interface LrcLibTrack {
   instrumental?: boolean;
 }
 
-// Known worship/Christian artists used to bias search results.
+// Known worship/Christian artists used to filter lrclib.net results.
+// Focus: corporate/congregational worship — not general CCM.
 const WORSHIP_ARTISTS = [
-  "hillsong", "bethel", "elevation", "maverick city", "passion",
+  // Collectives / labels
+  "hillsong", "hillsong worship", "hillsong united", "hillsong young",
+  "hillsong kids", "hillsong español",
+  "bethel", "bethel music",
+  "elevation", "elevation worship",
+  "maverick city", "maverick city music",
+  "passion", "passion music",
+  "upperroom", "upper room",
+  "mosaic msc", "housefires", "vertical worship",
+  "gateway worship", "river valley worship", "cross worship",
+  "planetshakers", "planetboom",
+  "vineyard worship", "vineyard music",
+  "integrity music", "hosanna music",
+  "north point", "sovereign grace",
+  "city alight", "cityalight",
+  "all sons & daughters",
+  "jesus image",
+  // Individual worship leaders
   "chris tomlin", "matt redman", "phil wickham", "lauren daigle",
   "kari jobe", "pat barrett", "brandon lake", "cody carnes",
-  "kristian stanfill", "housefires", "vertical worship", "jesus culture",
-  "for king & country", "for king and country", "tasha cobbs",
-  "we the kingdom", "stephen mcwhirter", "shane & shane", "shane and shane",
-  "keith getty", "kristyn getty", "sovereign grace", "city alight",
-  "cityalight", "hillsong worship", "hillsong united", "hillsong young",
-  "north point", "gateway worship", "all sons & daughters",
+  "kristian stanfill", "jesus culture",
+  "tasha cobbs", "tasha cobbs leonard",
+  "we the kingdom", "stephen mcwhirter",
+  "shane & shane", "shane and shane",
+  "keith getty", "kristyn getty",
   "rend collective", "crowder", "david crowder", "michael w smith",
-  "casting crowns", "mercyme", "newsboys", "third day", "jeremy camp",
-  "lincoln brewster", "paul baloche", "tim hughes", "stuart townend",
-  "graham kendrick", "darlene zschech", "reuben morgan",
+  "tim hughes", "stuart townend", "graham kendrick",
+  "darlene zschech", "reuben morgan",
+  "tauren wells", "leeland", "blessing offor",
+  "jonathan david helser", "melissa helser", "steffany gretzinger",
+  "william mcdowell", "travis greene", "tye tribbett", "israel houghton",
+  "ron kenoly", "don moen", "robin mark", "andy park",
+  "abbie gamboa", "aaron tedeschi",
 ];
 
 function isWorshipArtist(name?: string): boolean {
@@ -80,8 +99,47 @@ function segmentAndDedupe(text: string): string {
   return out.join("\n\n");
 }
 
-export async function searchSongs(query: string): Promise<SongResult[]> {
-  if (!query.trim()) return [];
+// ---------------------------------------------------------------------------
+// Local worship database (public/songs-en.json)
+// ---------------------------------------------------------------------------
+
+interface LocalSong {
+  title: string;
+  artist: string;
+  aka?: string;
+  lyrics: string;
+}
+
+let localDb: LocalSong[] | null = null;
+
+async function getLocalDb(): Promise<LocalSong[]> {
+  if (localDb) return localDb;
+  const res = await fetch("/songs-en.json");
+  if (!res.ok) throw new Error("Failed to load local song database");
+  localDb = (await res.json()) as LocalSong[];
+  return localDb;
+}
+
+function searchLocal(db: LocalSong[], query: string): SongResult[] {
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  return db
+    .filter((s) => {
+      const hay = `${s.title} ${s.artist} ${s.aka ?? ""}`.toLowerCase();
+      return terms.every((t) => hay.includes(t));
+    })
+    .slice(0, 20)
+    .map((s) => ({
+      title: s.title,
+      artist: s.artist,
+      lyrics: segmentAndDedupe(s.lyrics),
+    }));
+}
+
+// ---------------------------------------------------------------------------
+// lrclib.net fallback (strict worship-only filter)
+// ---------------------------------------------------------------------------
+
+async function searchLrcLib(query: string): Promise<SongResult[]> {
   const res = await fetch(
     `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`
   );
@@ -98,7 +156,25 @@ export async function searchSongs(query: string): Promise<SongResult[]> {
       _worship: isWorshipArtist(d.artistName),
     }));
 
-  // Sort worship matches first; cap to 20.
-  mapped.sort((a, b) => Number(b._worship) - Number(a._worship));
-  return mapped.slice(0, 20).map(({ _worship: _w, ...rest }) => rest);
+  return mapped
+    .filter((r) => r._worship)
+    .slice(0, 20)
+    .map(({ _worship: _w, ...rest }) => rest);
+}
+
+// ---------------------------------------------------------------------------
+// Public entry point
+// ---------------------------------------------------------------------------
+
+export async function searchSongs(query: string): Promise<SongResult[]> {
+  if (!query.trim()) return [];
+
+  const db = await getLocalDb();
+  const local = searchLocal(db, query);
+  if (local.length >= 4) return local;
+
+  const remote = await searchLrcLib(query);
+  const localKeys = new Set(local.map((s) => `${s.title}|${s.artist}`));
+  const extra = remote.filter((s) => !localKeys.has(`${s.title}|${s.artist}`));
+  return [...local, ...extra].slice(0, 20);
 }
