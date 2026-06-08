@@ -8,7 +8,7 @@ import { searchSongs, type SongResult } from "@/lib/songs";
 import { SlideView } from "@/components/SlideView";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowUpLeft, ArrowUpRight, Plus, Trash2, GripVertical, Search, Loader2, Pencil, Upload, ChevronDown } from "lucide-react";
+import { ArrowUpLeft, ArrowUpRight, Plus, Trash2, GripVertical, Search, Loader2, Pencil, ChevronDown } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Slide, SetKind } from "@/lib/types";
@@ -134,7 +134,7 @@ function SetHeader({
       {/* Right actions */}
       <button
         onClick={() => setShowDeleteSetDialog(true)}
-        className="pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+        className="mono uppercase pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-xs text-[var(--brand-white)] transition hover:opacity-90"
       >
         Delete
       </button>
@@ -190,6 +190,10 @@ function SetEditor() {
   const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
   const [groupView, setGroupView] = useState(true);
   const [editingName, setEditingName] = useState(false);
+  const [showFileSizeDialog, setShowFileSizeDialog] = useState(false);
+  const [fileOver, setFileOver] = useState(false);
+  const [converting, setConverting] = useState(false);
+
 
   const selected = useMemo(
     () => phytoSet?.slides.find((s) => s.id === selectedId) ?? phytoSet?.slides[0] ?? null,
@@ -370,9 +374,6 @@ function SetEditor() {
 
   // Media: merged import + slides panel
   const dense = phytoSet.slides.length > 20;
-  const [fileOver, setFileOver] = useState(false);
-  const [converting, setConverting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSelect = (id: string, e?: React.MouseEvent) => {
     setSelectedId(id);
@@ -400,6 +401,11 @@ function SetEditor() {
 
   const handleMediaFiles = async (files: FileList | null) => {
     if (!files || converting) return;
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    if (Array.from(files).some((f) => f.size > MAX_FILE_SIZE)) {
+      setShowFileSizeDialog(true);
+      return;
+    }
     const imageFiles = Array.from(files).filter((f) =>
       /^image\/(png|jpe?g|webp|gif|bmp)$/i.test(f.type)
     );
@@ -472,31 +478,13 @@ function SetEditor() {
                   </button>
                 )}
                 <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={converting}
-                  className="pill flex items-center gap-1 border border-foreground px-3 py-1.5 text-xs transition hover:bg-foreground hover:text-background disabled:opacity-50"
-                >
-                  {converting ? (
-                    <><Loader2 className="h-3 w-3 animate-spin" /> Converting…</>
-                  ) : (
-                    <><Upload className="h-3 w-3" /> Import</>
-                  )}
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleMediaFiles(e.target.files)}
-                />
-                <button
                   onClick={() =>
                     addSlide(phytoSet.id, { id: uid(), kind: "blank", lines: [""] } as Slide)
                   }
-                  className="pill flex items-center gap-1 border border-foreground px-3 py-1.5 text-xs transition hover:bg-foreground hover:text-background"
+                  className="pill flex items-center border border-foreground p-1.5 text-xs transition hover:bg-foreground hover:text-background"
+                  aria-label="Add blank slide"
                 >
-                  <Plus className="h-3 w-3" /> Add blank
+                  <Plus className="h-3 w-3" />
                 </button>
               </div>
             </div>
@@ -530,7 +518,7 @@ function SetEditor() {
             ) : (
               <div className="max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
                 {fileOver && (
-                  <p className="mono mb-3 text-center text-xs text-muted-foreground">Drop to add images</p>
+                  <p className="mono mb-3 text-center text-xs uppercase tracking-wider text-muted-foreground">Drop to add images</p>
                 )}
                 <SlideGrid
                   slides={phytoSet.slides}
@@ -556,6 +544,23 @@ function SetEditor() {
           </div>
         </aside>
       </div>
+
+      <AlertDialog open={showFileSizeDialog} onOpenChange={setShowFileSizeDialog}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">File too large</AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            One or more files exceeds the 5 MB limit. Please resize or compress your files and try again.
+          </AlertDialogDescription>
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={() => setShowFileSizeDialog(false)}
+              className="pill border border-foreground bg-background px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              OK
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -634,7 +639,11 @@ function SlideGrid({
   return (
     <div
       className={`grid gap-3 ${cols}`}
-      onDrop={(e) => { e.stopPropagation(); commitOrder(); }}
+      onDrop={(e) => {
+          if (e.dataTransfer.files?.length) return;
+          e.stopPropagation();
+          commitOrder();
+        }}
     >
       {displaySlides.map((s, i) => {
         const isSelected = selectedId === s.id;

@@ -21,14 +21,12 @@ export function MobileBlock() {
   const { pathname } = useLocation();
   if (MOBILE_ALLOWED.includes(pathname)) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-16 bg-[var(--brand-blue)] px-6 text-center text-[var(--brand-white)] md:hidden">
-      <div className="flex flex-col items-center gap-8">
-        <img src={wordmark} alt="phyto" className="h-28 w-auto" />
-        <p className="mono max-w-[260px] text-sm leading-snug opacity-70">
-          We're currently working on a mobile version, stay tuned!
-        </p>
-      </div>
-      <nav className="flex flex-col items-center gap-3 text-xl">
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 bg-[var(--brand-blue)] px-6 text-center text-[var(--brand-white)] md:hidden">
+      <img src={wordmark} alt="phyto" className="h-28 w-auto" />
+      <p className="my-8 max-w-[260px] text-sm leading-relaxed opacity-70">
+        We're currently working on a mobile version, stay tuned!
+      </p>
+      <nav className="mono uppercase flex flex-col items-center gap-3 text-sm">
         <Link to="/about" className={linkCls}>About</Link>
         <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className={linkCls}>Instagram</a>
         <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className={linkCls}>Donate</a>
