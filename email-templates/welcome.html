@@ -1,211 +1,253 @@
-<!DOCTYPE html>
-<html lang="en">
+<!-- DESIGN REFERENCE ONLY.
+     The live template is managed in the Resend dashboard (Templates → welcome).
+     This file is the source of truth for local preview and future edits.
+     Open at http://localhost:8080/email/welcome-preview.html
+-->
+<html dir="ltr" lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light only" />
-    <title>Welcome to phyto</title>
     <style>
-      @font-face {
-        font-family: 'Space Mono';
-        src: url('https://phyto.live/fonts/SpaceMono-Regular.ttf') format('truetype');
-        font-weight: 400;
-        font-style: normal;
-      }
       @media only screen and (max-width:600px) {
-        /* Constrain email width to viewport */
-        .email-body { width:100% !important; }
-        /* Steps: stack, keep section side padding (margins) + rounded corners, lock text width */
-        .feat-pad       { direction:ltr !important; }
-        .feat-pad table { direction:ltr !important; }
-        .feat-img       { display:block !important; width:100% !important; }
-        .feat-box       { width:100% !important; height:0 !important; padding-top:100% !important; position:relative !important; }
-        .feat-box-img   { position:absolute !important; top:0 !important; left:0 !important; width:100% !important; height:100% !important; object-fit:cover !important; }
-        .feat-text      { display:block !important; width:100% !important; padding:20px 0 0 !important; }
-        .feat-spacer    { display:none !important; }
-        /* Buttons: stack + centre on mobile, each hugging its content */
-        .btn-cell     { display:block !important; text-align:center !important; padding:6px 0 !important; }
-        /* Footer: stack + centre on mobile */
-        .footer-left  { display:block !important; text-align:center !important; margin-bottom:8px !important; }
-        .footer-right { display:block !important; text-align:center !important; }
+        /* Force all step rows to LTR so GIF always stacks on top */
+        .feat-pad table  { direction:ltr !important; }
+        /* Stack image and text as full-width blocks */
+        .feat-img        { display:block !important; width:100% !important; }
+        .feat-text       { display:block !important; width:100% !important; padding:12px 0 0 !important; }
+        .feat-spacer     { display:none !important; }
+        /* Keep GIF box square at full width */
+        .feat-box        { width:100% !important; height:0 !important; padding-top:100% !important; position:relative !important; }
+        .feat-box img    { position:absolute !important; top:0 !important; left:0 !important; width:100% !important; height:100% !important; object-fit:cover !important; }
+        /* Stack buttons */
+        .btn-cell        { display:block !important; text-align:center !important; padding:6px 0 !important; }
+        /* Stack footer */
+        .footer-left     { display:block !important; text-align:center !important; margin-bottom:8px !important; }
+        .footer-right    { display:block !important; text-align:center !important; }
       }
     </style>
   </head>
-  <body style="margin:0;padding:0;background:#F5EFEF;font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.03em;">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Welcome to phyto — a simple tool for home worship gatherings.</div>
+  <body style="background-color:#ffffff">
+    <div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">
+      I built this tool for small home worship gatherings, like yours and mine.
+      <div>
+         ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏﻿ ‌‍‎‏
+      </div>
+    </div>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5EFEF;">
-      <tr>
-        <td align="center" style="padding:0;">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="email-body" style="max-width:600px;width:100%;">
+    <table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" align="center">
+      <tbody>
+        <tr>
+          <td style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;font-size:1em;min-height:100%;line-height:155%;background-color:#ffffff">
+            <table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;align:center;width:100%;color:#000000;background-color:#2e7299;border-radius:0px;border-color:#000000;line-height:155%">
+              <tbody>
+                <tr style="width:100%">
+                  <td style="padding-top:0px;padding-right:0px;padding-bottom:0px;padding-left:0px">
+                    <div style="margin:0;padding:0;display:none;max-height:0;overflow:hidden;opacity:0">
+                      <p style="margin:0;padding:0;font-size:1em;padding-top:0.5em;padding-bottom:0.5em">
+                        Welcome to phyto — a simple tool for home worship gatherings.
+                      </p>
+                    </div>
+                    <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0;padding:0;background:#F5EFEF">
+                      <tbody>
+                        <tr style="margin:0;padding:0">
+                          <td align="center" data-id="__react-email-column" style="margin:0;padding:0">
+                            <table width="600" border="0" cellpadding="0" cellspacing="0" role="presentation" class="email-body" style="margin:0;padding:0;max-width:600px;width:100%">
+                              <tbody>
+                                <tr style="margin:0;padding:0">
+                                  <td data-id="__react-email-column" style="margin:0;padding:0;font-size:0;line-height:0">
+                                    <table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation">
+                                      <tbody style="width:100%">
+                                        <tr style="width:100%">
+                                          <td align="left" data-id="__react-email-column">
+                                            <img src="https://resend-attachments.s3.amazonaws.com/16f7692e-d210-4cc3-b0f5-ee126ed6c58c" style="display:block;outline:none;border:none;text-decoration:none;max-width:100%;border-radius:0px;height:auto" width="600" />
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                    <p style="margin:0;padding:0;font-size:1em;padding-top:0.5em;padding-bottom:0.5em">
+                                      <br />
+                                    </p>
+                                  </td>
+                                </tr>
+                                <tr style="margin:0;padding:0">
+                                  <td align="center" data-id="__react-email-column" style="margin:0;padding:56px 48px 40px;background:#F5EFEF;text-align:center">
+                                    <h1 style="margin:0 0 28px;padding:0;font-size:36px;line-height:1.15;padding-top:0.389em;font-weight:400;color:#212121;font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.045em">
+                                      I built this tool for small home<br />worship gatherings,<br />like yours and mine.
+                                    </h1>
+                                    <p style="margin:0 0 32px;padding:0;font-size:13px;color:#212121;font-family:Arial,Helvetica,sans-serif;line-height:1.7;max-width:460px;display:inline-block;text-align:left;letter-spacing:-0.5px">
+                                      Unlike traditional presenter programs with complex features (colourful
+                                      backgrounds, multiple outputs, livestreaming, etc.), I made this app to be an
+                                      intentionally stripped back alternative to keep presenting simple and organized.
+                                      It's designed to be easy to use and to protect the simplicity of worshipping with
+                                      friends and family at home. <br /><br />All so that we can focus on the one thing
+                                      that matters most – Jesus.
+                                    </p>
+                                    <p style="margin:0;padding:0;font-size:1em;padding-top:0.5em;padding-bottom:0.5em">
+                                      <br /><a href="https://phyto.live" rel="noopener noreferrer nofollow" style="color:#212121;text-decoration:none;display:inline-block;border:1.5px solid #212121;border-radius:9999px;font-family:Arial,Helvetica,sans-serif;font-size:34px;line-height:1;letter-spacing:-0.045em;padding:18px 34px;white-space:nowrap" target="_blank">
+                                        Get Started  </a>
+                                    </p>
+                                  </td>
+                                </tr>
+                                <tr style="margin:0;padding:0">
+                                  <td align="center" data-id="__react-email-column" style="margin:0;padding:0 48px 32px;background:#F5EFEF;text-align:center">
+                                    <p style="margin:0;padding:0;font-size:12px;color:#212121;font-family:'Space Mono',Courier,monospace;letter-spacing:-0.5px;text-transform:uppercase;line-height:1.6">
+                                      Below is a short guide to get you started with phyto!
+                                    </p>
+                                  </td>
+                                </tr>
 
-            <!-- HEADER -->
-            <tr>
-              <td style="padding:0;font-size:0;line-height:0;">
-                <img src="https://phyto.live/email/magic-link-header.png" width="600" alt="phyto"
-                     style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
-              </td>
-            </tr>
+                                <!-- STEP 1: GIF left, text right -->
+                                <tr style="margin:0;padding:0">
+                                  <td class="feat-pad" data-id="__react-email-column" style="margin:0;padding:0 48px 48px;background:#F5EFEF">
+                                    <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0;padding:0">
+                                      <tbody>
+                                        <tr style="margin:0;padding:0">
+                                          <td class="feat-img" data-id="__react-email-column" style="margin:0;padding:0;vertical-align:top;width:220px">
+                                            <div class="feat-box" style="margin:0;padding:0;background:#2E7299;border-radius:16px;width:220px;height:220px;overflow:hidden;font-size:0;line-height:0">
+                                              <img height="220" src="https://resend-attachments.s3.amazonaws.com/a57960cc-0cc9-4cfb-bc86-9f4d0c2438c4" style="display:block;outline:none;border:none;text-decoration:none;width:220px;height:220px;border-radius:8px" width="220" />
+                                            </div>
+                                          </td>
+                                          <td class="feat-spacer" data-id="__react-email-column" style="margin:0;padding:0;width:24px">&nbsp;</td>
+                                          <td class="feat-text" data-id="__react-email-column" style="margin:0;padding:0;vertical-align:top;padding-top:8px">
+                                            <p style="margin:0 0 8px;padding:2px;font-size:13px;background-color:#2E7299;border-radius:76px;letter-spacing:-0.5px;text-align:center">
+                                              <span style="color:#f5efef;text-transform:uppercase">1. Build your Sets + Gatherings</span>
+                                            </p>
+                                            <p style="margin:0;padding:0;font-size:13px;line-height:1.7;letter-spacing:-0.5px">
+                                              Simply import your song lyrics, scriptures, or your own media into a
+                                              <strong>SET</strong>. Arrange <strong>SET</strong>s into a
+                                              <strong>GATHERING</strong> to stay organized and present later on.
+                                            </p>
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
 
-            <!-- HERO -->
-            <tr>
-              <td style="background:#F5EFEF;padding:56px 48px 40px;text-align:center;">
-                <h1 style="margin:0 0 28px;color:#212121;font-family:Arial,Helvetica,sans-serif;font-size:36px;line-height:1.15;font-weight:400;letter-spacing:-0.045em;">
-                  I built this tool for small home<br />worship gatherings,<br />like yours and mine.
-                </h1>
-                <p style="margin:0 0 32px;color:#212121;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.7;max-width:460px;display:inline-block;text-align:left;">
-                  Unlike traditional presenter programs with complex features (colourful backgrounds, multiple outputs, livestreaming, etc.), I made this app to be an intentionally stripped back alternative to keep presenting simple and organized. It's designed to be easy to use and to protect the simplicity of worshipping with friends and family at home. All so that we can focus on the one thing that matters most – Jesus.
-                </p>
-                <br />
-                <!--[if mso]>
-                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="https://phyto.live" style="height:64px;v-text-anchor:middle;width:240px;" arcsize="50%" strokecolor="#212121" strokeweight="1.5pt" fillcolor="#F5EFEF">
-                  <w:anchorlock/>
-                  <center style="color:#212121;font-family:Arial,sans-serif;font-size:34px;letter-spacing:-1.5px;">Get started &#8599;</center>
-                </v:roundrect>
-                <![endif]-->
-                <!--[if !mso]><!-->
-                <a href="https://phyto.live"
-                   style="display:inline-block;border:1.5px solid #212121;border-radius:9999px;color:#212121;font-family:Arial,Helvetica,sans-serif;font-size:34px;line-height:1;letter-spacing:-0.045em;text-decoration:none;padding:18px 34px;white-space:nowrap;">
-                  Get Started&nbsp;&nbsp;<img src="https://phyto.live/email/arrow-dark.png" width="22" height="22" alt="&#8599;" style="vertical-align:baseline;border:0;" />
-                </a>
-                <!--<![endif]-->
-              </td>
-            </tr>
+                                <!-- STEP 2: text left, GIF right (direction:rtl flips on desktop; LTR override stacks GIF-first on mobile) -->
+                                <tr style="margin:0;padding:0">
+                                  <td class="feat-pad" data-id="__react-email-column" style="margin:0;padding:0 48px 48px;background:#F5EFEF">
+                                    <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0;padding:0;direction:rtl">
+                                      <tbody>
+                                        <tr style="margin:0;padding:0">
+                                          <td class="feat-img" data-id="__react-email-column" style="margin:0;padding:0;vertical-align:top;width:220px;direction:ltr">
+                                            <div class="feat-box" style="margin:0;padding:0;background:#538844;border-radius:16px;width:220px;height:220px;overflow:hidden;font-size:0;line-height:0">
+                                              <img height="220" src="https://resend-attachments.s3.amazonaws.com/a294247b-df1f-4306-be86-13d7b1dbf7fa" style="display:block;outline:none;border:none;text-decoration:none;width:220px;height:220px;border-radius:8px" width="220" />
+                                            </div>
+                                          </td>
+                                          <td class="feat-spacer" data-id="__react-email-column" style="margin:0;padding:0;width:24px">&nbsp;</td>
+                                          <td class="feat-text" data-id="__react-email-column" style="margin:0;padding:0;vertical-align:top;padding-top:8px;direction:ltr">
+                                            <p style="margin:0 0 8px;padding:2px;font-size:13px;background-color:#538844;border-radius:48px;letter-spacing:-0.5px;text-align:center">
+                                              <span style="color:#F5EFEF;text-transform:uppercase">2. Go online (optional)</span>
+                                            </p>
+                                            <p style="margin:0;padding:0;font-size:13px;line-height:1.7;letter-spacing:-0.5px">
+                                              Sign in with your email or Google account to sync your content
+                                              across devices. You can also make a <strong>GATHERING</strong> go live!
+                                              Share a link or QR code so your friends can follow along on their own
+                                              devices in real time. Great for homes without a projector!
+                                            </p>
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
 
-            <!-- GUIDE INTRO -->
-            <tr>
-              <td style="background:#F5EFEF;padding:0 48px 32px;text-align:center;">
-                <p style="margin:0;color:#212121;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;line-height:1.6;">
-                  Below is a short guide to get you started with phyto!
-                </p>
-              </td>
-            </tr>
+                                <!-- STEP 3: GIF left, text right -->
+                                <tr style="margin:0;padding:0">
+                                  <td class="feat-pad" data-id="__react-email-column" style="margin:0;padding:0 48px 48px;background:#F5EFEF">
+                                    <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0;padding:0">
+                                      <tbody>
+                                        <tr style="margin:0;padding:0">
+                                          <td class="feat-img" data-id="__react-email-column" style="margin:0;padding:0;vertical-align:top;width:220px">
+                                            <div class="feat-box" style="margin:0;padding:0;background:#E07D31;border-radius:16px;width:220px;height:220px;overflow:hidden;font-size:0;line-height:0">
+                                              <img height="220" src="https://resend-attachments.s3.amazonaws.com/0ad4670a-7397-4821-820e-7e97b0296005" style="display:block;outline:none;border:none;text-decoration:none;width:220px;height:220px;border-radius:8px" width="220" />
+                                            </div>
+                                          </td>
+                                          <td class="feat-spacer" data-id="__react-email-column" style="margin:0;padding:0;width:24px">&nbsp;</td>
+                                          <td class="feat-text" data-id="__react-email-column" style="margin:0;padding:0;vertical-align:top;padding-top:8px">
+                                            <p style="margin:0 0 8px;padding:2px;font-size:13px;background-color:#E07D31;border-radius:76px;letter-spacing:-0.5px;text-align:center">
+                                              <span style="color:#F5EFEF;text-transform:uppercase">3. Start Presenting</span>
+                                            </p>
+                                            <p style="margin:0;padding:0;font-size:13px;line-height:1.7;color:#212121;letter-spacing:-0.5px">
+                                              Connect your computer to a TV or projector, then hit
+                                              <strong>Present</strong> in the top right. Drag the Output window to your
+                                              display, go full screen, and your slides will appear as you click through
+                                              them.
+                                            </p>
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
 
-            <!-- STEP 1: Blue square LEFT, text RIGHT (box first in HTML = correct mobile order) -->
-            <tr>
-              <td class="feat-pad" style="background:#F5EFEF;padding:0 48px 48px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                  <tr>
-                    <td class="feat-img" width="220" style="vertical-align:top;">
-                      <div class="feat-box" style="background:#2E7299;border-radius:16px;width:220px;height:220px;overflow:hidden;font-size:0;line-height:0;">
-                        <img class="feat-box-img" src="https://phyto.live/email/step-1.gif" width="220" height="220" alt=""
-                             style="display:block;width:220px;height:220px;border:0;border-radius:16px;" />
-                      </div>
-                    </td>
-                    <td class="feat-spacer" width="24" style="width:24px;">&nbsp;</td>
-                    <td class="feat-text" style="vertical-align:top;padding-top:8px;">
-                      <span style="display:inline-block;background:#2E7299;border-radius:9999px;color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:10px;letter-spacing:0;text-transform:uppercase;padding:4px 12px;line-height:1.4;margin-bottom:10px;">1. Build your Sets + Gatherings</span>
-                      <p style="margin:0;font-size:13px;line-height:1.7;color:#212121;">Simply import your song lyrics, scriptures, or your own media into a <strong>SET</strong>. Arrange <strong>SET</strong>s into a <strong>GATHERING</strong> to stay organized and present later on.</p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-
-            <!-- STEP 2: green square LEFT in HTML (image first on mobile); direction:rtl flips to text LEFT on desktop -->
-            <tr>
-              <td class="feat-pad" style="background:#F5EFEF;padding:0 48px 48px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="direction:rtl;">
-                  <tr>
-                    <td class="feat-img" width="220" style="vertical-align:top;direction:ltr;">
-                      <div class="feat-box" style="background:#538844;border-radius:16px;width:220px;height:220px;overflow:hidden;font-size:0;line-height:0;">
-                        <img class="feat-box-img" src="https://phyto.live/email/step-2.gif" width="220" height="220" alt=""
-                             style="display:block;width:220px;height:220px;border:0;border-radius:16px;" />
-                      </div>
-                    </td>
-                    <td class="feat-spacer" width="24" style="width:24px;">&nbsp;</td>
-                    <td class="feat-text" style="vertical-align:top;padding-top:8px;direction:ltr;">
-                      <span style="display:inline-block;background:#538844;border-radius:9999px;color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:10px;letter-spacing:0;text-transform:uppercase;padding:4px 12px;line-height:1.4;margin-bottom:10px;">2. Go online (optional)</span>
-                      <p style="margin:0;font-size:13px;line-height:1.7;color:#212121;">Sign in with your email or Google account to sync your content across devices. You can also make a <strong>GATHERING</strong> go live! Share a link or QR code so your friends can follow along on their own devices in real time. Great for homes without a projector!</p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-
-            <!-- STEP 3: Orange square LEFT, text RIGHT (box first = correct mobile order) -->
-            <tr>
-              <td class="feat-pad" style="background:#F5EFEF;padding:0 48px 48px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                  <tr>
-                    <td class="feat-img" width="220" style="vertical-align:top;">
-                      <div class="feat-box" style="background:#E07D31;border-radius:16px;width:220px;height:220px;overflow:hidden;font-size:0;line-height:0;">
-                        <img class="feat-box-img" src="https://phyto.live/email/step-3.gif" width="220" height="220" alt=""
-                             style="display:block;width:220px;height:220px;border:0;border-radius:16px;" />
-                      </div>
-                    </td>
-                    <td class="feat-spacer" width="24" style="width:24px;">&nbsp;</td>
-                    <td class="feat-text" style="vertical-align:top;padding-top:8px;">
-                      <span style="display:inline-block;background:#E07D31;border-radius:9999px;color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:10px;letter-spacing:0;text-transform:uppercase;padding:4px 12px;line-height:1.4;margin-bottom:10px;">3. Start Presenting</span>
-                      <p style="margin:0;font-size:13px;line-height:1.7;color:#212121;">Connect your computer to a TV or projector, then hit <strong>Present</strong> in the top right. Drag the Output window to your display, go full screen, and your slides will appear as you click through them.</p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-
-            <!-- GUIDE OUTRO -->
-            <tr>
-              <td style="background:#F5EFEF;padding:0 48px 48px;text-align:center;">
-                <p style="margin:0;color:#212121;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;line-height:1.8;">
-                  Now that you've got the basics, start using it, play around with the settings and use it for your next gathering! If you have any feedback, please send it to me through <a href="https://phyto.live/feedback" style="color:#212121;text-decoration:underline;">here</a>.
-                </p>
-              </td>
-            </tr>
-
-            <!-- DONATION + MISSION + LINKS (one blue section) -->
-            <tr>
-              <td style="background:#2E7299;padding:48px;text-align:center;">
-                <p style="margin:0 0 24px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:28px;line-height:1.2;font-weight:400;letter-spacing:-0.045em;">
-                  This project will always be free and open source. If you feel God's prompting, I want to invite you to partner with me financially by giving generously and cheerfully!
-                </p>
-                <p style="margin:0 auto 32px;max-width:440px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;letter-spacing:-0.02em;">
-                  I built this out of a desire to bless my local house church community in Hong Kong. Then, I felt God prompt me that it could bless many others! If there's anyone in your circle that you feel it could bless, feel free to share it :)
-                </p>
-                <!-- Buttons: centred row on desktop, stacked + centred on mobile -->
-                <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
-                  <tr>
-                    <td class="btn-cell" style="padding:0 6px;">
-                      <a href="https://ko-fi.com/valiantchan"
-                         style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;letter-spacing:-0.03em;text-decoration:none;padding:14px 24px;white-space:nowrap;">
-                        Donate
-                      </a>
-                    </td>
-                    <td class="btn-cell" style="padding:0 6px;">
-                      <a href="https://phyto.live/about"
-                         style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;letter-spacing:-0.03em;text-decoration:none;padding:14px 24px;white-space:nowrap;">
-                        About
-                      </a>
-                    </td>
-                    <td class="btn-cell" style="padding:0 6px;">
-                      <a href="https://instagram.com/phyto.live"
-                         style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;letter-spacing:-0.03em;text-decoration:none;padding:14px 24px;white-space:nowrap;">
-                        Instagram
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-
-            <!-- FOOTER BAR -->
-            <tr>
-              <td style="background:#2E7299;padding:20px 48px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                  <tr>
-                    <td class="footer-left" style="vertical-align:middle;white-space:nowrap;">
-                      <a href="https://phyto.live/terms"   style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding-right:20px;">Terms of Use</a>
-                      <a href="https://phyto.live/privacy" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;">Privacy Policy</a>
-                    </td>
-                    <td class="footer-right" align="right" style="vertical-align:middle;"></td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-
-          </table>
-        </td>
-      </tr>
+                                <tr style="margin:0;padding:0">
+                                  <td align="center" data-id="__react-email-column" style="margin:0;padding:0 48px 48px;background:#F5EFEF;text-align:center">
+                                    <p style="margin:0;padding:0;font-size:12px;color:#212121;font-family:'Space Mono',Courier,monospace;letter-spacing:-0.5px;text-transform:uppercase;line-height:1.8">
+                                      Now that you've got the basics, start using it, play around with the settings and
+                                      use it for your next gathering! If you have any feedback, please send it to me
+                                      through
+                                      <a href="https://phyto.live/feedback" rel="noopener noreferrer nofollow" style="color:#212121;text-decoration:underline" target="_blank">here</a>.
+                                    </p>
+                                  </td>
+                                </tr>
+                                <tr style="margin:0;padding:0">
+                                  <td align="center" data-id="__react-email-column" style="margin:0;padding:48px;background:#2E7299;text-align:center">
+                                    <p style="margin:0 0 24px;padding:0;font-size:28px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;line-height:1.2;font-weight:400;letter-spacing:-0.5px">
+                                      This project will always be free and open source. If you feel God's prompting, I
+                                      want to invite you to partner with me financially by giving generously and
+                                      cheerfully!
+                                    </p>
+                                    <p style="margin:0 auto 32px;padding:0;font-size:13px;max-width:440px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;line-height:1.6;letter-spacing:-0.5px">
+                                      I built this out of a desire to bless my local house church community in Hong
+                                      Kong. Then, I felt God prompt me that it could bless many others! If there's
+                                      anyone in your circle that you feel it could bless, feel free to share it :)
+                                    </p>
+                                    <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;padding:0">
+                                      <tbody>
+                                        <tr style="margin:0;padding:0">
+                                          <td class="btn-cell" data-id="__react-email-column" style="margin:0;padding:0 6px">
+                                            <a href="https://ko-fi.com/valiantchan" rel="noopener noreferrer nofollow" style="color:#F5EFEF;text-decoration:none;display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;letter-spacing:-0.03em;padding:14px 24px;white-space:nowrap" target="_blank">Donate</a>
+                                          </td>
+                                          <td class="btn-cell" data-id="__react-email-column" style="margin:0;padding:0 6px">
+                                            <a href="https://phyto.live/about" rel="noopener noreferrer nofollow" style="color:#F5EFEF;text-decoration:none;display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;letter-spacing:-0.03em;padding:14px 24px;white-space:nowrap" target="_blank">About</a>
+                                          </td>
+                                          <td class="btn-cell" data-id="__react-email-column" style="margin:0;padding:0 6px">
+                                            <a href="https://instagram.com/phyto.live" rel="noopener noreferrer nofollow" style="color:#F5EFEF;text-decoration:none;display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;letter-spacing:-0.03em;padding:14px 24px;white-space:nowrap" target="_blank">Instagram</a>
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
+                                <tr style="margin:0;padding:0">
+                                  <td data-id="__react-email-column" style="margin:0;padding:20px 48px;background:#2E7299">
+                                    <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0;padding:0">
+                                      <tbody>
+                                        <tr style="margin:0;padding:0">
+                                          <td class="footer-centre" data-id="__react-email-column" style="margin:0;padding:0;vertical-align:middle;white-space:nowrap;text-align:center">
+                                            <a href="https://phyto.live/terms" rel="noopener noreferrer nofollow" style="color:#F5EFEF;text-decoration:none;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;padding-right:20px" target="_blank">Terms of Use</a>
+                                            <a href="https://phyto.live/privacy" rel="noopener noreferrer nofollow" style="color:#F5EFEF;text-decoration:none;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase" target="_blank">Privacy Policy</a>
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
     </table>
   </body>
 </html>

@@ -174,6 +174,8 @@ function RootComponent() {
   const showOutlet = !isMobile || allowedOnMobile;
   const { session, setSession } = useAuthStore();
   const loadFromDb = useLibrary((s) => s.loadFromDb);
+  const refreshLiveState = useLibrary((s) => s.refreshLiveState);
+  const nullLocalLiveState = useLibrary((s) => s.nullLocalLiveState);
   const [syncDiff, setSyncDiff] = useState<SyncDiff | null>(null);
   const [syncing, setSyncing] = useState<'merge' | 'push' | null>(null);
 
@@ -198,9 +200,14 @@ function RootComponent() {
     })();
     getSession().then((s) => {
       setSession(s);
-      if (s && !diffRanThisSession) {
-        diffRanThisSession = true;
-        runDiff();
+      if (s) {
+        // Hydrate is_live from Supabase (source of truth) on every page load,
+        // independent of the diff-dialog gate and the /g/ guard.
+        refreshLiveState();
+        if (!diffRanThisSession) {
+          diffRanThisSession = true;
+          runDiff();
+        }
       }
     });
 
@@ -208,10 +215,13 @@ function RootComponent() {
       setSession(s);
       if (event === 'SIGNED_OUT') {
         diffRanThisSession = false;
+        // No local truth for live status while signed out.
+        nullLocalLiveState();
       }
       if (event === 'SIGNED_IN' && s) {
         // Welcome email is sent from auth.callback.tsx (respects mailing-list opt-in).
         const isFirstLogin = s.user.created_at === s.user.last_sign_in_at;
+        refreshLiveState();
         if (!diffRanThisSession) {
           diffRanThisSession = true;
           runDiff(isFirstLogin);

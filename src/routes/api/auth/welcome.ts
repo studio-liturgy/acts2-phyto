@@ -42,11 +42,9 @@ function rateLimited(ip: string): boolean {
   return false;
 }
 
-function buildWelcomeHtml(): string {
-  // Source of truth lives in email-templates/welcome.html.
-  // This is an inline copy for the Cloudflare Worker runtime (no filesystem access).
-  // Keep in sync with that file. {{unsubscribe_url}} is replaced by Resend when
-  // the recipient is a contact in an audience.
+function buildWelcomeHtml_UNUSED(): string {
+  // DEPRECATED — template is now managed in the Resend dashboard.
+  // Kept here for reference only; delete once the Resend template is confirmed stable.
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -268,7 +266,8 @@ export const Route = createFileRoute("/api/auth/welcome")({
       POST: async ({ request }) => {
         const RESEND_API_KEY = await readEnv("RESEND_API_KEY");
         const RESEND_FROM = await readEnv("RESEND_FROM");
-        if (!RESEND_API_KEY || !RESEND_FROM) {
+        const RESEND_TEMPLATE_ID = await readEnv("RESEND_TEMPLATE_ID");
+        if (!RESEND_API_KEY || !RESEND_FROM || !RESEND_TEMPLATE_ID) {
           return Response.json(
             { ok: false, error: "Email is not configured." },
             { status: 500 },
@@ -309,7 +308,7 @@ export const Route = createFileRoute("/api/auth/welcome")({
             from: RESEND_FROM,
             to: email,
             subject: "Welcome to phyto",
-            html: buildWelcomeHtml(),
+            template: { id: RESEND_TEMPLATE_ID },
           });
 
           if (error) {
