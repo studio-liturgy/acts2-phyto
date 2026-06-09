@@ -1,4 +1,4 @@
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import wordmark from "@/assets/wordmark.svg";
 
 const linkCls = "transition-opacity duration-200 hover:opacity-60";
@@ -14,14 +14,12 @@ export const MOBILE_ALLOWED = {
 };
 
 /**
- * Shown only on small screens (<md). Blocks the app on mobile and
- * presents a minimal set of links. Hidden on informational routes.
+ * Full-screen overlay that blocks the app on mobile. Rendered only when the
+ * parent determines it should show — no internal location or breakpoint checks.
  */
 export function MobileBlock() {
-  const { pathname } = useLocation();
-  if (MOBILE_ALLOWED.includes(pathname)) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 bg-[var(--brand-blue)] px-6 text-center text-[var(--brand-white)] md:hidden">
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 bg-[var(--brand-blue)] px-6 text-center text-[var(--brand-white)]">
       <img src={wordmark} alt="phyto" className="h-28 w-auto" />
       <p className="my-8 max-w-[260px] text-sm leading-relaxed opacity-70">
         We're currently working on a mobile version, stay tuned!

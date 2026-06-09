@@ -7,6 +7,7 @@ import {
   useRouter,
   useLocation,
   useNavigate,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -22,7 +23,7 @@ import {
   diffWithSupabase,
   hasDifferences,
   latestRemoteTime,
-  applyMerge,
+  mergeFromSupabase,
   pushToSupabase,
   type SyncDiff,
 } from "@/lib/sync";
@@ -135,7 +136,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+  );
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 767px)");
     const update = () => setIsMobile(mql.matches);
@@ -170,7 +173,10 @@ function RootComponent() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const allowedOnMobile = MOBILE_ALLOWED.includes(pathname);
+  // Use resolvedLocation (committed) not the pending location so the mobile
+  // block stays visible for the full duration of any navigation transition.
+  const resolvedPathname = useRouterState({ select: (s) => (s.resolvedLocation ?? s.location).pathname });
+  const allowedOnMobile = MOBILE_ALLOWED.includes(resolvedPathname);
   const showOutlet = !isMobile || allowedOnMobile;
   const { session, setSession } = useAuthStore();
   const loadFromDb = useLibrary((s) => s.loadFromDb);
@@ -183,10 +189,15 @@ function RootComponent() {
     if (pathname.startsWith("/g/")) return;
     const diff = await diffWithSupabase();
     if (!diff || !hasDifferences(diff)) return;
-    if (autoMerge) {
-      // First-time login: the new account has no remote data to overwrite,
-      // so merge silently instead of prompting.
-      await applyMerge(diff);
+    // Only prompt when there's a real remote version to reconcile against.
+    // `latestRemoteTime` is null when the diff has no onlyRemote/modified/rekeyed
+    // items — i.e. only local changes to push (brand-new account / first push),
+    // where Merge and Push are equivalent and nothing online can be overwritten.
+    // Apply silently in that case (and on explicit first-login autoMerge).
+    if (autoMerge || latestRemoteTime(diff) === null) {
+      // Serialized + recompute-inside-lock so concurrent/repeat auto-merges
+      // can't double-apply (the only-local re-ID push is not idempotent).
+      await mergeFromSupabase();
       await loadFromDb();
     } else {
       setSyncDiff(diff);
@@ -240,8 +251,7 @@ function RootComponent() {
 
   const handleMerge = async () => {
     setSyncing('merge');
-    const freshDiff = await diffWithSupabase();
-    if (freshDiff) await applyMerge(freshDiff);
+    await mergeFromSupabase();
     await loadFromDb();
     setSyncing(null);
     setSyncDiff(null);
@@ -258,7 +268,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {showOutlet && <Outlet />}
-      <MobileBlock />
+      {isMobile && !allowedOnMobile && <MobileBlock />}
       <Dialog open={pathname !== "/output" && syncDiff !== null} onOpenChange={(open) => { if (!open) setSyncDiff(null); }}>
         <DialogContent className="gap-0 rounded-3xl p-8">
           <DialogTitle className="text-2xl font-normal leading-tight">Review versions</DialogTitle>
