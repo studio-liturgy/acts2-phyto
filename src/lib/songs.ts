@@ -4,7 +4,10 @@
 //   1. Local OpenSong worship database (public/songs-en.json, 3 060 curated songs).
 //      Matches title, artist, alternate titles, and the lyrics body; content
 //      duplicates (same song under different titles) are collapsed to one.
-//   2. lrclib.net fallback, restricted to known worship artists only
+//   2. lrclib.net fallback. Kept results are either by a known worship artist OR
+//      have a title that closely matches the query (so a worship song by an
+//      artist not on the curated list still surfaces); worship artists rank
+//      first. Results are deduped by title/artist.
 
 export interface SongResult {
   title: string;
@@ -203,8 +206,32 @@ function searchLocal(db: LocalSong[], query: string): SongResult[] {
 }
 
 // ---------------------------------------------------------------------------
-// lrclib.net fallback (strict worship-only filter)
+// lrclib.net fallback (worship artists OR strong title match)
 // ---------------------------------------------------------------------------
+
+// Loose normalisation for comparing titles/queries: lowercase, drop everything
+// that isn't a letter or number, collapse whitespace. Same alphabet-only idea
+// used by lyricsKey, so "The Wonderful Blood" and "the wonderful blood!" match.
+function normTitle(s: string): string {
+  return s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+
+// True when an lrclib title is a strong match for the query: one contains the
+// other, or every query token appears in the title. Lets a worship song by an
+// artist not on the curated list surface while keeping unrelated tracks out.
+function titleMatches(query: string, title: string): boolean {
+  const q = normTitle(query);
+  const t = normTitle(title);
+  if (!q || !t) return false;
+  if (t.includes(q) || q.includes(t)) return true;
+  return q.split(" ").every((term) => t.includes(term));
+}
+
+// lrclib sometimes appends "| Artist" to the track name; drop it for display
+// and matching.
+function cleanTitle(title: string): string {
+  return title.replace(/\s*\|\s*.*$/, "").trim() || title.trim();
+}
 
 async function searchLrcLib(query: string): Promise<SongResult[]> {
   const res = await fetch(
@@ -215,19 +242,39 @@ async function searchLrcLib(query: string): Promise<SongResult[]> {
 
   const mapped = (data ?? [])
     .filter((d) => d.plainLyrics && !d.instrumental)
-    .map((d) => ({
-      title: d.trackName ?? d.name ?? "Untitled",
-      artist: d.artistName ?? "Unknown",
-      album: d.albumName,
-      lyrics: segmentAndDedupe((d.plainLyrics ?? "").replace(/\r\n/g, "\n").trim()),
-      source: "online" as const,
-      _worship: isWorshipArtist(d.artistName),
-    }));
+    .map((d) => {
+      const title = cleanTitle(d.trackName ?? d.name ?? "Untitled");
+      const artist = d.artistName ?? "Unknown";
+      return {
+        title,
+        artist,
+        album: d.albumName,
+        lyrics: segmentAndDedupe((d.plainLyrics ?? "").replace(/\r\n/g, "\n").trim()),
+        source: "online" as const,
+        _worship: isWorshipArtist(artist),
+        _titleMatch: titleMatches(query, title),
+      };
+    })
+    // Keep worship artists OR strong title matches; rank worship artists first.
+    .filter((r) => r._worship || r._titleMatch);
 
-  return mapped
-    .filter((r) => r._worship)
-    .slice(0, 20)
-    .map(({ _worship: _w, ...rest }) => rest);
+  mapped.sort(
+    (a, b) =>
+      (b._worship ? 2 : 0) + (b._titleMatch ? 1 : 0) -
+      ((a._worship ? 2 : 0) + (a._titleMatch ? 1 : 0))
+  );
+
+  // Dedupe the many near-identical entries lrclib returns for one song.
+  const seen = new Set<string>();
+  const out: SongResult[] = [];
+  for (const { _worship: _w, _titleMatch: _tm, ...rest } of mapped) {
+    const k = `${normTitle(rest.title)}|${normTitle(rest.artist)}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(rest);
+    if (out.length >= 20) break;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
