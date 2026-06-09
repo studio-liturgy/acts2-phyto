@@ -6,6 +6,24 @@ export const Route = createFileRoute("/auth/callback")({
   component: AuthCallback,
 });
 
+async function sendWelcomeIfNew(user: { email?: string; created_at: string; user_metadata?: Record<string, unknown> }) {
+  const ageMs = Date.now() - new Date(user.created_at).getTime();
+  const isNew = ageMs < 600_000;
+  if (!isNew || !user.email) return;
+
+  const subscribe = sessionStorage.getItem("phyto-subscribe") === "true";
+  sessionStorage.removeItem("phyto-subscribe");
+  await fetch("/api/auth/welcome", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: user.email,
+      name: user.user_metadata?.full_name ?? undefined,
+      subscribe,
+    }),
+  }).catch(() => {});
+}
+
 function AuthCallback() {
   const navigate = useNavigate();
   const called = useRef(false);
@@ -14,31 +32,29 @@ function AuthCallback() {
     if (called.current) return;
     called.current = true;
 
-    supabase.auth.exchangeCodeForSession(window.location.href).then(async ({ data, error }) => {
-      if (error) {
-        navigate({ to: "/login", search: { error: error.message } });
-        return;
-      }
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
 
-      if (data.user) {
-        const isNew = Date.now() - new Date(data.user.created_at).getTime() < 60_000;
-        if (isNew) {
-          const subscribe = sessionStorage.getItem("phyto-subscribe") === "true";
-          sessionStorage.removeItem("phyto-subscribe");
-          await fetch("/api/auth/welcome", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: data.user.email,
-              name: data.user.user_metadata?.full_name ?? undefined,
-              subscribe,
-            }),
-          }).catch(() => {});
+    if (code) {
+      // PKCE flow — exchange code for session
+      supabase.auth.exchangeCodeForSession(window.location.href).then(async ({ data, error }) => {
+        if (error) {
+          navigate({ to: "/login", search: { error: error.message } });
+          return;
         }
-      }
-
-      navigate({ to: "/" });
-    });
+        if (data.user) await sendWelcomeIfNew(data.user);
+        navigate({ to: "/" });
+      });
+    } else {
+      // Hash/implicit flow — session already set by Supabase JS listener.
+      // Wait briefly for the session to be available, then send welcome email.
+      supabase.auth.getSession().then(async ({ data }) => {
+        if (data.session?.user) {
+          await sendWelcomeIfNew(data.session.user);
+        }
+        navigate({ to: "/" });
+      });
+    }
   }, [navigate]);
 
   return null;
