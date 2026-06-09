@@ -14,12 +14,30 @@ function AuthCallback() {
     if (called.current) return;
     called.current = true;
 
-    supabase.auth.exchangeCodeForSession(window.location.href).then(({ error }) => {
+    supabase.auth.exchangeCodeForSession(window.location.href).then(async ({ data, error }) => {
       if (error) {
         navigate({ to: "/login", search: { error: error.message } });
-      } else {
-        navigate({ to: "/" });
+        return;
       }
+
+      if (data.user) {
+        const isNew = Date.now() - new Date(data.user.created_at).getTime() < 60_000;
+        if (isNew) {
+          const subscribe = sessionStorage.getItem("phyto-subscribe") === "true";
+          sessionStorage.removeItem("phyto-subscribe");
+          await fetch("/api/auth/welcome", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: data.user.email,
+              name: data.user.user_metadata?.full_name ?? undefined,
+              subscribe,
+            }),
+          }).catch(() => {});
+        }
+      }
+
+      navigate({ to: "/" });
     });
   }, [navigate]);
 

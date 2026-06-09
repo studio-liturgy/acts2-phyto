@@ -898,7 +898,7 @@ function GatheringCard({
                   isDragging ? "ring-2 ring-foreground" : ""
                 }`}
               >
-                {editMode && <DotsGrip draggable={false} className="cursor-grab opacity-80" />}
+                {editMode && <DotsGrip className="cursor-grab opacity-80" />}
                 <span draggable={false} className="flex-1 truncate">{d?.name ?? "(missing)"}</span>
                 <span draggable={false} className="mono text-[10px] uppercase tracking-wider opacity-90">
                   {d?.kind}

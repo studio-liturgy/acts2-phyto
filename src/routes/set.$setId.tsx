@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowUpLeft, ArrowUpRight, Plus, Trash2, GripVertical, Search, Loader2, Pencil, ChevronDown } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { Slide, SetKind } from "@/lib/types";
 import { z } from "zod";
 
@@ -761,18 +761,33 @@ function GroupedSongGrid(props: {
 function applyDividers(text: string, linesPer: number): string {
   const lines = text.replace(/^---\s*$/gm, "").split("\n");
   const out: string[] = [];
-  let nonEmptyCount = 0;
-  for (const line of lines) {
-    if (line.trim() !== "") {
-      if (nonEmptyCount > 0 && nonEmptyCount % linesPer === 0) {
-        out.push("---");
-      }
-      nonEmptyCount++;
+  let countInGroup = 0;
+
+  const endGroup = () => {
+    if (countInGroup > 0) {
+      out.push("---");
+      countInGroup = 0;
+    }
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (line === "") {
+      endGroup(); // stanza break → end slide cleanly, drop the blank line
+      continue;
+    }
+    if (/^\[.+\]$/.test(line)) {
+      endGroup(); // section header ends the previous group, doesn't count
+      out.push(line);
+      continue;
+    }
+    if (countInGroup > 0 && countInGroup % linesPer === 0) {
+      out.push("---");
     }
     out.push(line);
+    countInGroup++;
   }
-  // Trim trailing blank lines / dividers
-  while (out.length > 0 && out[out.length - 1].trim() === "") out.pop();
+
   while (out.length > 0 && out[out.length - 1] === "---") out.pop();
   return out.join("\n");
 }
@@ -792,7 +807,7 @@ function parseLyricsFromText(text: string): Slide[] {
       slides.push({
         id: uid(),
         kind: "lyric" as const,
-        lines: content.split("\n").map((l) => l.trim()),
+        lines: content.split("\n").map((l) => l.trim()).filter(Boolean),
         section: currentSection,
       });
     }
@@ -1043,25 +1058,36 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           {songErr && <p className="mt-2 text-xs text-destructive">{songErr}</p>}
           {songResults.length > 0 && (
             <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-2xl border border-foreground bg-background p-1">
-              {songResults.map((s, idx) => (
-                <button
-                  key={`${s.title}-${s.artist}-${idx}`}
-                  onClick={() => {
-                    setLyrics(applyDividers(s.lyrics, linesPer));
-                    setSongResults([]);
-                    updateSet(setId, { name: s.title });
-                  }}
-                  className="group flex w-full items-center gap-2 rounded-xl p-2 text-left text-sm transition hover:bg-muted"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-bold">{s.title}</div>
-                    <div className="mono uppercase truncate text-xs text-muted-foreground">
-                      {s.artist}{s.album ? ` · ${s.album}` : ""}
-                    </div>
-                  </div>
-                  <Plus className="h-4 w-4 opacity-40 group-hover:opacity-100" />
-                </button>
-              ))}
+              {songResults.map((s, idx) => {
+                // Thin blue line at the boundary between local DB results and
+                // online results (only when there are local results above).
+                const showDivider =
+                  s.source === "online" &&
+                  songResults[idx - 1]?.source === "local";
+                return (
+                  <Fragment key={`${s.title}-${s.artist}-${idx}`}>
+                    {showDivider && (
+                      <div className="mx-2 my-1 h-px bg-[var(--brand-blue)]" />
+                    )}
+                    <button
+                      onClick={() => {
+                        setLyrics(applyDividers(s.lyrics, linesPer));
+                        setSongResults([]);
+                        updateSet(setId, { name: s.title });
+                      }}
+                      className="group flex w-full items-center gap-2 rounded-xl p-2 text-left text-sm transition hover:bg-muted"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-bold">{s.title}</div>
+                        <div className="mono uppercase truncate text-xs text-muted-foreground">
+                          {s.artist}{s.album ? ` · ${s.album}` : ""}
+                        </div>
+                      </div>
+                      <Plus className="h-4 w-4 opacity-40 group-hover:opacity-100" />
+                    </button>
+                  </Fragment>
+                );
+              })}
             </div>
           )}
 

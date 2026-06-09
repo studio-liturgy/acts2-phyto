@@ -1,7 +1,9 @@
 // Song search + lyrics. Christian/worship-focused.
 //
 // Search order:
-//   1. Local OpenSong worship database (public/songs-en.json, 3 060 curated songs)
+//   1. Local OpenSong worship database (public/songs-en.json, 3 060 curated songs).
+//      Matches title, artist, alternate titles, and the lyrics body; content
+//      duplicates (same song under different titles) are collapsed to one.
 //   2. lrclib.net fallback, restricted to known worship artists only
 
 export interface SongResult {
@@ -9,6 +11,7 @@ export interface SongResult {
   artist: string;
   album?: string;
   lyrics: string;
+  source: "local" | "online";
 }
 
 interface LrcLibTrack {
@@ -66,14 +69,33 @@ function isWorshipArtist(name?: string): boolean {
 }
 
 /**
+ * Strip parenthetical annotations like "(Intro)", "(x2)", "(repeat)" that
+ * clutter imported lyrics. A line that is only an annotation is dropped;
+ * genuine blank lines (stanza breaks) and square-bracket section headers
+ * ("[Verse 1]") are preserved.
+ */
+function stripAnnotations(text: string): string {
+  const out: string[] = [];
+  for (const raw of text.replace(/\r\n/g, "\n").split("\n")) {
+    if (raw.trim() === "") {
+      out.push(""); // keep stanza break
+      continue;
+    }
+    const cleaned = raw.replace(/\([^)\n]*\)/g, "").replace(/\s+/g, " ").trim();
+    if (cleaned === "") continue; // annotation-only line → drop it entirely
+    out.push(cleaned);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
  * Dedupe repeated stanzas (e.g. choruses repeated 3× in the source) so each
  * unique block appears once. Preserves any section markers present in the
  * source ("[Chorus]", "Verse 1:" …) but does NOT invent labels — auto
  * labelling proved unreliable and is now done manually in the editor.
  */
 function segmentAndDedupe(text: string): string {
-  const blocks = text
-    .replace(/\r\n/g, "\n")
+  const blocks = stripAnnotations(text)
     .split(/\n\s*\n/)
     .map((b) => b.trim())
     .filter(Boolean);
@@ -120,19 +142,64 @@ async function getLocalDb(): Promise<LocalSong[]> {
   return localDb;
 }
 
+// Normalised fingerprint of a song's lyrics, used to collapse the many
+// same-content-different-title duplicates in the OpenSong source (e.g. a hymn
+// catalogued under each of its first lines as separate entries).
+function lyricsKey(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/^\s*\[[^\]]+\]\s*$/gm, "")
+    .replace(/^\s*(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\s*:?\s*$/gim, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
 function searchLocal(db: LocalSong[], query: string): SongResult[] {
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  return db
-    .filter((s) => {
-      const hay = `${s.title} ${s.artist} ${s.aka ?? ""}`.toLowerCase();
-      return terms.every((t) => hay.includes(t));
-    })
-    .slice(0, 20)
-    .map((s) => ({
-      title: s.title,
-      artist: s.artist,
-      lyrics: segmentAndDedupe(s.lyrics),
-    }));
+  const q = query.toLowerCase().trim();
+  const terms = q.split(/\s+/).filter(Boolean);
+
+  // Match if every term is in the title/artist/alternate-title, OR (for
+  // multi-word queries) the whole query appears as a contiguous phrase in the
+  // lyrics body. Phrase-matching the lyrics lets a remembered line find its
+  // song without flooding results with every hymn that merely contains each
+  // common word ("is", "our", "god"…) somewhere.
+  const matched = db.filter((s) => {
+    const meta = `${s.title} ${s.artist} ${s.aka ?? ""}`.toLowerCase();
+    if (terms.every((t) => meta.includes(t))) return true;
+    if (terms.length >= 2) {
+      return s.lyrics.toLowerCase().replace(/\s+/g, " ").includes(q);
+    }
+    return false;
+  });
+
+  // Rank title matches above lyrics-only matches so the canonical title wins.
+  const score = (s: LocalSong): number => {
+    const title = s.title.toLowerCase();
+    if (title === q) return 4;
+    if (title.startsWith(q)) return 3;
+    if (title.includes(q)) return 2;
+    const meta = `${s.title} ${s.artist} ${s.aka ?? ""}`.toLowerCase();
+    if (terms.every((t) => meta.includes(t))) return 1; // all terms in title/artist/aka
+    return 0; // matched only via the lyrics body
+  };
+  matched.sort((a, b) => score(b) - score(a));
+
+  // Collapse content-duplicates, keeping the highest-ranked (best title) entry.
+  const seen = new Set<string>();
+  const unique: LocalSong[] = [];
+  for (const s of matched) {
+    const k = lyricsKey(s.lyrics);
+    if (k && seen.has(k)) continue;
+    if (k) seen.add(k);
+    unique.push(s);
+  }
+
+  return unique.slice(0, 20).map((s) => ({
+    title: s.title,
+    artist: s.artist,
+    lyrics: segmentAndDedupe(s.lyrics),
+    source: "local" as const,
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +220,7 @@ async function searchLrcLib(query: string): Promise<SongResult[]> {
       artist: d.artistName ?? "Unknown",
       album: d.albumName,
       lyrics: segmentAndDedupe((d.plainLyrics ?? "").replace(/\r\n/g, "\n").trim()),
+      source: "online" as const,
       _worship: isWorshipArtist(d.artistName),
     }));
 
@@ -171,10 +239,10 @@ export async function searchSongs(query: string): Promise<SongResult[]> {
 
   const db = await getLocalDb();
   const local = searchLocal(db, query);
-  if (local.length >= 4) return local;
+  if (local.length >= 6) return local.slice(0, 10);
 
   const remote = await searchLrcLib(query);
   const localKeys = new Set(local.map((s) => `${s.title}|${s.artist}`));
   const extra = remote.filter((s) => !localKeys.has(`${s.title}|${s.artist}`));
-  return [...local, ...extra].slice(0, 20);
+  return [...local, ...extra].slice(0, 10);
 }

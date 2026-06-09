@@ -285,96 +285,102 @@ function GatheringViewer() {
           {/* Settings overlay */}
           {menuOpen && (
             <div
-              className={`absolute left-0 top-full z-50 mt-1 min-w-[220px] rounded-lg p-4 shadow-xl ${
+              className={`absolute left-0 top-full z-50 mt-1 w-[240px] rounded-2xl border p-4 shadow-xl ${
                 prefs.isDark
-                  ? "bg-neutral-900 text-white ring-1 ring-white/10"
-                  : "bg-white text-black ring-1 ring-black/10"
+                  ? "border-white/10 bg-neutral-900 text-white"
+                  : "border-black/10 bg-white text-black"
               }`}
+              style={{ fontFamily: "'Space Mono', monospace", fontSize: "1rem" }}
             >
-              {/* Text size */}
-              <div className="mb-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className={`text-xs uppercase tracking-widest ${mutedClass}`}>
-                    Text size
-                  </p>
-                  <p className={`text-xs ${mutedClass}`}>
-                    {prefs.fontSize.toFixed(2)}×
-                  </p>
+              {/* Header */}
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-[10px] uppercase tracking-wider">
+                  Display
                 </div>
-                <input
-                  type="range"
-                  min={0.85}
-                  max={1.8}
-                  step={0.05}
-                  value={prefs.fontSize}
-                  onChange={(e) =>
-                    setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))
-                  }
-                  className="w-full"
-                />
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  style={{ fontFamily: "Arial, sans-serif" }}
+                  className={`text-xs transition-colors ${mutedClass} hover:text-inherit`}
+                >
+                  Cancel
+                </button>
               </div>
 
-              {/* Font family */}
-              <div className="mb-4">
-                <p
-                  className={`mb-2 text-xs uppercase tracking-widest ${mutedClass}`}
-                >
-                  Font
-                </p>
-                <div className="flex gap-1">
-                  {(["sans", "serif", "mono"] as FontFamily[]).map((f) => (
-                    <button
-                      key={f}
-                      onClick={() =>
-                        setPrefs((p) => ({ ...p, fontFamily: f }))
-                      }
-                      className={`flex-1 rounded py-1 text-center text-sm capitalize transition-colors ${
-                        prefs.fontFamily === f
-                          ? prefs.isDark
-                            ? "bg-white text-black"
-                            : "bg-black text-white"
-                          : prefs.isDark
-                            ? "hover:bg-white/10"
-                            : "hover:bg-black/10"
-                      }`}
-                      style={{ fontFamily: FONT_FAMILY_CSS[f] }}
-                    >
-                      {f}
-                    </button>
-                  ))}
+              <div className="space-y-4 text-sm">
+                {/* Font size */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
+                    <span>Font size</span>
+                    <span className={mutedClass}>{prefs.fontSize.toFixed(2)}×</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.85}
+                    max={1.8}
+                    step={0.05}
+                    value={prefs.fontSize}
+                    onChange={(e) =>
+                      setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))
+                    }
+                    className="w-full"
+                  />
                 </div>
-              </div>
 
-              {/* Theme */}
-              <div>
-                <p
-                  className={`mb-2 text-xs uppercase tracking-widest ${mutedClass}`}
-                >
-                  Theme
-                </p>
-                <div className="flex gap-1">
-                  {[
-                    { label: "Light", value: false },
-                    { label: "Dark", value: true },
-                  ].map(({ label, value }) => (
+                {/* Font type */}
+                <div>
+                  <div className="mb-2 text-[10px] uppercase tracking-wider">
+                    Font type
+                  </div>
+                  <div className="grid grid-cols-1 gap-1">
+                    {(["sans", "serif", "mono"] as FontFamily[]).map((f) => {
+                      const active = prefs.fontFamily === f;
+                      return (
+                        <button
+                          key={f}
+                          onClick={() => setPrefs((p) => ({ ...p, fontFamily: f }))}
+                          style={{ fontFamily: FONT_FAMILY_CSS[f] }}
+                          className={`rounded-lg border px-3 py-1.5 text-left text-sm capitalize transition ${
+                            active
+                              ? prefs.isDark
+                                ? "border-white bg-white text-black"
+                                : "border-black bg-black text-white"
+                              : prefs.isDark
+                                ? "border-white/20 hover:border-white"
+                                : "border-black/20 hover:border-black"
+                          }`}
+                        >
+                          {f}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Theme */}
+                <div>
+                  <div className="mb-2 text-[10px] uppercase tracking-wider">
+                    Theme
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
                     <button
-                      key={label}
-                      onClick={() =>
-                        setPrefs((p) => ({ ...p, isDark: value }))
-                      }
-                      className={`flex-1 rounded py-1 text-center text-sm transition-colors ${
-                        prefs.isDark === value
-                          ? prefs.isDark
-                            ? "bg-white text-black"
-                            : "bg-black text-white"
-                          : prefs.isDark
-                            ? "hover:bg-white/10"
-                            : "hover:bg-black/10"
+                      onClick={() => setPrefs((p) => ({ ...p, isDark: true }))}
+                      style={{ fontFamily: "Arial, sans-serif" }}
+                      className={`rounded-lg border px-3 py-2 text-xs transition bg-black text-white ${
+                        prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
                       }`}
                     >
-                      {label}
+                      Dark
                     </button>
-                  ))}
+                    <button
+                      onClick={() => setPrefs((p) => ({ ...p, isDark: false }))}
+                      style={{ fontFamily: "Arial, sans-serif" }}
+                      className={`rounded-lg border px-3 py-2 text-xs transition bg-white text-black ${
+                        !prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
+                      }`}
+                    >
+                      Light
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

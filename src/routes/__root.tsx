@@ -177,11 +177,16 @@ function RootComponent() {
   const [syncDiff, setSyncDiff] = useState<SyncDiff | null>(null);
   const [syncing, setSyncing] = useState<'merge' | 'push' | null>(null);
 
-  const runDiff = async () => {
+  const runDiff = async (autoMerge = false) => {
     if (pathname.startsWith("/g/")) return;
     const diff = await diffWithSupabase();
-    if (!diff) return;
-    if (hasDifferences(diff)) {
+    if (!diff || !hasDifferences(diff)) return;
+    if (autoMerge) {
+      // First-time login: the new account has no remote data to overwrite,
+      // so merge silently instead of prompting.
+      await applyMerge(diff);
+      await loadFromDb();
+    } else {
       setSyncDiff(diff);
     }
   };
@@ -205,18 +210,12 @@ function RootComponent() {
         diffRanThisSession = false;
       }
       if (event === 'SIGNED_IN' && s) {
-        const u = s.user;
-        if (u.created_at === u.last_sign_in_at && u.email) {
-          fetch('/api/auth/welcome', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: u.email, name: u.user_metadata?.full_name }),
-          }).catch(() => {}); // fire-and-forget, best effort
+        // Welcome email is sent from auth.callback.tsx (respects mailing-list opt-in).
+        const isFirstLogin = s.user.created_at === s.user.last_sign_in_at;
+        if (!diffRanThisSession) {
+          diffRanThisSession = true;
+          runDiff(isFirstLogin);
         }
-      }
-      if (event === 'SIGNED_IN' && !diffRanThisSession) {
-        diffRanThisSession = true;
-        runDiff();
       }
     });
 

@@ -16,6 +16,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [subscribe, setSubscribe] = useState(false);
   const [error, setError] = useState<string | null>(callbackError ?? null);
   const [countdown, setCountdown] = useState(10);
 
@@ -37,6 +38,7 @@ function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    sessionStorage.setItem("phyto-subscribe", String(subscribe));
     const { error } = await signInWithEmail(email);
     if (error) {
       setError(error.message);
@@ -63,7 +65,10 @@ function LoginPage() {
           <div className="w-full max-w-sm">
             {sent ? (
               <div className="space-y-3 text-center text-white">
-                <p className="mono uppercase text-lg">Check your email for a sign-in link.</p>
+                <p className="mono uppercase text-sm lg:text-base">Check your email for a sign-in link!</p>
+                <p className="text-sm opacity-70">
+                  If you haven't received it yet, check your spam or junk folder.
+                </p>
                 <p className="text-sm opacity-70">
                   Redirecting in {countdown} second{countdown !== 1 ? 's' : ''}…
                 </p>
@@ -95,12 +100,13 @@ function LoginPage() {
 
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+                    sessionStorage.setItem("phyto-subscribe", String(subscribe));
                     supabase.auth.signInWithOAuth({
                       provider: 'google',
                       options: { redirectTo: window.location.origin + '/auth/callback' },
-                    })
-                  }
+                    });
+                  }}
                   className="mono uppercase text-sm w-full rounded-full bg-white px-6 py-3 text-[var(--brand-blue)] transition hover:opacity-90"
                 >
                   sign in with Google
@@ -109,6 +115,23 @@ function LoginPage() {
                 {error && (
                   <p className="pt-1 text-center text-sm text-white/80">{error}</p>
                 )}
+
+                <label className="mono flex cursor-pointer items-center justify-center gap-2 pt-1 text-[11px] uppercase text-white/70">
+                  <input
+                    type="checkbox"
+                    checked={subscribe}
+                    onChange={(e) => setSubscribe(e.target.checked)}
+                    className="sr-only"
+                  />
+                  <div className="flex h-3.5 w-3.5 shrink-0 items-center justify-center border border-white">
+                    {subscribe && (
+                      <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
+                        <path d="M2 2l6 6M8 2l-6 6" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                    )}
+                  </div>
+                  Keep me in the loop with phyto updates and news.
+                </label>
 
                 <p className="pt-2 text-center text-[11px] text-white/50">
                   By signing in, you agree to the online terms of our{' '}

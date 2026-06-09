@@ -5,6 +5,8 @@ import { z } from "zod";
 const WelcomeSchema = z.object({
   email: z.string().trim().max(255).email(),
   name: z.string().trim().max(200).optional(),
+  subscribe: z.boolean().optional(),
+  skipEmail: z.boolean().optional(),
 });
 
 // Reads server env from the Cloudflare Worker runtime (.dev.vars locally,
@@ -66,8 +68,8 @@ function buildWelcomeHtml(): string {
         .feat-pad       { direction:ltr !important; }
         .feat-pad table { direction:ltr !important; }
         .feat-img       { display:block !important; width:100% !important; }
-        .feat-box       { width:100% !important; }
-        .feat-box-img   { width:100% !important; }
+        .feat-box       { width:100% !important; height:0 !important; padding-top:100% !important; position:relative !important; }
+        .feat-box-img   { position:absolute !important; top:0 !important; left:0 !important; width:100% !important; height:100% !important; object-fit:cover !important; }
         .feat-text      { display:block !important; width:100% !important; padding:20px 0 0 !important; }
         .feat-spacer    { display:none !important; }
         /* Buttons: stack + centre on mobile, each hugging its content */
@@ -299,27 +301,30 @@ export const Route = createFileRoute("/api/auth/welcome")({
           );
         }
 
-        const { email, name } = parsed.data;
+        const { email, name, skipEmail } = parsed.data;
         const resend = new Resend(RESEND_API_KEY);
-        const { error } = await resend.emails.send({
-          from: RESEND_FROM,
-          to: email,
-          subject: "Welcome to phyto",
-          html: buildWelcomeHtml(),
-        });
 
-        if (error) {
-          console.error(`Welcome email failed: ${error.message}`);
-          return Response.json(
-            { ok: false, error: "Could not send welcome email." },
-            { status: 502 },
-          );
+        if (!skipEmail) {
+          const { error } = await resend.emails.send({
+            from: RESEND_FROM,
+            to: email,
+            subject: "Welcome to phyto",
+            html: buildWelcomeHtml(),
+          });
+
+          if (error) {
+            console.error(`Welcome email failed: ${error.message}`);
+            return Response.json(
+              { ok: false, error: "Could not send welcome email." },
+              { status: 502 },
+            );
+          }
         }
 
         // Add to Resend Audience for mailing list + unsubscribe support.
         // Best-effort: log failures but don't block the response.
         const RESEND_AUDIENCE_ID = await readEnv("RESEND_AUDIENCE_ID");
-        if (RESEND_AUDIENCE_ID) {
+        if (RESEND_AUDIENCE_ID && parsed.data.subscribe) {
           const nameParts = (name ?? "").trim().split(/\s+/);
           resend.contacts.create({
             audienceId: RESEND_AUDIENCE_ID,
