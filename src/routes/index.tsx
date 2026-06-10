@@ -640,7 +640,7 @@ function GatheringCard({
   gatheringId: string;
   name: string;
   setIds: string[];
-  isLive: boolean;
+  isLive: boolean | null;
   shareToken: string;
   allSets: { id: string; name: string; kind: SetKind }[];
   onRename: (name: string) => void;

@@ -53,7 +53,9 @@ export interface Gathering {
   name: string;
   setIds: string[];
   share_token: string;
-  is_live: boolean;
+  /** Live status. Server-authoritative: `true`/`false` reflect Supabase;
+   *  `null` means logged-out/unknown (no local truth). */
+  is_live: boolean | null;
   createdAt: number;
   updatedAt: number;
 }

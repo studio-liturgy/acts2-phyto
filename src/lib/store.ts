@@ -2,9 +2,10 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import type { Set as PhytoSet, Slide, LiveState, Gathering, SetTemplate } from "./types";
 import { db } from "./db";
+import { liveQuery } from "dexie";
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
-import { pushToSupabase, shouldSkipPush } from "./sync";
+import { pushToSupabase, withSyncLock } from "./sync";
 
 function uid() {
   return crypto.randomUUID();
@@ -49,31 +50,42 @@ function readScriptureTemplate(): SetTemplate {
 }
 
 // Debounce pushToSupabase so rapid consecutive mutations fire only one push.
-// If another tab just completed a push and broadcast sync-complete, skip this
-// tab's push — the data is already in Supabase and loadFromDb has been called.
-const SET_SYNC_CHANNEL = "set-sync-v1";
-
-let setSyncTimer: ReturnType<typeof setTimeout> | null = null;
-function scheduleSyncBroadcast(updated: PhytoSet) {
-  if (setSyncTimer) clearTimeout(setSyncTimer);
-  setSyncTimer = setTimeout(() => {
-    setSyncTimer = null;
-    try { new BroadcastChannel(SET_SYNC_CHANNEL).postMessage(updated); } catch {}
-  }, 250);
-}
-
+// Cross-tab store consistency is handled reactively by the Dexie `liveQuery`
+// subscription at the bottom of this file (every tab re-derives its store from
+// Dexie on any write), so no bespoke broadcast plumbing is needed here.
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 function schedulePush() {
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
     pushTimer = null;
-    if (shouldSkipPush()) {
-      console.log('[sync] schedulePush: skipped — another tab synced recently');
-      return;
-    }
     console.log('[sync] schedulePush: debounce elapsed, calling pushToSupabase at', new Date().toISOString());
     pushToSupabase();
   }, 500);
+}
+
+/**
+ * Pure derivation of the library store shape from raw Dexie rows. Shared by
+ * `loadFromDb` and the cross-tab `liveQuery` subscription so both produce an
+ * identical store, sorted newest-first by `createdAt`.
+ */
+function buildLibraryState(allSets: PhytoSet[], allGatherings: Gathering[]) {
+  const sets: Record<string, PhytoSet> = {};
+  const order: string[] = [];
+  for (const s of allSets) {
+    sets[s.id] = s;
+    order.push(s.id);
+  }
+  order.sort((a, b) => (sets[b].createdAt ?? 0) - (sets[a].createdAt ?? 0));
+
+  const gatherings: Record<string, Gathering> = {};
+  const gatheringOrder: string[] = [];
+  for (const p of allGatherings) {
+    gatherings[p.id] = p;
+    gatheringOrder.push(p.id);
+  }
+  gatheringOrder.sort((a, b) => (gatherings[b].createdAt ?? 0) - (gatherings[a].createdAt ?? 0));
+
+  return { sets, order, gatherings, gatheringOrder };
 }
 
 interface LibraryState {
@@ -103,10 +115,17 @@ interface LibraryState {
   addSetToGathering: (gatheringId: string, setId: string) => void;
   removeSetFromGathering: (gatheringId: string, setIdOrIndex: string | number) => void;
   reorderGatheringSets: (gatheringId: string, setIds: string[]) => void;
-  /** Set this gathering live (and take all others offline) in Dexie + Supabase. */
+  /** Set this gathering live (and take all others offline). Supabase is the
+   *  source of truth; Dexie/Zustand are updated to reflect it. */
   goLive: (gatheringId: string) => Promise<void>;
-  /** End the live session for this gathering in Dexie + Supabase. */
+  /** End the live session for this gathering. Supabase is the source of truth. */
   endSession: (gatheringId: string) => Promise<void>;
+  /** Hydrate local `is_live` from Supabase (the source of truth). Call on
+   *  login / session restore. No-op when signed out. */
+  refreshLiveState: () => Promise<void>;
+  /** Null out local `is_live` for all gatherings. Call on logout — no local
+   *  truth is held while signed out. */
+  nullLocalLiveState: () => Promise<void>;
   /** Populate store from Dexie — call once on app mount. */
   loadFromDb: () => Promise<void>;
 }
@@ -125,26 +144,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       db.sets.toArray(),
       db.gatherings.toArray(),
     ]);
-    console.log('[loadFromDb] sets from Dexie:', allSets.length, '| gatherings from Dexie:', allGatherings.length);
-    console.log('[loadFromDb] gatherings:', allGatherings.map((p) => ({ id: p.id, name: p.name, share_token: p.share_token, is_live: p.is_live })));
-
-    const sets: Record<string, PhytoSet> = {};
-    const order: string[] = [];
-    for (const s of allSets) {
-      sets[s.id] = s;
-      order.push(s.id);
-    }
-    order.sort((a, b) => (sets[b].createdAt ?? 0) - (sets[a].createdAt ?? 0));
-
-    const gatherings: Record<string, Gathering> = {};
-    const gatheringOrder: string[] = [];
-    for (const p of allGatherings) {
-      gatherings[p.id] = p;
-      gatheringOrder.push(p.id);
-    }
-    gatheringOrder.sort((a, b) => (gatherings[b].createdAt ?? 0) - (gatherings[a].createdAt ?? 0));
-
-    set({ sets, order, gatherings, gatheringOrder });
+    set(buildLibraryState(allSets, allGatherings));
   },
 
   setSongTemplate: (patch) =>
@@ -184,7 +184,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       sets: { ...s.sets, [id]: record },
       order: [id, ...s.order],
     }));
-    db.sets.add(record).then(() => schedulePush());
+    db.sets.put(record).then(() => schedulePush());
     return id;
   },
 
@@ -194,8 +194,6 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       if (!d) return s;
       const updated = { ...d, ...patch, updatedAt: Date.now() };
       db.sets.put(updated).then(() => schedulePush());
-      // Broadcast updated set so other windows (output) stay in sync (debounced).
-      scheduleSyncBroadcast(updated);
       // Keep live slideId at same position index when slides are regenerated.
       if (patch.slides) {
         const live = useLive.getState();
@@ -209,35 +207,39 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }),
 
   deleteSet: async (id) => {
-    const session = useAuthStore.getState().session;
-    if (session) {
-      const { error } = await supabase
-        .from('sets')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', session.user.id);
-      if (error) console.error('[deleteSet] Supabase delete error:', error);
-    }
-    await db.sets.delete(id);
-    set((s) => {
-      const { [id]: _gone, ...rest } = s.sets;
-      return { sets: rest, order: s.order.filter((x) => x !== id) };
-    });
-    // Remove deleted set from all gatherings to avoid FK violations on next push
-    const gatherings = get().gatherings;
-    const toUpdate: Gathering[] = [];
-    for (const p of Object.values(gatherings)) {
-      if (p.setIds.includes(id)) {
-        toUpdate.push({ ...p, setIds: p.setIds.filter((s) => s !== id), updatedAt: Date.now() });
+    // Serialize against pushes/merges under the shared sync lock so an in-flight
+    // push (holding a pre-delete Dexie snapshot) can't re-upsert this row.
+    await withSyncLock(async () => {
+      const session = useAuthStore.getState().session;
+      if (session) {
+        const { error } = await supabase
+          .from('sets')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', session.user.id);
+        if (error) console.error('[deleteSet] Supabase delete error:', error);
       }
-    }
-    if (toUpdate.length) {
-      await Promise.all(toUpdate.map((p) => db.gatherings.put(p)));
-      set((s) => ({
-        gatherings: { ...s.gatherings, ...Object.fromEntries(toUpdate.map((p) => [p.id, p])) },
-      }));
-      schedulePush();
-    }
+      await db.sets.delete(id);
+      set((s) => {
+        const { [id]: _gone, ...rest } = s.sets;
+        return { sets: rest, order: s.order.filter((x) => x !== id) };
+      });
+      // Remove deleted set from all gatherings to avoid FK violations on next push
+      const gatherings = get().gatherings;
+      const toUpdate: Gathering[] = [];
+      for (const p of Object.values(gatherings)) {
+        if (p.setIds.includes(id)) {
+          toUpdate.push({ ...p, setIds: p.setIds.filter((s) => s !== id), updatedAt: Date.now() });
+        }
+      }
+      if (toUpdate.length) {
+        await Promise.all(toUpdate.map((p) => db.gatherings.put(p)));
+        set((s) => ({
+          gatherings: { ...s.gatherings, ...Object.fromEntries(toUpdate.map((p) => [p.id, p])) },
+        }));
+        schedulePush();
+      }
+    });
   },
 
   addSlide: (setId, slide) => {
@@ -305,7 +307,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       gatherings: { ...s.gatherings, [id]: record },
       gatheringOrder: [id, ...s.gatheringOrder],
     }));
-    db.gatherings.add(record).then(() => schedulePush());
+    db.gatherings.put(record).then(() => schedulePush());
     return id;
   },
 
@@ -319,28 +321,32 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }),
 
   deleteGathering: async (id) => {
-    const session = useAuthStore.getState().session;
-    if (session) {
-      const userId = session.user.id;
-      const { error: gsErr } = await supabase
-        .from('gathering_sets')
-        .delete()
-        .eq('gathering_id', id);
-      if (gsErr) console.error('[deleteGathering] gathering_sets delete error:', gsErr);
+    // Serialize against pushes/merges so an in-flight push can't re-upsert this
+    // gathering (or its gathering_sets) from a pre-delete Dexie snapshot.
+    await withSyncLock(async () => {
+      const session = useAuthStore.getState().session;
+      if (session) {
+        const userId = session.user.id;
+        const { error: gsErr } = await supabase
+          .from('gathering_sets')
+          .delete()
+          .eq('gathering_id', id);
+        if (gsErr) console.error('[deleteGathering] gathering_sets delete error:', gsErr);
 
-      const { error: gErr } = await supabase
-        .from('gatherings')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', userId);
-      if (gErr) console.error('[deleteGathering] gatherings delete error:', gErr);
-    }
+        const { error: gErr } = await supabase
+          .from('gatherings')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', userId);
+        if (gErr) console.error('[deleteGathering] gatherings delete error:', gErr);
+      }
 
-    await db.gatherings.delete(id);
+      await db.gatherings.delete(id);
 
-    set((s) => {
-      const { [id]: _gone, ...rest } = s.gatherings;
-      return { gatherings: rest, gatheringOrder: s.gatheringOrder.filter((x) => x !== id) };
+      set((s) => {
+        const { [id]: _gone, ...rest } = s.gatherings;
+        return { gatherings: rest, gatheringOrder: s.gatheringOrder.filter((x) => x !== id) };
+      });
     });
   },
 
@@ -386,16 +392,10 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   goLive: async (gatheringId) => {
     const { gatherings } = get();
     const target = gatherings[gatheringId];
-    console.log('[goLive] target gathering:', target);
     if (!target) {
       console.error('[goLive] aborted — gathering not found in store:', gatheringId);
       return;
     }
-    const now = Date.now();
-
-    // ── Step 1: Supabase ──────────────────────────────────────────────────────
-    // Ensure the gathering row exists in Supabase before updating is_live.
-    // A gathering created locally may never have been pushed, so upsert it first.
     const session = useAuthStore.getState().session;
     if (!session) {
       console.error('[goLive] aborted — no session');
@@ -403,78 +403,148 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }
     const userId = session.user.id;
 
-    console.log('[goLive] started at', new Date().toISOString(), '| target is_live in store:', target.is_live, '| setIds:', target.setIds);
-    console.log('[goLive] upserting gathering to Supabase before going live...');
-    const { error: upsertErr } = await supabase
+    // ── Supabase (source of truth) ────────────────────────────────────────────
+    // 1. Take every other gathering offline first, so there is never a window
+    //    with two live rows.
+    const { error: offlineErr } = await supabase
+      .from('gatherings')
+      .update({ is_live: false })
+      .neq('id', gatheringId)
+      .eq('user_id', userId);
+    if (offlineErr) {
+      console.error('[goLive] offline-others error:', offlineErr);
+      throw offlineErr;
+    }
+
+    // 2. Upsert the target with is_live: true in a single call — this both
+    //    ensures a never-pushed gathering exists and flips it live atomically.
+    const { error: liveErr } = await supabase
       .from('gatherings')
       .upsert({
         id: target.id,
         user_id: userId,
         title: target.name,
         share_token: target.share_token,
-        is_live: false,
+        is_live: true,
         current_set_index: 0,
         current_slide_index: 0,
         created_at: new Date(target.createdAt).toISOString(),
         updated_at: new Date(target.updatedAt).toISOString(),
       }, { onConflict: 'id' });
-    if (upsertErr) console.error('[goLive] upsert error:', upsertErr);
+    if (liveErr) {
+      console.error('[goLive] live upsert error:', liveErr);
+      throw liveErr;
+    }
 
-    console.log('[goLive] setting all other gatherings offline...');
-    const { error: offlineErr } = await supabase
-      .from('gatherings')
-      .update({ is_live: false })
-      .neq('id', gatheringId);
-    if (offlineErr) console.error('[goLive] offline-others error:', offlineErr);
-
-    console.log('[goLive] setting target gathering live...');
-    const { data: liveData, error: liveErr } = await supabase
-      .from('gatherings')
-      .update({ is_live: true })
-      .eq('id', gatheringId)
-      .select();
-    console.log('[goLive] live update response — data:', liveData, 'error:', liveErr);
-    if (liveErr) console.error('[goLive] live update error:', liveErr);
-
-    // ── Step 2: Dexie ─────────────────────────────────────────────────────────
-    console.log('[goLive] updating Dexie...');
+    // ── Reflect into Dexie + Zustand (do NOT bump updatedAt — is_live is not a
+    //    synced content change, and bumping it would trigger a false conflict).
     const allGatherings = await db.gatherings.toArray();
     await db.transaction('rw', db.gatherings, async () => {
       for (const p of allGatherings) {
-        if (p.id === gatheringId) {
-          await db.gatherings.put({ ...p, is_live: true, updatedAt: now });
-        } else if (p.is_live) {
-          await db.gatherings.put({ ...p, is_live: false, updatedAt: now });
+        if (p.id === gatheringId && p.is_live !== true) {
+          await db.gatherings.put({ ...p, is_live: true });
+        } else if (p.id !== gatheringId && p.is_live) {
+          await db.gatherings.put({ ...p, is_live: false });
         }
       }
     });
-    console.log('[goLive] Dexie updated');
-
-    // ── Step 3: Zustand ───────────────────────────────────────────────────────
     set((s) => {
       const updated = { ...s.gatherings };
       for (const id of Object.keys(updated)) {
-        updated[id] = { ...updated[id], is_live: id === gatheringId, updatedAt: now };
+        updated[id] = { ...updated[id], is_live: id === gatheringId };
       }
       return { gatherings: updated };
     });
-    const finalStore = get().gatherings[gatheringId];
-    console.log('[goLive] done at', new Date().toISOString(), '| Zustand is_live:', finalStore?.is_live, '| gathering:', gatheringId);
   },
 
   endSession: async (gatheringId) => {
     const { gatherings } = get();
     const target = gatherings[gatheringId];
     if (!target) return;
-    const updated = { ...target, is_live: false, updatedAt: Date.now() };
-    set((s) => ({ gatherings: { ...s.gatherings, [gatheringId]: updated } }));
-    await db.gatherings.put(updated);
-    await supabase
+    const session = useAuthStore.getState().session;
+    if (!session) {
+      console.error('[endSession] aborted — no session');
+      return;
+    }
+
+    // ── Supabase (source of truth) ────────────────────────────────────────────
+    const { error } = await supabase
       .from('gatherings')
       .update({ is_live: false })
-      .eq('id', gatheringId);
+      .eq('id', gatheringId)
+      .eq('user_id', session.user.id);
+    if (error) {
+      console.error('[endSession] error:', error);
+      throw error;
+    }
+
+    // ── Reflect locally without bumping updatedAt ─────────────────────────────
+    const updated = { ...target, is_live: false };
+    set((s) => ({ gatherings: { ...s.gatherings, [gatheringId]: updated } }));
+    await db.gatherings.put(updated);
+  },
+
+  refreshLiveState: async () => {
+    const session = useAuthStore.getState().session;
+    if (!session) return;
+    const { data, error } = await supabase
+      .from('gatherings')
+      .select('id, is_live')
+      .eq('user_id', session.user.id);
+    if (error) {
+      console.error('[refreshLiveState] error:', error);
+      return;
+    }
+    const liveById = new Map(
+      (data ?? []).map((r) => [r.id as string, (r.is_live as boolean) ?? false]),
+    );
+
+    // Update only gatherings that exist on the server; leave local-only ones.
+    const localGatherings = await db.gatherings.toArray();
+    await db.transaction('rw', db.gatherings, async () => {
+      for (const p of localGatherings) {
+        if (liveById.has(p.id)) {
+          const isLive = liveById.get(p.id)!;
+          if (p.is_live !== isLive) await db.gatherings.put({ ...p, is_live: isLive });
+        }
+      }
+    });
+    set((s) => {
+      const updated = { ...s.gatherings };
+      for (const id of Object.keys(updated)) {
+        if (liveById.has(id)) updated[id] = { ...updated[id], is_live: liveById.get(id)! };
+      }
+      return { gatherings: updated };
+    });
+  },
+
+  nullLocalLiveState: async () => {
+    const localGatherings = await db.gatherings.toArray();
+    await db.gatherings.bulkPut(localGatherings.map((p) => ({ ...p, is_live: null })));
+    set((s) => {
+      const updated = { ...s.gatherings };
+      for (const id of Object.keys(updated)) {
+        updated[id] = { ...updated[id], is_live: null };
+      }
+      return { gatherings: updated };
+    });
   },
 }));
+
+// Reactively mirror the in-memory store to Dexie. Dexie's `liveQuery` is
+// cross-tab: any write in ANY tab/window (a local mutation, a sync merge, a push
+// timestamp writeback, an import) re-emits here and re-derives the whole store.
+// This is the load-bearing fix for multi-tab duplication — the store can never
+// hold a stale id that was re-keyed/deleted in another tab, so mutations can't
+// resurrect a deleted Dexie row. It also replaces the old `sync-complete` /
+// `set-sync-v1` BroadcastChannels and the post-sync `loadFromDb()` calls.
+if (typeof window !== "undefined") {
+  liveQuery(() => Promise.all([db.sets.toArray(), db.gatherings.toArray()])).subscribe({
+    next: ([allSets, allGatherings]) =>
+      useLibrary.setState(buildLibraryState(allSets, allGatherings)),
+    error: (err) => console.error("[store] liveQuery subscription error:", err),
+  });
+}
 
 // Ephemeral, non-persisted preview of the song template while the editor is
 // open. When non-null, slide views should render with this draft instead of
@@ -607,13 +677,5 @@ if (typeof window !== "undefined") {
   const ftc = new BroadcastChannel(FADE_KEY);
   ftc.addEventListener("message", (e) => {
     useLibrary.setState({ fadeMs: e.data });
-  });
-
-  const sc = new BroadcastChannel(SET_SYNC_CHANNEL);
-  sc.addEventListener("message", (e) => {
-    const updatedSet = e.data as PhytoSet;
-    useLibrary.setState((s) => ({
-      sets: { ...s.sets, [updatedSet.id]: updatedSet },
-    }));
   });
 }

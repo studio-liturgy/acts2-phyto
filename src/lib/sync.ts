@@ -54,13 +54,17 @@ function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
 }
 
 function toSupabaseGathering(p: Gathering, userId: string, deviceId: string) {
-  console.log('[toSupabaseGathering] pushing gathering', p.id, '| is_live:', p.is_live, '| updatedAt:', new Date(p.updatedAt).toISOString());
+  console.log('[toSupabaseGathering] pushing gathering', p.id, '| updatedAt:', new Date(p.updatedAt).toISOString());
+  // NOTE: `is_live` is intentionally omitted. It is server-authoritative and
+  // managed exclusively by goLive/endSession. Including it here would let an
+  // unrelated content push clobber the server's true live flag with stale
+  // local data. PostgREST upsert leaves omitted columns untouched on conflict,
+  // and a brand-new inserted row gets the schema default (false).
   return {
     id: p.id,
     user_id: userId,
     title: p.name,
     share_token: p.share_token,
-    is_live: p.is_live,
     current_set_index: 0,
     current_slide_index: 0,
     created_at: new Date(p.createdAt).toISOString(),
@@ -101,37 +105,13 @@ function fromSupabaseGathering(
 }
 
 // ---------------------------------------------------------------------------
-// BroadcastChannel — cross-tab coordination
+// Cross-tab coordination
 // ---------------------------------------------------------------------------
-
-const SYNC_CHANNEL = 'phyto-sync-channel';
-let syncChannel: BroadcastChannel | null = null;
-
-let remoteSyncedRecently = false;
-
-function getSyncChannel(): BroadcastChannel | null {
-  if (typeof window === 'undefined') return null;
-  if (!syncChannel) {
-    syncChannel = new BroadcastChannel(SYNC_CHANNEL);
-    syncChannel.addEventListener('message', async (e) => {
-      if (e.data?.type === 'sync-complete') {
-        console.log('[sync] received sync-complete from another tab — refreshing from Dexie');
-        remoteSyncedRecently = true;
-        const { useLibrary } = await import('./store');
-        await useLibrary.getState().loadFromDb();
-        useSyncStatusStore.getState().setStatus('synced');
-        setTimeout(() => { remoteSyncedRecently = false; }, 1000);
-      }
-    });
-  }
-  return syncChannel;
-}
-
-if (typeof window !== 'undefined') getSyncChannel();
-
-export function shouldSkipPush(): boolean {
-  return remoteSyncedRecently;
-}
+// NOTE: Cross-tab store refresh is handled reactively by the Dexie `liveQuery`
+// subscription in `store.ts` — every tab re-derives its store from Dexie on any
+// write (local mutation, merge, or push writeback). No bespoke `sync-complete`
+// BroadcastChannel is needed; the old one was a duplication footgun because it
+// only fired on push, never on merge, leaving other tabs with stale ids.
 
 // ---------------------------------------------------------------------------
 // Fetch remote sets + gatherings (shared by diff and apply functions)
@@ -181,7 +161,116 @@ export type SyncDiff = {
     sets: { local: PhytoSet; remote: PhytoSet }[];
     gatherings: { local: Gathering; remote: Gathering }[];
   };
+  /** Same logical item present both locally and remotely under DIFFERENT ids
+   *  (e.g. created independently on two devices, or re-imported). Matched by a
+   *  stable content key so Merge can reconcile onto the remote id instead of
+   *  duplicating. Merge = accept remote. */
+  rekeyed: {
+    sets: { local: PhytoSet; remote: PhytoSet }[];
+    gatherings: { local: Gathering; remote: Gathering }[];
+  };
+  /** Local-only items that are actually a stale copy of an ALREADY-SYNCED remote
+   *  item (gatherings matched by share_token, sets by content key against a twin
+   *  whose id is present locally) — leftovers from the old re-ID churn. The twin
+   *  is id-matched so it never appears in `onlyRemote`; pushing the stale copy
+   *  would violate `gatherings_share_token_key` (or silently duplicate a set), so
+   *  Merge just DELETES the local copy. Auto-applied silently (excluded from
+   *  `latestRemoteTime`). */
+  strandedLocal: {
+    sets: { localId: string; remoteId: string }[];
+    gatherings: string[];
+  };
+  /** Timestamp-only drift: same id, identical CONTENT, different updated_at —
+   *  e.g. the server trigger bumping gatherings.updated_at when goLive/endSession
+   *  flip `is_live` (which is server-authoritative state, not content). Not a
+   *  real conflict, so it must never open the Review-versions dialog: healed
+   *  silently by adopting the remote row (and its timestamp) into Dexie.
+   *  Excluded from `latestRemoteTime`. */
+  touched: {
+    sets: { local: PhytoSet; remote: PhytoSet }[];
+    gatherings: { local: Gathering; remote: Gathering }[];
+  };
 };
+
+// Stable content-identity keys used to reconcile items whose ids diverged.
+// `createdAt` is part of the key: a single logical item synced/exported once
+// carries the same createdAt across devices, so true twins still pair — but two
+// items created INDEPENDENTLY on two devices (e.g. both default-named with
+// today's date) get different createdAt and stay distinct, instead of one being
+// silently merged away. Sets also use kind + slide count as cheap, edit-tolerant
+// discriminators. (share_token is intentionally excluded — unstable across merges.)
+function setContentKey(s: PhytoSet): string {
+  return `${s.kind}::${s.name.trim().toLowerCase()}::${s.slides.length}::${s.createdAt}`;
+}
+function gatheringContentKey(p: Gathering): string {
+  return `${p.name.trim().toLowerCase()}::${p.createdAt}`;
+}
+
+// Deep content fingerprints used to tell a REAL modification apart from
+// timestamp-only drift. Key-order-independent (Postgres JSONB re-sorts object
+// keys, so a plain JSON.stringify of a round-tripped slide would differ) and
+// undefined-key-insensitive (JSONB drops undefined keys on the way in).
+function stableStringify(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableStringify).join(',')}]`;
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    const keys = Object.keys(o).filter((k) => o[k] !== undefined).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(o[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(v) ?? 'null';
+}
+
+/** Everything that round-trips through the Supabase `sets` row (title + content
+ *  JSONB). Timestamps excluded by design. */
+function setFingerprint(s: PhytoSet): string {
+  return stableStringify({
+    name: s.name,
+    kind: s.kind,
+    slides: s.slides,
+    template: s.template ?? null,
+    autoAdvanceMs: s.autoAdvanceMs ?? null,
+    loop: s.loop ?? null,
+    dissolveMs: s.dissolveMs ?? null,
+  });
+}
+
+/** Synced gathering content. `is_live` is deliberately EXCLUDED — it is
+ *  server-authoritative session state (goLive/endSession/refreshLiveState), not
+ *  content, and including it would turn every live flip into a "real" conflict. */
+function gatheringFingerprint(p: Gathering): string {
+  return stableStringify({ name: p.name, share_token: p.share_token, setIds: p.setIds });
+}
+
+/**
+ * Reconcile two id-disjoint lists by content key: greedy 1:1, deterministic.
+ * Returns matched pairs plus the reduced leftovers that stay only-local /
+ * only-remote. Inputs are pre-sorted by (createdAt, id) for stable pairing.
+ */
+function reconcileByContentKey<T extends { id: string; createdAt: number }>(
+  local: T[],
+  remote: T[],
+  keyOf: (t: T) => string,
+): { rekeyed: { local: T; remote: T }[]; onlyLocal: T[]; onlyRemote: T[] } {
+  const order = (a: T, b: T) => a.createdAt - b.createdAt || a.id.localeCompare(b.id);
+  const locals = [...local].sort(order);
+  const remoteByKey = new Map<string, T[]>();
+  for (const r of [...remote].sort(order)) {
+    const arr = remoteByKey.get(keyOf(r)) ?? [];
+    arr.push(r);
+    remoteByKey.set(keyOf(r), arr);
+  }
+  const rekeyed: { local: T; remote: T }[] = [];
+  const onlyLocal: T[] = [];
+  for (const l of locals) {
+    const queue = remoteByKey.get(keyOf(l));
+    const match = queue?.shift();
+    if (match) rekeyed.push({ local: l, remote: match });
+    else onlyLocal.push(l);
+  }
+  const onlyRemote: T[] = [];
+  for (const arr of remoteByKey.values()) onlyRemote.push(...arr);
+  return { rekeyed, onlyLocal, onlyRemote };
+}
 
 export function hasDifferences(diff: SyncDiff): boolean {
   return (
@@ -190,16 +279,28 @@ export function hasDifferences(diff: SyncDiff): boolean {
     diff.onlyRemote.sets.length > 0 ||
     diff.onlyRemote.gatherings.length > 0 ||
     diff.modified.sets.length > 0 ||
-    diff.modified.gatherings.length > 0
+    diff.modified.gatherings.length > 0 ||
+    diff.rekeyed.sets.length > 0 ||
+    diff.rekeyed.gatherings.length > 0 ||
+    diff.strandedLocal.sets.length > 0 ||
+    diff.strandedLocal.gatherings.length > 0 ||
+    diff.touched.sets.length > 0 ||
+    diff.touched.gatherings.length > 0
   );
 }
 
+// NOTE: `strandedLocal` and `touched` are intentionally excluded — they are
+// auto-healable non-conflicts, and a diff containing ONLY them must return null
+// here so runDiff's `latestRemoteTime(diff) === null` branch merges silently
+// instead of opening the Review-versions dialog.
 export function latestRemoteTime(diff: SyncDiff): Date | null {
   const times = [
     ...diff.onlyRemote.sets.map((s) => s.updatedAt),
     ...diff.onlyRemote.gatherings.map((p) => p.updatedAt),
     ...diff.modified.sets.map(({ remote }) => remote.updatedAt),
     ...diff.modified.gatherings.map(({ remote }) => remote.updatedAt),
+    ...diff.rekeyed.sets.map(({ remote }) => remote.updatedAt),
+    ...diff.rekeyed.gatherings.map(({ remote }) => remote.updatedAt),
   ];
   return times.length ? new Date(Math.max(...times)) : null;
 }
@@ -220,29 +321,90 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
   const remoteSetMap = new Map(remoteSets.map((s) => [s.id, s]));
   const remoteGatheringMap = new Map(remoteGatherings.map((p) => [p.id, p]));
 
+  // 1. Id-based classification (existing behavior).
+  const idOnlyLocalSets = localSets.filter((s) => !remoteSetMap.has(s.id));
+  const idOnlyLocalGatherings = localGatherings.filter((p) => !remoteGatheringMap.has(p.id));
+  const idOnlyRemoteSets = remoteSets.filter((s) => !localSetMap.has(s.id));
+  const idOnlyRemoteGatherings = remoteGatherings.filter((p) => !localGatheringMap.has(p.id));
+
+  // 1b. Stranded-duplicate detection: an id-only-local item that is actually a
+  //     stale copy of an ALREADY-SYNCED remote item (gathering matched by unique
+  //     share_token; set matched by content key against a twin whose id is also
+  //     present locally). The twin is id-matched so it's never in the only-remote
+  //     pool below — without this, the stale copy would be pushed forever and hit
+  //     `gatherings_share_token_key` (or silently duplicate a set). Split these
+  //     out; Merge deletes the local copy. (Token/content twins that are ONLY
+  //     remote stay in the only-local lists and are handled by reconcileByContentKey.)
+  const remoteGatheringIdByToken = new Map(remoteGatherings.map((g) => [g.share_token, g.id]));
+  const syncedRemoteSetIdByKey = new Map<string, string>();
+  for (const r of remoteSets) {
+    if (localSetMap.has(r.id) && !syncedRemoteSetIdByKey.has(setContentKey(r))) {
+      syncedRemoteSetIdByKey.set(setContentKey(r), r.id);
+    }
+  }
+
+  const strandedSets: { localId: string; remoteId: string }[] = [];
+  const reconcileLocalSets = idOnlyLocalSets.filter((s) => {
+    const twinId = syncedRemoteSetIdByKey.get(setContentKey(s));
+    if (twinId && twinId !== s.id) {
+      strandedSets.push({ localId: s.id, remoteId: twinId });
+      return false;
+    }
+    return true;
+  });
+
+  const strandedGatherings: string[] = [];
+  const reconcileLocalGatherings = idOnlyLocalGatherings.filter((p) => {
+    const twinId = remoteGatheringIdByToken.get(p.share_token);
+    if (twinId && twinId !== p.id) {
+      strandedGatherings.push(p.id);
+      return false;
+    }
+    return true;
+  });
+
+  // 2. Content-key reconciliation: pair id-disjoint items that are the same
+  //    logical content, so Merge converges on the remote id instead of dup-ing.
+  const setRec = reconcileByContentKey(reconcileLocalSets, idOnlyRemoteSets, setContentKey);
+  const gatheringRec = reconcileByContentKey(reconcileLocalGatherings, idOnlyRemoteGatherings, gatheringContentKey);
+
+  // 3. Id-matched timestamp mismatches, partitioned by deep content equality:
+  //    identical content → `touched` (timestamp-only drift, e.g. the server
+  //    trigger bumping updated_at when goLive/endSession flip is_live; healed
+  //    silently), different content → `modified` (a real conflict, dialog-worthy).
+  const tsChanged = <T extends { id: string; updatedAt: number }>(
+    remote: T[],
+    localMap: Map<string, T>,
+  ) =>
+    remote
+      .filter((r) => {
+        const local = localMap.get(r.id);
+        return local && Math.round(local.updatedAt / 1000) !== Math.round(r.updatedAt / 1000);
+      })
+      .map((r) => ({ local: localMap.get(r.id)!, remote: r }));
+
+  const modifiedSets: { local: PhytoSet; remote: PhytoSet }[] = [];
+  const touchedSets: { local: PhytoSet; remote: PhytoSet }[] = [];
+  for (const pair of tsChanged(remoteSets, localSetMap)) {
+    (setFingerprint(pair.local) === setFingerprint(pair.remote) ? touchedSets : modifiedSets).push(pair);
+  }
+
+  const modifiedGatherings: { local: Gathering; remote: Gathering }[] = [];
+  const touchedGatherings: { local: Gathering; remote: Gathering }[] = [];
+  for (const pair of tsChanged(remoteGatherings, localGatheringMap)) {
+    (gatheringFingerprint(pair.local) === gatheringFingerprint(pair.remote)
+      ? touchedGatherings
+      : modifiedGatherings
+    ).push(pair);
+  }
+
   return {
-    onlyLocal: {
-      sets: localSets.filter((s) => !remoteSetMap.has(s.id)),
-      gatherings: localGatherings.filter((p) => !remoteGatheringMap.has(p.id)),
-    },
-    onlyRemote: {
-      sets: remoteSets.filter((s) => !localSetMap.has(s.id)),
-      gatherings: remoteGatherings.filter((p) => !localGatheringMap.has(p.id)),
-    },
-    modified: {
-      sets: remoteSets
-        .filter((s) => {
-          const local = localSetMap.get(s.id);
-          return local && Math.round(local.updatedAt / 1000) !== Math.round(s.updatedAt / 1000);
-        })
-        .map((s) => ({ local: localSetMap.get(s.id)!, remote: s })),
-      gatherings: remoteGatherings
-        .filter((p) => {
-          const local = localGatheringMap.get(p.id);
-          return local && Math.round(local.updatedAt / 1000) !== Math.round(p.updatedAt / 1000);
-        })
-        .map((p) => ({ local: localGatheringMap.get(p.id)!, remote: p })),
-    },
+    strandedLocal: { sets: strandedSets, gatherings: strandedGatherings },
+    onlyLocal: { sets: setRec.onlyLocal, gatherings: gatheringRec.onlyLocal },
+    onlyRemote: { sets: setRec.onlyRemote, gatherings: gatheringRec.onlyRemote },
+    modified: { sets: modifiedSets, gatherings: modifiedGatherings },
+    touched: { sets: touchedSets, gatherings: touchedGatherings },
+    rekeyed: { sets: setRec.rekeyed, gatherings: gatheringRec.rekeyed },
   };
 }
 
@@ -252,23 +414,74 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
 
 export async function applyMerge(diff: SyncDiff): Promise<void> {
   const session = getSession();
+  const userId = session?.user.id;
+  const deviceId = getDeviceId();
 
-  // Merge = "accept remote." Write ALL remote items (remote-only and every modified)
-  // to Dexie regardless of timestamps — user chose to receive the Supabase version.
-  const setsToWrite = [
+  // Map of every OLD local set id being superseded → its surviving id, used to
+  // keep gathering setIds referentially valid. Populated from REKEYED sets (they
+  // adopt the remote id). Only-local sets KEEP their id (they already carry real
+  // UUIDs from createSet/import/migrate-legacy), so the merge is idempotent and
+  // never changes a primary key out from under another tab — the root cause of
+  // the multi-tab duplication. The rare exception (an id owned by another user
+  // after importing someone else's .phyto) is handled by a conflict fallback in
+  // Step 4, which adds to this map.
+  const setIdMap = new Map<string, string>();
+  for (const { local, remote } of diff.rekeyed.sets) setIdMap.set(local.id, remote.id);
+  // Stranded sets are stale copies of an already-synced set: their references
+  // collapse onto the surviving twin's id (then the local copy is deleted below).
+  for (const { localId, remoteId } of diff.strandedLocal.sets) setIdMap.set(localId, remoteId);
+  const remapSetIds = (ids: string[]) => ids.map((sid) => setIdMap.get(sid) ?? sid);
+
+  // Merge = "accept remote." Order matters: reconcile SETS before GATHERINGS so
+  // gathering setIds can be remapped to surviving set ids, and so Supabase
+  // gathering_sets never reference a set that doesn't exist yet (FK).
+
+  // ── Step 1: remote-authoritative SETS → Dexie (only-remote + modified +
+  //    touched). Touched = identical content, drifted timestamp: adopting the
+  //    remote row aligns local updatedAt with the server so the drift never
+  //    re-diffs. ──
+  const remoteSetsToWrite = [
     ...diff.onlyRemote.sets,
     ...diff.modified.sets.map(({ remote }) => remote),
+    ...diff.touched.sets.map(({ remote }) => remote),
   ];
-  const gatheringsToWrite = [
+  if (remoteSetsToWrite.length) await db.sets.bulkPut(remoteSetsToWrite);
+
+  // ── Step 2: rekeyed SETS — drop stale local-id rows, adopt remote rows. ──
+  if (diff.rekeyed.sets.length) {
+    await db.sets.bulkDelete(diff.rekeyed.sets.map(({ local }) => local.id));
+    await db.sets.bulkPut(diff.rekeyed.sets.map(({ remote }) => remote));
+  }
+
+  // ── Step 2b: stranded SETS — stale local copies of an already-synced set; the
+  //    twin stays put, just drop the local duplicate (refs remapped via setIdMap). ──
+  if (diff.strandedLocal.sets.length) {
+    await db.sets.bulkDelete(diff.strandedLocal.sets.map((x) => x.localId));
+  }
+
+  // ── Step 3: remote-authoritative GATHERINGS → Dexie (only-remote + modified
+  //    + rekeyed). Drop rekeyed + stranded local-id rows first. Remote copies
+  //    already use remote set ids; remapSetIds is a harmless safety net. ──
+  if (diff.rekeyed.gatherings.length) {
+    await db.gatherings.bulkDelete(diff.rekeyed.gatherings.map(({ local }) => local.id));
+  }
+  // Stranded gatherings: stale copies whose share_token is already owned by a
+  // synced gathering. Never pushed (would violate gatherings_share_token_key) —
+  // just delete the local duplicate; the canonical copy is kept/pulled.
+  if (diff.strandedLocal.gatherings.length) {
+    await db.gatherings.bulkDelete(diff.strandedLocal.gatherings);
+  }
+  const remoteGatheringsToWrite = [
     ...diff.onlyRemote.gatherings,
     ...diff.modified.gatherings.map(({ remote }) => remote),
-  ];
-  if (setsToWrite.length) await db.sets.bulkPut(setsToWrite);
-  if (gatheringsToWrite.length) {
+    ...diff.touched.gatherings.map(({ remote }) => remote),
+    ...diff.rekeyed.gatherings.map(({ remote }) => remote),
+  ].map((p) => ({ ...p, setIds: remapSetIds(p.setIds) }));
+  if (remoteGatheringsToWrite.length) {
     try {
-      await db.gatherings.bulkPut(gatheringsToWrite);
+      await db.gatherings.bulkPut(remoteGatheringsToWrite);
     } catch {
-      for (const p of gatheringsToWrite) {
+      for (const p of remoteGatheringsToWrite) {
         try { await db.gatherings.put(p); } catch (e) {
           console.error('[applyMerge] Dexie put failed for gathering:', p.id, e);
         }
@@ -276,43 +489,65 @@ export async function applyMerge(diff: SyncDiff): Promise<void> {
     }
   }
 
-  // Push only-local items to Supabase.
-  // Re-ID them with fresh UUIDs first so we never try to UPDATE a row already
-  // owned by a different user_id in Supabase (which would fail RLS).
-  if (session) {
-    const userId = session.user.id;
-    const deviceId = getDeviceId();
-
-    // Build old→new ID maps upfront so gathering setIds can be updated too.
-    const setIdMap = new Map(diff.onlyLocal.sets.map((s) => [s.id, crypto.randomUUID() as string]));
-    const gatheringIdMap = new Map(diff.onlyLocal.gatherings.map((p) => [p.id, crypto.randomUUID() as string]));
-
+  // ── Step 4: push truly only-local items to Supabase, KEEPING their ids. ──
+  if (session && userId) {
     if (diff.onlyLocal.sets.length) {
-      const reIded = diff.onlyLocal.sets.map((s) => ({ ...s, id: setIdMap.get(s.id)! }));
-      await db.sets.bulkDelete(diff.onlyLocal.sets.map((s) => s.id));
-      await db.sets.bulkPut(reIded);
       const { error } = await supabase
         .from('sets')
-        .upsert(reIded.map((s) => toSupabaseSet(s, userId, deviceId)), { onConflict: 'id' });
-      if (error) console.error('[applyMerge] sets upsert error:', error);
+        .upsert(diff.onlyLocal.sets.map((s) => toSupabaseSet(s, userId, deviceId)), { onConflict: 'id' });
+      if (error) {
+        // Fallback: a set id is owned by another user (imported someone else's
+        // .phyto). Re-ID just these and retry; Step 5 fixes gathering refs.
+        console.error('[applyMerge] sets upsert error — re-IDing and retrying:', error);
+        const reIded = diff.onlyLocal.sets.map((s) => ({ ...s, id: crypto.randomUUID() as string }));
+        diff.onlyLocal.sets.forEach((s, i) => setIdMap.set(s.id, reIded[i].id));
+        await db.sets.bulkDelete(diff.onlyLocal.sets.map((s) => s.id));
+        await db.sets.bulkPut(reIded);
+        const { error: retryErr } = await supabase
+          .from('sets')
+          .upsert(reIded.map((s) => toSupabaseSet(s, userId, deviceId)), { onConflict: 'id' });
+        if (retryErr) console.error('[applyMerge] sets re-ID retry error:', retryErr);
+      }
     }
 
     if (diff.onlyLocal.gatherings.length) {
-      const reIded = diff.onlyLocal.gatherings.map((p) => ({
-        ...p,
-        id: gatheringIdMap.get(p.id)!,
-        share_token: nanoid(10),
-        setIds: p.setIds.map((sid) => setIdMap.get(sid) ?? sid),
-      }));
-      await db.gatherings.bulkDelete(diff.onlyLocal.gatherings.map((p) => p.id));
-      await db.gatherings.bulkPut(reIded);
+      // Keep id AND share_token (no remote twin exists to collide with), only
+      // remap setIds through rekeyed/stranded set ids. Persist the remap locally
+      // so Dexie and Supabase agree.
+      const remapped = diff.onlyLocal.gatherings.map((p) => ({ ...p, setIds: remapSetIds(p.setIds) }));
+      if (setIdMap.size) await db.gatherings.bulkPut(remapped);
+
+      // Track which gatherings actually landed so we only write join rows for them
+      // (a failed parent insert would make its gathering_sets fail RLS — the 42501).
+      const pushed: typeof remapped = [];
       const { error } = await supabase
         .from('gatherings')
-        .upsert(reIded.map((p) => toSupabaseGathering(p, userId, deviceId)), { onConflict: 'id' });
-      if (error) console.error('[applyMerge] gatherings upsert error:', error);
+        .upsert(remapped.map((p) => toSupabaseGathering(p, userId, deviceId)), { onConflict: 'id' });
+      if (!error) {
+        pushed.push(...remapped);
+      } else {
+        // Race guard: a share_token collision (23505) means a synced twin already
+        // owns the token — a stranded duplicate that slipped past the diff (e.g.
+        // created remotely between fetch and push). Retry per-row: drop the
+        // colliding local copy, keep pushing the rest.
+        console.error('[applyMerge] gatherings upsert error — retrying per-row:', error);
+        for (const p of remapped) {
+          const { error: rowErr } = await supabase
+            .from('gatherings')
+            .upsert([toSupabaseGathering(p, userId, deviceId)], { onConflict: 'id' });
+          if (!rowErr) {
+            pushed.push(p);
+          } else if (rowErr.code === '23505') {
+            console.warn('[applyMerge] dropping stranded duplicate gathering (token collision):', p.id);
+            await db.gatherings.delete(p.id);
+          } else {
+            console.error('[applyMerge] gathering upsert error:', p.id, rowErr);
+          }
+        }
+      }
 
       const gatheringSetRows = await Promise.all(
-        reIded.flatMap((p) =>
+        pushed.flatMap((p) =>
           p.setIds.map(async (setId, i) => ({
             id: await deterministicUuid(p.id, String(i)),
             gathering_id: p.id,
@@ -328,6 +563,18 @@ export async function applyMerge(diff: SyncDiff): Promise<void> {
         if (gsErr) console.error('[applyMerge] gathering_sets upsert error:', gsErr);
       }
     }
+  }
+
+  // ── Step 5: defensive Dexie pass — repair any remaining gathering whose
+  //    setIds still reference a superseded local set id (e.g. an id-identical
+  //    gathering that pointed at a rekeyed set). Dexie-only; the remote copies
+  //    already reference the surviving ids. ──
+  if (setIdMap.size) {
+    const all = await db.gatherings.toArray();
+    const fixes = all
+      .filter((p) => p.setIds.some((sid) => setIdMap.has(sid)))
+      .map((p) => ({ ...p, setIds: remapSetIds(p.setIds) }));
+    if (fixes.length) await db.gatherings.bulkPut(fixes);
   }
 }
 
@@ -365,28 +612,63 @@ async function doPush(userId: string): Promise<void> {
     }
 
     if (gatherings.length) {
-      const { data: savedGatherings, error: gErr } = await supabase
+      // Gatherings that actually landed in Supabase. A failed parent must be
+      // excluded from the gathering_sets rewrite below, or its join rows fail RLS.
+      let pushedGatherings = gatherings;
+      const savedGatherings: Record<string, unknown>[] = [];
+
+      const { data, error: gErr } = await supabase
         .from('gatherings')
         .upsert(gatherings.map((p) => toSupabaseGathering(p, userId, deviceId)), { onConflict: 'id' })
         .select();
-      if (gErr) console.error('[sync] pushToSupabase: gatherings upsert error', gErr);
+      if (!gErr) {
+        savedGatherings.push(...((data ?? []) as Record<string, unknown>[]));
+      } else {
+        // Race/leftover guard: a 23505 share_token collision means a synced
+        // gathering already owns that token under a different id — this local copy
+        // is a stranded duplicate. Retry per-row: drop the colliding local copy,
+        // keep pushing the rest. Mirrors the applyMerge guard.
+        console.error('[sync] pushToSupabase: gatherings upsert error — retrying per-row', gErr);
+        const survivors: typeof gatherings = [];
+        for (const p of gatherings) {
+          const { data: rowData, error: rowErr } = await supabase
+            .from('gatherings')
+            .upsert([toSupabaseGathering(p, userId, deviceId)], { onConflict: 'id' })
+            .select();
+          if (!rowErr) {
+            survivors.push(p);
+            if (rowData?.length) savedGatherings.push(...(rowData as Record<string, unknown>[]));
+          } else if (rowErr.code === '23505') {
+            console.warn('[sync] pushToSupabase: dropping stranded duplicate gathering (token collision):', p.id);
+            await db.gatherings.delete(p.id);
+          } else {
+            console.error('[sync] pushToSupabase: gathering upsert error', p.id, rowErr);
+          }
+        }
+        pushedGatherings = survivors;
+      }
+
       // Sync server-side timestamps back to Dexie. The server may have a trigger
       // that updates updated_at, so we need the exact value Supabase stored —
       // otherwise the next diff sees a stale local timestamp and fires a false conflict.
       // We only update the timestamp field, not setIds (gathering_sets haven't been
       // written yet so reading them back would produce the wrong order).
-      if (savedGatherings?.length) {
-        for (const row of savedGatherings as Record<string, unknown>[]) {
-          await db.gatherings.where('id').equals(row.id as string).modify({
-            updatedAt: new Date(row.updated_at as string).getTime(),
-          });
-        }
+      for (const row of savedGatherings) {
+        await db.gatherings.where('id').equals(row.id as string).modify({
+          updatedAt: new Date(row.updated_at as string).getTime(),
+        });
+      }
+
+      if (!pushedGatherings.length) {
+        console.log('[sync] pushToSupabase: done');
+        setStatus('synced');
+        return;
       }
 
       const { data: existingGs } = await supabase
         .from('gathering_sets')
         .select('set_id, position, gathering_id')
-        .in('gathering_id', gatherings.map((p) => p.id));
+        .in('gathering_id', pushedGatherings.map((p) => p.id));
 
       const existingByGathering = new Map<string, string[]>();
       for (const row of (existingGs ?? []) as { gathering_id: string; set_id: string; position: number }[]) {
@@ -395,39 +677,76 @@ async function doPush(userId: string): Promise<void> {
         existingByGathering.set(row.gathering_id, arr);
       }
 
-      // Always sync all gatherings — local state is authoritative during a push.
-      const gatheringsToSync = gatherings;
+      // Only rewrite gatherings whose ordered setIds actually changed — avoids
+      // churning the join table (and the public viewer's poll) on every push.
+      const gatheringsToSync = pushedGatherings.filter((p) => {
+        const existing = existingByGathering.get(p.id) ?? [];
+        return existing.length !== p.setIds.length || p.setIds.some((sid, i) => existing[i] !== sid);
+      });
 
-      const gatheringSetRows = await Promise.all(
-        gatheringsToSync.flatMap((p) =>
+      // Atomic rewrite per gathering: the row id is deterministic from
+      // (gathering_id, position), so upserting on the PK `id` overwrites each
+      // position IN PLACE — no delete-then-insert window where a public viewer
+      // could read an empty set list. Then trim any now-removed tail positions.
+      for (const p of gatheringsToSync) {
+        const rows = await Promise.all(
           p.setIds.map(async (setId, i) => ({
             id: await deterministicUuid(p.id, String(i)),
             gathering_id: p.id,
             set_id: setId,
             position: i,
           }))
-        )
-      );
+        );
 
-      if (gatheringSetRows.length) {
-        const { error: delErr } = await supabase
+        if (rows.length) {
+          const { error: upErr } = await supabase
+            .from('gathering_sets')
+            .upsert(rows, { onConflict: 'id' });
+          if (upErr) console.error('[sync] pushToSupabase: gathering_sets upsert error', upErr);
+        }
+
+        const { error: trimErr } = await supabase
           .from('gathering_sets')
           .delete()
-          .in('gathering_id', gatheringsToSync.map((p) => p.id));
-        if (delErr) console.error('[sync] pushToSupabase: gathering_sets delete error', delErr);
-
-        const { error: insErr } = await supabase.from('gathering_sets').insert(gatheringSetRows);
-        if (insErr) console.error('[sync] pushToSupabase: gathering_sets insert error', insErr);
+          .eq('gathering_id', p.id)
+          .gte('position', p.setIds.length);
+        if (trimErr) console.error('[sync] pushToSupabase: gathering_sets trim error', trimErr);
       }
     }
 
     console.log('[sync] pushToSupabase: done');
     setStatus('synced');
-    getSyncChannel()?.postMessage({ type: 'sync-complete' });
+    // No broadcast needed: the timestamp writebacks above mutate Dexie, which the
+    // cross-tab `liveQuery` in store.ts picks up to refresh every tab's store.
   } catch (e) {
     console.error('[sync] pushToSupabase: unexpected error', e);
     setStatus('synced');
   }
+}
+
+/**
+ * Acquire the shared sync lock (cross-tab via `navigator.locks`) before running
+ * `fn`. All sync mutations — pushes AND merges — must run under this single lock
+ * name so they serialize and never interleave (the merge's only-local re-ID push
+ * is not idempotent, so a concurrent second pass would duplicate everything).
+ */
+export async function withSyncLock<T>(fn: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    return navigator.locks.request('phyto-sync', fn) as Promise<T>;
+  }
+  return fn();
+}
+
+/**
+ * Serialized "accept remote" merge. Recomputes the diff INSIDE the lock so a
+ * concurrent or repeat invocation sees the already-applied state and no-ops —
+ * critical because `applyMerge`'s only-local path re-IDs items (not idempotent).
+ */
+export async function mergeFromSupabase(): Promise<void> {
+  await withSyncLock(async () => {
+    const fresh = await diffWithSupabase();
+    if (fresh && hasDifferences(fresh)) await applyMerge(fresh);
+  });
 }
 
 export async function pushToSupabase(): Promise<void> {
@@ -437,12 +756,7 @@ export async function pushToSupabase(): Promise<void> {
     return;
   }
   const userId = session.user.id;
-
-  if (typeof navigator !== 'undefined' && navigator.locks) {
-    await navigator.locks.request('phyto-sync', async () => {
-      await doPush(userId);
-    });
-  } else {
+  await withSyncLock(async () => {
     await doPush(userId);
-  }
+  });
 }

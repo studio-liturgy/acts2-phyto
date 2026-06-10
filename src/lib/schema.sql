@@ -9,6 +9,33 @@
 -- ------------------------------------------------------------
 -- alter table sets      add column if not exists last_modified_by text;
 -- alter table gatherings add column if not exists last_modified_by text;
+--
+-- Add the (gathering_id, position) uniqueness invariant to an existing DB.
+-- Run AFTER de-duping any stray rows (the old non-atomic delete+insert path
+-- could leave duplicate positions). Safe to skip — the client no longer relies
+-- on it (it upserts on the deterministic `id` PK):
+-- alter table gathering_sets
+--   add constraint gathering_sets_gathering_id_position_key
+--   unique (gathering_id, position);
+--
+-- Stop is_live flips (goLive/endSession) from bumping gatherings.updated_at,
+-- which made every live toggle look like a content change to the sync diff.
+-- RECOMMENDED — the client heals the drift silently either way, but this stops
+-- creating it:
+-- create or replace function gatherings_update_updated_at()
+-- returns trigger language plpgsql as $$
+-- begin
+--   if (new.title is distinct from old.title)
+--      or (new.share_token is distinct from old.share_token) then
+--     new.updated_at = now();
+--   end if;
+--   return new;
+-- end;
+-- $$;
+-- drop trigger if exists gatherings_updated_at on gatherings;
+-- create trigger gatherings_updated_at
+--   before update on gatherings
+--   for each row execute function gatherings_update_updated_at();
 -- ------------------------------------------------------------
 
 -- ------------------------------------------------------------
@@ -80,9 +107,25 @@ create table if not exists gatherings (
   last_modified_by    text
 );
 
+-- Gatherings use a dedicated trigger: the live-session columns (is_live,
+-- current_set_index, current_slide_index) are server-authoritative STATE, not
+-- content. Flipping them (goLive / endSession — including goLive's "take all
+-- others offline" mass update) must NOT advance updated_at, or every live flip
+-- shows up on other devices/refreshes as a false "modified" conflict.
+create or replace function gatherings_update_updated_at()
+returns trigger language plpgsql as $$
+begin
+  if (new.title is distinct from old.title)
+     or (new.share_token is distinct from old.share_token) then
+    new.updated_at = now();
+  end if;
+  return new;
+end;
+$$;
+
 create trigger gatherings_updated_at
   before update on gatherings
-  for each row execute function update_updated_at();
+  for each row execute function gatherings_update_updated_at();
 
 alter table gatherings enable row level security;
 
@@ -116,7 +159,12 @@ create table if not exists gathering_sets (
   id           uuid primary key default gen_random_uuid(),
   gathering_id uuid references gatherings on delete cascade,
   set_id       uuid references sets       on delete cascade,
-  position     int  not null
+  position     int  not null,
+  -- One set per (gathering, position). The client also derives each row's `id`
+  -- deterministically from (gathering_id, position) and upserts on that PK to
+  -- rewrite a gathering's set list in place (no delete-then-insert window), so
+  -- this constraint is a defensive invariant rather than the conflict target.
+  unique (gathering_id, position)
 );
 
 alter table gathering_sets enable row level security;

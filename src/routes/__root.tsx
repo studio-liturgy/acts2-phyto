@@ -195,10 +195,9 @@ function RootComponent() {
     // where Merge and Push are equivalent and nothing online can be overwritten.
     // Apply silently in that case (and on explicit first-login autoMerge).
     if (autoMerge || latestRemoteTime(diff) === null) {
-      // Serialized + recompute-inside-lock so concurrent/repeat auto-merges
-      // can't double-apply (the only-local re-ID push is not idempotent).
+      // Serialized + recompute-inside-lock so concurrent/repeat auto-merges are
+      // clean no-ops. The store refreshes via the Dexie liveQuery in store.ts.
       await mergeFromSupabase();
-      await loadFromDb();
     } else {
       setSyncDiff(diff);
     }
@@ -252,7 +251,6 @@ function RootComponent() {
   const handleMerge = async () => {
     setSyncing('merge');
     await mergeFromSupabase();
-    await loadFromDb();
     setSyncing(null);
     setSyncDiff(null);
   };
@@ -260,7 +258,6 @@ function RootComponent() {
   const handlePush = async () => {
     setSyncing('push');
     await pushToSupabase();
-    await loadFromDb();
     setSyncing(null);
     setSyncDiff(null);
   };
