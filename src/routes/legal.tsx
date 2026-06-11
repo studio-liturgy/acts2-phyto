@@ -43,7 +43,7 @@ function Legal() {
   const section: 'offline' | 'online' = hash.includes('online') ? 'online' : 'offline';
 
   return (
-    <div className={`flex min-h-screen flex-col ${isTest ? 'bg-[var(--brand-orange-dark)]' : 'bg-[var(--brand-blue)]'} text-[var(--brand-white)]`}>
+    <div className={`flex min-h-[110vh] flex-col ${isTest ? 'bg-[var(--brand-orange-dark)]' : 'bg-[var(--brand-blue)]'} text-[var(--brand-white)]`}>
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
         <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60">
           <ArrowLeft className="h-3 w-3" /> BACK

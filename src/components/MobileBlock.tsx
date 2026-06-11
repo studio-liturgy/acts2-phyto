@@ -28,7 +28,7 @@ export function MobileBlock() {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 px-6 text-center ${isTest ? 'bg-cover bg-center text-[var(--brand-black)]' : 'bg-[var(--brand-blue)] text-[var(--brand-white)]'}`}
+      className={`fixed inset-0 z-[100] min-h-[110vh] flex flex-col items-center justify-center gap-8 px-6 text-center ${isTest ? 'bg-cover bg-center text-[var(--brand-black)]' : 'bg-[var(--brand-blue)] text-[var(--brand-white)]'}`}
       style={isTest ? { backgroundImage: "url('/login-bg-or.jpg')" } : undefined}
     >
       <img src={isTest ? wordmarkTestBlack : wordmark} alt={isTest ? 'phytoexp' : 'phyto'} className="h-28 w-auto" />

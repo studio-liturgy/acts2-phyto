@@ -9,7 +9,7 @@ const aboutBg = "/about-bg-or.jpg";
 export default function AboutTest() {
   useRootBackground(`url(${aboutBg}) center/cover`);
   return (
-    <div className="flex flex-col bg-[var(--brand-orange)] text-[var(--brand-black)]">
+    <div className="flex min-h-[110vh] flex-col bg-[var(--brand-orange)] text-[var(--brand-black)]">
       <section
         className="relative flex-1 w-full bg-[var(--brand-orange)]"
         style={{

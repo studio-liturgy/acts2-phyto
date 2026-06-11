@@ -17,7 +17,7 @@ function FeatureItem({ children }: { children: ReactNode }) {
 export default function UpdatesTest() {
   useRootBackground("var(--brand-orange-dark)");
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--brand-orange-dark)] text-[var(--brand-white)]">
+    <div className="flex min-h-[110vh] flex-col bg-[var(--brand-orange-dark)] text-[var(--brand-white)]">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
         <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"><ArrowLeft className="h-3 w-3" /> BACK</Link>
         <h1 className="mt-6 text-5xl">Test Notes</h1>
