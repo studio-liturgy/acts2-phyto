@@ -3,7 +3,7 @@ import wordmark from "@/assets/wordmark.svg";
 
 const linkCls = "transition-opacity duration-200 hover:opacity-60";
 
-const EXACT_ALLOWED = ["/about", "/updates", "/terms", "/privacy", "/feedback", "/auth/callback", "/output"];
+const EXACT_ALLOWED = ["/about", "/updates", "/legal", "/feedback", "/auth/callback", "/output"];
 const PREFIX_ALLOWED = ["/g/"];
 
 // Supports exact paths and prefix patterns. __root.tsx calls MOBILE_ALLOWED.includes(pathname).
@@ -30,8 +30,7 @@ export function MobileBlock() {
         <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className={linkCls}>Donate</a>
         <Link to="/feedback" className={linkCls}>Feedback</Link>
         <Link to="/updates" className={linkCls}>Updates</Link>
-        <Link to="/terms" className={linkCls}>Terms of Use</Link>
-        <Link to="/privacy" className={linkCls}>Privacy Policy</Link>
+        <Link to="/legal" className={linkCls}>Legal</Link>
       </nav>
     </div>
   );

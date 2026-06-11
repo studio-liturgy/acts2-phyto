@@ -1,22 +1,12 @@
-import { Link, useLocation } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
-import { Footer } from "@/components/Footer";
-import { BackToTop } from "@/components/BackToTop";
+import { Link } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export default function TermsTest() {
-  const { hash } = useLocation();
-  const defaultTab = hash === 'online' || hash === '#online' ? 'online' : 'offline';
+export default function TermsTest({ defaultSection }: { defaultSection: 'offline' | 'online' }) {
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
-        <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60">
-          <ArrowLeft className="h-3 w-3" /> BACK
-        </Link>
-        <h1 className="mt-6 text-5xl">Terms of Use</h1>
-        <p className="mono mt-2 text-xs uppercase tracking-wider opacity-70">Effective Date: May 29, 2026</p>
+    <div>
+      <p className="mono mt-2 text-xs uppercase tracking-wider opacity-70">Effective Date: May 29, 2026</p>
 
-        <Tabs defaultValue={defaultTab} className="mt-8">
+      <Tabs defaultValue={defaultSection} className="mt-6">
           <TabsList className="h-auto gap-2 rounded-none bg-transparent p-0">
             <TabsTrigger
               value="offline"
@@ -40,35 +30,31 @@ export default function TermsTest() {
               <section>
                 <h2 className="text-2xl">1. About phytoexp</h2>
                 <p className="mt-2">phytoexp (<a href="https://phytoexp.live" className="underline hover:opacity-60">phytoexp.live</a>) is the experimental testing environment for phyto, a free, open-source stage presenter application for projecting song lyrics, Bible verses, and custom images during live worship gatherings and presentations. Features available here may be unstable, incomplete, or subject to change before release on phyto.live.</p>
+                <p className="mt-2">As a pre-release testing environment, features, data, and behaviour may change without notice. Do not rely on phytoexp for production use. Data stored here may be reset or lost at any time.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">2. Experimental Environment</h2>
-                <p className="mt-2">phytoexp is a pre-release testing environment. Features, data, and behaviour may change without notice. Do not rely on phytoexp for production use. Data stored here may be reset or lost at any time.</p>
-              </section>
-
-              <section>
-                <h2 className="text-2xl">3. Always Free</h2>
+                <h2 className="text-2xl">2. Always Free</h2>
                 <p className="mt-2">phytoexp is, and will always remain, free to use. There is no fee, subscription, paywall, or in-app purchase required to access any feature of the app, now or in the future.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">4. Donations</h2>
+                <h2 className="text-2xl">3. Donations</h2>
                 <p className="mt-2">phyto accepts voluntary donations via Ko-fi at <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">ko-fi.com/valiantchan</a>. Donations are entirely optional and greatly appreciated. Donating does not grant any additional features, rights, or privileges.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">5. Open Source</h2>
+                <h2 className="text-2xl">4. Open Source</h2>
                 <p className="mt-2">phyto is free and open-source software licensed under the GNU General Public License v3.0 (GPL-3.0). You are free to use, download, modify, and distribute the software in accordance with that license. You may not distribute modified versions under a more restrictive license, and you may not sell phyto or charge for access to it. See the project repository for the full license text.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">6. Data Portability</h2>
+                <h2 className="text-2xl">5. Data Portability</h2>
                 <p className="mt-2">You can export your full catalogue at any time as a <code>.phyto</code> file using the built-in export feature. Exports are generated entirely on your device and saved locally. No data is sent to any server during export. Exports contain your sets only, not gatherings. You can import a <code>.phyto</code> file on any device to restore or share your catalogue. phyto is not liable for data loss resulting from lost, corrupted, or incompatible export files.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">7. Music Licensing Is Your Responsibility</h2>
+                <h2 className="text-2xl">6. Music Licensing Is Your Responsibility</h2>
                 <p className="mt-2">phytoexp is a presentation tool only. It does not license, distribute, or authorise the public performance, reproduction, or display of copyrighted musical works.</p>
                 <p className="mt-2">If you use phytoexp to display song lyrics or other copyrighted content in a public or congregational setting, you are solely responsible for obtaining the appropriate licences. We strongly recommend licensing through one or more of the following:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
@@ -81,23 +67,23 @@ export default function TermsTest() {
               </section>
 
               <section>
-                <h2 className="text-2xl">8. Feedback</h2>
+                <h2 className="text-2xl">7. Feedback</h2>
                 <p className="mt-2">The feedback form at <Link to="/feedback" className="underline hover:opacity-60">phytoexp.live/feedback</Link> is provided so users can share bug reports, feature requests, and encouragement. Feedback you submit is transmitted to and stored in our Supabase database. It is used solely to review and improve the app and is not shared with unrelated third parties. By submitting feedback, you grant the developer a non-exclusive, royalty-free right to use that feedback to improve the app. The developer may share positive feedback such as testimonials on social media. Personally sensitive information will not be shared publicly.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">9. Disclaimer of Warranties</h2>
+                <h2 className="text-2xl">8. Disclaimer of Warranties</h2>
                 <p className="mt-2 uppercase">The app is provided "as is" and "as available", without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement. The developer does not warrant that the app will be error-free, uninterrupted, or meet your specific requirements. As an experimental environment, phytoexp may be particularly unstable.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">10. Limitation of Liability</h2>
+                <h2 className="text-2xl">9. Limitation of Liability</h2>
                 <p className="mt-2 uppercase">To the fullest extent permitted by applicable law, the developer shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, loss of content, or interruption of service, arising from your use of or inability to use the app.</p>
                 <p className="mt-2">Because all data in offline mode is stored locally in your browser, the developer has no access to your content and cannot be held responsible for any loss of data resulting from browser clearing, device failure, or software updates.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">11. Acceptable Use</h2>
+                <h2 className="text-2xl">10. Acceptable Use</h2>
                 <p className="mt-2">You agree to use phytoexp only for lawful purposes. You agree not to:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
                   <li>Infringe any copyright, trademark, or other intellectual property right</li>
@@ -109,17 +95,17 @@ export default function TermsTest() {
               </section>
 
               <section>
-                <h2 className="text-2xl">12. Changes to the App and Terms</h2>
+                <h2 className="text-2xl">11. Changes to the App and Terms</h2>
                 <p className="mt-2">We reserve the right to modify, suspend, or discontinue the app at any time without notice. We may also update these Terms from time to time. Continued use of the app after any changes constitutes your acceptance of the revised Terms.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">13. Governing Law</h2>
+                <h2 className="text-2xl">12. Governing Law</h2>
                 <p className="mt-2">These Terms shall be governed by and construed in accordance with the laws of British Columbia, Canada, without regard to conflict of law principles.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">14. Contact</h2>
+                <h2 className="text-2xl">13. Contact</h2>
                 <p className="mt-2">Questions about these Terms can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phytoexp.live/feedback</Link>, or by reaching out on Instagram at <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">instagram.com/phyto.live</a>.</p>
               </section>
             </div>
@@ -190,12 +176,6 @@ export default function TermsTest() {
             </div>
           </TabsContent>
         </Tabs>
-
-        <div className="mt-12">
-          <BackToTop />
-        </div>
-      </main>
-      <Footer />
     </div>
   );
 }

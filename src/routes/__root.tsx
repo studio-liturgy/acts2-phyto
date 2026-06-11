@@ -13,6 +13,7 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { APP_NAME } from "@/lib/appConfig";
 import { MobileBlock, MOBILE_ALLOWED } from "@/components/MobileBlock";
 import { supabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
@@ -109,15 +110,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "phyto | home gatherings" },
+      { title: `${APP_NAME} | home gatherings` },
       { name: "description", content: "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live." },
-      { property: "og:title", content: "phyto | home gatherings" },
+      { property: "og:title", content: `${APP_NAME} | home gatherings` },
       { property: "og:description", content: "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live." },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "phyto" },
+      { property: "og:site_name", content: APP_NAME },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@phyto.live" },
-      { name: "twitter:title", content: "phyto | home gatherings" },
+      { name: "twitter:title", content: `${APP_NAME} | home gatherings` },
       { name: "twitter:description", content: "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live." },
       { property: "og:image", content: "https://phyto.live/og-image.png" },
       { name: "twitter:image", content: "https://phyto.live/og-image.png" },

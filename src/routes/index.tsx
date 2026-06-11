@@ -6,6 +6,7 @@ import { signOut } from "@/lib/auth";
 import { useIsSignedIn } from "@/lib/authStore";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { exportCatalogue, importCatalogue } from "@/lib/catalogue-io";
+import { APP_NAME } from "@/lib/appConfig";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -64,9 +65,9 @@ const KIND_COLOR: Record<string, string> = {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Home | phyto" },
+      { title: `Home | ${APP_NAME}` },
       { name: "description", content: "Prepare sets, group them into gatherings, and present them live!" },
-      { property: "og:title", content: "Home | phyto" },
+      { property: "og:title", content: `Home | ${APP_NAME}` },
       { property: "og:description", content: "Prepare sets, group them into gatherings, and present them live!" },
       { property: "og:url", content: "https://phyto.live/" },
     ],

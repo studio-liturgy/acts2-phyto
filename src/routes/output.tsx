@@ -3,11 +3,12 @@ import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft } 
 import { DissolveSlide } from "@/components/SlideView";
 import { useEffect, useMemo, useRef } from "react";
 import type { Slide } from "@/lib/types";
+import { APP_NAME } from "@/lib/appConfig";
 
 export const Route = createFileRoute("/output")({
   head: () => ({
     meta: [
-      { title: "Stage Output | phyto" },
+      { title: `Stage Output | ${APP_NAME}` },
       { name: "robots", content: "noindex" },
     ],
   }),

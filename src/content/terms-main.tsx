@@ -1,22 +1,12 @@
-import { Link, useLocation } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
-import { Footer } from "@/components/Footer";
-import { BackToTop } from "@/components/BackToTop";
+import { Link } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export default function TermsMain() {
-  const { hash } = useLocation();
-  const defaultTab = hash === 'online' || hash === '#online' ? 'online' : 'offline';
+export default function TermsMain({ defaultSection }: { defaultSection: 'offline' | 'online' }) {
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
-        <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60">
-          <ArrowLeft className="h-3 w-3" /> BACK
-        </Link>
-        <h1 className="mt-6 text-5xl">Terms of Use</h1>
-        <p className="mono mt-2 text-xs uppercase tracking-wider opacity-70">Effective Date: May 29, 2026</p>
+    <div>
+      <p className="mono mt-2 text-xs uppercase tracking-wider opacity-70">Effective Date: May 29, 2026</p>
 
-        <Tabs defaultValue={defaultTab} className="mt-8">
+      <Tabs defaultValue={defaultSection} className="mt-6">
           <TabsList className="h-auto gap-2 rounded-none bg-transparent p-0">
             <TabsTrigger
               value="offline"
@@ -185,12 +175,6 @@ export default function TermsMain() {
             </div>
           </TabsContent>
         </Tabs>
-
-        <div className="mt-12">
-          <BackToTop />
-        </div>
-      </main>
-      <Footer />
     </div>
   );
 }

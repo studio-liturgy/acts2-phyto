@@ -10,12 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UpdatesRouteImport } from './routes/updates'
-import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PresentRouteImport } from './routes/present'
 import { Route as OutputRouteImport } from './routes/output'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LegalRouteImport } from './routes/legal'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -30,19 +29,9 @@ const UpdatesRoute = UpdatesRouteImport.update({
   path: '/updates',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PresentRoute = PresentRouteImport.update({
@@ -58,6 +47,11 @@ const OutputRoute = OutputRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalRoute = LegalRouteImport.update({
+  id: '/legal',
+  path: '/legal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedbackRoute = FeedbackRouteImport.update({
@@ -105,12 +99,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/feedback': typeof FeedbackRoute
+  '/legal': typeof LegalRoute
   '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
-  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
@@ -122,12 +115,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/feedback': typeof FeedbackRoute
+  '/legal': typeof LegalRoute
   '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
-  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
@@ -140,12 +132,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/feedback': typeof FeedbackRoute
+  '/legal': typeof LegalRoute
   '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
-  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
@@ -159,12 +150,11 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/feedback'
+    | '/legal'
     | '/login'
     | '/output'
     | '/present'
-    | '/privacy'
     | '/sitemap.xml'
-    | '/terms'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
@@ -176,12 +166,11 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/feedback'
+    | '/legal'
     | '/login'
     | '/output'
     | '/present'
-    | '/privacy'
     | '/sitemap.xml'
-    | '/terms'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
@@ -193,12 +182,11 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/feedback'
+    | '/legal'
     | '/login'
     | '/output'
     | '/present'
-    | '/privacy'
     | '/sitemap.xml'
-    | '/terms'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
@@ -211,12 +199,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   FeedbackRoute: typeof FeedbackRoute
+  LegalRoute: typeof LegalRoute
   LoginRoute: typeof LoginRoute
   OutputRoute: typeof OutputRoute
   PresentRoute: typeof PresentRoute
-  PrivacyRoute: typeof PrivacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  TermsRoute: typeof TermsRoute
   UpdatesRoute: typeof UpdatesRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   GTokenRoute: typeof GTokenRoute
@@ -234,25 +221,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UpdatesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/present': {
@@ -274,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal': {
+      id: '/legal'
+      path: '/legal'
+      fullPath: '/legal'
+      preLoaderRoute: typeof LegalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feedback': {
@@ -339,12 +319,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   FeedbackRoute: FeedbackRoute,
+  LegalRoute: LegalRoute,
   LoginRoute: LoginRoute,
   OutputRoute: OutputRoute,
   PresentRoute: PresentRoute,
-  PrivacyRoute: PrivacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  TermsRoute: TermsRoute,
   UpdatesRoute: UpdatesRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   GTokenRoute: GTokenRoute,

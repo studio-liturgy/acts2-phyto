@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescripti
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { Slide, SetKind } from "@/lib/types";
 import { z } from "zod";
+import { APP_NAME } from "@/lib/appConfig";
 
 const searchSchema = z.object({
   redirectTo: z
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/set/$setId")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Set Editor | phyto" },
+      { title: `Set Editor | ${APP_NAME}` },
       { name: "robots", content: "noindex" },
     ],
   }),

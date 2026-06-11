@@ -2,13 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
+import { APP_NAME } from "@/lib/appConfig";
 
 export const Route = createFileRoute("/feedback")({
   head: () => ({
     meta: [
-      { title: "Feedback | phyto" },
+      { title: `Feedback | ${APP_NAME}` },
       { name: "description", content: "Send your feedback, bug reports, feature requests, and encouragement to phyto." },
-      { property: "og:title", content: "Feedback | phyto" },
+      { property: "og:title", content: `Feedback | ${APP_NAME}` },
       { property: "og:description", content: "Send your feedback, bug reports, feature requests, and encouragement to phyto." },
       { property: "og:url", content: "https://phyto.live/feedback" },
     ],
