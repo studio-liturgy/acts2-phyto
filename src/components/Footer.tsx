@@ -9,7 +9,7 @@ const isTest = import.meta.env.VITE_APP_ENV === 'test';
 
 export function Footer({ className }: { className?: string }) {
   return (
-    <footer className={cn("mt-20 hidden bg-[var(--brand-blue)] text-[var(--brand-white)] md:block", className)}>
+    <footer className={cn(`mt-20 hidden md:block ${isTest ? 'bg-[var(--brand-orange-dark)]' : 'bg-[var(--brand-blue)]'} text-[var(--brand-white)]`, className)}>
       <div className="mx-auto grid max-w-6xl grid-cols-3 items-center gap-4 px-6 py-8">
         <nav className="flex items-center gap-6 text-xs">
           <Link to="/about" className={linkCls}>About</Link>

@@ -58,6 +58,7 @@
   --color-brand-black: var(--brand-black);
   --color-brand-blue: var(--brand-blue);
   --color-brand-orange: var(--brand-orange);
+  --color-brand-orange-dark: var(--brand-orange-dark);
   --color-brand-red: var(--brand-red);
   --color-brand-green: var(--brand-green);
 }
@@ -70,6 +71,7 @@
   --brand-black: #212121;
   --brand-blue: #2E7299;
   --brand-orange: #E07D31;
+  --brand-orange-dark: #C0681F;
   --brand-red: #C01E21;
   --brand-green: #538844;
 
@@ -118,6 +120,7 @@
   /* Brand accents stay close to the light-mode tones (slightly deeper) */
   --brand-blue: #2A688A;
   --brand-orange: #C96E2A;
+  --brand-orange-dark: #AE5E1C;
   --brand-red: #A81A1D;
   --brand-green: #487539;
 }

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { useTheme } from "@/hooks/use-theme";
 import { Sun, Moon } from "lucide-react";
 
+const isTest = import.meta.env.VITE_APP_ENV === 'test';
+const iconColor = isTest ? "text-[var(--brand-orange-dark)]" : "text-[var(--brand-blue)]";
+
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const { mode, toggle } = useTheme();
   // Only reflect the real theme after hydration to avoid SSR/client mismatch.
@@ -26,9 +29,9 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
         suppressHydrationWarning
       >
         {isDark ? (
-          <Moon className="h-3 w-3 text-[var(--brand-blue)]" />
+          <Moon className={`h-3 w-3 ${iconColor}`} />
         ) : (
-          <Sun className="h-3 w-3 text-[var(--brand-blue)]" />
+          <Sun className={`h-3 w-3 ${iconColor}`} />
         )}
       </span>
     </button>

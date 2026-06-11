@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 import { signInWithEmail } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import wordmark from '@/assets/wordmark.svg';
+import wordmarkTest from '@/assets/wordmark-test.svg';
+
+const isTest = import.meta.env.VITE_APP_ENV === 'test';
 
 export const Route = createFileRoute('/login')({
   validateSearch: (search: Record<string, unknown>): { error?: string } => ({
@@ -50,14 +53,14 @@ function LoginPage() {
   return (
     <div
       className="relative min-h-screen bg-cover bg-center"
-      style={{ backgroundImage: "url('/login-bg.jpg')" }}
+      style={{ backgroundImage: `url('${isTest ? '/login-bg-or.jpg' : '/login-bg.jpg'}')` }}
     >
       {/* Mobile: single centered column. Desktop: two-column grid */}
       <div className="flex min-h-screen flex-col items-center justify-center lg:grid lg:grid-cols-2 lg:items-stretch lg:justify-normal">
 
         {/* Left — wordmark */}
         <div className="mb-8 flex justify-center lg:mb-0 lg:items-center lg:px-16">
-          <Link to="/"><img src={wordmark} alt="phyto" className="w-60 lg:w-80" /></Link>
+          <Link to="/"><img src={isTest ? wordmarkTest : wordmark} alt={isTest ? 'phytoexp' : 'phyto'} className="w-60 lg:w-80" /></Link>
         </div>
 
         {/* Right — form or success */}
@@ -86,7 +89,7 @@ function LoginPage() {
                   />
                   <button
                     type="submit"
-                    className="mono uppercase text-sm w-full rounded-full bg-white px-6 py-3 text-[var(--brand-blue)] transition hover:opacity-90"
+                    className={`mono uppercase text-sm w-full rounded-full bg-white px-6 py-3 transition hover:opacity-90 ${isTest ? 'text-[var(--brand-orange)]' : 'text-[var(--brand-blue)]'}`}
                   >
                     continue
                   </button>
@@ -107,7 +110,7 @@ function LoginPage() {
                       options: { redirectTo: window.location.origin + '/auth/callback' },
                     });
                   }}
-                  className="mono uppercase text-sm w-full rounded-full bg-white px-6 py-3 text-[var(--brand-blue)] transition hover:opacity-90"
+                  className={`mono uppercase text-sm w-full rounded-full bg-white px-6 py-3 transition hover:opacity-90 ${isTest ? 'text-[var(--brand-orange)]' : 'text-[var(--brand-blue)]'}`}
                 >
                   sign in with Google
                 </button>

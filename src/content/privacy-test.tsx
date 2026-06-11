@@ -8,13 +8,13 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: 'offli
           <TabsList className="h-auto gap-2 rounded-none bg-transparent p-0">
             <TabsTrigger
               value="offline"
-              className="mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-blue)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-blue)] data-[state=active]:shadow-none"
+              className="mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-orange)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-orange)] data-[state=active]:shadow-none"
             >
               Offline
             </TabsTrigger>
             <TabsTrigger
               value="online"
-              className="mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-blue)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-blue)] data-[state=active]:shadow-none"
+              className="mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-orange)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-orange)] data-[state=active]:shadow-none"
             >
               Online
             </TabsTrigger>

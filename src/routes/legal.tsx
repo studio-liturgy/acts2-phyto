@@ -31,8 +31,9 @@ export const Route = createFileRoute("/legal")({
   component: Legal,
 });
 
-const triggerCls =
-  "mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-blue)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-blue)] data-[state=active]:shadow-none";
+const triggerCls = isTest
+  ? "mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-orange)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-orange)] data-[state=active]:shadow-none"
+  : "mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-blue)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-blue)] data-[state=active]:shadow-none";
 
 function Legal() {
   const { hash } = useLocation();
@@ -40,7 +41,7 @@ function Legal() {
   const section: 'offline' | 'online' = hash.includes('online') ? 'online' : 'offline';
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
+    <div className={`flex min-h-screen flex-col ${isTest ? 'bg-[var(--brand-orange-dark)]' : 'bg-[var(--brand-blue)]'} text-[var(--brand-white)]`}>
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
         <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60">
           <ArrowLeft className="h-3 w-3" /> BACK
