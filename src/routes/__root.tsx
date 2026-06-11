@@ -14,6 +14,13 @@ import {
 
 import appCss from "../styles.css?url";
 import { APP_NAME } from "@/lib/appConfig";
+
+const isTest = import.meta.env.VITE_APP_ENV === 'test';
+const domain = isTest ? "https://phytoexp.live" : "https://phyto.live";
+const ogImage = `${domain}/${isTest ? "og-image-or.png" : "og-image.png"}`;
+const favicon32 = isTest ? "/favicon-32-or.png" : "/favicon-32.png";
+const faviconAny = isTest ? "/favicon-or.png" : "/favicon.png";
+const appleTouchIcon = isTest ? "/apple-touch-icon-or.png" : "/apple-touch-icon.png";
 import { MobileBlock, MOBILE_ALLOWED } from "@/components/MobileBlock";
 import { supabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
@@ -120,14 +127,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@phyto.live" },
       { name: "twitter:title", content: `${APP_NAME} | home gatherings` },
       { name: "twitter:description", content: "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live." },
-      { property: "og:image", content: "https://phyto.live/og-image.png" },
-      { name: "twitter:image", content: "https://phyto.live/og-image.png" },
+      { property: "og:image", content: ogImage },
+      { name: "twitter:image", content: ogImage },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" },
-      { rel: "icon", type: "image/png", sizes: "any", href: "/favicon.png" },
-      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      { rel: "icon", type: "image/png", sizes: "32x32", href: favicon32 },
+      { rel: "icon", type: "image/png", sizes: "any", href: faviconAny },
+      { rel: "apple-touch-icon", sizes: "180x180", href: appleTouchIcon },
     ],
   }),
   shellComponent: RootShell,
