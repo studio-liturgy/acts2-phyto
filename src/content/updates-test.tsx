@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Plus, AlertTriangle } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
+import { useRootBackground } from "@/hooks/use-root-background";
 
 function FeatureItem({ children }: { children: ReactNode }) {
   return (
@@ -14,6 +15,7 @@ function FeatureItem({ children }: { children: ReactNode }) {
 }
 
 export default function UpdatesTest() {
+  useRootBackground("var(--brand-orange-dark)");
   return (
     <div className="flex min-h-screen flex-col bg-[var(--brand-orange-dark)] text-[var(--brand-white)]">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">

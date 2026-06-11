@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRootBackground } from "@/hooks/use-root-background";
 import { APP_NAME } from "@/lib/appConfig";
 import TermsTest from "@/content/terms-test";
 import TermsMain from "@/content/terms-main";
@@ -36,6 +37,7 @@ const triggerCls = isTest
   : "mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-blue)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-blue)] data-[state=active]:shadow-none";
 
 function Legal() {
+  useRootBackground(isTest && "var(--brand-orange-dark)");
   const { hash } = useLocation();
   const doc = hash.includes('privacy') ? 'privacy' : 'terms';
   const section: 'offline' | 'online' = hash.includes('online') ? 'online' : 'offline';

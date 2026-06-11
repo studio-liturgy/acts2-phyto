@@ -2,10 +2,12 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
+import { useRootBackground } from "@/hooks/use-root-background";
 
 const aboutBg = "/about-bg-or.jpg";
 
 export default function AboutTest() {
+  useRootBackground(`url(${aboutBg}) center/cover`);
   return (
     <div className="flex flex-col bg-[var(--brand-orange)] text-[var(--brand-black)]">
       <section
