@@ -28,7 +28,7 @@ export default function AboutTest() {
           {/* Large intro */}
           <div className="mt-10 max-w-5xl space-y-10 text-3xl md:text-[2.6rem] md:leading-[1.15] leading-snug">
             <p>
-              phytoexp is an experimental open testing environment for phyto. Feel free to test upcoming features on this site and give feedback if you encounter any bugs!
+              phytoexp is an experimental public testing environment for phyto. Feel free to test upcoming features on this site and give feedback if you encounter any bugs!
             </p>
           </div>
 

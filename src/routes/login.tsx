@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { signInWithEmail } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import wordmark from '@/assets/wordmark.svg';
-import wordmarkTest from '@/assets/wordmark-test.svg';
+import wordmarkTestBlack from '@/assets/wordmark-test-black.svg';
 
 const isTest = import.meta.env.VITE_APP_ENV === 'test';
 
@@ -60,14 +60,14 @@ function LoginPage() {
 
         {/* Left — wordmark */}
         <div className="mb-8 flex justify-center lg:mb-0 lg:items-center lg:px-16">
-          <Link to="/"><img src={isTest ? wordmarkTest : wordmark} alt={isTest ? 'phytoexp' : 'phyto'} className="w-60 lg:w-80" /></Link>
+          <Link to="/"><img src={isTest ? wordmarkTestBlack : wordmark} alt={isTest ? 'phytoexp' : 'phyto'} className="w-60 lg:w-80" /></Link>
         </div>
 
         {/* Right — form or success */}
         <div className="flex w-full items-center justify-center px-8 pb-20 lg:px-16 lg:py-0">
           <div className="w-full max-w-sm">
             {sent ? (
-              <div className="space-y-3 text-center text-white">
+              <div className={`space-y-3 text-center ${isTest ? 'text-black' : 'text-white'}`}>
                 <p className="mono uppercase text-sm lg:text-base">Check your email for a sign-in link!</p>
                 <p className="text-sm opacity-70">
                   If you haven't received it yet, check your spam or junk folder.
@@ -85,20 +85,24 @@ function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="email address"
                     required
-                    className="mono uppercase text-sm w-full rounded-full border border-white/60 bg-transparent px-6 py-3 text-center text-white placeholder-white/50 outline-none focus:border-white"
+                    className={`mono uppercase text-sm w-full rounded-full bg-transparent px-6 py-3 text-center outline-none ${
+                      isTest
+                        ? 'border border-black/40 text-black placeholder-black/50 focus:border-black'
+                        : 'border border-white/60 text-white placeholder-white/50 focus:border-white'
+                    }`}
                   />
                   <button
                     type="submit"
-                    className={`mono uppercase text-sm w-full rounded-full bg-white px-6 py-3 transition hover:opacity-90 ${isTest ? 'text-[var(--brand-orange)]' : 'text-[var(--brand-blue)]'}`}
+                    className={`mono uppercase text-sm w-full rounded-full px-6 py-3 transition hover:opacity-90 ${isTest ? 'bg-[var(--brand-black)] text-[var(--brand-white)]' : 'bg-white text-[var(--brand-blue)]'}`}
                   >
                     continue
                   </button>
                 </form>
 
                 <div className="flex items-center gap-3 py-1">
-                  <hr className="flex-1 border-white/40" />
-                  <span className="text-sm text-white/80">or</span>
-                  <hr className="flex-1 border-white/40" />
+                  <hr className={`flex-1 ${isTest ? 'border-black/40' : 'border-white/40'}`} />
+                  <span className={`text-sm ${isTest ? 'text-black/80' : 'text-white/80'}`}>or</span>
+                  <hr className={`flex-1 ${isTest ? 'border-black/40' : 'border-white/40'}`} />
                 </div>
 
                 <button
@@ -110,37 +114,37 @@ function LoginPage() {
                       options: { redirectTo: window.location.origin + '/auth/callback' },
                     });
                   }}
-                  className={`mono uppercase text-sm w-full rounded-full bg-white px-6 py-3 transition hover:opacity-90 ${isTest ? 'text-[var(--brand-orange)]' : 'text-[var(--brand-blue)]'}`}
+                  className={`mono uppercase text-sm w-full rounded-full px-6 py-3 transition hover:opacity-90 ${isTest ? 'bg-[var(--brand-black)] text-[var(--brand-white)]' : 'bg-white text-[var(--brand-blue)]'}`}
                 >
                   sign in with Google
                 </button>
 
                 {error && (
-                  <p className="pt-1 text-center text-sm text-white/80">{error}</p>
+                  <p className={`pt-1 text-center text-sm ${isTest ? 'text-black/80' : 'text-white/80'}`}>{error}</p>
                 )}
 
-                <label className="mono flex cursor-pointer items-center justify-center gap-2 pt-1 text-[11px] uppercase text-white/70">
+                <label className={`mono flex cursor-pointer items-center justify-center gap-2 pt-1 text-[11px] uppercase ${isTest ? 'text-black/70' : 'text-white/70'}`}>
                   <input
                     type="checkbox"
                     checked={subscribe}
                     onChange={(e) => setSubscribe(e.target.checked)}
                     className="sr-only"
                   />
-                  <div className="flex h-3.5 w-3.5 shrink-0 items-center justify-center border border-white">
+                  <div className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border ${isTest ? 'border-black' : 'border-white'}`}>
                     {subscribe && (
                       <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
-                        <path d="M2 2l6 6M8 2l-6 6" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                        <path d="M2 2l6 6M8 2l-6 6" stroke={isTest ? 'black' : 'white'} strokeWidth="1.5" strokeLinecap="round"/>
                       </svg>
                     )}
                   </div>
                   Keep me in the loop with phyto updates and news.
                 </label>
 
-                <p className="pt-2 text-center text-[11px] text-white/50">
+                <p className={`pt-2 text-center text-[11px] ${isTest ? 'text-black/50' : 'text-white/50'}`}>
                   By signing in, you agree to the online terms of our{' '}
-                  <Link to="/legal" hash="terms-online" className="underline hover:text-white/80">Terms of Use</Link>
+                  <Link to="/legal" hash="terms-online" className={`underline ${isTest ? 'hover:text-black/80' : 'hover:text-white/80'}`}>Terms of Use</Link>
                   {' '}and{' '}
-                  <Link to="/legal" hash="privacy-online" className="underline hover:text-white/80">Privacy Policy</Link>.
+                  <Link to="/legal" hash="privacy-online" className={`underline ${isTest ? 'hover:text-black/80' : 'hover:text-white/80'}`}>Privacy Policy</Link>.
                 </p>
               </div>
             )}
