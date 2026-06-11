@@ -231,7 +231,7 @@ function Library() {
       .map((id) => sets[id])
       .filter(Boolean)
       .filter((d) => kindFilter === "all" || d.kind === kindFilter)
-      .filter((d) => !q || d.name.toLowerCase().includes(q));
+      .filter((d) => !q || d.name.toLowerCase().includes(q) || d.slides.some((slide) => slide.lines?.some((line) => line.toLowerCase().includes(q))));
     rows = [...rows].sort((a, b) => {
       switch (sortMode) {
         case "az": return a.name.localeCompare(b.name);
@@ -694,7 +694,7 @@ function GatheringCard({
     }
   };
 
-  const shareUrl = `https://phyto.live/g/${shareToken}`;
+  const shareUrl = `${window.location.origin}/g/${shareToken}`;
 
   const downloadQr = (ref: React.RefObject<HTMLCanvasElement | null>, filename: string) => {
     const canvas = ref.current;

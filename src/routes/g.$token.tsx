@@ -137,15 +137,42 @@ function GatheringViewer() {
   const [status, setStatus] = useState<Status>("loading");
   const [sets, setSets] = useState<ViewerSet[]>([]);
   const [activeSetId, setActiveSetId] = useState<string | null>(null);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [prefs, setPrefs] = useState<ViewerPrefs>(loadPrefs);
   const menuRef = useRef<HTMLDivElement>(null);
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number | null>(null);
   const prevLiveRef = useRef<boolean | null>(null);
   const stoppedRef = useRef(false);
 
   useEffect(() => {
     savePrefs(prefs);
   }, [prefs]);
+
+  useEffect(() => {
+    if (!tabBarRef.current) return;
+    const idx = sets.findIndex((vs) => vs.set.id === activeTabId);
+    if (idx < 0) return;
+    const buttons = tabBarRef.current.querySelectorAll('button');
+    const activeButton = buttons[idx] as HTMLElement | undefined;
+    if (activeButton) {
+      const buttonRect = activeButton.getBoundingClientRect();
+      const containerRect = tabBarRef.current.getBoundingClientRect();
+      const relativeLeft = buttonRect.left - containerRect.left + tabBarRef.current.scrollLeft;
+      tabBarRef.current.scrollTo({ left: Math.max(0, relativeLeft - 16), behavior: 'smooth' });
+    }
+  }, [activeTabId, sets]);
+
+  useEffect(() => {
+    const bg = prefs.isDark ? "#000000" : "#ffffff";
+    document.documentElement.style.backgroundColor = bg;
+    document.body.style.backgroundColor = bg;
+    return () => {
+      document.documentElement.style.backgroundColor = "";
+      document.body.style.backgroundColor = "";
+    };
+  }, [prefs.isDark]);
 
   // Close menu on outside click
   useEffect(() => {
@@ -191,9 +218,11 @@ function GatheringViewer() {
         setSets(viewerSets);
         setStatus("live");
         setActiveSetId((prev) => {
-          if (prev === null) return viewerSets[0]?.set.id ?? null;
-          if (viewerSets.some((vs) => vs.set.id === prev)) return prev;
-          return viewerSets[0]?.set.id ?? null;
+          const next = prev === null ? (viewerSets[0]?.set.id ?? null)
+            : viewerSets.some((vs) => vs.set.id === prev) ? prev
+            : (viewerSets[0]?.set.id ?? null);
+          setActiveTabId(next);
+          return next;
         });
       } else {
         setStatus("not-live");
@@ -208,8 +237,8 @@ function GatheringViewer() {
     };
   }, [token]);
 
-  const activeSet =
-    sets.find((vs) => vs.set.id === activeSetId)?.set ?? sets[0]?.set ?? null;
+  const activeIdx = sets.findIndex((vs) => vs.set.id === activeSetId);
+  const activeSet = sets[activeIdx]?.set ?? sets[0]?.set ?? null;
 
   const themeClasses = prefs.isDark
     ? "bg-black text-white"
@@ -287,7 +316,7 @@ function GatheringViewer() {
             <div
               className={`absolute left-0 top-full z-50 mt-1 w-[240px] rounded-2xl border p-4 shadow-xl ${
                 prefs.isDark
-                  ? "border-white/10 bg-neutral-900 text-white"
+                  ? "dark border-white/10 bg-neutral-900 text-white"
                   : "border-black/10 bg-white text-black"
               }`}
               style={{ fontFamily: "'Space Mono', monospace", fontSize: "1rem" }}
@@ -388,13 +417,13 @@ function GatheringViewer() {
         </div>
 
         {/* Tabs */}
-        <div className="flex overflow-x-auto">
+        <div ref={tabBarRef} className="flex overflow-x-auto">
           {sets.map((vs) => (
             <button
               key={vs.set.id}
-              onClick={() => setActiveSetId(vs.set.id)}
+              onClick={() => { setActiveSetId(vs.set.id); setActiveTabId(vs.set.id); }}
               className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm transition-colors ${
-                vs.set.id === activeSetId
+                vs.set.id === activeTabId
                   ? prefs.isDark
                     ? "border-b-2 border-white text-white"
                     : "border-b-2 border-black text-black"
@@ -408,10 +437,26 @@ function GatheringViewer() {
       </div>
 
       {/* Set content */}
-      <div className="flex-1 overflow-y-auto">
-        {activeSet && (
-          <SetContent set={activeSet} isDark={prefs.isDark} />
-        )}
+      <div
+        className="flex-1 overflow-y-auto"
+        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          if (touchStartX.current === null) return;
+          const dx = e.changedTouches[0].clientX - touchStartX.current;
+          touchStartX.current = null;
+          if (Math.abs(dx) < 50) return;
+          if (dx < 0 && activeIdx < sets.length - 1) {
+            const nextId = sets[activeIdx + 1].set.id;
+            setActiveTabId(nextId);
+            setActiveSetId(nextId);
+          } else if (dx > 0 && activeIdx > 0) {
+            const prevId = sets[activeIdx - 1].set.id;
+            setActiveTabId(prevId);
+            setActiveSetId(prevId);
+          }
+        }}
+      >
+        {activeSet && <SetContent set={activeSet} isDark={prefs.isDark} />}
       </div>
     </div>
   );

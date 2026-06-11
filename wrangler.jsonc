@@ -4,4 +4,13 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  "env": {
+    // Test deployment: separate Worker bound to phytoexp.live, sharing the
+    // same Supabase DB and Resend secrets as production. Deploy with
+    // `wrangler deploy --env test`; set secrets with `--env test`.
+    "test": {
+      "name": "acts2-phyto-test",
+      "routes": [{ "pattern": "phytoexp.live", "custom_domain": true }],
+    },
+  },
 }

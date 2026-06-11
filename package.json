@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "build:songs": "node scripts/build-songs.mjs"
+    "build:songs": "node scripts/build-songs.mjs",
+    "deploy:test": "CLOUDFLARE_ENV=test vite build && wrangler deploy"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

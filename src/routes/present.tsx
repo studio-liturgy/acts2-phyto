@@ -150,7 +150,7 @@ function Presenter() {
     }
   };
   const activeShareToken = activeGathering?.share_token ?? null;
-  const shareUrl = activeShareToken ? `https://phyto.live/g/${activeShareToken}` : "";
+  const shareUrl = activeShareToken ? `${window.location.origin}/g/${activeShareToken}` : "";
 
   function downloadQr(ref: React.RefObject<HTMLCanvasElement | null>, filename: string) {
     const canvas = ref.current;
