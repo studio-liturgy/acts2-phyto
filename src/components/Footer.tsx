@@ -4,6 +4,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const linkCls = "mono uppercase transition-opacity duration-200 hover:opacity-60";
+const isTest = import.meta.env.VITE_APP_ENV === 'test';
 
 export function Footer({ className }: { className?: string }) {
   return (
@@ -22,7 +23,7 @@ export function Footer({ className }: { className?: string }) {
           </Link>
         </div>
         <nav className="flex items-center justify-end gap-6 text-xs flex-nowrap">
-          <Link to="/updates" className={`${linkCls} whitespace-nowrap`}>Updates</Link>
+          <Link to="/updates" className={`${linkCls} whitespace-nowrap`}>{isTest ? 'Test Notes' : 'Updates'}</Link>
           <Link to="/terms" className={`${linkCls} whitespace-nowrap`}>Terms of Use</Link>
           <Link to="/privacy" className={`${linkCls} whitespace-nowrap`}>Privacy Policy</Link>
           <ThemeToggle />

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "dev:env": "set -a && . ./.dev.vars && set +a && vite dev",
+    "dev:test": "set -a && . ./.dev.vars && set +a && VITE_APP_ENV=test vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",

@@ -7,6 +7,13 @@
       "runtimeArgs": ["dev:env"],
       "port": 8080,
       "autoPort": true
+    },
+    {
+      "name": "dev-test",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["dev:test"],
+      "port": 8081,
+      "autoPort": true
     }
   ]
 }
