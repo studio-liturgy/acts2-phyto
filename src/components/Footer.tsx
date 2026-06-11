@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import wordmark from "@/assets/wordmark.svg";
+import wordmarkTest from "@/assets/wordmark-test.svg";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,7 @@ export function Footer({ className }: { className?: string }) {
         </nav>
         <div className="flex justify-center">
           <Link to="/">
-            <img src={wordmark} alt="phyto" className="h-12 w-auto" />
+            <img src={isTest ? wordmarkTest : wordmark} alt={isTest ? 'phytoexp' : 'phyto'} className="h-12 w-auto" />
           </Link>
         </div>
         <nav className="flex items-center justify-end gap-6 text-xs flex-nowrap">

@@ -4,9 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export default function TermsMain({ defaultSection }: { defaultSection: 'offline' | 'online' }) {
   return (
     <div>
-      <p className="mono mt-2 text-xs uppercase tracking-wider opacity-70">Effective Date: May 29, 2026</p>
-
-      <Tabs defaultValue={defaultSection} className="mt-6">
+      <Tabs defaultValue={defaultSection} className="mt-3">
           <TabsList className="h-auto gap-2 rounded-none bg-transparent p-0">
             <TabsTrigger
               value="offline"
@@ -21,6 +19,8 @@ export default function TermsMain({ defaultSection }: { defaultSection: 'offline
               Online
             </TabsTrigger>
           </TabsList>
+
+          <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">Effective Date: June 11, 2026</p>
 
           {/* OFFLINE TAB */}
           <TabsContent value="offline">

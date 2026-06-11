@@ -53,10 +53,10 @@ function Legal() {
             <TabsTrigger value="privacy" className={triggerCls}>Privacy Policy</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="terms" className="mt-6">
+          <TabsContent value="terms" className="mt-3">
             <TermsBody defaultSection={section} />
           </TabsContent>
-          <TabsContent value="privacy" className="mt-6">
+          <TabsContent value="privacy" className="mt-3">
             <PrivacyBody defaultSection={section} />
           </TabsContent>
         </Tabs>
