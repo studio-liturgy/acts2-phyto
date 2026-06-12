@@ -116,7 +116,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: isTest ? "width=device-width, initial-scale=1, viewport-fit=cover" : "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: `${APP_NAME} | home gatherings` },
       { name: "description", content: "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live." },
       { property: "og:title", content: `${APP_NAME} | home gatherings` },

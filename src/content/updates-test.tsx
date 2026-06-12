@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Plus, AlertTriangle } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
-import { useRootBackground } from "@/hooks/use-root-background";
+import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 
 function FeatureItem({ children }: { children: ReactNode }) {
   return (
@@ -15,9 +15,9 @@ function FeatureItem({ children }: { children: ReactNode }) {
 }
 
 export default function UpdatesTest() {
-  useRootBackground("var(--brand-orange-dark)");
+  usePageBackgroundColor("var(--brand-orange-dark)");
   return (
-    <div className="flex min-h-[110vh] flex-col bg-[var(--brand-orange-dark)] text-[var(--brand-white)]">
+    <div className="flex min-h-screen flex-col bg-[var(--brand-orange-dark)] text-[var(--brand-white)]">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
         <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"><ArrowLeft className="h-3 w-3" /> BACK</Link>
         <h1 className="mt-6 text-5xl">Test Notes</h1>
@@ -27,7 +27,15 @@ export default function UpdatesTest() {
             <ul className="mt-3 space-y-1">
               <li className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
-                <div className="flex-1">Artifacts when importing some song lyrics — multiple dashes or underscores</div>
+                <div className="flex-1">Artifacts when importing some song lyrics: multiple dashes or underscores</div>
+              </li>
+              <li className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
+                <div className="flex-1">Welcome email not sending on first login</div>
+              </li>
+              <li className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
+                <div className="flex-1">Assets in emails not showing</div>
               </li>
             </ul>
           </li>
