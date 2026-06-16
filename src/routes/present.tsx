@@ -104,8 +104,13 @@ function Presenter() {
     : order;
 
   const [activeSetId, setActiveSetId] = useState<string | null>(
-    setFromUrl ?? setList[0] ?? null
+    setFromUrl ?? (live.setId && sets[live.setId] ? live.setId : null) ?? setList[0] ?? null
   );
+
+  const presenterReturn = (setId: string) =>
+    gatheringFromUrl
+      ? `/present?gathering=${gatheringFromUrl}`
+      : `/present?set=${setId}`;
   const [query, setQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [slideW, setSlideW] = useState(() => {
@@ -170,7 +175,15 @@ function Presenter() {
     }
   }, [activeGathering, activeSetId]);
 
+  // Auto-follow the live set when it changes mid-presentation, but skip the
+  // initial mount so an explicit ?set= (e.g. returning from the set editor) is
+  // not overridden by whatever set happens to be live.
+  const didMountLiveFollow = useRef(false);
   useEffect(() => {
+    if (!didMountLiveFollow.current) {
+      didMountLiveFollow.current = true;
+      return;
+    }
     if (live.setId && sets[live.setId]) {
       setActiveSetId(live.setId);
     }
@@ -520,7 +533,7 @@ function Presenter() {
               <Link
                 to="/set/$setId"
                 params={{ setId: activeSet.id }}
-                search={{ redirectTo: `/present?set=${activeSet.id}` }}
+                search={{ redirectTo: presenterReturn(activeSet.id) }}
                 className="underline"
                 title="Edit set"
               >
@@ -535,7 +548,7 @@ function Presenter() {
                 <Link
                   to="/set/$setId"
                   params={{ setId: activeSet.id }}
-                  search={{ redirectTo: `/present?set=${activeSet.id}` }}
+                  search={{ redirectTo: presenterReturn(activeSet.id) }}
                   className="pill flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                   title="Edit set"
                   aria-label="Edit set"
@@ -563,7 +576,7 @@ function Presenter() {
                       <Link
                         to="/set/$setId"
                         params={{ setId: d.id }}
-                        search={{ redirectTo: `/present?set=${d.id}` }}
+                        search={{ redirectTo: presenterReturn(d.id) }}
                         className="pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                         title="Edit set"
                         aria-label="Edit set"
