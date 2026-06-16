@@ -49,17 +49,34 @@ function readScriptureTemplate(): SetTemplate {
   return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black", align: "left", referencePosition: "below" };
 }
 
-// Debounce pushToSupabase so rapid consecutive mutations fire only one push.
-// Cross-tab store consistency is handled reactively by the Dexie `liveQuery`
-// subscription at the bottom of this file (every tab re-derives its store from
-// Dexie on any write), so no bespoke broadcast plumbing is needed here.
+// Debounce pushToSupabase so rapid consecutive mutations fire only one push,
+// and accumulate WHICH rows changed so the push uploads only those — work that
+// scales with the number of edits, not the size of the library. Cross-tab store
+// consistency is handled reactively by the Dexie `liveQuery` subscription at the
+// bottom of this file (every tab re-derives its store from Dexie on any write),
+// so no bespoke broadcast plumbing is needed here.
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
-function schedulePush() {
+const dirtySetIds = new Set<string>();
+const dirtyGatheringIds = new Set<string>();
+function schedulePush(opts?: { set?: string; gathering?: string }) {
+  if (opts?.set) dirtySetIds.add(opts.set);
+  if (opts?.gathering) dirtyGatheringIds.add(opts.gathering);
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
     pushTimer = null;
-    console.log('[sync] schedulePush: debounce elapsed, calling pushToSupabase at', new Date().toISOString());
-    pushToSupabase();
+    const setIds = [...dirtySetIds];
+    const gatheringIds = [...dirtyGatheringIds];
+    dirtySetIds.clear();
+    dirtyGatheringIds.clear();
+    console.log('[sync] schedulePush: debounce elapsed, pushing', setIds.length, 'sets,', gatheringIds.length, 'gatherings at', new Date().toISOString());
+    pushToSupabase({ setIds, gatheringIds }).then((ok) => {
+      if (ok) return;
+      // Push failed (e.g. offline). Re-mark the rows dirty and reschedule so the
+      // change isn't lost; the load-time diff is the cross-session safety net.
+      setIds.forEach((id) => dirtySetIds.add(id));
+      gatheringIds.forEach((id) => dirtyGatheringIds.add(id));
+      schedulePush();
+    });
   }, 500);
 }
 
@@ -184,7 +201,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       sets: { ...s.sets, [id]: record },
       order: [id, ...s.order],
     }));
-    db.sets.put(record).then(() => schedulePush());
+    db.sets.put(record).then(() => schedulePush({ set: id }));
     return id;
   },
 
@@ -193,7 +210,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const d = s.sets[id];
       if (!d) return s;
       const updated = { ...d, ...patch, updatedAt: Date.now() };
-      db.sets.put(updated).then(() => schedulePush());
+      db.sets.put(updated).then(() => schedulePush({ set: id }));
       // Keep live slideId at same position index when slides are regenerated.
       if (patch.slides) {
         const live = useLive.getState();
@@ -237,7 +254,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         set((s) => ({
           gatherings: { ...s.gatherings, ...Object.fromEntries(toUpdate.map((p) => [p.id, p])) },
         }));
-        schedulePush();
+        for (const p of toUpdate) schedulePush({ gathering: p.id });
       }
     });
   },
@@ -248,7 +265,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const d = s.sets[setId];
       if (!d) return s;
       const updated = { ...d, slides: [...d.slides, { ...slide, id }], updatedAt: Date.now() };
-      db.sets.put(updated).then(() => schedulePush());
+      db.sets.put(updated).then(() => schedulePush({ set: setId }));
       return { sets: { ...s.sets, [setId]: updated } };
     });
     return id;
@@ -263,7 +280,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         slides: d.slides.map((sl) => (sl.id === slideId ? { ...sl, ...patch } : sl)),
         updatedAt: Date.now(),
       };
-      db.sets.put(updated).then(() => schedulePush());
+      db.sets.put(updated).then(() => schedulePush({ set: setId }));
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
@@ -276,7 +293,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         slides: d.slides.filter((sl) => sl.id !== slideId),
         updatedAt: Date.now(),
       };
-      db.sets.put(updated).then(() => schedulePush());
+      db.sets.put(updated).then(() => schedulePush({ set: setId }));
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
@@ -287,7 +304,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const map = new Map(d.slides.map((sl) => [sl.id, sl]));
       const slides = ids.map((i) => map.get(i)!).filter(Boolean);
       const updated = { ...d, slides, updatedAt: Date.now() };
-      db.sets.put(updated).then(() => schedulePush());
+      db.sets.put(updated).then(() => schedulePush({ set: setId }));
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
@@ -307,7 +324,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       gatherings: { ...s.gatherings, [id]: record },
       gatheringOrder: [id, ...s.gatheringOrder],
     }));
-    db.gatherings.put(record).then(() => schedulePush());
+    db.gatherings.put(record).then(() => schedulePush({ gathering: id }));
     return id;
   },
 
@@ -316,7 +333,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const p = s.gatherings[id];
       if (!p) return s;
       const updated = { ...p, name, updatedAt: Date.now() };
-      db.gatherings.put(updated).then(() => schedulePush());
+      db.gatherings.put(updated).then(() => schedulePush({ gathering: id }));
       return { gatherings: { ...s.gatherings, [id]: updated } };
     }),
 
@@ -358,7 +375,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       console.log('[addSetToGathering] gathering', gatheringId, '| added set', setId, '| setIds now:', updated.setIds, '| is_live:', updated.is_live, '| scheduling push in 500ms');
       db.gatherings.put(updated).then(() => {
         console.log('[addSetToGathering] Dexie write done, firing schedulePush');
-        schedulePush();
+        schedulePush({ gathering: gatheringId });
       });
       return { gatherings: { ...s.gatherings, [gatheringId]: updated } };
     }),
@@ -376,7 +393,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         setIds = p.setIds.filter((_, i) => i !== idx);
       }
       const updated = { ...p, setIds, updatedAt: Date.now() };
-      db.gatherings.put(updated).then(() => schedulePush());
+      db.gatherings.put(updated).then(() => schedulePush({ gathering: gatheringId }));
       return { gatherings: { ...s.gatherings, [gatheringId]: updated } };
     }),
 
@@ -385,7 +402,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const p = s.gatherings[gatheringId];
       if (!p) return s;
       const updated = { ...p, setIds, updatedAt: Date.now() };
-      db.gatherings.put(updated).then(() => schedulePush());
+      db.gatherings.put(updated).then(() => schedulePush({ gathering: gatheringId }));
       return { gatherings: { ...s.gatherings, [gatheringId]: updated } };
     }),
 
