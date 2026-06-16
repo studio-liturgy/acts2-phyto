@@ -42,6 +42,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { TestSiteWarning } from "@/components/TestSiteWarning";
 
 function NotFoundComponent() {
   return (
@@ -306,6 +307,7 @@ function RootComponent() {
           </div>
         </DialogContent>
       </Dialog>
+      <TestSiteWarning />
     </QueryClientProvider>
   );
 }
