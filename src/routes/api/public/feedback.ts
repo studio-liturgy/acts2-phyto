@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
 import { z } from "zod";
 
 const CATEGORIES = [
@@ -112,6 +113,26 @@ export const Route = createFileRoute("/api/public/feedback")({
             { ok: false, error: "Could not save feedback. Please try again later." },
             { status: 502 },
           );
+        }
+
+        const RESEND_API_KEY = await readEnv("RESEND_API_KEY");
+        const RESEND_FROM = await readEnv("RESEND_FROM");
+        if (RESEND_API_KEY && RESEND_FROM) {
+          try {
+            const resend = new Resend(RESEND_API_KEY);
+            await resend.emails.send({
+              from: RESEND_FROM,
+              to: "hello@studioliturgy.com",
+              subject: `[Phyto Feedback] ${category}`,
+              text: [
+                `Category: ${category}`,
+                `Message:\n${message}`,
+                `Submitter email: ${email ?? "not provided"}`,
+              ].join("\n\n"),
+            });
+          } catch (emailErr) {
+            console.warn(`Feedback email failed: ${emailErr}`);
+          }
         }
 
         return Response.json({ ok: true });
