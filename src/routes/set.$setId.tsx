@@ -39,13 +39,6 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-// Ephemeral per-session cache of the pristine fetched verses, keyed by setId.
-// Survives editor unmount/remount (in-app navigation) but resets on page reload.
-const scriptureSourceCache = new Map<
-  string,
-  { verses: { text: string; verse: number; chapter: number }[]; label: string }
->();
-
 function kindBadgeBg(kind: SetKind): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
   if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
@@ -898,13 +891,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [songErr, setSongErr] = useState<string | null>(null);
 
   const [pendingLinesPerConfirm, setPendingLinesPerConfirm] = useState<number | null>(null);
-  const [pendingVersesPerConfirm, setPendingVersesPerConfirm] = useState<number | null>(null);
   const [versionOpen, setVersionOpen] = useState(false);
 
   const [ref, setRef] = useState("");
   const [translation, setTranslation] = useState("NIV");
   const [versesPer, setVersesPer] = useState(1);
-  const prevVersesPer = useRef(1);
   const [keepLineBreaks, setKeepLineBreaks] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -988,7 +979,6 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         removeLineBreaks: !keepLineBreaks,
       });
       const labelled = `${reference} ${translation}`;
-      scriptureSourceCache.set(setId, { verses, label: labelled });
       const parts: string[] = [];
       for (let i = 0; i < verses.length; i += vPer) {
         if (i > 0) parts.push("---");
@@ -996,8 +986,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         const verseTexts = group.map((v) => v.text.trim()).join(" ");
         parts.push(i === 0 ? `[${labelled}]\n${verseTexts}` : verseTexts);
       }
-      setManualText(parts.join("\n\n"));
-      updateSet(setId, { name: labelled });
+      const newBlock = parts.join("\n\n");
+      // Append to any existing passage rather than replacing it.
+      setManualText((prev) => (prev.trim() ? `${prev}\n\n---\n\n${newBlock}` : newBlock));
+      // Title stays as the first passage imported.
+      if (!manualText.trim()) updateSet(setId, { name: labelled });
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -1006,19 +999,6 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   };
 
   const importScripture = () => importScriptureWith(versesPer);
-
-  const reshuffleVerses = (vPer: number) => {
-    const cached = scriptureSourceCache.get(setId);
-    if (!cached?.verses.length) return;
-    const parts: string[] = [];
-    for (let i = 0; i < cached.verses.length; i += vPer) {
-      if (i > 0) parts.push("---");
-      const group = cached.verses.slice(i, i + vPer);
-      const verseTexts = group.map((v) => v.text.trim()).join(" ");
-      parts.push(i === 0 ? `[${cached.label}]\n${verseTexts}` : verseTexts);
-    }
-    setManualText(parts.join("\n\n"));
-  };
 
   const importImages = async (files: FileList | null) => {
     if (!files) return;
@@ -1205,12 +1185,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 value={versesPer}
                 onChange={(e) => {
                   const next = Math.min(3, Math.max(1, Number(e.target.value) || 1));
-                  if (manualText.trim() && (scriptureSourceCache.get(setId)?.verses.length ?? 0) > 0) {
-                    setPendingVersesPerConfirm(next);
-                  } else {
-                    prevVersesPer.current = next;
-                    setVersesPer(next);
-                  }
+                  setVersesPer(next);
                 }}
                 className="pill h-9 w-full border border-foreground bg-background px-3 text-sm outline-none"
               />
@@ -1243,37 +1218,6 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
         </div>
-
-        <AlertDialog open={pendingVersesPerConfirm !== null} onOpenChange={(o) => { if (!o) { setPendingVersesPerConfirm(null); setVersesPer(prevVersesPer.current); } }}>
-          <AlertDialogContent className="gap-0 rounded-3xl p-8">
-            <AlertDialogTitle className="text-2xl font-normal leading-tight">Re-import passage?</AlertDialogTitle>
-            <AlertDialogDescription className="mt-4 text-base text-foreground">
-              This will re-import the passage with the new verses-per-slide setting. Your manual text edits will be lost.
-            </AlertDialogDescription>
-            <div className="mt-8 flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  const next = pendingVersesPerConfirm!;
-                  prevVersesPer.current = next;
-                  setVersesPer(next);
-                  reshuffleVerses(next);
-                  setPendingVersesPerConfirm(null);
-                }}
-                className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
-              >
-                Continue
-              </button>
-              <button
-                type="button"
-                onClick={() => { setPendingVersesPerConfirm(null); setVersesPer(prevVersesPer.current); }}
-                className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
-              >
-                Cancel
-              </button>
-            </div>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     );
   }
