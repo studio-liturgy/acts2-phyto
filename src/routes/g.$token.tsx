@@ -57,6 +57,9 @@ const FONT_FAMILY_CSS: Record<FontFamily, string> = {
   mono: "'Space Mono', monospace",
 };
 
+// Baseline reading-text size (in rem) before the viewer's font-size slider is applied.
+const BASE_FONT_REM = 1.5;
+
 function loadPrefs(): ViewerPrefs {
   try {
     return {
@@ -284,7 +287,7 @@ function GatheringViewer() {
       className={`flex min-h-screen flex-col ${themeClasses}`}
       style={{
         fontFamily: FONT_FAMILY_CSS[prefs.fontFamily],
-        fontSize: `${prefs.fontSize}rem`,
+        fontSize: `${prefs.fontSize * BASE_FONT_REM}rem`,
       }}
     >
       {/* Tab bar */}
@@ -439,7 +442,15 @@ function GatheringViewer() {
       {/* Set content */}
       <div
         className="flex-1 overflow-y-auto"
-        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchStart={(e) => {
+          // Ignore multi-touch (pinch-to-zoom) — don't start a swipe.
+          if (e.touches.length > 1) { touchStartX.current = null; return; }
+          touchStartX.current = e.touches[0].clientX;
+        }}
+        onTouchMove={(e) => {
+          // A second finger landed mid-gesture (pinch) — cancel the swipe.
+          if (e.touches.length > 1) touchStartX.current = null;
+        }}
         onTouchEnd={(e) => {
           if (touchStartX.current === null) return;
           const dx = e.changedTouches[0].clientX - touchStartX.current;
