@@ -84,8 +84,8 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: 'offli
               </section>
 
               <section>
-                <h2 className="text-2xl">7. Ko-fi</h2>
-                <p className="mt-2">The app links to a voluntary donation page hosted by Ko-fi at <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">ko-fi.com/valiantchan</a>. Any payment information you provide is handled entirely by Ko-fi and subject to Ko-fi's own privacy policy. phyto does not receive or store your payment details.</p>
+                <h2 className="text-2xl">7. Stripe</h2>
+                <p className="mt-2">The app links to a voluntary donation page hosted by Stripe at <a href="https://donate.stripe.com/bJe14gbwwbucdfac9E8og00" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">donate.stripe.com</a>. Any payment information you provide is handled entirely by Stripe and subject to Stripe's own privacy policy. phyto does not receive or store your payment details.</p>
               </section>
 
               <section>

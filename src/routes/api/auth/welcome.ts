@@ -101,7 +101,7 @@ function buildWelcomeHtml_UNUSED(): string {
                   I built this tool for small home<br />worship gatherings,<br />like yours and mine.
                 </h1>
                 <p style="margin:0 0 32px;color:#212121;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.7;max-width:460px;display:inline-block;text-align:left;">
-                  Unlike traditional presenter programs with complex features (colourful backgrounds, multiple outputs, livestreaming, etc.), I made this app to be an intentionally stripped back alternative to keep presenting simple and organized. It's designed to be easy to use and to protect the simplicity of worshipping with friends and family at home. All so that we can focus on the one thing that matters most – Jesus.
+                  Unlike traditional presenter programs with complex features (colourful backgrounds, multiple outputs, livestreaming, etc.), I made this app to be an intentionally stripped back alternative to keep presenting simple and organized. It's designed to be easy to use and to protect the simplicity of worshipping with friends and family at home. All so that we can focus on the one who matters most: Jesus.
                 </p>
                 <br />
                 <!--[if mso]>
@@ -213,7 +213,7 @@ function buildWelcomeHtml_UNUSED(): string {
                 <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                   <tr>
                     <td class="btn-cell" style="padding:0 6px;">
-                      <a href="https://ko-fi.com/valiantchan"
+                      <a href="https://donate.stripe.com/bJe14gbwwbucdfac9E8og00"
                          style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;letter-spacing:-0.03em;text-decoration:none;padding:14px 24px;white-space:nowrap;">
                         Donate
                       </a>

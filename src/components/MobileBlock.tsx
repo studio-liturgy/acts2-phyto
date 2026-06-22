@@ -38,7 +38,7 @@ export function MobileBlock() {
       <nav className="mono uppercase flex flex-col items-center gap-3 text-sm">
         <Link to="/about" className={linkCls}>About</Link>
         <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className={linkCls}>Instagram</a>
-        <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className={linkCls}>Donate</a>
+        <a href="https://donate.stripe.com/bJe14gbwwbucdfac9E8og00" target="_blank" rel="noopener noreferrer" className={linkCls}>Donate</a>
         <Link to="/feedback" className={linkCls}>Feedback</Link>
         <Link to="/updates" className={linkCls}>{isTest ? 'Test Notes' : 'Updates'}</Link>
         <Link to="/legal" className={linkCls}>Legal</Link>

@@ -40,7 +40,7 @@ export default function TermsTest({ defaultSection }: { defaultSection: 'offline
 
               <section>
                 <h2 className="text-2xl">3. Donations</h2>
-                <p className="mt-2">phyto accepts voluntary donations via Ko-fi at <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">ko-fi.com/valiantchan</a>. Donations are entirely optional and greatly appreciated. Donating does not grant any additional features, rights, or privileges.</p>
+                <p className="mt-2">phyto accepts voluntary donations via Stripe at <a href="https://donate.stripe.com/bJe14gbwwbucdfac9E8og00" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">donate.stripe.com</a>. Donations are entirely optional and greatly appreciated. Donating does not grant any additional features, rights, or privileges.</p>
               </section>
 
               <section>
