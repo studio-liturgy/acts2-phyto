@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   ArrowUpLeft,
   ArrowUpRight,
+  ArrowDownAZ,
+  ArrowDownWideNarrow,
   Share2,
   X,
   Search,
@@ -118,6 +120,7 @@ function Presenter() {
       ? `/present?gathering=${gatheringFromUrl}`
       : `/present?set=${setId}`;
   const [query, setQuery] = useState("");
+  const [setSortMode, setSetSortMode] = useState<"az" | "newest">("az");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [slideW, setSlideW] = useState(() => {
     if (typeof window === "undefined") return 256;
@@ -211,15 +214,27 @@ function Presenter() {
 
   const q = query.trim().toLowerCase();
   const showAll = !activeGathering;
-  const filteredSets = setList.filter((id) => {
-    if (!q) return true;
-    const s = sets[id];
-    if (!s) return false;
-    if (s.name.toLowerCase().includes(q)) return true;
-    return s.slides.some((slide) =>
-      slide.lines?.some((line) => line.toLowerCase().includes(q))
-    );
-  });
+  const filteredSets = setList
+    .filter((id) => {
+      if (!q) return true;
+      const s = sets[id];
+      if (!s) return false;
+      if (s.name.toLowerCase().includes(q)) return true;
+      return s.slides.some((slide) =>
+        slide.lines?.some((line) => line.toLowerCase().includes(q))
+      );
+    })
+    // Only the catalogue list is sorted; inside a gathering the order is
+    // manual (drag-reorderable) and must be left untouched.
+    .sort((a, b) => {
+      if (activeGathering) return 0;
+      const sa = sets[a];
+      const sb = sets[b];
+      if (!sa || !sb) return 0;
+      return setSortMode === "az"
+        ? sa.name.localeCompare(sb.name)
+        : sb.createdAt - sa.createdAt;
+    });
   const filteredGatherings = showAll ? gatheringOrder : [];
 
   // While inside a gathering, a search also scans the entire catalogue for sets
@@ -472,7 +487,21 @@ function Presenter() {
                       {activeGathering.name}
                     </span>
                   ) : (
-                    "Sets"
+                    <span className="flex items-center justify-between">
+                      <span>Sets</span>
+                      <button
+                        onClick={() => setSetSortMode(setSortMode === "az" ? "newest" : "az")}
+                        title={`Sort: ${setSortMode === "az" ? "A → Z" : "Newest first"}`}
+                        aria-label={`Sort: ${setSortMode === "az" ? "A → Z" : "Newest first"}`}
+                        className="flex items-center"
+                      >
+                        {setSortMode === "az" ? (
+                          <ArrowDownAZ className="h-3.5 w-3.5" />
+                        ) : (
+                          <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </span>
                   )}
                 </div>
                 <div className="space-y-1">
