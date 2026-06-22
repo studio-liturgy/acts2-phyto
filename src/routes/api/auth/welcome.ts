@@ -213,7 +213,7 @@ function buildWelcomeHtml_UNUSED(): string {
                 <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                   <tr>
                     <td class="btn-cell" style="padding:0 6px;">
-                      <a href="https://donate.stripe.com/bJe14gbwwbucdfac9E8og00"
+                      <a href="https://phyto.live/donate"
                          style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;letter-spacing:-0.03em;text-decoration:none;padding:14px 24px;white-space:nowrap;">
                         Donate
                       </a>

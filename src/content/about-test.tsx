@@ -50,7 +50,7 @@ export default function AboutTest() {
               phyto.live
             </a>
             <a
-              href="https://donate.stripe.com/bJe14gbwwbucdfac9E8og00"
+              href="/donate"
               target="_blank"
               rel="noopener noreferrer"
               className="pill flex items-center border border-[var(--brand-black)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-black)] transition hover:bg-[var(--brand-black)] hover:text-[var(--brand-orange)]"

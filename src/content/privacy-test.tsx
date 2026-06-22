@@ -85,7 +85,7 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: 'offli
 
               <section>
                 <h2 className="text-2xl">7. Stripe</h2>
-                <p className="mt-2">The app links to a voluntary donation page hosted by Stripe at <a href="https://donate.stripe.com/bJe14gbwwbucdfac9E8og00" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">donate.stripe.com</a>. Any payment information you provide is handled entirely by Stripe and subject to Stripe's own privacy policy. phyto does not receive or store your payment details.</p>
+                <p className="mt-2">The app links to a voluntary donation page hosted by Stripe at <a href="/donate" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">phyto.live/donate</a>. Any payment information you provide is handled entirely by Stripe and subject to Stripe's own privacy policy. phyto does not receive or store your payment details.</p>
               </section>
 
               <section>

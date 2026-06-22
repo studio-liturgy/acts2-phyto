@@ -14,7 +14,7 @@ export function Footer({ className }: { className?: string }) {
         <nav className="flex items-center gap-6 text-xs">
           <Link to="/about" className={linkCls}>About</Link>
           <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className={linkCls}>Instagram</a>
-          <a href="https://donate.stripe.com/bJe14gbwwbucdfac9E8og00" target="_blank" rel="noopener noreferrer" className={linkCls}>Donate</a>
+          <a href="/donate" target="_blank" rel="noopener noreferrer" className={linkCls}>Donate</a>
           <Link to="/feedback" className={linkCls}>Feedback</Link>
         </nav>
         <div className="flex justify-center">
