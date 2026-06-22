@@ -216,6 +216,22 @@ function Presenter() {
   });
   const filteredGatherings = showAll ? gatheringOrder : [];
 
+  // While inside a gathering, a search also scans the entire catalogue for sets
+  // not yet in this gathering, surfaced above the gathering's own sets so they
+  // can be inserted on the fly.
+  const catalogueResults =
+    activeGathering && q
+      ? order.filter((id) => {
+          if (activeGathering.setIds.includes(id)) return false;
+          const s = sets[id];
+          if (!s) return false;
+          if (s.name.toLowerCase().includes(q)) return true;
+          return s.slides.some((slide) =>
+            slide.lines?.some((line) => line.toLowerCase().includes(q))
+          );
+        })
+      : [];
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!liveSet || !liveSlide) return;
@@ -345,13 +361,23 @@ function Presenter() {
         {sidebarOpen && (
           <aside className="flex h-[calc(100vh-73px)] flex-col border-r border-foreground bg-background p-4 md:sticky md:top-[73px]">
             <div className="pill mb-4 flex items-center gap-2 border border-foreground bg-background px-4 py-2">
-              <Search className="h-4 w-4" />
+              <Search className="h-4 w-4 shrink-0" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search for a set"
                 className="mono uppercase w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
               />
+              {query && (
+                <button
+                  onClick={() => setQuery("")}
+                  className="shrink-0 rounded-full p-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  title="Clear search"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
 
             <div className="flex-1 overflow-auto pr-1">
@@ -400,6 +426,36 @@ function Presenter() {
                 </div>
               )}
 
+              {activeGathering && q && catalogueResults.length > 0 && (
+                <div className="mb-2">
+                  <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">Catalogue</div>
+                  <div className="space-y-1">
+                    {catalogueResults.map((id) => {
+                      const d = sets[id];
+                      if (!d) return null;
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => { addSetToGathering(activeGathering.id, id); setQuery(""); }}
+                          className={`group flex w-full items-center justify-between gap-2 rounded-lg border-2 border-transparent px-2 py-1.5 text-left text-sm transition ${kindHoverBg(d.kind)}`}
+                          title="Add to gathering"
+                        >
+                          <span className="truncate">{d.name}</span>
+                          <span className="flex items-center gap-1">
+                            <KindBadge kind={d.kind} />
+                            <Plus className="h-4 w-4 opacity-40 group-hover:opacity-100" />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Thin line marking the boundary between catalogue matches
+                      above and this gathering's own sets below — mirrors the
+                      local/online divider in the set-editor song search. */}
+                  <div className="mx-2 mt-2 h-px bg-foreground" />
+                </div>
+              )}
+
               <div>
                 <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">
                   {activeGathering ? (
@@ -416,7 +472,9 @@ function Presenter() {
                 <div className="space-y-1">
                   {filteredSets.length === 0 && (
                     <p className="px-2 text-xs text-muted-foreground">
-                      {activeGathering ? "Gathering is empty." : q ? "No matches." : "No sets yet."}
+                      {activeGathering
+                        ? q ? "No sets in this gathering match." : "Gathering is empty."
+                        : q ? "No matches." : "No sets yet."}
                     </p>
                   )}
                   {(reorderLiveOrder ?? filteredSets).map((id, i) => {
