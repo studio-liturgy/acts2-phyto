@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useState } from 'react';
 import { signInWithEmail } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { APP_NAME } from '@/lib/appConfig';
@@ -22,27 +22,10 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const { error: callbackError } = Route.useSearch();
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [subscribe, setSubscribe] = useState(false);
   const [error, setError] = useState<string | null>(callbackError ?? null);
-  const [countdown, setCountdown] = useState(10);
-
-  useEffect(() => {
-    if (!sent) return;
-    const interval = setInterval(() => {
-      setCountdown((n) => {
-        if (n <= 1) {
-          clearInterval(interval);
-          navigate({ to: '/' });
-          return 0;
-        }
-        return n - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [sent, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,10 +59,10 @@ function LoginPage() {
               <div className={`space-y-3 text-center ${isTest ? 'text-black' : 'text-white'}`}>
                 <p className="mono uppercase text-sm lg:text-base">Check your email for a sign-in link!</p>
                 <p className="text-sm opacity-70">
-                  If you haven't received it yet, check your spam or junk folder.
+                  A link was sent to {email}.
                 </p>
                 <p className="text-sm opacity-70">
-                  Redirecting in {countdown} second{countdown !== 1 ? 's' : ''}…
+                  If you haven't received it yet, check your spam or junk folder.
                 </p>
               </div>
             ) : (

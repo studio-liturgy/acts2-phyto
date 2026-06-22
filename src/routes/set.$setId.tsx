@@ -572,15 +572,18 @@ function PillInput({
   value,
   onChange,
   placeholder,
+  onEnter,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  onEnter?: () => void;
 }) {
   return (
     <input
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => e.key === 'Enter' && onEnter?.()}
       placeholder={placeholder}
       className="pill mono uppercase w-full border border-foreground bg-background px-4 py-1.5 text-sm outline-none focus:ring-1 focus:ring-foreground"
     />
@@ -1143,7 +1146,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       <div className="flex h-full flex-col gap-0 overflow-hidden">
         {/* API lookup section */}
         <div className="shrink-0 border-b border-foreground/20 p-4">
-          <PillInput value={ref} onChange={setRef} placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2" />
+          <PillInput value={ref} onChange={setRef} placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2" onEnter={() => { if (ref.trim() && !busy) importScripture(); }} />
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <div className="mono mb-1 text-[10px] uppercase tracking-wider">Version</div>
