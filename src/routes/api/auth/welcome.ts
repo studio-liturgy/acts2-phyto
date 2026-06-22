@@ -89,7 +89,7 @@ function buildWelcomeHtml_UNUSED(): string {
             <!-- HEADER -->
             <tr>
               <td style="padding:0;font-size:0;line-height:0;">
-                <img src="https://phyto.live/email/magic-link-header.png" width="600" alt="phyto"
+                <img src="https://phyto.live/email/email-header.png" width="600" alt="phyto"
                      style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
               </td>
             </tr>

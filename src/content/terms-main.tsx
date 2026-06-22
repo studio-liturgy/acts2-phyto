@@ -117,7 +117,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: 'offline
 
               <section>
                 <h2 className="text-2xl">1. Accounts</h2>
-                <p className="mt-2">Creating an account is optional. You may sign in using a magic link sent to your email address, or via Google OAuth. You are responsible for maintaining the security of your account. phyto currently supports one account per email address. The app is fully usable without an account. Creating one unlocks cross-device sync and live sharing only.</p>
+                <p className="mt-2">Creating an account is optional. You may sign in using a one-time code sent to your email address, or via Google OAuth. You are responsible for maintaining the security of your account. phyto currently supports one account per email address. The app is fully usable without an account. Creating one unlocks cross-device sync and live sharing only.</p>
               </section>
 
               <section>

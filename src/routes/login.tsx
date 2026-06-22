@@ -1,7 +1,9 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
-import { signInWithEmail } from '@/lib/auth';
+import { signInWithEmail, verifyEmailCode } from '@/lib/auth';
+import { sendWelcomeIfNew } from '@/lib/welcome';
 import { supabase } from '@/lib/supabase';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { APP_NAME } from '@/lib/appConfig';
 import wordmark from '@/assets/wordmark.svg';
 import wordmarkTestBlack from '@/assets/wordmark-test-black.svg';
@@ -22,21 +24,53 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const { error: callbackError } = Route.useSearch();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
+  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [code, setCode] = useState('');
   const [subscribe, setSubscribe] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(callbackError ?? null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSubmitting(true);
     sessionStorage.setItem("phyto-subscribe", String(subscribe));
     const { error } = await signInWithEmail(email);
+    setSubmitting(false);
     if (error) {
       setError(error.message);
     } else {
-      setSent(true);
+      setCode('');
+      setStep('code');
     }
+  };
+
+  const handleVerify = async (value: string) => {
+    setError(null);
+    setSubmitting(true);
+    const { data, error } = await verifyEmailCode(email, value);
+    if (error) {
+      setSubmitting(false);
+      setError(error.message);
+      setCode('');
+      return;
+    }
+    if (data.user) await sendWelcomeIfNew(data.user);
+    navigate({ to: "/" });
+  };
+
+  const handleCodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code.length === 6) handleVerify(code);
+  };
+
+  const handleResend = async () => {
+    setError(null);
+    setCode('');
+    const { error } = await signInWithEmail(email);
+    if (error) setError(error.message);
   };
 
   return (
@@ -55,15 +89,63 @@ function LoginPage() {
         {/* Right — form or success */}
         <div className="flex w-full items-center justify-center px-8 pb-20 lg:px-16 lg:py-0">
           <div className="w-full max-w-sm">
-            {sent ? (
-              <div className={`space-y-3 text-center ${isTest ? 'text-black' : 'text-white'}`}>
-                <p className="mono uppercase text-sm lg:text-base">Check your email for a sign-in link!</p>
+            {step === 'code' ? (
+              <div className={`space-y-4 text-center ${isTest ? 'text-black' : 'text-white'}`}>
+                <p className="mono uppercase text-sm lg:text-base">Enter your sign-in code</p>
                 <p className="text-sm opacity-70">
-                  A link was sent to {email}.
+                  We sent a 6-digit code to {email}.
                 </p>
+                <form onSubmit={handleCodeSubmit} className="space-y-4">
+                  <div className="flex justify-center">
+                    <InputOTP
+                      maxLength={6}
+                      value={code}
+                      onChange={(value) => {
+                        setCode(value);
+                        if (value.length === 6) handleVerify(value);
+                      }}
+                      disabled={submitting}
+                      autoFocus
+                    >
+                      <InputOTPGroup className="gap-2">
+                        {[0, 1, 2, 3, 4, 5].map((i) => (
+                          <InputOTPSlot
+                            key={i}
+                            index={i}
+                            className={`mono h-12 w-10 rounded-md border text-lg ${
+                              isTest
+                                ? 'border-black/40 text-black'
+                                : 'border-white/60 bg-transparent text-white'
+                            }`}
+                          />
+                        ))}
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={submitting || code.length !== 6}
+                    className={`mono uppercase text-sm w-full rounded-full px-6 py-3 transition hover:opacity-90 disabled:opacity-50 ${isTest ? 'bg-[var(--brand-black)] text-[var(--brand-white)]' : 'bg-white text-[var(--brand-blue)]'}`}
+                  >
+                    {submitting ? 'verifying…' : 'sign in'}
+                  </button>
+                </form>
+
+                {error && (
+                  <p className={`text-center text-sm ${isTest ? 'text-black/80' : 'text-white/80'}`}>{error}</p>
+                )}
+
                 <p className="text-sm opacity-70">
-                  If you haven't received it yet, check your spam or junk folder.
+                  Didn't get it? Check your spam folder or{' '}
+                  <button type="button" onClick={handleResend} className="underline">resend the code</button>.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => { setStep('email'); setError(null); }}
+                  className={`mono uppercase text-[11px] underline opacity-70 ${isTest ? 'text-black' : 'text-white'}`}
+                >
+                  use a different email
+                </button>
               </div>
             ) : (
               <div className="space-y-3">
@@ -82,9 +164,10 @@ function LoginPage() {
                   />
                   <button
                     type="submit"
-                    className={`mono uppercase text-sm w-full rounded-full px-6 py-3 transition hover:opacity-90 ${isTest ? 'bg-[var(--brand-black)] text-[var(--brand-white)]' : 'bg-white text-[var(--brand-blue)]'}`}
+                    disabled={submitting}
+                    className={`mono uppercase text-sm w-full rounded-full px-6 py-3 transition hover:opacity-90 disabled:opacity-50 ${isTest ? 'bg-[var(--brand-black)] text-[var(--brand-white)]' : 'bg-white text-[var(--brand-blue)]'}`}
                   >
-                    continue
+                    {submitting ? 'sending…' : 'continue'}
                   </button>
                 </form>
 

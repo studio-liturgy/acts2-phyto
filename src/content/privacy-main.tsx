@@ -121,7 +121,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: 'offli
                 <h2 className="text-2xl">1. Information We Collect</h2>
                 <p className="mt-2">When you create an account, we collect:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
-                  <li><strong>Email address:</strong> used solely for authentication via magic link or Google OAuth</li>
+                  <li><strong>Email address:</strong> used solely for authentication via one-time code or Google OAuth</li>
                   <li><strong>Catalogue content:</strong> your sets and gatherings, synced to our database so you can access them across devices</li>
                   <li><strong>Device identifier:</strong> an anonymous ID generated locally on each device, used only to resolve sync conflicts between devices. It is never linked to your identity.</li>
                 </ul>

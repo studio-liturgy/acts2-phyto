@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light only" />
-    <title>Your link to sign in to phyto</title>
+    <title>Here's your sign in code | phyto</title>
     <style>
       @font-face {
         font-family: 'Space Mono';
@@ -12,16 +12,13 @@
         font-weight: 400;
         font-style: normal;
       }
-      /* Mobile: stack heading and button; desktop Outlook ignores this and stays side-by-side */
       @media only screen and (max-width:600px) {
-        .col { display:block !important; width:100% !important; }
-        .btn-cell { text-align:left !important; padding:24px 0 0 !important; }
         .h1 { font-size:34px !important; }
       }
     </style>
   </head>
   <body style="margin:0;padding:0;background:#2E7299;font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.03em;">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Here's your secure link to sign in to phyto. It expires shortly.</div>
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Here's your sign in code for phyto. It expires shortly.</div>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#2E7299;">
       <tr>
@@ -31,7 +28,7 @@
             <!-- HERO: textured background + phyto wordmark, flattened into one PNG -->
             <tr>
               <td style="padding:0;font-size:0;line-height:0;">
-                <img src="https://phyto.live/email/magic-link-header.png" width="600" alt="phyto"
+                <img src="https://phyto.live/email/email-header.png" width="600" alt="phyto"
                      style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
               </td>
             </tr>
@@ -40,38 +37,34 @@
             <tr>
               <td style="padding:44px 40px 40px;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                  <!-- Row 1: heading | button -->
+                  <!-- Row 1: heading, centered -->
                   <tr>
-                    <td class="col" valign="middle" width="58%" style="vertical-align:middle;">
+                    <td align="center" style="padding-bottom:24px;">
                       <h1 class="h1" style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:40px;line-height:1.05;font-weight:400;letter-spacing:-0.045em;">
-                        Here's your link!
+                        Here's your code!
                       </h1>
                     </td>
-                    <td class="col btn-cell" valign="middle" width="42%" align="right" style="vertical-align:middle;text-align:right;">
-                      <!--[if mso]>
-                      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{ .ConfirmationURL }}" style="height:72px;v-text-anchor:middle;width:240px;" arcsize="50%" strokecolor="#F5EFEF" strokeweight="1.5pt" fillcolor="#2E7299">
-                        <w:anchorlock/>
-                        <center style="color:#F5EFEF;font-family:Arial,sans-serif;font-size:34px;letter-spacing:-1.5px;">Sign In  &#8599;</center>
-                      </v:roundrect>
-                      <![endif]-->
-                      <!--[if !mso]><!-->
-                      <a href="{{ .ConfirmationURL }}"
-                         style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:34px;line-height:1;letter-spacing:-0.045em;text-decoration:none;padding:18px 34px;white-space:nowrap;">
-                        Sign In&nbsp;&nbsp;<img src="https://phyto.live/email/arrow.png" width="22" height="22" alt="&#8599;" style="vertical-align:baseline;border:0;color:#F5EFEF;font-size:30px;" />
-                      </a>
-                      <!--<![endif]-->
+                  </tr>
+                  <!-- Row 2: code pill, centered -->
+                  <tr>
+                    <td align="center">
+                      <p style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:40px;line-height:1;letter-spacing:0.18em;padding:18px 34px;white-space:nowrap;margin:0;">{{ .Token }}</p>
                     </td>
                   </tr>
-                  <!-- Row 2: subtext + security note, full width -->
+                  <!-- Hidden fallback link required by Supabase template validator -->
+                  <tr style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">
+                    <td><a href="{{ .ConfirmationURL }}" style="display:none;">sign in</a></td>
+                  </tr>
+                  <!-- Row 3: subtext + security note -->
                   <tr>
-                    <td colspan="2" style="padding-top:54px;text-align:center;">
+                    <td style="padding-top:54px;text-align:center;">
                       <p style="margin:0;color:#dce8ef;font-size:13px;line-height:1.6;">
                         Before going online, we recommend reviewing the
                         <a href="https://phyto.live/terms" style="color:#F5EFEF;text-decoration:underline;">Terms of Use</a>
                         and
                         <a href="https://phyto.live/privacy" style="color:#F5EFEF;text-decoration:underline;">Privacy Policy</a>.
                       </p>
-                      <p style="margin:2px 0 0;color:#bcd2dd;font-size:12px;line-height:1.6;">
+                      <p style="margin:2px 0 0;color:#bcd2dd;font-size:13px;line-height:1.6;">
                         If you didn't request this, you can safely ignore this email.
                       </p>
                     </td>

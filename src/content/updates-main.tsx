@@ -22,7 +22,7 @@ export default function UpdatesMain() {
             </ul>
             <div className="mono mt-3 text-xs uppercase tracking-wider opacity-60">Online</div>
             <ul className="mt-1 list-disc space-y-1 pl-5">
-              <li>Sign in: create an account using an email magic link or Google to access online features</li>
+              <li>Sign in: create an account using an email sign-in code or Google to access online features</li>
               <li>Cross-device sync: when signed in, your catalogue and gatherings can sync across devices</li>
               <li>Go live to view on mobile: take a gathering live with a unique share link and QR code to view on a mobile phone</li>
             </ul>
