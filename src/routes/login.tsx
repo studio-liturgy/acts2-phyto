@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { signInWithEmail } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { APP_NAME } from '@/lib/appConfig';
 import wordmark from '@/assets/wordmark.svg';
 import wordmarkTestBlack from '@/assets/wordmark-test-black.svg';
 
@@ -10,6 +11,11 @@ const isTest = import.meta.env.VITE_APP_ENV === 'test';
 export const Route = createFileRoute('/login')({
   validateSearch: (search: Record<string, unknown>): { error?: string } => ({
     ...(typeof search.error === 'string' ? { error: search.error } : {}),
+  }),
+  head: () => ({
+    meta: [
+      { title: `Sign In | ${APP_NAME}` },
+    ],
   }),
   component: LoginPage,
 });

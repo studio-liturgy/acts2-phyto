@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { useIsSignedIn } from "@/lib/authStore";
+import { APP_NAME } from "@/lib/appConfig";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
@@ -74,6 +75,11 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/present")({
   validateSearch: searchSchema,
+  head: () => ({
+    meta: [
+      { title: `Presenter | ${APP_NAME}` },
+    ],
+  }),
   component: Presenter,
 });
 

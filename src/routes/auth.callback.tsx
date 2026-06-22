@@ -1,8 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { APP_NAME } from "@/lib/appConfig";
 
 export const Route = createFileRoute("/auth/callback")({
+  head: () => ({
+    meta: [
+      { title: APP_NAME },
+    ],
+  }),
   component: AuthCallback,
 });
 

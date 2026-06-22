@@ -138,6 +138,7 @@ async function fetchViewerSets(gatheringId: string): Promise<ViewerSet[]> {
 function GatheringViewer() {
   const { token } = Route.useParams();
   const [status, setStatus] = useState<Status>("loading");
+  const [gatheringName, setGatheringName] = useState<string | null>(null);
   const [sets, setSets] = useState<ViewerSet[]>([]);
   const [activeSetId, setActiveSetId] = useState<string | null>(null);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -152,6 +153,10 @@ function GatheringViewer() {
   useEffect(() => {
     savePrefs(prefs);
   }, [prefs]);
+
+  useEffect(() => {
+    document.title = gatheringName || "Gathering";
+  }, [gatheringName]);
 
   useEffect(() => {
     if (!tabBarRef.current) return;
@@ -204,6 +209,8 @@ function GatheringViewer() {
         stoppedRef.current = true;
         return;
       }
+
+      setGatheringName(g.title);
 
       const wasLive = prevLiveRef.current;
       prevLiveRef.current = g.is_live;
