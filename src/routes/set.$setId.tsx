@@ -4,7 +4,7 @@ import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { parseLyrics, fileToCompressedImageDataUrl, scriptureToSlides } from "@/lib/parsers";
 import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
-import { searchSongs, type SongResult } from "@/lib/songs";
+import { searchSongs, preloadSongs, parseQuery, songPreview, type SongResult } from "@/lib/songs";
 import { SlideView } from "@/components/SlideView";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -892,6 +892,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [songResults, setSongResults] = useState<SongResult[]>([]);
   const [songSearching, setSongSearching] = useState(false);
   const [songErr, setSongErr] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ text: string; x: number; y: number } | null>(null);
+  const searchSeq = useRef(0);
 
   const [pendingLinesPerConfirm, setPendingLinesPerConfirm] = useState<number | null>(null);
   const [versionOpen, setVersionOpen] = useState(false);
@@ -943,6 +945,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     localStorage.setItem("phyto_lines_per_slide", String(linesPer));
   }, [linesPer]);
 
+  // Warm the local song database so the first search paints instantly.
+  useEffect(() => {
+    if (kind === "song") preloadSongs();
+  }, [kind]);
+
   // Live sync: replace all slides whenever lyrics change (song only).
   useEffect(() => {
     if (kind !== "song") return;
@@ -960,16 +967,38 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const runSongSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!songQuery.trim()) return;
+    const seq = ++searchSeq.current; // ignore results from superseded searches
     setSongSearching(true);
     setSongErr(null);
     try {
-      const results = await searchSongs(songQuery);
-      setSongResults(results);
-      if (results.length === 0) setSongErr("No matches found.");
+      // Paint instant local matches, then slot online results in as they load.
+      const { local, online } = await searchSongs(songQuery);
+      if (searchSeq.current === seq) setSongResults(local);
+      const final = await online;
+      if (searchSeq.current === seq) {
+        setSongResults(final);
+        if (final.length === 0)
+          setSongErr("Couldn't find that song. Paste the lyrics below to add it manually.");
+      }
     } catch (e) {
-      setSongErr((e as Error).message);
+      if (searchSeq.current === seq) setSongErr((e as Error).message);
     } finally {
-      setSongSearching(false);
+      if (searchSeq.current === seq) setSongSearching(false);
+    }
+  };
+
+  // When lyrics are pasted into an empty box after a search, name the still-
+  // default set from what was typed (e.g. "Inhabit by Bethel" -> "Inhabit").
+  // Don't override a name the user set or one taken from a selected result.
+  const handleLyricsChange = (val: string) => {
+    const wasEmpty = !lyrics.trim();
+    setLyrics(val);
+    if (wasEmpty && val.trim() && songQuery.trim()) {
+      const current = useLibrary.getState().sets[setId];
+      if (current && (current.name.trim() === "New Song" || !current.name.trim())) {
+        const titled = parseQuery(songQuery).title.replace(/\b\w/g, (c) => c.toUpperCase());
+        if (titled) updateSet(setId, { name: titled });
+      }
     }
   };
 
@@ -1057,8 +1086,20 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                       onClick={() => {
                         setLyrics(applyDividers(s.lyrics, linesPer));
                         setSongResults([]);
+                        setPreview(null);
                         updateSet(setId, { name: s.title });
                       }}
+                      onMouseEnter={(e) =>
+                        setPreview({ text: songPreview(s.lyrics), x: e.clientX, y: e.clientY })
+                      }
+                      onMouseMove={(e) =>
+                        setPreview((p) =>
+                          p
+                            ? { ...p, x: e.clientX, y: e.clientY }
+                            : { text: songPreview(s.lyrics), x: e.clientX, y: e.clientY }
+                        )
+                      }
+                      onMouseLeave={() => setPreview(null)}
                       className="group flex w-full items-center gap-2 rounded-xl p-2 text-left text-sm transition hover:bg-muted"
                     >
                       <div className="min-w-0 flex-1">
@@ -1101,11 +1142,33 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         <div className="min-h-0 flex-1 overflow-hidden">
           <Textarea
             value={lyrics}
-            onChange={(e) => setLyrics(e.target.value)}
+            onChange={(e) => handleLyricsChange(e.target.value)}
             placeholder={`Paste lyrics here, or select a song above.\nUse --- on its own line to split slides.`}
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
         </div>
+
+        {/* Hover preview — chorus (or top of song) following the cursor. */}
+        {preview && preview.text && (() => {
+          const W = 240, H = 200, GAP = 16;
+          const vw = window.innerWidth, vh = window.innerHeight;
+          const left = preview.x + W + GAP > vw ? Math.max(8, preview.x - W - GAP) : preview.x + GAP;
+          const top = preview.y + H + GAP > vh ? Math.max(8, preview.y - H - GAP) : preview.y + GAP;
+          return (
+            <div
+              className="mono pointer-events-none fixed z-50 whitespace-pre-line rounded-2xl border border-foreground bg-background p-3 text-[11px] leading-relaxed shadow-lg"
+              style={{
+                left,
+                top,
+                width: W,
+                maxHeight: H,
+                overflow: "hidden",
+              }}
+            >
+              {preview.text}
+            </div>
+          );
+        })()}
 
         <AlertDialog open={pendingLinesPerConfirm !== null} onOpenChange={(o) => { if (!o) { setPendingLinesPerConfirm(null); setLinesPer(prevLinesPer.current); } }}>
           <AlertDialogContent className="gap-0 rounded-3xl p-8">
