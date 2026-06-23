@@ -144,15 +144,34 @@ function Presenter() {
   // set whose sections are currently being toggled (eye icon clicked).
   const [hiddenBySet, setHiddenBySet] = useState<Record<string, string[]>>({});
   const [manageSet, setManageSet] = useState<string | null>(null);
-  const toggleSection = (setId: string, leaderId: string) => {
-    setHiddenBySet((prev) => {
-      const cur = prev[setId] ?? [];
-      const next = cur.includes(leaderId)
-        ? cur.filter((id) => id !== leaderId)
-        : [...cur, leaderId];
-      return { ...prev, [setId]: next };
-    });
+  // Cursor-following warning shown when the user tries to hide the last
+  // remaining visible section. Auto-clears 3s after the blocked click.
+  const [hideWarning, setHideWarning] = useState<{ x: number; y: number } | null>(null);
+  const hideWarningTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toggleSection = (setId: string, leaderId: string, clientX: number, clientY: number) => {
+    const cur = hiddenBySet[setId] ?? [];
+    const alreadyHidden = cur.includes(leaderId);
+    // Hiding (not un-hiding) the last visible section is not allowed.
+    if (!alreadyHidden) {
+      const total = sets[setId] ? groupSlides(sets[setId]).length : 0;
+      if (total - cur.length <= 1) {
+        if (hideWarningTimer.current) clearTimeout(hideWarningTimer.current);
+        setHideWarning({ x: clientX, y: clientY });
+        hideWarningTimer.current = setTimeout(() => setHideWarning(null), 3000);
+        return;
+      }
+    }
+    const next = alreadyHidden ? cur.filter((id) => id !== leaderId) : [...cur, leaderId];
+    setHiddenBySet((prev) => ({ ...prev, [setId]: next }));
   };
+
+  // While the warning is showing, let it follow the cursor.
+  useEffect(() => {
+    if (!hideWarning) return;
+    const onMove = (e: MouseEvent) => setHideWarning((w) => (w ? { x: e.clientX, y: e.clientY } : w));
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [!!hideWarning]);
 
   const isSignedIn = useIsSignedIn();
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -681,7 +700,7 @@ function Presenter() {
               {setList.map((id, i) => {
                 const d = sets[id];
                 if (!d) return null;
-                const canHide = d.kind === "song" || d.kind === "scripture";
+                const canHide = d.kind === "song";
                 const hiddenLeaders = hiddenBySet[id] ?? [];
                 const hasHidden = hiddenLeaders.length > 0;
                 const managing = manageSet === id;
@@ -693,6 +712,7 @@ function Presenter() {
                         {d.name}
                       </h3>
                       <KindBadge kind={d.kind} />
+                      <div className="flex items-center gap-1.5">
                       <Link
                         to="/set/$setId"
                         params={{ setId: d.id }}
@@ -721,9 +741,16 @@ function Presenter() {
                           aria-label={managing ? "Done hiding sections" : "Hide sections"}
                           aria-pressed={managing}
                         >
-                          {hasHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          {managing ? (
+                            <Check className="h-3.5 w-3.5" />
+                          ) : hasHidden ? (
+                            <EyeOff className="h-3.5 w-3.5" />
+                          ) : (
+                            <Eye className="h-3.5 w-3.5" />
+                          )}
                         </button>
                       )}
+                      </div>
                       {id === live.setId && (
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: kindLiveColor(d.kind) }} title="Live" />
                       )}
@@ -737,7 +764,7 @@ function Presenter() {
                         slideW={slideW}
                         hiddenLeaders={hiddenLeaders}
                         manageMode={managing}
-                        onToggleSection={(leaderId) => toggleSection(id, leaderId)}
+                        onToggleSection={(leaderId, x, y) => toggleSection(id, leaderId, x, y)}
                       />
                     )}
                   </section>
@@ -864,6 +891,22 @@ function Presenter() {
       </div>
 
       <MediaAutoAdvance />
+
+      {/* Cursor-following warning when hiding the last visible section. */}
+      {hideWarning && (() => {
+        const W = 220, GAP = 16;
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const left = hideWarning.x + W + GAP > vw ? Math.max(8, hideWarning.x - W - GAP) : hideWarning.x + GAP;
+        const top = hideWarning.y + 60 + GAP > vh ? Math.max(8, hideWarning.y - 60 - GAP) : hideWarning.y + GAP;
+        return (
+          <div
+            className="mono pointer-events-none fixed z-50 rounded-2xl border border-foreground bg-background p-3 text-[11px] leading-relaxed shadow-lg"
+            style={{ left, top, width: W }}
+          >
+            You must have at least 1 section visible.
+          </div>
+        );
+      })()}
 
       {/* Share dialog */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
@@ -1081,7 +1124,7 @@ function hiddenSlideIds(phytoSet: PhytoSet, hiddenLeaders: string[]): Set<string
   return ids;
 }
 
-function PresenterThumb({ slide, index, phytoSet, live }: { slide: Slide; index: number; phytoSet: PhytoSet; live: LiveApi }) {
+function PresenterThumb({ slide, index, phytoSet, live, disabled = false }: { slide: Slide; index: number; phytoSet: PhytoSet; live: LiveApi; disabled?: boolean }) {
   const isLive = live.setId === phytoSet.id && live.slideId === slide.id;
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
@@ -1094,9 +1137,10 @@ function PresenterThumb({ slide, index, phytoSet, live }: { slide: Slide; index:
   return (
     <button
       onClick={() => live.go(phytoSet.id, slide.id)}
+      disabled={disabled}
       className={`group relative w-full overflow-hidden rounded-lg border-2 text-left transition ${
-        isLive ? "" : "border-transparent hover:border-foreground"
-      }`}
+        isLive ? "" : disabled ? "border-transparent" : "border-transparent hover:border-foreground"
+      } ${disabled ? "cursor-default" : ""}`}
       style={isLive ? { borderColor: kindLiveColor(phytoSet.kind) } : undefined}
     >
       <SlideView slide={slide} variant="thumb" template={template} />
@@ -1131,7 +1175,7 @@ function SlideGridForPresenter({
   /** When true, hidden sections stay visible (dimmed) with a toggle so they can
    *  be brought back; otherwise they collapse to a small marker. */
   manageMode?: boolean;
-  onToggleSection?: (leaderId: string) => void;
+  onToggleSection?: (leaderId: string, clientX: number, clientY: number) => void;
 }) {
   const useSections = phytoSet.kind === "song" || phytoSet.kind === "scripture";
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1183,12 +1227,12 @@ function SlideGridForPresenter({
             className="relative flex flex-wrap gap-2 rounded-xl p-2"
             style={{
               width: sectionWidth,
-              backgroundColor: `color-mix(in oklab, ${TINTS[gi % TINTS.length]} 20%, transparent)`,
+              backgroundColor: `color-mix(in oklab, ${TINTS[gi % TINTS.length]} ${manageMode ? 60 : 45}%, transparent)`,
             }}
           >
             {manageMode && (
               <button
-                onClick={() => onToggleSection?.(g.leaderId)}
+                onClick={(e) => onToggleSection?.(g.leaderId, e.clientX, e.clientY)}
                 className="pill absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center border border-foreground bg-background transition hover:bg-foreground hover:text-background"
                 title={isHidden ? `Show ${g.section ?? "section"}` : `Hide ${g.section ?? "section"}`}
                 aria-label={isHidden ? "Show section" : "Hide section"}
@@ -1202,7 +1246,7 @@ function SlideGridForPresenter({
             >
               {g.items.map(({ slide, index }) => (
                 <div key={slide.id} style={{ width: slideW }}>
-                  <PresenterThumb slide={slide} index={index} phytoSet={phytoSet} live={live} />
+                  <PresenterThumb slide={slide} index={index} phytoSet={phytoSet} live={live} disabled={manageMode} />
                 </div>
               ))}
             </div>
