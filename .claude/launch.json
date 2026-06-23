@@ -15,5 +15,6 @@
       "port": 8081,
       "autoPort": true
     }
-  ]
+  ],
+  "autoVerify": false
 }
