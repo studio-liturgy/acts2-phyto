@@ -87,6 +87,31 @@ export function scriptureToSlides(
   return slides;
 }
 
+/**
+ * Extracts an 11-char YouTube video id from a watch/share/embed/shorts URL or a
+ * bare id. Returns null if the input isn't recognizably a YouTube reference.
+ */
+export function parseYouTubeId(input: string): string | null {
+  const s = input.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
+  let url: URL;
+  try {
+    url = new URL(s);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.replace(/^www\./, "");
+  let id: string | null = null;
+  if (host === "youtu.be") {
+    id = url.pathname.slice(1);
+  } else if (host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com")) {
+    if (url.pathname === "/watch") id = url.searchParams.get("v");
+    else if (url.pathname.startsWith("/embed/")) id = url.pathname.split("/")[2];
+    else if (url.pathname.startsWith("/shorts/")) id = url.pathname.split("/")[2];
+  }
+  return id && /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+}
+
 export function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();

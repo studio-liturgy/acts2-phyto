@@ -17,6 +17,7 @@ export default function UpdatesMain() {
               <li>Added the ability to edit Scripture Template</li>
               <li>Improved flow of importing scripture verses, song lyrics and media by reducing steps</li>
               <li>Added the ability to upload PDF files to media</li>
+              <li>Added video to media: upload a clip or paste a YouTube or video link, then play on click or autoplay</li>
               <li>Import & export: export your full catalogue as a .phyto file anytime; import it on any device to restore or share your content</li>
               <li>Added Amplified and The Message to importing scripture verses</li>
             </ul>

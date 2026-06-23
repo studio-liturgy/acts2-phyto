@@ -596,16 +596,55 @@ export interface LiveStore extends LiveState {
   clearLive: () => void;
   toggleBlackout: () => void;
   toggleClear: () => void;
+  /** Start/stop playback of the current video slide (broadcast to /output). */
+  setVideoPlaying: (play: boolean) => void;
+  /** Restart the current video from the beginning and play. */
+  restartVideo: () => void;
+  /** Marked by the output window when the current video finishes. */
+  videoFinished: () => void;
+}
+
+const DEFAULT_VIDEO_CMD = { action: "pause" as const, nonce: 0 };
+
+/** True when the live video slide is (intended to be) playing. */
+export function isVideoPlaying(live: Pick<LiveState, "videoCmd" | "videoEnded">): boolean {
+  const a = live.videoCmd?.action;
+  return !live.videoEnded && (a === "play" || a === "restart");
+}
+
+function defaultLive(): LiveState {
+  return {
+    setId: null,
+    slideId: null,
+    blackout: false,
+    clear: false,
+    blackoutFadeMs: 0,
+    videoCmd: DEFAULT_VIDEO_CMD,
+    videoEnded: false,
+  };
+}
+
+// Computes the videoCmd for a freshly-shown slide: autoplay video slides start
+// playing, everything else resets to paused so a prior video stops.
+function videoCmdForSlide(
+  setId: string,
+  slideId: string,
+  prevNonce: number,
+): LiveState["videoCmd"] {
+  const slide = useLibrary
+    .getState()
+    .sets[setId]?.slides.find((s) => s.id === slideId);
+  const action = slide?.kind === "video" && slide.autoplay ? "play" : "pause";
+  return { action, nonce: prevNonce + 1 };
 }
 
 function readInitial(): LiveState {
-  if (typeof window === "undefined")
-    return { setId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 };
+  if (typeof window === "undefined") return defaultLive();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { blackoutFadeMs: 0, ...JSON.parse(raw) };
+    if (raw) return { ...defaultLive(), ...JSON.parse(raw) };
   } catch {}
-  return { setId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 };
+  return defaultLive();
 }
 
 let bc: BroadcastChannel | null = null;
@@ -626,6 +665,8 @@ export const useLive = create<LiveStore>((set, get) => ({
       blackout: s.blackout,
       clear: s.clear,
       blackoutFadeMs: s.blackoutFadeMs,
+      videoCmd: s.videoCmd,
+      videoEnded: s.videoEnded,
     };
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
@@ -633,14 +674,15 @@ export const useLive = create<LiveStore>((set, get) => ({
     }
   },
   go: (setId, slideId) => {
+    const videoCmd = videoCmdForSlide(setId, slideId, get().videoCmd?.nonce ?? 0);
     if (get().blackout) {
       // Swap the slide silently under the blackout, then reveal with a fade.
-      get().setLive({ setId, slideId, clear: false });
+      get().setLive({ setId, slideId, clear: false, videoCmd, videoEnded: false });
       if (typeof window !== "undefined") {
         setTimeout(() => get().setLive({ blackout: false, blackoutFadeMs: 500 }), 80);
       }
     } else {
-      get().setLive({ setId, slideId, blackout: false, clear: false, blackoutFadeMs: 0 });
+      get().setLive({ setId, slideId, blackout: false, clear: false, blackoutFadeMs: 0, videoCmd, videoEnded: false });
     }
   },
   clearLive: () => {
@@ -654,6 +696,21 @@ export const useLive = create<LiveStore>((set, get) => ({
   },
   toggleBlackout: () => get().setLive({ blackout: !get().blackout, blackoutFadeMs: 500 }),
   toggleClear: () => get().setLive({ clear: !get().clear }),
+  setVideoPlaying: (play) =>
+    get().setLive({
+      videoCmd: { action: play ? "play" : "pause", nonce: (get().videoCmd?.nonce ?? 0) + 1 },
+      videoEnded: false,
+    }),
+  restartVideo: () =>
+    get().setLive({
+      videoCmd: { action: "restart", nonce: (get().videoCmd?.nonce ?? 0) + 1 },
+      videoEnded: false,
+    }),
+  videoFinished: () =>
+    get().setLive({
+      videoCmd: { action: "pause", nonce: (get().videoCmd?.nonce ?? 0) + 1 },
+      videoEnded: true,
+    }),
 }));
 
 // Subscribe to broadcast updates

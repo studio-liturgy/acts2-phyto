@@ -1,4 +1,9 @@
-export type SlideKind = "lyric" | "scripture" | "image" | "blank";
+export type SlideKind = "lyric" | "scripture" | "image" | "video" | "blank";
+
+/** Where a video slide's media comes from.
+ *  "youtube" → embedded via youtube-nocookie; "file" → uploaded to R2;
+ *  "url" → direct external video URL played in a <video> element. */
+export type VideoSource = "youtube" | "file" | "url";
 
 export interface Slide {
   id: string;
@@ -13,6 +18,15 @@ export interface Slide {
   section?: string;
   /** data URL or external URL for an image slide / background */
   imageUrl?: string;
+  /** Video-only: where the media comes from. */
+  videoSource?: VideoSource;
+  /** Video-only: R2 public URL ("file") or direct external URL ("url"). */
+  videoUrl?: string;
+  /** Video-only: parsed 11-char YouTube id (when videoSource === "youtube"). */
+  youtubeId?: string;
+  /** Video-only: start playing automatically when the slide goes live.
+   *  Default falsey = click-to-start (operator presses Play). */
+  autoplay?: boolean;
 }
 
 export type SetKind = "song" | "scripture" | "media" | "mixed";
@@ -67,4 +81,10 @@ export interface LiveState {
   clear: boolean; // logo / clear screen
   /** Cross-fade duration for blackout transitions (ms). 0 = instant. */
   blackoutFadeMs?: number;
+  /** Video playback command, broadcast to the output window. `nonce` increments
+   *  on every press so the output reacts even when repeating a prior action. */
+  videoCmd?: { action: "play" | "pause" | "restart"; nonce: number };
+  /** Set by the output window when the current video reaches its end, so the
+   *  presenter knows the next →/Space should advance the slide. */
+  videoEnded?: boolean;
 }

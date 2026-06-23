@@ -23,6 +23,7 @@ import { Route as SetSetIdRouteImport } from './routes/set.$setId'
 import { Route as GTokenRouteImport } from './routes/g.$token'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedback'
+import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
 import { Route as ApiAuthWelcomeRouteImport } from './routes/api/auth/welcome'
 
 const UpdatesRoute = UpdatesRouteImport.update({
@@ -95,6 +96,11 @@ const ApiPublicFeedbackRoute = ApiPublicFeedbackRouteImport.update({
   path: '/api/public/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaUploadRoute = ApiMediaUploadRouteImport.update({
+  id: '/api/media/upload',
+  path: '/api/media/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthWelcomeRoute = ApiAuthWelcomeRouteImport.update({
   id: '/api/auth/welcome',
   path: '/api/auth/welcome',
@@ -116,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
+  '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRoutesByTo {
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
+  '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRoutesById {
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
+  '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRouteTypes {
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/g/$token'
     | '/set/$setId'
     | '/api/auth/welcome'
+    | '/api/media/upload'
     | '/api/public/feedback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/g/$token'
     | '/set/$setId'
     | '/api/auth/welcome'
+    | '/api/media/upload'
     | '/api/public/feedback'
   id:
     | '__root__'
@@ -204,6 +215,7 @@ export interface FileRouteTypes {
     | '/g/$token'
     | '/set/$setId'
     | '/api/auth/welcome'
+    | '/api/media/upload'
     | '/api/public/feedback'
   fileRoutesById: FileRoutesById
 }
@@ -222,6 +234,7 @@ export interface RootRouteChildren {
   GTokenRoute: typeof GTokenRoute
   SetSetIdRoute: typeof SetSetIdRoute
   ApiAuthWelcomeRoute: typeof ApiAuthWelcomeRoute
+  ApiMediaUploadRoute: typeof ApiMediaUploadRoute
   ApiPublicFeedbackRoute: typeof ApiPublicFeedbackRoute
 }
 
@@ -325,6 +338,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media/upload': {
+      id: '/api/media/upload'
+      path: '/api/media/upload'
+      fullPath: '/api/media/upload'
+      preLoaderRoute: typeof ApiMediaUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/welcome': {
       id: '/api/auth/welcome'
       path: '/api/auth/welcome'
@@ -350,6 +370,7 @@ const rootRouteChildren: RootRouteChildren = {
   GTokenRoute: GTokenRoute,
   SetSetIdRoute: SetSetIdRoute,
   ApiAuthWelcomeRoute: ApiAuthWelcomeRoute,
+  ApiMediaUploadRoute: ApiMediaUploadRoute,
   ApiPublicFeedbackRoute: ApiPublicFeedbackRoute,
 }
 export const routeTree = rootRouteImport

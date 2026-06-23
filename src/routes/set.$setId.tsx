@@ -2,7 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
-import { parseLyrics, fileToCompressedImageDataUrl, scriptureToSlides } from "@/lib/parsers";
+import { parseLyrics, fileToCompressedImageDataUrl, scriptureToSlides, parseYouTubeId } from "@/lib/parsers";
+import { supabase } from "@/lib/supabase";
+import { MEDIA_MAX_BYTES, isUploadableVideo } from "@/lib/media";
 import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
 import { searchSongs, preloadSongs, parseQuery, songPreview, type SongResult } from "@/lib/songs";
 import { SlideView } from "@/components/SlideView";
@@ -187,6 +189,9 @@ function SetEditor() {
   const [showFileSizeDialog, setShowFileSizeDialog] = useState(false);
   const [fileOver, setFileOver] = useState(false);
   const [converting, setConverting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [videoLink, setVideoLink] = useState("");
+  const [videoErr, setVideoErr] = useState<string | null>(null);
 
 
   const selected = useMemo(
@@ -393,17 +398,77 @@ function SetEditor() {
     setMultiSel(new Set());
   };
 
+  // Uploads a single video file to R2 via the server route, then adds a slide
+  // pointing at the returned public URL. Returns false on any failure.
+  const uploadVideoFile = async (file: File): Promise<boolean> => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      setVideoErr("Please sign in to upload videos.");
+      return false;
+    }
+    try {
+      const res = await fetch("/api/media/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": file.type },
+        body: file,
+      });
+      const json = (await res.json()) as { ok?: boolean; url?: string; error?: string };
+      if (!res.ok || !json.ok || !json.url) {
+        setVideoErr(json.error ?? "Upload failed.");
+        return false;
+      }
+      addSlide(phytoSet.id, { kind: "video", videoSource: "file", videoUrl: json.url, lines: [] });
+      return true;
+    } catch {
+      setVideoErr("Upload failed.");
+      return false;
+    }
+  };
+
+  // Adds a video slide from a pasted link: YouTube → embed, otherwise a direct
+  // external video URL.
+  const addVideoLink = () => {
+    const link = videoLink.trim();
+    if (!link) return;
+    setVideoErr(null);
+    const youtubeId = parseYouTubeId(link);
+    if (youtubeId) {
+      addSlide(phytoSet.id, { kind: "video", videoSource: "youtube", youtubeId, lines: [] });
+    } else if (/^https?:\/\//i.test(link)) {
+      addSlide(phytoSet.id, { kind: "video", videoSource: "url", videoUrl: link, lines: [] });
+    } else {
+      setVideoErr("Enter a YouTube link or a direct video URL.");
+      return;
+    }
+    setVideoLink("");
+  };
+
   const handleMediaFiles = async (files: FileList | null) => {
-    if (!files || converting) return;
+    if (!files || converting || uploading) return;
+    setVideoErr(null);
+    const all = Array.from(files);
+    const videoFiles = all.filter((f) => isUploadableVideo(f.type));
+    const nonVideo = all.filter((f) => !isUploadableVideo(f.type));
+
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
-    if (Array.from(files).some((f) => f.size > MAX_FILE_SIZE)) {
+    if (nonVideo.some((f) => f.size > MAX_FILE_SIZE) || videoFiles.some((f) => f.size > MEDIA_MAX_BYTES)) {
       setShowFileSizeDialog(true);
       return;
     }
-    const imageFiles = Array.from(files).filter((f) =>
+
+    if (videoFiles.length > 0) {
+      setUploading(true);
+      for (const file of videoFiles) {
+        await uploadVideoFile(file);
+      }
+      setUploading(false);
+    }
+
+    const imageFiles = nonVideo.filter((f) =>
       /^image\/(png|jpe?g|webp|gif|bmp)$/i.test(f.type)
     );
-    const pdfFiles = Array.from(files).filter((f) => f.type === "application/pdf");
+    const pdfFiles = nonVideo.filter((f) => f.type === "application/pdf");
 
     if (imageFiles.length > 0) {
       const urls = await Promise.all(
@@ -471,48 +536,69 @@ function SetEditor() {
                     <Trash2 className="h-3 w-3" /> Delete selected
                   </button>
                 )}
+              </div>
+            </div>
+
+            <div className="mb-3 flex flex-col gap-1">
+              <div className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-1.5">
+                <input
+                  value={videoLink}
+                  onChange={(e) => setVideoLink(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addVideoLink();
+                    }
+                  }}
+                  placeholder="PASTE A YOUTUBE OR VIDEO LINK"
+                  className="mono w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                />
                 <button
-                  onClick={() =>
-                    addSlide(phytoSet.id, { id: uid(), kind: "blank", lines: [""] } as Slide)
-                  }
-                  className="pill flex items-center border border-foreground p-1.5 text-xs transition hover:bg-foreground hover:text-background"
-                  aria-label="Add blank slide"
+                  onClick={addVideoLink}
+                  disabled={!videoLink.trim()}
+                  className="flex items-center transition disabled:opacity-20"
+                  aria-label="Add video link"
                 >
-                  <Plus className="h-3 w-3" />
+                  <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
                 </button>
               </div>
+              {videoErr && <p className="text-xs text-destructive">{videoErr}</p>}
             </div>
 
             {phytoSet.slides.length === 0 ? (
               <label
                 className={`mono flex h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-xs uppercase tracking-wider transition ${
-                  converting
+                  converting || uploading
                     ? "cursor-wait border-foreground/30 text-muted-foreground"
                     : fileOver
                     ? "border-foreground bg-foreground/5"
                     : "border-foreground/60 text-muted-foreground hover:border-foreground"
                 }`}
               >
-                {converting ? (
+                {uploading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
+                ) : converting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Converting…</>
                 ) : fileOver ? (
                   "Drop to upload"
                 ) : (
-                  "Drop images or PDFs here or click to browse"
+                  "Drop images, PDFs or videos here or click to browse"
                 )}
                 <input
                   type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm"
                   multiple
-                  disabled={converting}
+                  disabled={converting || uploading}
                   className="hidden"
                   onChange={(e) => handleMediaFiles(e.target.files)}
                 />
               </label>
             ) : (
               <div className="max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
-                {fileOver && (
-                  <p className="mono mb-3 text-center text-xs uppercase tracking-wider text-muted-foreground">Drop to add images</p>
+                {(fileOver || uploading) && (
+                  <p className="mono mb-3 text-center text-xs uppercase tracking-wider text-muted-foreground">
+                    {uploading ? "Uploading…" : "Drop to add media"}
+                  </p>
                 )}
                 <SlideGrid
                   slides={phytoSet.slides}
@@ -535,6 +621,21 @@ function SetEditor() {
             <div className="overflow-hidden rounded-lg bg-[var(--brand-black)]">
               <SlideView slide={selected} variant="preview" />
             </div>
+            {selected?.kind === "video" && (
+              <label className="mt-3 flex cursor-pointer items-center justify-between gap-2 text-xs">
+                <span className="mono uppercase tracking-wider text-muted-foreground">
+                  Autoplay when live
+                </span>
+                <input
+                  type="checkbox"
+                  checked={!!selected.autoplay}
+                  onChange={(e) =>
+                    updateSlide(phytoSet.id, selected.id, { autoplay: e.target.checked })
+                  }
+                  className="h-4 w-4 accent-[var(--brand-orange)]"
+                />
+              </label>
+            )}
           </div>
         </aside>
       </div>
@@ -543,7 +644,7 @@ function SetEditor() {
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">File too large</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            One or more files exceeds the 5 MB limit. Please resize or compress your files and try again.
+            One or more files exceeds the limit (5 MB for images and PDFs, 100 MB for videos). Please resize or compress your files and try again.
           </AlertDialogDescription>
           <div className="mt-6 flex justify-end">
             <button

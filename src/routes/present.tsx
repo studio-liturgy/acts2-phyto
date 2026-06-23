@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
+import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft, isVideoPlaying } from "@/lib/store";
 import { useIsSignedIn } from "@/lib/authStore";
 import { APP_NAME } from "@/lib/appConfig";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
@@ -27,6 +27,9 @@ import {
   QrCode,
   Eye,
   EyeOff,
+  Play,
+  Pause,
+  RotateCcw,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -297,12 +300,33 @@ function Presenter() {
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       const hidden = hiddenSlideIds(liveSet, hiddenBySet[liveSet.id] ?? []);
       const idx = liveSet.slides.findIndex((s) => s.id === liveSlide.id);
-      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
-        e.preventDefault();
+      const advance = () => {
         let j = idx + 1;
         while (j < liveSet.slides.length && hidden.has(liveSet.slides[j].id)) j++;
         const next = liveSet.slides[j];
         if (next) live.go(liveSet.id, next.id);
+      };
+
+      // Video slides intercept Space/→ for playback before advancing:
+      //  · not playing (and not finished) → play
+      //  · playing + Space → stop (pause); playing + → → next slide
+      //  · finished → next slide
+      if (liveSlide.kind === "video" && (e.key === " " || e.key === "ArrowRight")) {
+        e.preventDefault();
+        if (live.videoEnded) {
+          advance();
+        } else if (isVideoPlaying(live)) {
+          if (e.key === " ") live.setVideoPlaying(false);
+          else advance();
+        } else {
+          live.setVideoPlaying(true);
+        }
+        return;
+      }
+
+      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
+        e.preventDefault();
+        advance();
       } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
         e.preventDefault();
         let j = idx - 1;
@@ -783,6 +807,7 @@ function Presenter() {
                 slide={liveSlide}
                 variant="preview"
                 durationMs={fadeMs}
+                videoCmd={live.videoCmd}
                 template={
                   liveSet?.kind === "song" ? effectiveSongTemplate
                   : liveSet?.kind === "scripture" ? effectiveScriptureTemplate
@@ -826,14 +851,36 @@ function Presenter() {
                 />
                 <span className="text-xs text-muted-foreground">s</span>
               </div>
-              <button
-                onClick={() => live.toggleBlackout()}
-                className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
-                title="Stop (Esc) — fades to black"
-                aria-label="Stop"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                {liveSlide?.kind === "video" && (
+                  <>
+                    <button
+                      onClick={() => live.setVideoPlaying(!isVideoPlaying(live))}
+                      className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-foreground hover:text-background"
+                      title={isVideoPlaying(live) ? "Stop video" : "Play video"}
+                      aria-label={isVideoPlaying(live) ? "Stop video" : "Play video"}
+                    >
+                      {isVideoPlaying(live) ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    </button>
+                    <button
+                      onClick={() => live.restartVideo()}
+                      className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-foreground hover:text-background"
+                      title="Restart video"
+                      aria-label="Restart video"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => live.toggleBlackout()}
+                  className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
+                  title="Stop (Esc) — fades to black"
+                  aria-label="Stop"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
 
