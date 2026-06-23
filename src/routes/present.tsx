@@ -25,6 +25,8 @@ import {
   Copy,
   Check,
   QrCode,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -137,6 +139,21 @@ function Presenter() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [mediaFunctionsOpen, setMediaFunctionsOpen] = useState(false);
 
+  // Session-only section hiding, used while running a gathering. Keyed by set id;
+  // values are the leader slide ids of hidden section groups. `manageSet` is the
+  // set whose sections are currently being toggled (eye icon clicked).
+  const [hiddenBySet, setHiddenBySet] = useState<Record<string, string[]>>({});
+  const [manageSet, setManageSet] = useState<string | null>(null);
+  const toggleSection = (setId: string, leaderId: string) => {
+    setHiddenBySet((prev) => {
+      const cur = prev[setId] ?? [];
+      const next = cur.includes(leaderId)
+        ? cur.filter((id) => id !== leaderId)
+        : [...cur, leaderId];
+      return { ...prev, [setId]: next };
+    });
+  };
+
   const isSignedIn = useIsSignedIn();
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showShareQr, setShowShareQr] = useState(false);
@@ -203,6 +220,7 @@ function Presenter() {
     setReorderLiveOrder(null);
     setReorderDraggingId(null);
     reorderDragIndex.current = null;
+    setManageSet(null);
   }, [activeGathering?.id]);
 
   const activeSet = activeSetId ? sets[activeSetId] : null;
@@ -258,14 +276,19 @@ function Presenter() {
       if (!liveSet || !liveSlide) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const hidden = hiddenSlideIds(liveSet, hiddenBySet[liveSet.id] ?? []);
       const idx = liveSet.slides.findIndex((s) => s.id === liveSlide.id);
       if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
         e.preventDefault();
-        const next = liveSet.slides[idx + 1];
+        let j = idx + 1;
+        while (j < liveSet.slides.length && hidden.has(liveSet.slides[j].id)) j++;
+        const next = liveSet.slides[j];
         if (next) live.go(liveSet.id, next.id);
       } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
         e.preventDefault();
-        const prev = liveSet.slides[idx - 1];
+        let j = idx - 1;
+        while (j >= 0 && hidden.has(liveSet.slides[j].id)) j--;
+        const prev = liveSet.slides[j];
         if (prev) live.go(liveSet.id, prev.id);
       } else if (e.key === "Escape") {
         e.preventDefault();
@@ -274,7 +297,7 @@ function Presenter() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [liveSet, liveSlide, live]);
+  }, [liveSet, liveSlide, live, hiddenBySet]);
 
   const openOutput = () => window.open("/output", "_blank", "noopener,noreferrer");
 
@@ -658,6 +681,10 @@ function Presenter() {
               {setList.map((id, i) => {
                 const d = sets[id];
                 if (!d) return null;
+                const canHide = d.kind === "song" || d.kind === "scripture";
+                const hiddenLeaders = hiddenBySet[id] ?? [];
+                const hasHidden = hiddenLeaders.length > 0;
+                const managing = manageSet === id;
                 return (
                   <section key={id} id={`set-section-${id}`}>
                     <div className="mb-2 flex items-center gap-3">
@@ -676,6 +703,27 @@ function Presenter() {
                       >
                         <Pencil className="h-3 w-3" />
                       </Link>
+                      {canHide && (
+                        <button
+                          onClick={() => setManageSet((prev) => (prev === id ? null : id))}
+                          className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition ${
+                            managing
+                              ? "bg-foreground text-background"
+                              : "hover:bg-foreground hover:text-background"
+                          }`}
+                          title={
+                            managing
+                              ? "Done hiding sections"
+                              : hasHidden
+                              ? `Sections hidden (${hiddenLeaders.length}) — click to manage`
+                              : "Hide sections"
+                          }
+                          aria-label={managing ? "Done hiding sections" : "Hide sections"}
+                          aria-pressed={managing}
+                        >
+                          {hasHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
                       {id === live.setId && (
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: kindLiveColor(d.kind) }} title="Live" />
                       )}
@@ -683,7 +731,14 @@ function Presenter() {
                     {d.slides.length === 0 ? (
                       <p className="text-xs text-muted-foreground">No slides.</p>
                     ) : (
-                      <SlideGridForPresenter phytoSet={d} live={live} slideW={slideW} />
+                      <SlideGridForPresenter
+                        phytoSet={d}
+                        live={live}
+                        slideW={slideW}
+                        hiddenLeaders={hiddenLeaders}
+                        manageMode={managing}
+                        onToggleSection={(leaderId) => toggleSection(id, leaderId)}
+                      />
                     )}
                   </section>
                 );
@@ -988,6 +1043,44 @@ function sectionOf(s: Slide): string | null {
   return null;
 }
 
+type SlideGroup = {
+  /** Resolved section label for the group; null when unlabeled. */
+  section: string | null;
+  /** First slide's id — a stable key for this group across renders. */
+  leaderId: string;
+  items: { slide: Slide; index: number }[];
+};
+
+/** Group consecutive slides by their resolved section, the same way the
+ *  presenter grid renders them. Shared so navigation and the grid agree. */
+function groupSlides(phytoSet: PhytoSet): SlideGroup[] {
+  const groups: SlideGroup[] = [];
+  let currentSection: string | null = null;
+  phytoSet.slides.forEach((s, i) => {
+    const sec = sectionOf(s);
+    const resolvedSection = sec ?? currentSection;
+    const last = groups[groups.length - 1];
+    if (!last || resolvedSection !== currentSection) {
+      groups.push({ section: resolvedSection, leaderId: s.id, items: [{ slide: s, index: i }] });
+      currentSection = resolvedSection;
+    } else {
+      last.items.push({ slide: s, index: i });
+    }
+  });
+  return groups;
+}
+
+/** Slide ids belonging to the hidden section groups (identified by leader id). */
+function hiddenSlideIds(phytoSet: PhytoSet, hiddenLeaders: string[]): Set<string> {
+  const ids = new Set<string>();
+  if (hiddenLeaders.length === 0) return ids;
+  const leaders = new Set(hiddenLeaders);
+  for (const g of groupSlides(phytoSet)) {
+    if (leaders.has(g.leaderId)) for (const it of g.items) ids.add(it.slide.id);
+  }
+  return ids;
+}
+
 function PresenterThumb({ slide, index, phytoSet, live }: { slide: Slide; index: number; phytoSet: PhytoSet; live: LiveApi }) {
   const isLive = live.setId === phytoSet.id && live.slideId === slide.id;
   const songTemplate = useLibrary((s) => s.songTemplate);
@@ -1022,7 +1115,24 @@ const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"]
 const SLIDE_GAP = 8;
 const SECTION_PAD = 8;
 
-function SlideGridForPresenter({ phytoSet, live, slideW }: { phytoSet: PhytoSet; live: LiveApi; slideW: number }) {
+function SlideGridForPresenter({
+  phytoSet,
+  live,
+  slideW,
+  hiddenLeaders = [],
+  manageMode = false,
+  onToggleSection,
+}: {
+  phytoSet: PhytoSet;
+  live: LiveApi;
+  slideW: number;
+  /** Leader slide ids of section groups hidden this session. */
+  hiddenLeaders?: string[];
+  /** When true, hidden sections stay visible (dimmed) with a toggle so they can
+   *  be brought back; otherwise they collapse to a small marker. */
+  manageMode?: boolean;
+  onToggleSection?: (leaderId: string) => void;
+}) {
   const useSections = phytoSet.kind === "song" || phytoSet.kind === "scripture";
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -1049,19 +1159,8 @@ function SlideGridForPresenter({ phytoSet, live, slideW }: { phytoSet: PhytoSet;
     );
   }
 
-  const groups: { items: { slide: Slide; index: number }[] }[] = [];
-  let currentSection: string | null = null;
-  phytoSet.slides.forEach((s, i) => {
-    const sec = sectionOf(s);
-    const resolvedSection = sec ?? currentSection;
-    const last = groups[groups.length - 1];
-    if (!last || resolvedSection !== currentSection) {
-      groups.push({ items: [{ slide: s, index: i }] });
-      currentSection = resolvedSection;
-    } else {
-      last.items.push({ slide: s, index: i });
-    }
-  });
+  const groups = groupSlides(phytoSet);
+  const hidden = new Set(hiddenLeaders);
 
   // How many slides fit in one row given the measured container width
   const slidesPerRow = containerWidth > 0
@@ -1071,22 +1170,42 @@ function SlideGridForPresenter({ phytoSet, live, slideW }: { phytoSet: PhytoSet;
   return (
     <div ref={containerRef} className="flex flex-wrap gap-2">
       {groups.map((g, gi) => {
+        const isHidden = hidden.has(g.leaderId);
+
+        // Hidden and not being managed: render nothing — fully hidden.
+        if (isHidden && !manageMode) return null;
+
         const cols = Math.min(g.items.length, slidesPerRow);
         const sectionWidth = cols * slideW + (cols - 1) * SLIDE_GAP + SECTION_PAD * 2;
         return (
           <div
-            key={gi}
-            className="flex flex-wrap gap-2 rounded-xl p-2"
+            key={g.leaderId}
+            className="relative flex flex-wrap gap-2 rounded-xl p-2"
             style={{
               width: sectionWidth,
               backgroundColor: `color-mix(in oklab, ${TINTS[gi % TINTS.length]} 20%, transparent)`,
             }}
           >
-            {g.items.map(({ slide, index }) => (
-              <div key={slide.id} style={{ width: slideW }}>
-                <PresenterThumb slide={slide} index={index} phytoSet={phytoSet} live={live} />
-              </div>
-            ))}
+            {manageMode && (
+              <button
+                onClick={() => onToggleSection?.(g.leaderId)}
+                className="pill absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center border border-foreground bg-background transition hover:bg-foreground hover:text-background"
+                title={isHidden ? `Show ${g.section ?? "section"}` : `Hide ${g.section ?? "section"}`}
+                aria-label={isHidden ? "Show section" : "Hide section"}
+                aria-pressed={isHidden}
+              >
+                {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </button>
+            )}
+            <div
+              className={`flex flex-wrap gap-2 transition ${isHidden ? "opacity-40" : ""}`}
+            >
+              {g.items.map(({ slide, index }) => (
+                <div key={slide.id} style={{ width: slideW }}>
+                  <PresenterThumb slide={slide} index={index} phytoSet={phytoSet} live={live} />
+                </div>
+              ))}
+            </div>
           </div>
         );
       })}
