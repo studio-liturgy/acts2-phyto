@@ -1143,7 +1143,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           <Textarea
             value={lyrics}
             onChange={(e) => handleLyricsChange(e.target.value)}
-            placeholder={`Paste lyrics here, or select a song above.\nUse --- on its own line to split slides.`}
+            placeholder={`Paste lyrics here, or select a song above.\nUse --- to split slides. Label sections with [Verse 1], [Chorus], etc.`}
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
         </div>
