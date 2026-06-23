@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
+import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft, isVideoPlaying } from "@/lib/store";
 import { useIsSignedIn } from "@/lib/authStore";
+import { APP_NAME } from "@/lib/appConfig";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
@@ -9,6 +10,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   ArrowUpLeft,
   ArrowUpRight,
+  ArrowDownAZ,
+  ArrowDownWideNarrow,
   Share2,
   X,
   Search,
@@ -22,6 +25,11 @@ import {
   Copy,
   Check,
   QrCode,
+  Eye,
+  EyeOff,
+  Play,
+  Pause,
+  RotateCcw,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -74,6 +82,11 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/present")({
   validateSearch: searchSchema,
+  head: () => ({
+    meta: [
+      { title: `Presenter | ${APP_NAME}` },
+    ],
+  }),
   component: Presenter,
 });
 
@@ -104,9 +117,15 @@ function Presenter() {
     : order;
 
   const [activeSetId, setActiveSetId] = useState<string | null>(
-    setFromUrl ?? setList[0] ?? null
+    setFromUrl ?? (live.setId && sets[live.setId] ? live.setId : null) ?? setList[0] ?? null
   );
+
+  const presenterReturn = (setId: string) =>
+    gatheringFromUrl
+      ? `/present?gathering=${gatheringFromUrl}`
+      : `/present?set=${setId}`;
   const [query, setQuery] = useState("");
+  const [setSortMode, setSetSortMode] = useState<"az" | "newest">("az");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [slideW, setSlideW] = useState(() => {
     if (typeof window === "undefined") return 256;
@@ -122,6 +141,40 @@ function Presenter() {
   const gatheringNameInputRef = useRef<HTMLInputElement>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [mediaFunctionsOpen, setMediaFunctionsOpen] = useState(false);
+
+  // Session-only section hiding, used while running a gathering. Keyed by set id;
+  // values are the leader slide ids of hidden section groups. `manageSet` is the
+  // set whose sections are currently being toggled (eye icon clicked).
+  const [hiddenBySet, setHiddenBySet] = useState<Record<string, string[]>>({});
+  const [manageSet, setManageSet] = useState<string | null>(null);
+  // Cursor-following warning shown when the user tries to hide the last
+  // remaining visible section. Auto-clears 3s after the blocked click.
+  const [hideWarning, setHideWarning] = useState<{ x: number; y: number } | null>(null);
+  const hideWarningTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toggleSection = (setId: string, leaderId: string, clientX: number, clientY: number) => {
+    const cur = hiddenBySet[setId] ?? [];
+    const alreadyHidden = cur.includes(leaderId);
+    // Hiding (not un-hiding) the last visible section is not allowed.
+    if (!alreadyHidden) {
+      const total = sets[setId] ? groupSlides(sets[setId]).length : 0;
+      if (total - cur.length <= 1) {
+        if (hideWarningTimer.current) clearTimeout(hideWarningTimer.current);
+        setHideWarning({ x: clientX, y: clientY });
+        hideWarningTimer.current = setTimeout(() => setHideWarning(null), 3000);
+        return;
+      }
+    }
+    const next = alreadyHidden ? cur.filter((id) => id !== leaderId) : [...cur, leaderId];
+    setHiddenBySet((prev) => ({ ...prev, [setId]: next }));
+  };
+
+  // While the warning is showing, let it follow the cursor.
+  useEffect(() => {
+    if (!hideWarning) return;
+    const onMove = (e: MouseEvent) => setHideWarning((w) => (w ? { x: e.clientX, y: e.clientY } : w));
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [!!hideWarning]);
 
   const isSignedIn = useIsSignedIn();
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -150,7 +203,7 @@ function Presenter() {
     }
   };
   const activeShareToken = activeGathering?.share_token ?? null;
-  const shareUrl = activeShareToken ? `https://phyto.live/g/${activeShareToken}` : "";
+  const shareUrl = activeShareToken ? `${window.location.origin}/g/${activeShareToken}` : "";
 
   function downloadQr(ref: React.RefObject<HTMLCanvasElement | null>, filename: string) {
     const canvas = ref.current;
@@ -170,7 +223,15 @@ function Presenter() {
     }
   }, [activeGathering, activeSetId]);
 
+  // Auto-follow the live set when it changes mid-presentation, but skip the
+  // initial mount so an explicit ?set= (e.g. returning from the set editor) is
+  // not overridden by whatever set happens to be live.
+  const didMountLiveFollow = useRef(false);
   useEffect(() => {
+    if (!didMountLiveFollow.current) {
+      didMountLiveFollow.current = true;
+      return;
+    }
     if (live.setId && sets[live.setId]) {
       setActiveSetId(live.setId);
     }
@@ -181,6 +242,7 @@ function Presenter() {
     setReorderLiveOrder(null);
     setReorderDraggingId(null);
     reorderDragIndex.current = null;
+    setManageSet(null);
   }, [activeGathering?.id]);
 
   const activeSet = activeSetId ? sets[activeSetId] : null;
@@ -192,30 +254,84 @@ function Presenter() {
 
   const q = query.trim().toLowerCase();
   const showAll = !activeGathering;
-  const filteredSets = setList.filter((id) => {
-    if (!q) return true;
-    const s = sets[id];
-    if (!s) return false;
-    if (s.name.toLowerCase().includes(q)) return true;
-    return s.slides.some((slide) =>
-      slide.lines?.some((line) => line.toLowerCase().includes(q))
-    );
-  });
+  const filteredSets = setList
+    .filter((id) => {
+      if (!q) return true;
+      const s = sets[id];
+      if (!s) return false;
+      if (s.name.toLowerCase().includes(q)) return true;
+      return s.slides.some((slide) =>
+        slide.lines?.some((line) => line.toLowerCase().includes(q))
+      );
+    })
+    // Only the catalogue list is sorted; inside a gathering the order is
+    // manual (drag-reorderable) and must be left untouched.
+    .sort((a, b) => {
+      if (activeGathering) return 0;
+      const sa = sets[a];
+      const sb = sets[b];
+      if (!sa || !sb) return 0;
+      return setSortMode === "az"
+        ? sa.name.localeCompare(sb.name)
+        : sb.createdAt - sa.createdAt;
+    });
   const filteredGatherings = showAll ? gatheringOrder : [];
+
+  // While inside a gathering, a search also scans the entire catalogue for sets
+  // not yet in this gathering, surfaced above the gathering's own sets so they
+  // can be inserted on the fly.
+  const catalogueResults =
+    activeGathering && q
+      ? order.filter((id) => {
+          if (activeGathering.setIds.includes(id)) return false;
+          const s = sets[id];
+          if (!s) return false;
+          if (s.name.toLowerCase().includes(q)) return true;
+          return s.slides.some((slide) =>
+            slide.lines?.some((line) => line.toLowerCase().includes(q))
+          );
+        })
+      : [];
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!liveSet || !liveSlide) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const hidden = hiddenSlideIds(liveSet, hiddenBySet[liveSet.id] ?? []);
       const idx = liveSet.slides.findIndex((s) => s.id === liveSlide.id);
+      const advance = () => {
+        let j = idx + 1;
+        while (j < liveSet.slides.length && hidden.has(liveSet.slides[j].id)) j++;
+        const next = liveSet.slides[j];
+        if (next) live.go(liveSet.id, next.id);
+      };
+
+      // Video slides intercept Space/→ for playback before advancing:
+      //  · not playing (and not finished) → play
+      //  · playing + Space → stop (pause); playing + → → next slide
+      //  · finished → next slide
+      if (liveSlide.kind === "video" && (e.key === " " || e.key === "ArrowRight")) {
+        e.preventDefault();
+        if (live.videoEnded) {
+          advance();
+        } else if (isVideoPlaying(live)) {
+          if (e.key === " ") live.setVideoPlaying(false);
+          else advance();
+        } else {
+          live.setVideoPlaying(true);
+        }
+        return;
+      }
+
       if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
         e.preventDefault();
-        const next = liveSet.slides[idx + 1];
-        if (next) live.go(liveSet.id, next.id);
+        advance();
       } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
         e.preventDefault();
-        const prev = liveSet.slides[idx - 1];
+        let j = idx - 1;
+        while (j >= 0 && hidden.has(liveSet.slides[j].id)) j--;
+        const prev = liveSet.slides[j];
         if (prev) live.go(liveSet.id, prev.id);
       } else if (e.key === "Escape") {
         e.preventDefault();
@@ -224,7 +340,7 @@ function Presenter() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [liveSet, liveSlide, live]);
+  }, [liveSet, liveSlide, live, hiddenBySet]);
 
   const openOutput = () => window.open("/output", "_blank", "noopener,noreferrer");
 
@@ -332,13 +448,23 @@ function Presenter() {
         {sidebarOpen && (
           <aside className="flex h-[calc(100vh-73px)] flex-col border-r border-foreground bg-background p-4 md:sticky md:top-[73px]">
             <div className="pill mb-4 flex items-center gap-2 border border-foreground bg-background px-4 py-2">
-              <Search className="h-4 w-4" />
+              <Search className="h-4 w-4 shrink-0" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search for a set"
                 className="mono uppercase w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
               />
+              {query && (
+                <button
+                  onClick={() => setQuery("")}
+                  className="shrink-0 rounded-full p-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  title="Clear search"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
 
             <div className="flex-1 overflow-auto pr-1">
@@ -387,6 +513,36 @@ function Presenter() {
                 </div>
               )}
 
+              {activeGathering && q && catalogueResults.length > 0 && (
+                <div className="mb-2">
+                  <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">Catalogue</div>
+                  <div className="space-y-1">
+                    {catalogueResults.map((id) => {
+                      const d = sets[id];
+                      if (!d) return null;
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => { addSetToGathering(activeGathering.id, id); setQuery(""); }}
+                          className={`group flex w-full items-center justify-between gap-2 rounded-lg border-2 border-transparent px-2 py-1.5 text-left text-sm transition ${kindHoverBg(d.kind)}`}
+                          title="Add to gathering"
+                        >
+                          <span className="truncate">{d.name}</span>
+                          <span className="flex items-center gap-1">
+                            <KindBadge kind={d.kind} />
+                            <Plus className="h-4 w-4 opacity-40 group-hover:opacity-100" />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Thin line marking the boundary between catalogue matches
+                      above and this gathering's own sets below — mirrors the
+                      local/online divider in the set-editor song search. */}
+                  <div className="mx-2 mt-2 h-px bg-foreground" />
+                </div>
+              )}
+
               <div>
                 <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">
                   {activeGathering ? (
@@ -397,13 +553,29 @@ function Presenter() {
                       {activeGathering.name}
                     </span>
                   ) : (
-                    "Sets"
+                    <span className="flex items-center justify-between">
+                      <span>Sets</span>
+                      <button
+                        onClick={() => setSetSortMode(setSortMode === "az" ? "newest" : "az")}
+                        title={`Sort: ${setSortMode === "az" ? "A → Z" : "Newest first"}`}
+                        aria-label={`Sort: ${setSortMode === "az" ? "A → Z" : "Newest first"}`}
+                        className="flex items-center"
+                      >
+                        {setSortMode === "az" ? (
+                          <ArrowDownAZ className="h-3.5 w-3.5" />
+                        ) : (
+                          <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </span>
                   )}
                 </div>
                 <div className="space-y-1">
                   {filteredSets.length === 0 && (
                     <p className="px-2 text-xs text-muted-foreground">
-                      {activeGathering ? "Gathering is empty." : q ? "No matches." : "No sets yet."}
+                      {activeGathering
+                        ? q ? "No sets in this gathering match." : "Gathering is empty."
+                        : q ? "No matches." : "No sets yet."}
                     </p>
                   )}
                   {(reorderLiveOrder ?? filteredSets).map((id, i) => {
@@ -520,7 +692,7 @@ function Presenter() {
               <Link
                 to="/set/$setId"
                 params={{ setId: activeSet.id }}
-                search={{ redirectTo: `/present?set=${activeSet.id}` }}
+                search={{ redirectTo: presenterReturn(activeSet.id) }}
                 className="underline"
                 title="Edit set"
               >
@@ -535,7 +707,7 @@ function Presenter() {
                 <Link
                   to="/set/$setId"
                   params={{ setId: activeSet.id }}
-                  search={{ redirectTo: `/present?set=${activeSet.id}` }}
+                  search={{ redirectTo: presenterReturn(activeSet.id) }}
                   className="pill flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                   title="Edit set"
                   aria-label="Edit set"
@@ -552,6 +724,10 @@ function Presenter() {
               {setList.map((id, i) => {
                 const d = sets[id];
                 if (!d) return null;
+                const canHide = d.kind === "song";
+                const hiddenLeaders = hiddenBySet[id] ?? [];
+                const hasHidden = hiddenLeaders.length > 0;
+                const managing = manageSet === id;
                 return (
                   <section key={id} id={`set-section-${id}`}>
                     <div className="mb-2 flex items-center gap-3">
@@ -560,16 +736,45 @@ function Presenter() {
                         {d.name}
                       </h3>
                       <KindBadge kind={d.kind} />
+                      <div className="flex items-center gap-1.5">
                       <Link
                         to="/set/$setId"
                         params={{ setId: d.id }}
-                        search={{ redirectTo: `/present?set=${d.id}` }}
+                        search={{ redirectTo: presenterReturn(d.id) }}
                         className="pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                         title="Edit set"
                         aria-label="Edit set"
                       >
                         <Pencil className="h-3 w-3" />
                       </Link>
+                      {canHide && (
+                        <button
+                          onClick={() => setManageSet((prev) => (prev === id ? null : id))}
+                          className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition ${
+                            managing
+                              ? "bg-foreground text-background"
+                              : "hover:bg-foreground hover:text-background"
+                          }`}
+                          title={
+                            managing
+                              ? "Done hiding sections"
+                              : hasHidden
+                              ? `Sections hidden (${hiddenLeaders.length}) — click to manage`
+                              : "Hide sections"
+                          }
+                          aria-label={managing ? "Done hiding sections" : "Hide sections"}
+                          aria-pressed={managing}
+                        >
+                          {managing ? (
+                            <Check className="h-3.5 w-3.5" />
+                          ) : hasHidden ? (
+                            <EyeOff className="h-3.5 w-3.5" />
+                          ) : (
+                            <Eye className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      )}
+                      </div>
                       {id === live.setId && (
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: kindLiveColor(d.kind) }} title="Live" />
                       )}
@@ -577,7 +782,14 @@ function Presenter() {
                     {d.slides.length === 0 ? (
                       <p className="text-xs text-muted-foreground">No slides.</p>
                     ) : (
-                      <SlideGridForPresenter phytoSet={d} live={live} slideW={slideW} />
+                      <SlideGridForPresenter
+                        phytoSet={d}
+                        live={live}
+                        slideW={slideW}
+                        hiddenLeaders={hiddenLeaders}
+                        manageMode={managing}
+                        onToggleSection={(leaderId, x, y) => toggleSection(id, leaderId, x, y)}
+                      />
                     )}
                   </section>
                 );
@@ -595,6 +807,7 @@ function Presenter() {
                 slide={liveSlide}
                 variant="preview"
                 durationMs={fadeMs}
+                videoCmd={live.videoCmd}
                 template={
                   liveSet?.kind === "song" ? effectiveSongTemplate
                   : liveSet?.kind === "scripture" ? effectiveScriptureTemplate
@@ -638,14 +851,36 @@ function Presenter() {
                 />
                 <span className="text-xs text-muted-foreground">s</span>
               </div>
-              <button
-                onClick={() => live.toggleBlackout()}
-                className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
-                title="Stop (Esc) — fades to black"
-                aria-label="Stop"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                {liveSlide?.kind === "video" && (
+                  <>
+                    <button
+                      onClick={() => live.setVideoPlaying(!isVideoPlaying(live))}
+                      className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-foreground hover:text-background"
+                      title={isVideoPlaying(live) ? "Stop video" : "Play video"}
+                      aria-label={isVideoPlaying(live) ? "Stop video" : "Play video"}
+                    >
+                      {isVideoPlaying(live) ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    </button>
+                    <button
+                      onClick={() => live.restartVideo()}
+                      className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-foreground hover:text-background"
+                      title="Restart video"
+                      aria-label="Restart video"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => live.toggleBlackout()}
+                  className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
+                  title="Stop (Esc) — fades to black"
+                  aria-label="Stop"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -703,6 +938,22 @@ function Presenter() {
       </div>
 
       <MediaAutoAdvance />
+
+      {/* Cursor-following warning when hiding the last visible section. */}
+      {hideWarning && (() => {
+        const W = 220, GAP = 16;
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const left = hideWarning.x + W + GAP > vw ? Math.max(8, hideWarning.x - W - GAP) : hideWarning.x + GAP;
+        const top = hideWarning.y + 60 + GAP > vh ? Math.max(8, hideWarning.y - 60 - GAP) : hideWarning.y + GAP;
+        return (
+          <div
+            className="mono pointer-events-none fixed z-50 rounded-2xl border border-foreground bg-background p-3 text-[11px] leading-relaxed shadow-lg"
+            style={{ left, top, width: W }}
+          >
+            You must have at least 1 section visible.
+          </div>
+        );
+      })()}
 
       {/* Share dialog */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
@@ -882,7 +1133,45 @@ function sectionOf(s: Slide): string | null {
   return null;
 }
 
-function PresenterThumb({ slide, index, phytoSet, live }: { slide: Slide; index: number; phytoSet: PhytoSet; live: LiveApi }) {
+type SlideGroup = {
+  /** Resolved section label for the group; null when unlabeled. */
+  section: string | null;
+  /** First slide's id — a stable key for this group across renders. */
+  leaderId: string;
+  items: { slide: Slide; index: number }[];
+};
+
+/** Group consecutive slides by their resolved section, the same way the
+ *  presenter grid renders them. Shared so navigation and the grid agree. */
+function groupSlides(phytoSet: PhytoSet): SlideGroup[] {
+  const groups: SlideGroup[] = [];
+  let currentSection: string | null = null;
+  phytoSet.slides.forEach((s, i) => {
+    const sec = sectionOf(s);
+    const resolvedSection = sec ?? currentSection;
+    const last = groups[groups.length - 1];
+    if (!last || resolvedSection !== currentSection) {
+      groups.push({ section: resolvedSection, leaderId: s.id, items: [{ slide: s, index: i }] });
+      currentSection = resolvedSection;
+    } else {
+      last.items.push({ slide: s, index: i });
+    }
+  });
+  return groups;
+}
+
+/** Slide ids belonging to the hidden section groups (identified by leader id). */
+function hiddenSlideIds(phytoSet: PhytoSet, hiddenLeaders: string[]): Set<string> {
+  const ids = new Set<string>();
+  if (hiddenLeaders.length === 0) return ids;
+  const leaders = new Set(hiddenLeaders);
+  for (const g of groupSlides(phytoSet)) {
+    if (leaders.has(g.leaderId)) for (const it of g.items) ids.add(it.slide.id);
+  }
+  return ids;
+}
+
+function PresenterThumb({ slide, index, phytoSet, live, disabled = false }: { slide: Slide; index: number; phytoSet: PhytoSet; live: LiveApi; disabled?: boolean }) {
   const isLive = live.setId === phytoSet.id && live.slideId === slide.id;
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
@@ -895,9 +1184,10 @@ function PresenterThumb({ slide, index, phytoSet, live }: { slide: Slide; index:
   return (
     <button
       onClick={() => live.go(phytoSet.id, slide.id)}
+      disabled={disabled}
       className={`group relative w-full overflow-hidden rounded-lg border-2 text-left transition ${
-        isLive ? "" : "border-transparent hover:border-foreground"
-      }`}
+        isLive ? "" : disabled ? "border-transparent" : "border-transparent hover:border-foreground"
+      } ${disabled ? "cursor-default" : ""}`}
       style={isLive ? { borderColor: kindLiveColor(phytoSet.kind) } : undefined}
     >
       <SlideView slide={slide} variant="thumb" template={template} />
@@ -916,7 +1206,24 @@ const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"]
 const SLIDE_GAP = 8;
 const SECTION_PAD = 8;
 
-function SlideGridForPresenter({ phytoSet, live, slideW }: { phytoSet: PhytoSet; live: LiveApi; slideW: number }) {
+function SlideGridForPresenter({
+  phytoSet,
+  live,
+  slideW,
+  hiddenLeaders = [],
+  manageMode = false,
+  onToggleSection,
+}: {
+  phytoSet: PhytoSet;
+  live: LiveApi;
+  slideW: number;
+  /** Leader slide ids of section groups hidden this session. */
+  hiddenLeaders?: string[];
+  /** When true, hidden sections stay visible (dimmed) with a toggle so they can
+   *  be brought back; otherwise they collapse to a small marker. */
+  manageMode?: boolean;
+  onToggleSection?: (leaderId: string, clientX: number, clientY: number) => void;
+}) {
   const useSections = phytoSet.kind === "song" || phytoSet.kind === "scripture";
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -943,19 +1250,8 @@ function SlideGridForPresenter({ phytoSet, live, slideW }: { phytoSet: PhytoSet;
     );
   }
 
-  const groups: { items: { slide: Slide; index: number }[] }[] = [];
-  let currentSection: string | null = null;
-  phytoSet.slides.forEach((s, i) => {
-    const sec = sectionOf(s);
-    const resolvedSection = sec ?? currentSection;
-    const last = groups[groups.length - 1];
-    if (!last || resolvedSection !== currentSection) {
-      groups.push({ items: [{ slide: s, index: i }] });
-      currentSection = resolvedSection;
-    } else {
-      last.items.push({ slide: s, index: i });
-    }
-  });
+  const groups = groupSlides(phytoSet);
+  const hidden = new Set(hiddenLeaders);
 
   // How many slides fit in one row given the measured container width
   const slidesPerRow = containerWidth > 0
@@ -965,22 +1261,42 @@ function SlideGridForPresenter({ phytoSet, live, slideW }: { phytoSet: PhytoSet;
   return (
     <div ref={containerRef} className="flex flex-wrap gap-2">
       {groups.map((g, gi) => {
+        const isHidden = hidden.has(g.leaderId);
+
+        // Hidden and not being managed: render nothing — fully hidden.
+        if (isHidden && !manageMode) return null;
+
         const cols = Math.min(g.items.length, slidesPerRow);
         const sectionWidth = cols * slideW + (cols - 1) * SLIDE_GAP + SECTION_PAD * 2;
         return (
           <div
-            key={gi}
-            className="flex flex-wrap gap-2 rounded-xl p-2"
+            key={g.leaderId}
+            className="relative flex flex-wrap gap-2 rounded-xl p-2"
             style={{
               width: sectionWidth,
-              backgroundColor: `color-mix(in oklab, ${TINTS[gi % TINTS.length]} 20%, transparent)`,
+              backgroundColor: `color-mix(in oklab, ${TINTS[gi % TINTS.length]} ${manageMode ? 60 : 45}%, transparent)`,
             }}
           >
-            {g.items.map(({ slide, index }) => (
-              <div key={slide.id} style={{ width: slideW }}>
-                <PresenterThumb slide={slide} index={index} phytoSet={phytoSet} live={live} />
-              </div>
-            ))}
+            {manageMode && (
+              <button
+                onClick={(e) => onToggleSection?.(g.leaderId, e.clientX, e.clientY)}
+                className="pill absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center border border-foreground bg-background transition hover:bg-foreground hover:text-background"
+                title={isHidden ? `Show ${g.section ?? "section"}` : `Hide ${g.section ?? "section"}`}
+                aria-label={isHidden ? "Show section" : "Hide section"}
+                aria-pressed={isHidden}
+              >
+                {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </button>
+            )}
+            <div
+              className={`flex flex-wrap gap-2 transition ${isHidden ? "opacity-40" : ""}`}
+            >
+              {g.items.map(({ slide, index }) => (
+                <div key={slide.id} style={{ width: slideW }}>
+                  <PresenterThumb slide={slide} index={index} phytoSet={phytoSet} live={live} disabled={manageMode} />
+                </div>
+              ))}
+            </div>
           </div>
         );
       })}

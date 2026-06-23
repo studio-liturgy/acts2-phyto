@@ -10,6 +10,227 @@ interface Props {
   imageFit?: "contain" | "cover";
   /** Visual template (font size/family/background) from the parent set. */
   template?: SetTemplate;
+  /** Video playback command from live state. Only acted on by variant="stage". */
+  videoCmd?: { action: "play" | "pause" | "restart"; nonce: number };
+  /** Called (stage only) when the current video reaches its end. */
+  onVideoEnded?: () => void;
+  /**
+   * Whether this slide is the currently-live one. The dissolve keeps the
+   * outgoing slide mounted in a back layer; marking it inactive lets a video
+   * reset (stop + rewind to its poster) so returning to it starts fresh.
+   * Defaults to true.
+   */
+  active?: boolean;
+  /**
+   * Whether video playback is permitted in this document. The output window is
+   * a separate tab; browsers block programmatic play() until that document has
+   * received a user gesture. The output gates this on a one-time "arm" click.
+   * Defaults to true (editor/presenter previews don't play anyway).
+   */
+  playbackEnabled?: boolean;
+}
+
+/** YouTube thumbnail URL for a video id. */
+function youtubePoster(id: string): string {
+  return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+}
+
+/**
+ * Renders a video slide. On the stage (output) it reacts to `videoCmd` to
+ * play/pause; thumb/preview variants show a static poster and never play.
+ * YouTube uses the privacy-friendly youtube-nocookie embed.
+ */
+const YT_ORIGIN = "https://www.youtube-nocookie.com";
+
+function VideoLayer({
+  slide,
+  variant,
+  videoCmd,
+  onEnded,
+  active = true,
+  playbackEnabled = true,
+}: {
+  slide: Slide;
+  variant: "stage" | "thumb" | "preview";
+  videoCmd?: { action: "play" | "pause" | "restart"; nonce: number };
+  onEnded?: () => void;
+  active?: boolean;
+  playbackEnabled?: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const isStage = variant === "stage";
+  const action = videoCmd?.action;
+  const playing = isStage && active && (action === "play" || action === "restart");
+  // Once playback starts we keep the YouTube iframe mounted so pause/resume
+  // doesn't restart the video from the beginning.
+  const [ytStarted, setYtStarted] = useState(false);
+
+  // Drive the <video> element from the playback command. When this slide is no
+  // longer live, stop and rewind so returning to it shows the poster again.
+  useEffect(() => {
+    if (!isStage) return;
+    const el = videoRef.current;
+    if (!el) return;
+    if (!active) {
+      el.pause();
+      el.currentTime = 0;
+      return;
+    }
+    if (!playbackEnabled) return;
+    if (action === "play") el.play().catch(() => {});
+    else if (action === "pause") el.pause();
+    else if (action === "restart") {
+      el.currentTime = 0;
+      el.play().catch(() => {});
+    }
+  }, [isStage, active, playbackEnabled, action, videoCmd?.nonce]);
+
+  // Mount the YouTube iframe on first play; unmount it (back to the poster)
+  // once this slide is no longer the live one so it resets for next time.
+  useEffect(() => {
+    if (!isStage || slide.videoSource !== "youtube") return;
+    if (!active) {
+      setYtStarted(false);
+      return;
+    }
+    if (playbackEnabled && (action === "play" || action === "restart")) setYtStarted(true);
+  }, [isStage, slide.videoSource, active, playbackEnabled, action, videoCmd?.nonce]);
+
+  // Drive the YouTube iframe via the postMessage API once it has started.
+  // The player's JS API is not ready the instant the iframe mounts, so a
+  // single command is often dropped — retry play/restart until the player
+  // reports it is actually playing (onStateChange info === 1).
+  useEffect(() => {
+    if (!isStage || slide.videoSource !== "youtube" || !ytStarted || !active) return;
+    const send = (func: string, args: unknown[] = []) =>
+      iframeRef.current?.contentWindow?.postMessage(
+        JSON.stringify({ event: "command", func, args }),
+        YT_ORIGIN,
+      );
+    let started = false;
+    const onMsg = (ev: MessageEvent) => {
+      if (ev.origin !== YT_ORIGIN) return;
+      try {
+        const d = JSON.parse(ev.data);
+        // info 1 = playing, 2 = paused — either means the API is now live.
+        if (d?.event === "onStateChange" && (d.info === 1 || d.info === 2)) started = true;
+      } catch {
+        // non-JSON message — ignore
+      }
+    };
+    window.addEventListener("message", onMsg);
+    // `first` carries the one-time seek for a restart. Retries only re-send
+    // playVideo — re-seeking on every tick would yank the video back to 0
+    // repeatedly until the "playing" signal arrives, glitching the first
+    // half-second.
+    const dispatch = (first: boolean) => {
+      send("addEventListener", ["onStateChange"]);
+      if (action === "restart" && first) send("seekTo", [0, true]);
+      if (action === "play" || action === "restart") send("playVideo");
+      else if (action === "pause") send("pauseVideo");
+    };
+    dispatch(true);
+    let timer: ReturnType<typeof setInterval> | undefined;
+    if (action === "play" || action === "restart") {
+      let tries = 0;
+      timer = setInterval(() => {
+        if (started || ++tries > 25) {
+          if (timer) clearInterval(timer);
+          return;
+        }
+        dispatch(false);
+      }, 200);
+    }
+    return () => {
+      window.removeEventListener("message", onMsg);
+      if (timer) clearInterval(timer);
+    };
+  }, [isStage, slide.videoSource, action, videoCmd?.nonce, ytStarted, active]);
+
+  // Detect end-of-video from the YouTube iframe (state 0 = ended).
+  useEffect(() => {
+    if (!isStage || slide.videoSource !== "youtube" || !onEnded || !active) return;
+    const onMsg = (ev: MessageEvent) => {
+      if (ev.origin !== YT_ORIGIN) return;
+      try {
+        const d = JSON.parse(ev.data);
+        if (d?.event === "onStateChange" && d.info === 0) onEnded();
+      } catch {
+        // non-JSON message from the iframe — ignore
+      }
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [isStage, slide.videoSource, onEnded, active]);
+
+  if (slide.videoSource === "youtube" && slide.youtubeId) {
+    const id = slide.youtubeId;
+    if (isStage && ytStarted) {
+      const src =
+        `https://www.youtube-nocookie.com/embed/${id}` +
+        `?enablejsapi=1&autoplay=1&rel=0&modestbranding=1&playsinline=1&controls=1`;
+      return (
+        <iframe
+          ref={iframeRef}
+          className="absolute inset-0 h-full w-full border-0"
+          src={src}
+          title={slide.title ?? "Video"}
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowFullScreen
+          onLoad={() =>
+            iframeRef.current?.contentWindow?.postMessage(
+              JSON.stringify({ event: "command", func: "addEventListener", args: ["onStateChange"] }),
+              YT_ORIGIN,
+            )
+          }
+        />
+      );
+    }
+    // Idle / thumb / preview: poster with a play affordance.
+    return (
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${youtubePoster(id)})` }}
+      >
+        <PlayGlyph />
+      </div>
+    );
+  }
+
+  // file / url → native <video>
+  if (slide.videoUrl) {
+    return (
+      <>
+        <video
+          ref={videoRef}
+          className="absolute inset-0 h-full w-full bg-black object-contain"
+          src={slide.videoUrl}
+          playsInline
+          preload="metadata"
+          controls={isStage}
+          onEnded={isStage ? onEnded : undefined}
+        />
+        {!playing && <PlayGlyph />}
+      </>
+    );
+  }
+
+  return <div className="absolute inset-0 bg-black" />;
+}
+
+function PlayGlyph() {
+  // Size scales with the container (so a small preview box gets a small glyph)
+  // but caps near the original stage size so full-screen output is unchanged.
+  return (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+      <div className="flex aspect-square w-[15%] min-w-8 max-w-24 items-center justify-center rounded-full bg-black/55 text-white">
+        <svg viewBox="0 0 24 24" className="h-1/2 w-1/2" fill="currentColor">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </div>
+    </div>
+  );
 }
 
 // Canonical stage size — all variants render at this size, then scale-to-fit.
@@ -27,6 +248,10 @@ export function SlideView({
   className = "",
   imageFit = "contain",
   template,
+  videoCmd,
+  onVideoEnded,
+  active = true,
+  playbackEnabled = true,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
@@ -62,6 +287,14 @@ export function SlideView({
   const placeholderText = bgMode === "white" ? "text-black/40" : "text-white/40";
   const alignClass = template?.align === "left" ? "items-start text-left" : "items-center text-center";
   const refAbove = template?.referencePosition === "above";
+
+  if (slide?.kind === "video") {
+    return (
+      <div className={`relative ${aspect} w-full overflow-hidden bg-black ${className}`}>
+        <VideoLayer slide={slide} variant={variant} videoCmd={videoCmd} onEnded={onVideoEnded} active={active} playbackEnabled={playbackEnabled} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -134,6 +367,9 @@ export function DissolveSlide({
   className = "",
   imageFit,
   template,
+  videoCmd,
+  onVideoEnded,
+  playbackEnabled = true,
 }: Props & { durationMs?: number }) {
   const [a, setA] = useState<Slide | null | undefined>(slide);
   const [b, setB] = useState<Slide | null | undefined>(null);
@@ -187,10 +423,10 @@ export function DissolveSlide({
       className={`relative isolate ${variant === "stage" ? "h-full" : "aspect-video"} w-full ${className}`}
     >
       <div className="absolute inset-0" style={layerStyle(front === "a")}>
-        <SlideView slide={a} variant={variant} imageFit={imageFit} template={templateA} className="h-full w-full" />
+        <SlideView slide={a} variant={variant} imageFit={imageFit} template={templateA} videoCmd={videoCmd} onVideoEnded={onVideoEnded} active={front === "a"} playbackEnabled={playbackEnabled} className="h-full w-full" />
       </div>
       <div className="absolute inset-0" style={layerStyle(front === "b")}>
-        <SlideView slide={b} variant={variant} imageFit={imageFit} template={templateB} className="h-full w-full" />
+        <SlideView slide={b} variant={variant} imageFit={imageFit} template={templateB} videoCmd={videoCmd} onVideoEnded={onVideoEnded} active={front === "b"} playbackEnabled={playbackEnabled} className="h-full w-full" />
       </div>
     </div>
   );

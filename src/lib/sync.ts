@@ -582,17 +582,27 @@ export async function applyMerge(diff: SyncDiff): Promise<void> {
 // Push local → Supabase
 // ---------------------------------------------------------------------------
 
-async function doPush(userId: string): Promise<void> {
+/** Which rows to push. Omit for a FULL push (every row — used by the conflict
+ *  dialog's Push and as a fallback). Provide ids for an INCREMENTAL push that
+ *  reads and uploads only the changed rows (the debounced hot path). */
+export type PushTarget = { setIds: string[]; gatheringIds: string[] };
+
+async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
   const { setStatus } = useSyncStatusStore.getState();
   const deviceId = getDeviceId();
 
   console.log('[sync] pushToSupabase: starting push for user', userId, 'device', deviceId);
   setStatus('syncing');
   try {
-    const [sets, gatherings] = await Promise.all([
-      db.sets.toArray(),
-      db.gatherings.toArray(),
-    ]);
+    // Incremental: read ONLY the dirty rows (filtering out any deleted between
+    // mark and push). Full: read everything. bulkGet returns undefined for
+    // missing ids, so a row deleted after being marked dirty is simply skipped.
+    const [sets, gatherings] = target
+      ? await Promise.all([
+          db.sets.bulkGet(target.setIds).then((rows) => rows.filter((r): r is PhytoSet => !!r)),
+          db.gatherings.bulkGet(target.gatheringIds).then((rows) => rows.filter((r): r is Gathering => !!r)),
+        ])
+      : await Promise.all([db.sets.toArray(), db.gatherings.toArray()]);
 
     console.log('[sync] pushToSupabase: pushing', sets.length, 'sets,', gatherings.length, 'gatherings');
 
@@ -662,7 +672,7 @@ async function doPush(userId: string): Promise<void> {
       if (!pushedGatherings.length) {
         console.log('[sync] pushToSupabase: done');
         setStatus('synced');
-        return;
+        return true;
       }
 
       const { data: existingGs } = await supabase
@@ -718,9 +728,11 @@ async function doPush(userId: string): Promise<void> {
     setStatus('synced');
     // No broadcast needed: the timestamp writebacks above mutate Dexie, which the
     // cross-tab `liveQuery` in store.ts picks up to refresh every tab's store.
+    return true;
   } catch (e) {
     console.error('[sync] pushToSupabase: unexpected error', e);
     setStatus('synced');
+    return false;
   }
 }
 
@@ -749,14 +761,14 @@ export async function mergeFromSupabase(): Promise<void> {
   });
 }
 
-export async function pushToSupabase(): Promise<void> {
+export async function pushToSupabase(target?: PushTarget): Promise<boolean> {
   const session = getSession();
   if (!session) {
     console.log('[sync] pushToSupabase: skipped — no session');
-    return;
+    // Nothing was pushed, but it's not a failure to retry — treat as success so
+    // the caller doesn't re-queue dirty ids forever while signed out.
+    return true;
   }
   const userId = session.user.id;
-  await withSyncLock(async () => {
-    await doPush(userId);
-  });
+  return withSyncLock(async () => doPush(userId, target));
 }

@@ -6,6 +6,7 @@ import { signOut } from "@/lib/auth";
 import { useIsSignedIn } from "@/lib/authStore";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { exportCatalogue, importCatalogue } from "@/lib/catalogue-io";
+import { APP_NAME } from "@/lib/appConfig";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -23,7 +24,8 @@ import {
   BookOpen,
   Image as ImageIcon,
   X,
-  ChevronDown,
+  ArrowDownAZ,
+  ArrowDownWideNarrow,
   Search,
   ArrowUpRight,
   Share2,
@@ -64,9 +66,9 @@ const KIND_COLOR: Record<string, string> = {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Home | phyto" },
+      { title: `Home | ${APP_NAME}` },
       { name: "description", content: "Prepare sets, group them into gatherings, and present them live!" },
-      { property: "og:title", content: "Home | phyto" },
+      { property: "og:title", content: `Home | ${APP_NAME}` },
       { property: "og:description", content: "Prepare sets, group them into gatherings, and present them live!" },
       { property: "og:url", content: "https://phyto.live/" },
     ],
@@ -108,7 +110,7 @@ export const Route = createFileRoute("/")({
 
 const SET_DRAG_TYPE = "application/x-stage-set-id";
 
-type SortMode = "az" | "za" | "newest" | "oldest";
+type SortMode = "az" | "newest";
 type KindFilter = "all" | SetKind;
 
 function kindBg(kind: SetKind | string): string {
@@ -200,8 +202,6 @@ function Library() {
     }
   };
 
-  const [gatheringFilter, setGatheringFilter] = useState("");
-  const [showGatheringSearch, setShowGatheringSearch] = useState(false);
   const [catalogueFilter, setCatalogueFilter] = useState("");
   const [showCatalogueSearch, setShowCatalogueSearch] = useState(false);
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
@@ -231,29 +231,19 @@ function Library() {
       .map((id) => sets[id])
       .filter(Boolean)
       .filter((d) => kindFilter === "all" || d.kind === kindFilter)
-      .filter((d) => !q || d.name.toLowerCase().includes(q));
+      .filter((d) => !q || d.name.toLowerCase().includes(q) || d.slides.some((slide) => slide.lines?.some((line) => line.toLowerCase().includes(q))));
     rows = [...rows].sort((a, b) => {
       switch (sortMode) {
         case "az": return a.name.localeCompare(b.name);
-        case "za": return b.name.localeCompare(a.name);
         case "newest": return b.createdAt - a.createdAt;
-        case "oldest": return a.createdAt - b.createdAt;
       }
     });
     return rows;
   }, [order, sets, catalogueFilter, sortMode, kindFilter]);
 
-  const filteredGatheringIds = useMemo(() => {
-    const q = gatheringFilter.trim().toLowerCase();
-    if (!q) return gatheringOrder;
-    return gatheringOrder.filter((pid) => gatherings[pid]?.name.toLowerCase().includes(q));
-  }, [gatheringOrder, gatherings, gatheringFilter]);
-
   const sortLabel: Record<SortMode, string> = {
     az: "A → Z",
-    za: "Z → A",
     newest: "Newest first",
-    oldest: "Oldest first",
   };
 
   const emptyCategoryLabel: Record<string, string> = {
@@ -317,26 +307,6 @@ function Library() {
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-4xl md:text-5xl">Gatherings</h2>
             <div className="flex items-center gap-2 pl-[80px]">
-              {showGatheringSearch ? (
-                <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
-                  <Search className="h-4 w-4" />
-                  <input
-                    autoFocus
-                    value={gatheringFilter}
-                    onChange={(e) => setGatheringFilter(e.target.value)}
-                    onBlur={() => !gatheringFilter && setShowGatheringSearch(false)}
-                    placeholder="Search"
-                    className="mono uppercase w-40 bg-transparent text-xs outline-none"
-                  />
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowGatheringSearch(true)}
-                  className="pill mono uppercase flex items-center gap-2 border border-foreground bg-background px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-                >
-                  <Search className="h-4 w-4" /> Search
-                </button>
-              )}
               <button
                 onClick={createNewGathering}
                 className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
@@ -350,13 +320,9 @@ function Library() {
             <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
               No gatherings yet. Click New to plan a gathering!
             </div>
-          ) : filteredGatheringIds.length === 0 ? (
-            <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
-              {`No gatherings match "${gatheringFilter}".`}
-            </div>
           ) : (
             <div className="grid gap-1.5 lg:grid-cols-2">
-              {filteredGatheringIds.map((pid) => {
+              {gatheringOrder.map((pid) => {
                 const p = gatherings[pid];
                 if (!p) return null;
                 return (
@@ -427,20 +393,18 @@ function Library() {
                   {k === "all" ? "All" : k === "song" ? "Songs" : k === "scripture" ? "Scriptures" : "Media"}
                 </button>
               ))}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="mono uppercase flex items-center gap-1 px-2 py-1.5 text-xs tracking-wider">
-                    {sortLabel[sortMode]} <ChevronDown className="h-3.5 w-3.5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {(Object.keys(sortLabel) as SortMode[]).map((m) => (
-                    <DropdownMenuItem key={m} onClick={() => setSortMode(m)} className="mono uppercase text-xs tracking-wider">
-                      {sortLabel[m]}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button
+                onClick={() => setSortMode(sortMode === "az" ? "newest" : "az")}
+                title={`Sort: ${sortLabel[sortMode]}`}
+                aria-label={`Sort: ${sortLabel[sortMode]}`}
+                className="mono uppercase flex items-center px-2 py-1.5 text-xs tracking-wider"
+              >
+                {sortMode === "az" ? (
+                  <ArrowDownAZ className="h-4 w-4" />
+                ) : (
+                  <ArrowDownWideNarrow className="h-4 w-4" />
+                )}
+              </button>
               {showCatalogueSearch ? (
                 <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
                   <Search className="h-4 w-4" />
@@ -452,6 +416,17 @@ function Library() {
                     placeholder="Search"
                     className="mono uppercase w-40 bg-transparent text-xs outline-none"
                   />
+                  {catalogueFilter && (
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setCatalogueFilter("")}
+                      className="shrink-0 rounded-full p-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                      title="Clear search"
+                      aria-label="Clear search"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               ) : (
                 <button
@@ -694,7 +669,7 @@ function GatheringCard({
     }
   };
 
-  const shareUrl = `https://phyto.live/g/${shareToken}`;
+  const shareUrl = `${window.location.origin}/g/${shareToken}`;
 
   const downloadQr = (ref: React.RefObject<HTMLCanvasElement | null>, filename: string) => {
     const canvas = ref.current;

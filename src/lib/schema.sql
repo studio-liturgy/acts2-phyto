@@ -18,6 +18,26 @@
 --   add constraint gathering_sets_gathering_id_position_key
 --   unique (gathering_id, position);
 --
+-- Stop unchanged content re-pushes from bumping sets.updated_at. The client
+-- pushes only changed rows now, but a full push (conflict-dialog "Push") still
+-- re-upserts every set; without this, each one bumps updated_at and churns the
+-- cross-tab liveQuery. RECOMMENDED:
+-- create or replace function sets_update_updated_at()
+-- returns trigger language plpgsql as $$
+-- begin
+--   if (new.title is distinct from old.title)
+--      or (new.type is distinct from old.type)
+--      or (new.content is distinct from old.content) then
+--     new.updated_at = now();
+--   end if;
+--   return new;
+-- end;
+-- $$;
+-- drop trigger if exists sets_updated_at on sets;
+-- create trigger sets_updated_at
+--   before update on sets
+--   for each row execute function sets_update_updated_at();
+--
 -- Stop is_live flips (goLive/endSession) from bumping gatherings.updated_at,
 -- which made every live toggle look like a content change to the sync diff.
 -- RECOMMENDED — the client heals the drift silently either way, but this stops
@@ -39,7 +59,9 @@
 -- ------------------------------------------------------------
 
 -- ------------------------------------------------------------
--- Helper: auto-update updated_at
+-- Helper: auto-update updated_at (generic, unconditional). Retained for any
+-- table that wants "bump on every write" semantics. NOTE: `sets` deliberately
+-- uses the CONDITIONAL trigger below instead — see sets_update_updated_at.
 -- ------------------------------------------------------------
 create or replace function update_updated_at()
 returns trigger language plpgsql as $$
@@ -66,9 +88,26 @@ create table if not exists sets (
   last_modified_by  text
 );
 
+-- Sets use a CONDITIONAL trigger: only advance updated_at when synced content
+-- actually changes (title / type / content jsonb). The client re-upserts rows
+-- and copies the server timestamp back into Dexie; an unconditional bump on
+-- every write made each re-push look like a fresh change, churning the cross-tab
+-- liveQuery. Mirrors the gatherings trigger below.
+create or replace function sets_update_updated_at()
+returns trigger language plpgsql as $$
+begin
+  if (new.title is distinct from old.title)
+     or (new.type is distinct from old.type)
+     or (new.content is distinct from old.content) then
+    new.updated_at = now();
+  end if;
+  return new;
+end;
+$$;
+
 create trigger sets_updated_at
   before update on sets
-  for each row execute function update_updated_at();
+  for each row execute function sets_update_updated_at();
 
 alter table sets enable row level security;
 

@@ -1,13 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { DissolveSlide } from "@/components/SlideView";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Slide } from "@/lib/types";
+import { APP_NAME } from "@/lib/appConfig";
+
+const ARMED_KEY = "phyto-video-armed";
 
 export const Route = createFileRoute("/output")({
   head: () => ({
     meta: [
-      { title: "Stage Output | phyto" },
+      { title: `Stage Output | ${APP_NAME}` },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -47,6 +50,34 @@ function Output() {
   const blackoutFadeMs = live.blackoutFadeMs ?? 0;
   const hideContent = live.clear || !slide;
 
+  // Browsers block programmatic play() in this (separate) window until it has
+  // received a user gesture. Arm once via a click; persist for the session.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    setArmed(sessionStorage.getItem(ARMED_KEY) === "1");
+  }, []);
+  const arm = () => {
+    sessionStorage.setItem(ARMED_KEY, "1");
+    setArmed(true);
+  };
+  // Silently arm on the first interaction of any kind (clicking the window,
+  // fullscreening it, a key press). In practice the operator always clicks the
+  // output window while moving it to the projector, so the prompt below is a
+  // rare fallback they'll only see if a video goes live before they've touched it.
+  useEffect(() => {
+    if (armed) return;
+    const onGesture = () => arm();
+    window.addEventListener("pointerdown", onGesture, { once: true });
+    window.addEventListener("keydown", onGesture, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("keydown", onGesture);
+    };
+  }, [armed]);
+  // Only prompt while a video is actually on screen, so the overlay never
+  // covers lyrics/scripture. Once armed it never shows again this session.
+  const needsArm = !armed && !hideContent && slide?.kind === "video";
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black">
       {hideContent ? (
@@ -57,8 +88,22 @@ function Output() {
           variant="stage"
           durationMs={globalFadeMs}
           template={template}
+          videoCmd={live.videoCmd}
+          onVideoEnded={() => live.videoFinished()}
+          playbackEnabled={armed}
           className="h-full w-full"
         />
+      )}
+      {/* One-time gesture to satisfy the browser autoplay policy. */}
+      {needsArm && (
+        <button
+          onClick={arm}
+          className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 text-white"
+        >
+          <span className="rounded-full border border-white/40 px-6 py-3 text-lg font-medium">
+            Click to enable video playback
+          </span>
+        </button>
       )}
       {/* Blackout overlay — fades in/out when blackoutFadeMs > 0. */}
       <div

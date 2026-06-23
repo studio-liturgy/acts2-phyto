@@ -10,19 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UpdatesRouteImport } from './routes/updates'
-import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PresentRouteImport } from './routes/present'
 import { Route as OutputRouteImport } from './routes/output'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LegalRouteImport } from './routes/legal'
 import { Route as FeedbackRouteImport } from './routes/feedback'
+import { Route as DonateRouteImport } from './routes/donate'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SetSetIdRouteImport } from './routes/set.$setId'
 import { Route as GTokenRouteImport } from './routes/g.$token'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedback'
+import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
 import { Route as ApiAuthWelcomeRouteImport } from './routes/api/auth/welcome'
 
 const UpdatesRoute = UpdatesRouteImport.update({
@@ -30,19 +31,9 @@ const UpdatesRoute = UpdatesRouteImport.update({
   path: '/updates',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PresentRoute = PresentRouteImport.update({
@@ -60,9 +51,19 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LegalRoute = LegalRouteImport.update({
+  id: '/legal',
+  path: '/legal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FeedbackRoute = FeedbackRouteImport.update({
   id: '/feedback',
   path: '/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DonateRoute = DonateRouteImport.update({
+  id: '/donate',
+  path: '/donate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -95,6 +96,11 @@ const ApiPublicFeedbackRoute = ApiPublicFeedbackRouteImport.update({
   path: '/api/public/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaUploadRoute = ApiMediaUploadRouteImport.update({
+  id: '/api/media/upload',
+  path: '/api/media/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthWelcomeRoute = ApiAuthWelcomeRouteImport.update({
   id: '/api/auth/welcome',
   path: '/api/auth/welcome',
@@ -104,53 +110,56 @@ const ApiAuthWelcomeRoute = ApiAuthWelcomeRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/donate': typeof DonateRoute
   '/feedback': typeof FeedbackRoute
+  '/legal': typeof LegalRoute
   '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
-  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
+  '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/donate': typeof DonateRoute
   '/feedback': typeof FeedbackRoute
+  '/legal': typeof LegalRoute
   '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
-  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
+  '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/donate': typeof DonateRoute
   '/feedback': typeof FeedbackRoute
+  '/legal': typeof LegalRoute
   '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
-  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
+  '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
 }
 export interface FileRouteTypes {
@@ -158,70 +167,74 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/donate'
     | '/feedback'
+    | '/legal'
     | '/login'
     | '/output'
     | '/present'
-    | '/privacy'
     | '/sitemap.xml'
-    | '/terms'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
     | '/set/$setId'
     | '/api/auth/welcome'
+    | '/api/media/upload'
     | '/api/public/feedback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
+    | '/donate'
     | '/feedback'
+    | '/legal'
     | '/login'
     | '/output'
     | '/present'
-    | '/privacy'
     | '/sitemap.xml'
-    | '/terms'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
     | '/set/$setId'
     | '/api/auth/welcome'
+    | '/api/media/upload'
     | '/api/public/feedback'
   id:
     | '__root__'
     | '/'
     | '/about'
+    | '/donate'
     | '/feedback'
+    | '/legal'
     | '/login'
     | '/output'
     | '/present'
-    | '/privacy'
     | '/sitemap.xml'
-    | '/terms'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
     | '/set/$setId'
     | '/api/auth/welcome'
+    | '/api/media/upload'
     | '/api/public/feedback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  DonateRoute: typeof DonateRoute
   FeedbackRoute: typeof FeedbackRoute
+  LegalRoute: typeof LegalRoute
   LoginRoute: typeof LoginRoute
   OutputRoute: typeof OutputRoute
   PresentRoute: typeof PresentRoute
-  PrivacyRoute: typeof PrivacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  TermsRoute: typeof TermsRoute
   UpdatesRoute: typeof UpdatesRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   GTokenRoute: typeof GTokenRoute
   SetSetIdRoute: typeof SetSetIdRoute
   ApiAuthWelcomeRoute: typeof ApiAuthWelcomeRoute
+  ApiMediaUploadRoute: typeof ApiMediaUploadRoute
   ApiPublicFeedbackRoute: typeof ApiPublicFeedbackRoute
 }
 
@@ -234,25 +247,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UpdatesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/present': {
@@ -276,11 +275,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal': {
+      id: '/legal'
+      path: '/legal'
+      fullPath: '/legal'
+      preLoaderRoute: typeof LegalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/feedback': {
       id: '/feedback'
       path: '/feedback'
       fullPath: '/feedback'
       preLoaderRoute: typeof FeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/donate': {
+      id: '/donate'
+      path: '/donate'
+      fullPath: '/donate'
+      preLoaderRoute: typeof DonateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -325,6 +338,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media/upload': {
+      id: '/api/media/upload'
+      path: '/api/media/upload'
+      fullPath: '/api/media/upload'
+      preLoaderRoute: typeof ApiMediaUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/welcome': {
       id: '/api/auth/welcome'
       path: '/api/auth/welcome'
@@ -338,18 +358,19 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  DonateRoute: DonateRoute,
   FeedbackRoute: FeedbackRoute,
+  LegalRoute: LegalRoute,
   LoginRoute: LoginRoute,
   OutputRoute: OutputRoute,
   PresentRoute: PresentRoute,
-  PrivacyRoute: PrivacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  TermsRoute: TermsRoute,
   UpdatesRoute: UpdatesRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   GTokenRoute: GTokenRoute,
   SetSetIdRoute: SetSetIdRoute,
   ApiAuthWelcomeRoute: ApiAuthWelcomeRoute,
+  ApiMediaUploadRoute: ApiMediaUploadRoute,
   ApiPublicFeedbackRoute: ApiPublicFeedbackRoute,
 }
 export const routeTree = rootRouteImport

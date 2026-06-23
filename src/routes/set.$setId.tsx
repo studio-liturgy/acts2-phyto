@@ -2,9 +2,11 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
-import { parseLyrics, fileToCompressedImageDataUrl, scriptureToSlides } from "@/lib/parsers";
+import { parseLyrics, fileToCompressedImageDataUrl, scriptureToSlides, parseYouTubeId } from "@/lib/parsers";
+import { supabase } from "@/lib/supabase";
+import { MEDIA_MAX_BYTES, isUploadableVideo } from "@/lib/media";
 import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
-import { searchSongs, type SongResult } from "@/lib/songs";
+import { searchSongs, preloadSongs, parseQuery, songPreview, type SongResult } from "@/lib/songs";
 import { SlideView } from "@/components/SlideView";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +15,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescripti
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { Slide, SetKind } from "@/lib/types";
 import { z } from "zod";
+import { APP_NAME } from "@/lib/appConfig";
 
 const searchSchema = z.object({
   redirectTo: z
@@ -27,7 +30,7 @@ export const Route = createFileRoute("/set/$setId")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Set Editor | phyto" },
+      { title: `Set Editor | ${APP_NAME}` },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -37,13 +40,6 @@ export const Route = createFileRoute("/set/$setId")({
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
-
-// Ephemeral per-session cache of the pristine fetched verses, keyed by setId.
-// Survives editor unmount/remount (in-app navigation) but resets on page reload.
-const scriptureSourceCache = new Map<
-  string,
-  { verses: { text: string; verse: number; chapter: number }[]; label: string }
->();
 
 function kindBadgeBg(kind: SetKind): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
@@ -193,6 +189,9 @@ function SetEditor() {
   const [showFileSizeDialog, setShowFileSizeDialog] = useState(false);
   const [fileOver, setFileOver] = useState(false);
   const [converting, setConverting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [videoLink, setVideoLink] = useState("");
+  const [videoErr, setVideoErr] = useState<string | null>(null);
 
 
   const selected = useMemo(
@@ -399,17 +398,77 @@ function SetEditor() {
     setMultiSel(new Set());
   };
 
+  // Uploads a single video file to R2 via the server route, then adds a slide
+  // pointing at the returned public URL. Returns false on any failure.
+  const uploadVideoFile = async (file: File): Promise<boolean> => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      setVideoErr("Please sign in to upload videos.");
+      return false;
+    }
+    try {
+      const res = await fetch("/api/media/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": file.type },
+        body: file,
+      });
+      const json = (await res.json()) as { ok?: boolean; url?: string; error?: string };
+      if (!res.ok || !json.ok || !json.url) {
+        setVideoErr(json.error ?? "Upload failed.");
+        return false;
+      }
+      addSlide(phytoSet.id, { kind: "video", videoSource: "file", videoUrl: json.url, lines: [] });
+      return true;
+    } catch {
+      setVideoErr("Upload failed.");
+      return false;
+    }
+  };
+
+  // Adds a video slide from a pasted link: YouTube → embed, otherwise a direct
+  // external video URL.
+  const addVideoLink = () => {
+    const link = videoLink.trim();
+    if (!link) return;
+    setVideoErr(null);
+    const youtubeId = parseYouTubeId(link);
+    if (youtubeId) {
+      addSlide(phytoSet.id, { kind: "video", videoSource: "youtube", youtubeId, lines: [] });
+    } else if (/^https?:\/\//i.test(link)) {
+      addSlide(phytoSet.id, { kind: "video", videoSource: "url", videoUrl: link, lines: [] });
+    } else {
+      setVideoErr("Enter a YouTube link or a direct video URL.");
+      return;
+    }
+    setVideoLink("");
+  };
+
   const handleMediaFiles = async (files: FileList | null) => {
-    if (!files || converting) return;
+    if (!files || converting || uploading) return;
+    setVideoErr(null);
+    const all = Array.from(files);
+    const videoFiles = all.filter((f) => isUploadableVideo(f.type));
+    const nonVideo = all.filter((f) => !isUploadableVideo(f.type));
+
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
-    if (Array.from(files).some((f) => f.size > MAX_FILE_SIZE)) {
+    if (nonVideo.some((f) => f.size > MAX_FILE_SIZE) || videoFiles.some((f) => f.size > MEDIA_MAX_BYTES)) {
       setShowFileSizeDialog(true);
       return;
     }
-    const imageFiles = Array.from(files).filter((f) =>
+
+    if (videoFiles.length > 0) {
+      setUploading(true);
+      for (const file of videoFiles) {
+        await uploadVideoFile(file);
+      }
+      setUploading(false);
+    }
+
+    const imageFiles = nonVideo.filter((f) =>
       /^image\/(png|jpe?g|webp|gif|bmp)$/i.test(f.type)
     );
-    const pdfFiles = Array.from(files).filter((f) => f.type === "application/pdf");
+    const pdfFiles = nonVideo.filter((f) => f.type === "application/pdf");
 
     if (imageFiles.length > 0) {
       const urls = await Promise.all(
@@ -477,48 +536,69 @@ function SetEditor() {
                     <Trash2 className="h-3 w-3" /> Delete selected
                   </button>
                 )}
+              </div>
+            </div>
+
+            <div className="mb-3 flex flex-col gap-1">
+              <div className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-1.5">
+                <input
+                  value={videoLink}
+                  onChange={(e) => setVideoLink(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addVideoLink();
+                    }
+                  }}
+                  placeholder="PASTE A YOUTUBE OR VIDEO LINK"
+                  className="mono w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                />
                 <button
-                  onClick={() =>
-                    addSlide(phytoSet.id, { id: uid(), kind: "blank", lines: [""] } as Slide)
-                  }
-                  className="pill flex items-center border border-foreground p-1.5 text-xs transition hover:bg-foreground hover:text-background"
-                  aria-label="Add blank slide"
+                  onClick={addVideoLink}
+                  disabled={!videoLink.trim()}
+                  className="flex items-center transition disabled:opacity-20"
+                  aria-label="Add video link"
                 >
-                  <Plus className="h-3 w-3" />
+                  <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
                 </button>
               </div>
+              {videoErr && <p className="text-xs text-destructive">{videoErr}</p>}
             </div>
 
             {phytoSet.slides.length === 0 ? (
               <label
                 className={`mono flex h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-xs uppercase tracking-wider transition ${
-                  converting
+                  converting || uploading
                     ? "cursor-wait border-foreground/30 text-muted-foreground"
                     : fileOver
                     ? "border-foreground bg-foreground/5"
                     : "border-foreground/60 text-muted-foreground hover:border-foreground"
                 }`}
               >
-                {converting ? (
+                {uploading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
+                ) : converting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Converting…</>
                 ) : fileOver ? (
                   "Drop to upload"
                 ) : (
-                  "Drop images or PDFs here or click to browse"
+                  "Drop images, PDFs or videos here or click to browse"
                 )}
                 <input
                   type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm"
                   multiple
-                  disabled={converting}
+                  disabled={converting || uploading}
                   className="hidden"
                   onChange={(e) => handleMediaFiles(e.target.files)}
                 />
               </label>
             ) : (
               <div className="max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
-                {fileOver && (
-                  <p className="mono mb-3 text-center text-xs uppercase tracking-wider text-muted-foreground">Drop to add images</p>
+                {(fileOver || uploading) && (
+                  <p className="mono mb-3 text-center text-xs uppercase tracking-wider text-muted-foreground">
+                    {uploading ? "Uploading…" : "Drop to add media"}
+                  </p>
                 )}
                 <SlideGrid
                   slides={phytoSet.slides}
@@ -541,6 +621,21 @@ function SetEditor() {
             <div className="overflow-hidden rounded-lg bg-[var(--brand-black)]">
               <SlideView slide={selected} variant="preview" />
             </div>
+            {selected?.kind === "video" && (
+              <label className="mt-3 flex cursor-pointer items-center justify-between gap-2 text-xs">
+                <span className="mono uppercase tracking-wider text-muted-foreground">
+                  Autoplay when live
+                </span>
+                <input
+                  type="checkbox"
+                  checked={!!selected.autoplay}
+                  onChange={(e) =>
+                    updateSlide(phytoSet.id, selected.id, { autoplay: e.target.checked })
+                  }
+                  className="h-4 w-4 accent-[var(--brand-orange)]"
+                />
+              </label>
+            )}
           </div>
         </aside>
       </div>
@@ -549,7 +644,7 @@ function SetEditor() {
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">File too large</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            One or more files exceeds the 5 MB limit. Please resize or compress your files and try again.
+            One or more files exceeds the limit (5 MB for images and PDFs, 100 MB for videos). Please resize or compress your files and try again.
           </AlertDialogDescription>
           <div className="mt-6 flex justify-end">
             <button
@@ -578,17 +673,20 @@ function PillInput({
   value,
   onChange,
   placeholder,
+  onEnter,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  onEnter?: () => void;
 }) {
   return (
     <input
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => e.key === 'Enter' && onEnter?.()}
       placeholder={placeholder}
-      className="pill w-full border border-foreground bg-background px-4 py-1.5 text-sm outline-none focus:ring-1 focus:ring-foreground"
+      className="pill mono uppercase w-full border border-foreground bg-background px-4 py-1.5 text-sm outline-none focus:ring-1 focus:ring-foreground"
     />
   );
 }
@@ -895,15 +993,15 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [songResults, setSongResults] = useState<SongResult[]>([]);
   const [songSearching, setSongSearching] = useState(false);
   const [songErr, setSongErr] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ text: string; x: number; y: number } | null>(null);
+  const searchSeq = useRef(0);
 
   const [pendingLinesPerConfirm, setPendingLinesPerConfirm] = useState<number | null>(null);
-  const [pendingVersesPerConfirm, setPendingVersesPerConfirm] = useState<number | null>(null);
   const [versionOpen, setVersionOpen] = useState(false);
 
   const [ref, setRef] = useState("");
   const [translation, setTranslation] = useState("NIV");
   const [versesPer, setVersesPer] = useState(1);
-  const prevVersesPer = useRef(1);
   const [keepLineBreaks, setKeepLineBreaks] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -948,6 +1046,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     localStorage.setItem("phyto_lines_per_slide", String(linesPer));
   }, [linesPer]);
 
+  // Warm the local song database so the first search paints instantly.
+  useEffect(() => {
+    if (kind === "song") preloadSongs();
+  }, [kind]);
+
   // Live sync: replace all slides whenever lyrics change (song only).
   useEffect(() => {
     if (kind !== "song") return;
@@ -965,16 +1068,38 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const runSongSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!songQuery.trim()) return;
+    const seq = ++searchSeq.current; // ignore results from superseded searches
     setSongSearching(true);
     setSongErr(null);
     try {
-      const results = await searchSongs(songQuery);
-      setSongResults(results);
-      if (results.length === 0) setSongErr("No matches found.");
+      // Paint instant local matches, then slot online results in as they load.
+      const { local, online } = await searchSongs(songQuery);
+      if (searchSeq.current === seq) setSongResults(local);
+      const final = await online;
+      if (searchSeq.current === seq) {
+        setSongResults(final);
+        if (final.length === 0)
+          setSongErr("Couldn't find that song. Paste the lyrics below to add it manually.");
+      }
     } catch (e) {
-      setSongErr((e as Error).message);
+      if (searchSeq.current === seq) setSongErr((e as Error).message);
     } finally {
-      setSongSearching(false);
+      if (searchSeq.current === seq) setSongSearching(false);
+    }
+  };
+
+  // When lyrics are pasted into an empty box after a search, name the still-
+  // default set from what was typed (e.g. "Inhabit by Bethel" -> "Inhabit").
+  // Don't override a name the user set or one taken from a selected result.
+  const handleLyricsChange = (val: string) => {
+    const wasEmpty = !lyrics.trim();
+    setLyrics(val);
+    if (wasEmpty && val.trim() && songQuery.trim()) {
+      const current = useLibrary.getState().sets[setId];
+      if (current && (current.name.trim() === "New Song" || !current.name.trim())) {
+        const titled = parseQuery(songQuery).title.replace(/\b\w/g, (c) => c.toUpperCase());
+        if (titled) updateSet(setId, { name: titled });
+      }
     }
   };
 
@@ -987,7 +1112,6 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         removeLineBreaks: !keepLineBreaks,
       });
       const labelled = `${reference} ${translation}`;
-      scriptureSourceCache.set(setId, { verses, label: labelled });
       const parts: string[] = [];
       for (let i = 0; i < verses.length; i += vPer) {
         if (i > 0) parts.push("---");
@@ -995,8 +1119,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         const verseTexts = group.map((v) => v.text.trim()).join(" ");
         parts.push(i === 0 ? `[${labelled}]\n${verseTexts}` : verseTexts);
       }
-      setManualText(parts.join("\n\n"));
-      updateSet(setId, { name: labelled });
+      const newBlock = parts.join("\n\n");
+      // Append to any existing passage rather than replacing it.
+      setManualText((prev) => (prev.trim() ? `${prev}\n\n---\n\n${newBlock}` : newBlock));
+      // Title stays as the first passage imported.
+      if (!manualText.trim()) updateSet(setId, { name: labelled });
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -1005,19 +1132,6 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   };
 
   const importScripture = () => importScriptureWith(versesPer);
-
-  const reshuffleVerses = (vPer: number) => {
-    const cached = scriptureSourceCache.get(setId);
-    if (!cached?.verses.length) return;
-    const parts: string[] = [];
-    for (let i = 0; i < cached.verses.length; i += vPer) {
-      if (i > 0) parts.push("---");
-      const group = cached.verses.slice(i, i + vPer);
-      const verseTexts = group.map((v) => v.text.trim()).join(" ");
-      parts.push(i === 0 ? `[${cached.label}]\n${verseTexts}` : verseTexts);
-    }
-    setManualText(parts.join("\n\n"));
-  };
 
   const importImages = async (files: FileList | null) => {
     if (!files) return;
@@ -1073,8 +1187,20 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                       onClick={() => {
                         setLyrics(applyDividers(s.lyrics, linesPer));
                         setSongResults([]);
+                        setPreview(null);
                         updateSet(setId, { name: s.title });
                       }}
+                      onMouseEnter={(e) =>
+                        setPreview({ text: songPreview(s.lyrics), x: e.clientX, y: e.clientY })
+                      }
+                      onMouseMove={(e) =>
+                        setPreview((p) =>
+                          p
+                            ? { ...p, x: e.clientX, y: e.clientY }
+                            : { text: songPreview(s.lyrics), x: e.clientX, y: e.clientY }
+                        )
+                      }
+                      onMouseLeave={() => setPreview(null)}
                       className="group flex w-full items-center gap-2 rounded-xl p-2 text-left text-sm transition hover:bg-muted"
                     >
                       <div className="min-w-0 flex-1">
@@ -1117,11 +1243,33 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         <div className="min-h-0 flex-1 overflow-hidden">
           <Textarea
             value={lyrics}
-            onChange={(e) => setLyrics(e.target.value)}
-            placeholder={`Paste lyrics here, or select a song above.\nUse --- on its own line to split slides.`}
+            onChange={(e) => handleLyricsChange(e.target.value)}
+            placeholder={`Paste lyrics here, or select a song above.\nUse --- to split slides. Label sections with [Verse 1], [Chorus], etc.`}
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
         </div>
+
+        {/* Hover preview — chorus (or top of song) following the cursor. */}
+        {preview && preview.text && (() => {
+          const W = 240, H = 200, GAP = 16;
+          const vw = window.innerWidth, vh = window.innerHeight;
+          const left = preview.x + W + GAP > vw ? Math.max(8, preview.x - W - GAP) : preview.x + GAP;
+          const top = preview.y + H + GAP > vh ? Math.max(8, preview.y - H - GAP) : preview.y + GAP;
+          return (
+            <div
+              className="mono pointer-events-none fixed z-50 whitespace-pre-line rounded-2xl border border-foreground bg-background p-3 text-[11px] leading-relaxed shadow-lg"
+              style={{
+                left,
+                top,
+                width: W,
+                maxHeight: H,
+                overflow: "hidden",
+              }}
+            >
+              {preview.text}
+            </div>
+          );
+        })()}
 
         <AlertDialog open={pendingLinesPerConfirm !== null} onOpenChange={(o) => { if (!o) { setPendingLinesPerConfirm(null); setLinesPer(prevLinesPer.current); } }}>
           <AlertDialogContent className="gap-0 rounded-3xl p-8">
@@ -1162,7 +1310,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       <div className="flex h-full flex-col gap-0 overflow-hidden">
         {/* API lookup section */}
         <div className="shrink-0 border-b border-foreground/20 p-4">
-          <PillInput value={ref} onChange={setRef} placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2" />
+          <PillInput value={ref} onChange={setRef} placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2" onEnter={() => { if (ref.trim() && !busy) importScripture(); }} />
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <div className="mono mb-1 text-[10px] uppercase tracking-wider">Version</div>
@@ -1204,12 +1352,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 value={versesPer}
                 onChange={(e) => {
                   const next = Math.min(3, Math.max(1, Number(e.target.value) || 1));
-                  if (manualText.trim() && (scriptureSourceCache.get(setId)?.verses.length ?? 0) > 0) {
-                    setPendingVersesPerConfirm(next);
-                  } else {
-                    prevVersesPer.current = next;
-                    setVersesPer(next);
-                  }
+                  setVersesPer(next);
                 }}
                 className="pill h-9 w-full border border-foreground bg-background px-3 text-sm outline-none"
               />
@@ -1242,37 +1385,6 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
         </div>
-
-        <AlertDialog open={pendingVersesPerConfirm !== null} onOpenChange={(o) => { if (!o) { setPendingVersesPerConfirm(null); setVersesPer(prevVersesPer.current); } }}>
-          <AlertDialogContent className="gap-0 rounded-3xl p-8">
-            <AlertDialogTitle className="text-2xl font-normal leading-tight">Re-import passage?</AlertDialogTitle>
-            <AlertDialogDescription className="mt-4 text-base text-foreground">
-              This will re-import the passage with the new verses-per-slide setting. Your manual text edits will be lost.
-            </AlertDialogDescription>
-            <div className="mt-8 flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  const next = pendingVersesPerConfirm!;
-                  prevVersesPer.current = next;
-                  setVersesPer(next);
-                  reshuffleVerses(next);
-                  setPendingVersesPerConfirm(null);
-                }}
-                className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
-              >
-                Continue
-              </button>
-              <button
-                type="button"
-                onClick={() => { setPendingVersesPerConfirm(null); setVersesPer(prevVersesPer.current); }}
-                className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
-              >
-                Cancel
-              </button>
-            </div>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     );
   }

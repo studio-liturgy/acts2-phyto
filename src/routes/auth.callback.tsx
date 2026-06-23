@@ -1,28 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { APP_NAME } from "@/lib/appConfig";
+import { sendWelcomeIfNew } from "@/lib/welcome";
 
 export const Route = createFileRoute("/auth/callback")({
+  head: () => ({
+    meta: [
+      { title: APP_NAME },
+    ],
+  }),
   component: AuthCallback,
 });
-
-async function sendWelcomeIfNew(user: { email?: string; created_at: string; user_metadata?: Record<string, unknown> }) {
-  const ageMs = Date.now() - new Date(user.created_at).getTime();
-  const isNew = ageMs < 600_000;
-  if (!isNew || !user.email) return;
-
-  const subscribe = sessionStorage.getItem("phyto-subscribe") === "true";
-  sessionStorage.removeItem("phyto-subscribe");
-  await fetch("/api/auth/welcome", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: user.email,
-      name: user.user_metadata?.full_name ?? undefined,
-      subscribe,
-    }),
-  }).catch(() => {});
-}
 
 function AuthCallback() {
   const navigate = useNavigate();

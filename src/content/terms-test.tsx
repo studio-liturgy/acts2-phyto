@@ -1,71 +1,46 @@
-import { createFileRoute, Link, useLocation } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
-import { Footer } from "@/components/Footer";
-import { BackToTop } from "@/components/BackToTop";
+import { Link } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export const Route = createFileRoute("/terms")({
-  head: () => ({
-    meta: [
-      { title: "Terms of Use | phyto" },
-      { name: "description", content: "Terms of use for phyto." },
-      { property: "og:title", content: "Terms of Use | phyto" },
-      { property: "og:description", content: "Terms of use for phyto." },
-      { property: "og:url", content: "https://phyto.live/terms" },
-    ],
-    links: [
-      { rel: "canonical", href: "https://phyto.live/terms" },
-    ],
-  }),
-  component: Terms,
-});
-
-function Terms() {
-  const { hash } = useLocation();
-  const defaultTab = hash === 'online' || hash === '#online' ? 'online' : 'offline';
+export default function TermsTest({ defaultSection }: { defaultSection: 'offline' | 'online' }) {
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
-        <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60">
-          <ArrowLeft className="h-3 w-3" /> BACK
-        </Link>
-        <h1 className="mt-6 text-5xl">Terms of Use</h1>
-        <p className="mono mt-2 text-xs uppercase tracking-wider opacity-70">Effective Date: May 29, 2026</p>
-
-        <Tabs defaultValue={defaultTab} className="mt-8">
+    <div>
+      <Tabs defaultValue={defaultSection} className="mt-3">
           <TabsList className="h-auto gap-2 rounded-none bg-transparent p-0">
             <TabsTrigger
               value="offline"
-              className="mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-blue)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-blue)] data-[state=active]:shadow-none"
+              className="mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-orange)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-orange)] data-[state=active]:shadow-none"
             >
               Offline
             </TabsTrigger>
             <TabsTrigger
               value="online"
-              className="mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-blue)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-blue)] data-[state=active]:shadow-none"
+              className="mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-orange)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-orange)] data-[state=active]:shadow-none"
             >
               Online
             </TabsTrigger>
           </TabsList>
 
+          <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">Effective Date: June 11, 2026</p>
+
           {/* OFFLINE TAB */}
           <TabsContent value="offline">
             <div className="mt-6 space-y-6 text-base leading-relaxed opacity-90">
-              <p>These terms apply to all users of phyto, whether or not you create an account. Please read them before using the app.</p>
+              <p>These terms apply to all users of phytoexp, whether or not you create an account. Please read them before using the app.</p>
 
               <section>
-                <h2 className="text-2xl">1. About phyto</h2>
-                <p className="mt-2">phyto (<a href="https://phyto.live" className="underline hover:opacity-60">phyto.live</a>) is a free, open-source stage presenter application for projecting song lyrics, Bible verses, and custom images during live worship gatherings and presentations. It is available for use online and as an installable offline application. An optional account enables cross-device sync and live sharing features.</p>
+                <h2 className="text-2xl">1. About phytoexp</h2>
+                <p className="mt-2">phytoexp (<a href="https://phytoexp.live" className="underline hover:opacity-60">phytoexp.live</a>) is the experimental testing environment for phyto, a free, open-source stage presenter application for projecting song lyrics, Bible verses, and custom images during live worship gatherings and presentations. Features available here may be unstable, incomplete, or subject to change before release on phyto.live.</p>
+                <p className="mt-2">As a pre-release testing environment, features, data, and behaviour may change without notice. Do not rely on phytoexp for production use. Data stored here may be reset or lost at any time.</p>
               </section>
 
               <section>
                 <h2 className="text-2xl">2. Always Free</h2>
-                <p className="mt-2">phyto is, and will always remain, free to use. There is no fee, subscription, paywall, or in-app purchase required to access any feature of the app, now or in the future.</p>
+                <p className="mt-2">phytoexp is, and will always remain, free to use. There is no fee, subscription, paywall, or in-app purchase required to access any feature of the app, now or in the future.</p>
               </section>
 
               <section>
                 <h2 className="text-2xl">3. Donations</h2>
-                <p className="mt-2">phyto accepts voluntary donations via Ko-fi at <a href="https://ko-fi.com/valiantchan" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">ko-fi.com/valiantchan</a>. Donations are entirely optional and greatly appreciated. Donating does not grant any additional features, rights, or privileges.</p>
+                <p className="mt-2">phyto accepts voluntary donations via Stripe at <a href="/donate" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">phyto.live/donate</a>. Donations are entirely optional and greatly appreciated. Donating does not grant any additional features, rights, or privileges.</p>
               </section>
 
               <section>
@@ -79,9 +54,9 @@ function Terms() {
               </section>
 
               <section>
-                <h2 className="text-2xl">7. Music Licensing Is Your Responsibility</h2>
-                <p className="mt-2">phyto is a presentation tool only. It does not license, distribute, or authorise the public performance, reproduction, or display of copyrighted musical works.</p>
-                <p className="mt-2">If you use phyto to display song lyrics or other copyrighted content in a public or congregational setting, you are solely responsible for obtaining the appropriate licences. We strongly recommend licensing through one or more of the following:</p>
+                <h2 className="text-2xl">6. Music Licensing Is Your Responsibility</h2>
+                <p className="mt-2">phytoexp is a presentation tool only. It does not license, distribute, or authorise the public performance, reproduction, or display of copyrighted musical works.</p>
+                <p className="mt-2">If you use phytoexp to display song lyrics or other copyrighted content in a public or congregational setting, you are solely responsible for obtaining the appropriate licences. We strongly recommend licensing through one or more of the following:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
                   <li>CCLI (Christian Copyright Licensing International): <a href="https://ccli.com" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">ccli.com</a></li>
                   <li>OneLicense: <a href="https://onelicense.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">onelicense.net</a></li>
@@ -92,24 +67,24 @@ function Terms() {
               </section>
 
               <section>
-                <h2 className="text-2xl">8. Feedback</h2>
-                <p className="mt-2">The feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link> is provided so users can share bug reports, feature requests, and encouragement. Feedback you submit is transmitted to and stored in our Supabase database. It is used solely to review and improve the app and is not shared with unrelated third parties. By submitting feedback, you grant the developer a non-exclusive, royalty-free right to use that feedback to improve the app. The developer may share positive feedback such as testimonials on social media. Personally sensitive information will not be shared publicly.</p>
+                <h2 className="text-2xl">7. Feedback</h2>
+                <p className="mt-2">The feedback form at <Link to="/feedback" className="underline hover:opacity-60">phytoexp.live/feedback</Link> is provided so users can share bug reports, feature requests, and encouragement. Feedback you submit is transmitted to and stored in our Supabase database. It is used solely to review and improve the app and is not shared with unrelated third parties. By submitting feedback, you grant the developer a non-exclusive, royalty-free right to use that feedback to improve the app. The developer may share positive feedback such as testimonials on social media. Personally sensitive information will not be shared publicly.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">9. Disclaimer of Warranties</h2>
-                <p className="mt-2 uppercase">The app is provided "as is" and "as available", without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement. The developer does not warrant that the app will be error-free, uninterrupted, or meet your specific requirements.</p>
+                <h2 className="text-2xl">8. Disclaimer of Warranties</h2>
+                <p className="mt-2 uppercase">The app is provided "as is" and "as available", without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement. The developer does not warrant that the app will be error-free, uninterrupted, or meet your specific requirements. As an experimental environment, phytoexp may be particularly unstable.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">10. Limitation of Liability</h2>
+                <h2 className="text-2xl">9. Limitation of Liability</h2>
                 <p className="mt-2 uppercase">To the fullest extent permitted by applicable law, the developer shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, loss of content, or interruption of service, arising from your use of or inability to use the app.</p>
                 <p className="mt-2">Because all data in offline mode is stored locally in your browser, the developer has no access to your content and cannot be held responsible for any loss of data resulting from browser clearing, device failure, or software updates.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">11. Acceptable Use</h2>
-                <p className="mt-2">You agree to use phyto only for lawful purposes. You agree not to:</p>
+                <h2 className="text-2xl">10. Acceptable Use</h2>
+                <p className="mt-2">You agree to use phytoexp only for lawful purposes. You agree not to:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
                   <li>Infringe any copyright, trademark, or other intellectual property right</li>
                   <li>Display unlicensed content in violation of applicable law</li>
@@ -120,18 +95,18 @@ function Terms() {
               </section>
 
               <section>
-                <h2 className="text-2xl">12. Changes to the App and Terms</h2>
+                <h2 className="text-2xl">11. Changes to the App and Terms</h2>
                 <p className="mt-2">We reserve the right to modify, suspend, or discontinue the app at any time without notice. We may also update these Terms from time to time. Continued use of the app after any changes constitutes your acceptance of the revised Terms.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">13. Governing Law</h2>
+                <h2 className="text-2xl">12. Governing Law</h2>
                 <p className="mt-2">These Terms shall be governed by and construed in accordance with the laws of British Columbia, Canada, without regard to conflict of law principles.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">14. Contact</h2>
-                <p className="mt-2">Questions about these Terms can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>, or by reaching out on Instagram at <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">instagram.com/phyto.live</a>.</p>
+                <h2 className="text-2xl">13. Contact</h2>
+                <p className="mt-2">Questions about these Terms can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phytoexp.live/feedback</Link>, or by reaching out on Instagram at <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">instagram.com/phyto.live</a>.</p>
               </section>
             </div>
           </TabsContent>
@@ -139,11 +114,11 @@ function Terms() {
           {/* ONLINE TAB */}
           <TabsContent value="online">
             <div className="mt-6 space-y-6 text-base leading-relaxed opacity-90">
-              <p>These additional terms apply when you create an account and use phyto's online features. By signing in, you agree to both the offline terms above and the following.</p>
+              <p>These additional terms apply when you create an account and use phytoexp's online features. By signing in, you agree to both the offline terms above and the following.</p>
 
               <section>
                 <h2 className="text-2xl">1. Accounts</h2>
-                <p className="mt-2">Creating an account is optional. You may sign in using a magic link sent to your email address, or via Google OAuth. You are responsible for maintaining the security of your account. phyto currently supports one account per email address. The app is fully usable without an account. Creating one unlocks cross-device sync and live sharing only.</p>
+                <p className="mt-2">Creating an account is optional. You may sign in using a one-time code sent to your email address, or via Google OAuth. You are responsible for maintaining the security of your account. phyto currently supports one account per email address. The app is fully usable without an account. Creating one unlocks cross-device sync and live sharing only.</p>
               </section>
 
               <section>
@@ -154,12 +129,12 @@ function Terms() {
               <section>
                 <h2 className="text-2xl">3. Live Sharing</h2>
                 <p className="mt-2">When you start a live session, a unique public URL and QR code are generated for your gathering. Anyone with that link can view your gathering content. You are solely responsible for all content you share publicly via this feature. phyto does not review or moderate publicly shared content. The live session and public link remain active until you choose to end the session or start a new one.</p>
-                <p className="mt-2">If you use the live sharing feature to publicly display copyrighted content such as song lyrics, you remain solely responsible for holding the appropriate licences as described in the offline Terms section 5.</p>
+                <p className="mt-2">If you use the live sharing feature to publicly display copyrighted content such as song lyrics, you remain solely responsible for holding the appropriate licences as described in the offline Terms section 6.</p>
               </section>
 
               <section>
                 <h2 className="text-2xl">4. Account Termination</h2>
-                <p className="mt-2">You may request deletion of your account and all associated cloud data at any time by contacting us via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>. We will process deletion requests within 30 days. Deleting your account removes your data from Supabase but does not affect data stored locally on your devices.</p>
+                <p className="mt-2">You may request deletion of your account and all associated cloud data at any time by contacting us via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phytoexp.live/feedback</Link>. We will process deletion requests within 30 days. Deleting your account removes your data from Supabase but does not affect data stored locally on your devices.</p>
                 <p className="mt-2">We reserve the right to suspend or terminate accounts that violate these Terms.</p>
               </section>
 
@@ -196,17 +171,11 @@ function Terms() {
 
               <section>
                 <h2 className="text-2xl">10. Contact</h2>
-                <p className="mt-2">Questions about these Terms can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>, or by reaching out on Instagram at <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">instagram.com/phyto.live</a>.</p>
+                <p className="mt-2">Questions about these Terms can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phytoexp.live/feedback</Link>, or by reaching out on Instagram at <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">instagram.com/phyto.live</a>.</p>
               </section>
             </div>
           </TabsContent>
         </Tabs>
-
-        <div className="mt-12">
-          <BackToTop />
-        </div>
-      </main>
-      <Footer />
     </div>
   );
 }

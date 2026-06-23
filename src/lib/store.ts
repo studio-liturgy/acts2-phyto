@@ -49,17 +49,34 @@ function readScriptureTemplate(): SetTemplate {
   return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black", align: "left", referencePosition: "below" };
 }
 
-// Debounce pushToSupabase so rapid consecutive mutations fire only one push.
-// Cross-tab store consistency is handled reactively by the Dexie `liveQuery`
-// subscription at the bottom of this file (every tab re-derives its store from
-// Dexie on any write), so no bespoke broadcast plumbing is needed here.
+// Debounce pushToSupabase so rapid consecutive mutations fire only one push,
+// and accumulate WHICH rows changed so the push uploads only those — work that
+// scales with the number of edits, not the size of the library. Cross-tab store
+// consistency is handled reactively by the Dexie `liveQuery` subscription at the
+// bottom of this file (every tab re-derives its store from Dexie on any write),
+// so no bespoke broadcast plumbing is needed here.
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
-function schedulePush() {
+const dirtySetIds = new Set<string>();
+const dirtyGatheringIds = new Set<string>();
+function schedulePush(opts?: { set?: string; gathering?: string }) {
+  if (opts?.set) dirtySetIds.add(opts.set);
+  if (opts?.gathering) dirtyGatheringIds.add(opts.gathering);
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
     pushTimer = null;
-    console.log('[sync] schedulePush: debounce elapsed, calling pushToSupabase at', new Date().toISOString());
-    pushToSupabase();
+    const setIds = [...dirtySetIds];
+    const gatheringIds = [...dirtyGatheringIds];
+    dirtySetIds.clear();
+    dirtyGatheringIds.clear();
+    console.log('[sync] schedulePush: debounce elapsed, pushing', setIds.length, 'sets,', gatheringIds.length, 'gatherings at', new Date().toISOString());
+    pushToSupabase({ setIds, gatheringIds }).then((ok) => {
+      if (ok) return;
+      // Push failed (e.g. offline). Re-mark the rows dirty and reschedule so the
+      // change isn't lost; the load-time diff is the cross-session safety net.
+      setIds.forEach((id) => dirtySetIds.add(id));
+      gatheringIds.forEach((id) => dirtyGatheringIds.add(id));
+      schedulePush();
+    });
   }, 500);
 }
 
@@ -184,7 +201,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       sets: { ...s.sets, [id]: record },
       order: [id, ...s.order],
     }));
-    db.sets.put(record).then(() => schedulePush());
+    db.sets.put(record).then(() => schedulePush({ set: id }));
     return id;
   },
 
@@ -193,7 +210,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const d = s.sets[id];
       if (!d) return s;
       const updated = { ...d, ...patch, updatedAt: Date.now() };
-      db.sets.put(updated).then(() => schedulePush());
+      db.sets.put(updated).then(() => schedulePush({ set: id }));
       // Keep live slideId at same position index when slides are regenerated.
       if (patch.slides) {
         const live = useLive.getState();
@@ -237,7 +254,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         set((s) => ({
           gatherings: { ...s.gatherings, ...Object.fromEntries(toUpdate.map((p) => [p.id, p])) },
         }));
-        schedulePush();
+        for (const p of toUpdate) schedulePush({ gathering: p.id });
       }
     });
   },
@@ -248,7 +265,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const d = s.sets[setId];
       if (!d) return s;
       const updated = { ...d, slides: [...d.slides, { ...slide, id }], updatedAt: Date.now() };
-      db.sets.put(updated).then(() => schedulePush());
+      db.sets.put(updated).then(() => schedulePush({ set: setId }));
       return { sets: { ...s.sets, [setId]: updated } };
     });
     return id;
@@ -263,7 +280,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         slides: d.slides.map((sl) => (sl.id === slideId ? { ...sl, ...patch } : sl)),
         updatedAt: Date.now(),
       };
-      db.sets.put(updated).then(() => schedulePush());
+      db.sets.put(updated).then(() => schedulePush({ set: setId }));
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
@@ -276,7 +293,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         slides: d.slides.filter((sl) => sl.id !== slideId),
         updatedAt: Date.now(),
       };
-      db.sets.put(updated).then(() => schedulePush());
+      db.sets.put(updated).then(() => schedulePush({ set: setId }));
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
@@ -287,7 +304,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const map = new Map(d.slides.map((sl) => [sl.id, sl]));
       const slides = ids.map((i) => map.get(i)!).filter(Boolean);
       const updated = { ...d, slides, updatedAt: Date.now() };
-      db.sets.put(updated).then(() => schedulePush());
+      db.sets.put(updated).then(() => schedulePush({ set: setId }));
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
@@ -307,7 +324,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       gatherings: { ...s.gatherings, [id]: record },
       gatheringOrder: [id, ...s.gatheringOrder],
     }));
-    db.gatherings.put(record).then(() => schedulePush());
+    db.gatherings.put(record).then(() => schedulePush({ gathering: id }));
     return id;
   },
 
@@ -316,7 +333,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const p = s.gatherings[id];
       if (!p) return s;
       const updated = { ...p, name, updatedAt: Date.now() };
-      db.gatherings.put(updated).then(() => schedulePush());
+      db.gatherings.put(updated).then(() => schedulePush({ gathering: id }));
       return { gatherings: { ...s.gatherings, [id]: updated } };
     }),
 
@@ -358,7 +375,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       console.log('[addSetToGathering] gathering', gatheringId, '| added set', setId, '| setIds now:', updated.setIds, '| is_live:', updated.is_live, '| scheduling push in 500ms');
       db.gatherings.put(updated).then(() => {
         console.log('[addSetToGathering] Dexie write done, firing schedulePush');
-        schedulePush();
+        schedulePush({ gathering: gatheringId });
       });
       return { gatherings: { ...s.gatherings, [gatheringId]: updated } };
     }),
@@ -376,7 +393,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         setIds = p.setIds.filter((_, i) => i !== idx);
       }
       const updated = { ...p, setIds, updatedAt: Date.now() };
-      db.gatherings.put(updated).then(() => schedulePush());
+      db.gatherings.put(updated).then(() => schedulePush({ gathering: gatheringId }));
       return { gatherings: { ...s.gatherings, [gatheringId]: updated } };
     }),
 
@@ -385,7 +402,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const p = s.gatherings[gatheringId];
       if (!p) return s;
       const updated = { ...p, setIds, updatedAt: Date.now() };
-      db.gatherings.put(updated).then(() => schedulePush());
+      db.gatherings.put(updated).then(() => schedulePush({ gathering: gatheringId }));
       return { gatherings: { ...s.gatherings, [gatheringId]: updated } };
     }),
 
@@ -579,16 +596,55 @@ export interface LiveStore extends LiveState {
   clearLive: () => void;
   toggleBlackout: () => void;
   toggleClear: () => void;
+  /** Start/stop playback of the current video slide (broadcast to /output). */
+  setVideoPlaying: (play: boolean) => void;
+  /** Restart the current video from the beginning and play. */
+  restartVideo: () => void;
+  /** Marked by the output window when the current video finishes. */
+  videoFinished: () => void;
+}
+
+const DEFAULT_VIDEO_CMD = { action: "pause" as const, nonce: 0 };
+
+/** True when the live video slide is (intended to be) playing. */
+export function isVideoPlaying(live: Pick<LiveState, "videoCmd" | "videoEnded">): boolean {
+  const a = live.videoCmd?.action;
+  return !live.videoEnded && (a === "play" || a === "restart");
+}
+
+function defaultLive(): LiveState {
+  return {
+    setId: null,
+    slideId: null,
+    blackout: false,
+    clear: false,
+    blackoutFadeMs: 0,
+    videoCmd: DEFAULT_VIDEO_CMD,
+    videoEnded: false,
+  };
+}
+
+// Computes the videoCmd for a freshly-shown slide: autoplay video slides start
+// playing, everything else resets to paused so a prior video stops.
+function videoCmdForSlide(
+  setId: string,
+  slideId: string,
+  prevNonce: number,
+): LiveState["videoCmd"] {
+  const slide = useLibrary
+    .getState()
+    .sets[setId]?.slides.find((s) => s.id === slideId);
+  const action = slide?.kind === "video" && slide.autoplay ? "play" : "pause";
+  return { action, nonce: prevNonce + 1 };
 }
 
 function readInitial(): LiveState {
-  if (typeof window === "undefined")
-    return { setId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 };
+  if (typeof window === "undefined") return defaultLive();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { blackoutFadeMs: 0, ...JSON.parse(raw) };
+    if (raw) return { ...defaultLive(), ...JSON.parse(raw) };
   } catch {}
-  return { setId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 };
+  return defaultLive();
 }
 
 let bc: BroadcastChannel | null = null;
@@ -609,6 +665,8 @@ export const useLive = create<LiveStore>((set, get) => ({
       blackout: s.blackout,
       clear: s.clear,
       blackoutFadeMs: s.blackoutFadeMs,
+      videoCmd: s.videoCmd,
+      videoEnded: s.videoEnded,
     };
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
@@ -616,14 +674,15 @@ export const useLive = create<LiveStore>((set, get) => ({
     }
   },
   go: (setId, slideId) => {
+    const videoCmd = videoCmdForSlide(setId, slideId, get().videoCmd?.nonce ?? 0);
     if (get().blackout) {
       // Swap the slide silently under the blackout, then reveal with a fade.
-      get().setLive({ setId, slideId, clear: false });
+      get().setLive({ setId, slideId, clear: false, videoCmd, videoEnded: false });
       if (typeof window !== "undefined") {
         setTimeout(() => get().setLive({ blackout: false, blackoutFadeMs: 500 }), 80);
       }
     } else {
-      get().setLive({ setId, slideId, blackout: false, clear: false, blackoutFadeMs: 0 });
+      get().setLive({ setId, slideId, blackout: false, clear: false, blackoutFadeMs: 0, videoCmd, videoEnded: false });
     }
   },
   clearLive: () => {
@@ -637,6 +696,21 @@ export const useLive = create<LiveStore>((set, get) => ({
   },
   toggleBlackout: () => get().setLive({ blackout: !get().blackout, blackoutFadeMs: 500 }),
   toggleClear: () => get().setLive({ clear: !get().clear }),
+  setVideoPlaying: (play) =>
+    get().setLive({
+      videoCmd: { action: play ? "play" : "pause", nonce: (get().videoCmd?.nonce ?? 0) + 1 },
+      videoEnded: false,
+    }),
+  restartVideo: () =>
+    get().setLive({
+      videoCmd: { action: "restart", nonce: (get().videoCmd?.nonce ?? 0) + 1 },
+      videoEnded: false,
+    }),
+  videoFinished: () =>
+    get().setLive({
+      videoCmd: { action: "pause", nonce: (get().videoCmd?.nonce ?? 0) + 1 },
+      videoEnded: true,
+    }),
 }));
 
 // Subscribe to broadcast updates

@@ -4,4 +4,22 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  // R2 bucket for uploaded media (video files). Only a short public URL is
+  // stored in the slide JSON; the bytes live here. Bucket must exist:
+  // `wrangler r2 bucket create acts2-phyto-media`.
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "acts2-phyto-media" }],
+  // Public base URL for serving uploaded media (R2 custom domain, no trailing
+  // slash). Update once the prod bucket's public domain is connected.
+  "vars": { "MEDIA_PUBLIC_BASE": "https://media.phyto.live" },
+  "env": {
+    // Test deployment: separate Worker bound to phytoexp.live, sharing the
+    // same Supabase DB and Resend secrets as production. Deploy with
+    // `wrangler deploy --env test`; set secrets with `--env test`.
+    "test": {
+      "name": "acts2-phyto-test",
+      "routes": [{ "pattern": "phytoexp.live", "custom_domain": true }],
+      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "acts2-phyto-media-test" }],
+      "vars": { "MEDIA_PUBLIC_BASE": "https://media.phytoexp.live" },
+    },
+  },
 }
