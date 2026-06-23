@@ -1,6 +1,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "acts2-phyto",
+  // Prod custom domain. Mirrors the test env's route so the hostname is
+  // provisioned from config (not hand-managed DNS) and can't drift again.
+  "routes": [{ "pattern": "phyto.live", "custom_domain": true }],
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
