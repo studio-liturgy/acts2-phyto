@@ -467,7 +467,7 @@ function Presenter() {
               )}
             </div>
 
-            <div className="flex-1 overflow-auto pr-1">
+            <div className="catalogue-scroll flex-1 overflow-auto pr-1">
               {showAll && filteredGatherings.length > 0 && (
                 <div className="mb-5">
                   <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">Gatherings</div>

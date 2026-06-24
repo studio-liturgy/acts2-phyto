@@ -26,6 +26,9 @@ interface SlideRow {
   section?: string;
   reference?: string;
   imageUrl?: string;
+  videoSource?: "youtube" | "file" | "url";
+  videoUrl?: string;
+  youtubeId?: string;
 }
 
 interface SetRow {
@@ -533,19 +536,52 @@ function SetContent({ set, isDark }: { set: SetRow; isDark: boolean }) {
   }
 
   if (set.type === "media") {
-    const imageSlides = slides.filter((s) => s.imageUrl);
+    const mediaSlides = slides.filter(
+      (s) => s.imageUrl || s.youtubeId || s.videoUrl,
+    );
     return (
       <div className="space-y-4 px-4 py-6">
-        {imageSlides.map((slide, i) => (
-          <img
-            key={slide.id ?? i}
-            src={slide.imageUrl}
-            alt=""
-            className="w-full"
-          />
+        {mediaSlides.map((slide, i) => (
+          <MediaSlide key={slide.id ?? i} slide={slide} />
         ))}
       </div>
     );
+  }
+
+  return null;
+}
+
+function MediaSlide({ slide }: { slide: SlideRow }) {
+  // YouTube → privacy-friendly nocookie embed.
+  if (slide.youtubeId) {
+    return (
+      <div className="aspect-video w-full">
+        <iframe
+          className="h-full w-full border-0"
+          src={`https://www.youtube-nocookie.com/embed/${slide.youtubeId}?rel=0&modestbranding=1&playsinline=1`}
+          title={slide.title ?? "Video"}
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  // Uploaded file / direct URL → native <video>.
+  if (slide.videoUrl) {
+    return (
+      <video
+        className="w-full bg-black"
+        src={slide.videoUrl}
+        controls
+        playsInline
+        preload="metadata"
+      />
+    );
+  }
+
+  if (slide.imageUrl) {
+    return <img src={slide.imageUrl} alt="" className="w-full" />;
   }
 
   return null;
