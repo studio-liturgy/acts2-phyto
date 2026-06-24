@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Plus } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
+import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 
 function FeatureItem({ children }: { children: ReactNode }) {
   return (
@@ -14,6 +15,7 @@ function FeatureItem({ children }: { children: ReactNode }) {
 }
 
 export default function UpdatesMain() {
+  usePageBackgroundColor("var(--brand-blue)");
   return (
     <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">

@@ -21,10 +21,10 @@ export const MOBILE_ALLOWED = {
  * parent determines it should show — no internal location or breakpoint checks.
  */
 export function MobileBlock() {
-  // On the test build, tint the mobile browser chrome / overscroll to the
-  // login background's top colour so the cream page background doesn't show as
-  // "white bars" in the iOS safe-area insets.
-  usePageBackgroundColor(isTest && "#ca9174");
+  // Tint the mobile browser chrome / overscroll to the page background so the
+  // cream page background doesn't show as "white bars" in the iOS safe-area
+  // insets: the login photo's top colour on test, brand-blue on prod.
+  usePageBackgroundColor(isTest ? "#ca9174" : "var(--brand-blue)");
 
   return (
     <div

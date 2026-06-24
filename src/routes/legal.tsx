@@ -37,7 +37,7 @@ const triggerCls = isTest
   : "mono pill rounded-full border-2 border-white bg-transparent px-4 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white hover:text-[var(--brand-blue)] data-[state=active]:bg-white data-[state=active]:text-[var(--brand-blue)] data-[state=active]:shadow-none";
 
 function Legal() {
-  usePageBackgroundColor(isTest && "var(--brand-orange-dark)");
+  usePageBackgroundColor(isTest ? "var(--brand-orange-dark)" : "var(--brand-blue)");
   const { hash } = useLocation();
   const doc = hash.includes('privacy') ? 'privacy' : 'terms';
   const section: 'offline' | 'online' = hash.includes('online') ? 'online' : 'offline';

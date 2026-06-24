@@ -2,10 +2,12 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
+import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 
 const aboutBg = "/about-bg.jpg";
 
 export default function AboutMain() {
+  usePageBackgroundColor("#3c7a9e");
   return (
     <div className="flex flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
       <section
