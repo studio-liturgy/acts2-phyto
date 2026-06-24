@@ -32,7 +32,11 @@ import {
   hasDifferences,
   latestRemoteTime,
   mergeFromSupabase,
-  pushToSupabase,
+  pushMirrorToSupabase,
+  replaceWithSupabase,
+  previewEffects,
+  type SyncAction,
+  type SyncEffects,
   type SyncDiff,
 } from "@/lib/sync";
 import {
@@ -173,6 +177,125 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 let diffRanThisSession = false;
 
+const SYNC_ACTION_LABEL: Record<SyncAction, string> = {
+  merge: "Merge",
+  push: "Push",
+  replace: "Replace",
+};
+
+/** Number of non-empty Added/Updated/Removed columns across both sides — used to
+ *  size the confirmation dialog so it's only as wide as it needs to be. */
+function countEffectColumns(e: SyncEffects): number {
+  let n = 0;
+  for (const side of [e.local, e.account]) {
+    for (const group of [side.added, side.updated, side.removed]) {
+      if (group.sets.length || group.gatherings.length) n++;
+    }
+  }
+  return n;
+}
+
+/** Dialog max-width per column count (literal classes so Tailwind keeps them). */
+const EFFECTS_DIALOG_WIDTH: Record<number, string> = {
+  1: "sm:max-w-lg",
+  2: "sm:max-w-lg",
+  3: "sm:max-w-2xl",
+  4: "sm:max-w-3xl",
+  5: "sm:max-w-4xl",
+};
+
+/** "June 17 at 3:10 PM" — no year, no seconds. */
+function formatSyncTime(d: Date): string {
+  return d.toLocaleString("en-US", {
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** One column of changed item names (e.g. "Added"). Renders nothing when empty so
+ *  only the relevant buckets show. `destructive` reddens the label for deletions. */
+function EffectColumn({
+  label,
+  sets,
+  gatherings,
+  destructive,
+}: {
+  label: string;
+  sets: string[];
+  gatherings: string[];
+  destructive?: boolean;
+}) {
+  if (sets.length === 0 && gatherings.length === 0) return null;
+  const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
+  const sortedGatherings = [...gatherings].sort(byName);
+  const sortedSets = [...sets].sort(byName);
+  return (
+    <div className="min-w-0 flex-1">
+      <div className={`mono text-xs uppercase ${destructive ? "text-red-600" : "text-muted-foreground"}`}>
+        {label}
+      </div>
+      <ul className="catalogue-scroll mt-1 max-h-40 space-y-0.5 overflow-y-auto pr-2">
+        {sortedGatherings.map((name, i) => (
+          <li key={`g-${i}`} className="truncate text-sm">{name || "Untitled gathering"}</li>
+        ))}
+        {sortedGatherings.length > 0 && sortedSets.length > 0 && (
+          <li aria-hidden className="mb-1.5 mt-1.5 border-t border-border" />
+        )}
+        {sortedSets.map((name, i) => (
+          <li key={`s-${i}`} className="truncate text-sm">{name || "Untitled set"}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** "On this device" / "On your account" effects of the pending action, laid out
+ *  as Added / Updated / Removed columns. Only non-empty columns render; the side
+ *  grows in proportion to how many columns it has so every column is ~equal width
+ *  across the row. */
+function EffectsSide({ title, side }: { title: string; side: SyncEffects["local"] }) {
+  const columns = [
+    { label: "Added", names: side.added },
+    { label: "Updated", names: side.updated },
+    { label: "Removed", names: side.removed, destructive: true },
+  ].filter((c) => c.names.sets.length || c.names.gatherings.length);
+  if (columns.length === 0) return null;
+  return (
+    <section className="min-w-0" style={{ flexGrow: columns.length, flexBasis: 0 }}>
+      <h3 className="mono text-sm uppercase tracking-wide">{title}</h3>
+      <div className="mt-2 flex gap-6">
+        {columns.map((c) => (
+          <EffectColumn
+            key={c.label}
+            label={c.label}
+            sets={c.names.sets}
+            gatherings={c.names.gatherings}
+            destructive={c.destructive}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EffectsSummary({ effects }: { effects: SyncEffects }) {
+  const sideHasChanges = (s: SyncEffects["local"]) =>
+    [s.added, s.updated, s.removed].some((g) => g.sets.length || g.gatherings.length);
+
+  if (!sideHasChanges(effects.local) && !sideHasChanges(effects.account)) {
+    return <p className="mt-4 text-sm text-muted-foreground">No changes.</p>;
+  }
+
+  return (
+    <div className="mt-4 flex flex-wrap items-start gap-x-10 gap-y-6">
+      <EffectsSide title="On this device" side={effects.local} />
+      <EffectsSide title="On your account" side={effects.account} />
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const { pathname } = useLocation();
@@ -188,7 +311,8 @@ function RootComponent() {
   const refreshLiveState = useLibrary((s) => s.refreshLiveState);
   const nullLocalLiveState = useLibrary((s) => s.nullLocalLiveState);
   const [syncDiff, setSyncDiff] = useState<SyncDiff | null>(null);
-  const [syncing, setSyncing] = useState<'merge' | 'push' | null>(null);
+  const [pendingAction, setPendingAction] = useState<SyncAction | null>(null);
+  const [applying, setApplying] = useState(false);
 
   const runDiff = async (autoMerge = false) => {
     if (pathname.startsWith("/g/")) return;
@@ -253,54 +377,95 @@ function RootComponent() {
     }
   }, [session, pathname, navigate]);
 
-  const handleMerge = async () => {
-    setSyncing('merge');
-    await mergeFromSupabase();
-    setSyncing(null);
+  const closeSyncDialog = () => {
     setSyncDiff(null);
+    setPendingAction(null);
+    setApplying(false);
   };
 
-  const handlePush = async () => {
-    setSyncing('push');
-    await pushToSupabase();
-    setSyncing(null);
-    setSyncDiff(null);
+  const handleApply = async () => {
+    if (!pendingAction || !syncDiff) return;
+    setApplying(true);
+    if (pendingAction === 'merge') await mergeFromSupabase();
+    else if (pendingAction === 'push') await pushMirrorToSupabase(syncDiff);
+    else await replaceWithSupabase();
+    closeSyncDialog();
   };
+
+  const pendingEffects =
+    syncDiff && pendingAction ? previewEffects(syncDiff, pendingAction) : null;
+  const effectsDialogWidth = pendingEffects
+    ? (EFFECTS_DIALOG_WIDTH[countEffectColumns(pendingEffects)] ?? "sm:max-w-4xl")
+    : "";
 
   return (
     <QueryClientProvider client={queryClient}>
       {showOutlet && <Outlet />}
       {isMobile && !allowedOnMobile && <MobileBlock />}
-      <Dialog open={pathname !== "/output" && syncDiff !== null} onOpenChange={(open) => { if (!open) setSyncDiff(null); }}>
-        <DialogContent className="gap-0 rounded-3xl p-8">
-          <DialogTitle className="text-2xl font-normal leading-tight">Review versions</DialogTitle>
-          <DialogDescription className="mt-4 text-base text-foreground">
-            {syncing
-              ? syncing === 'merge' ? "Merging…" : "Pushing…"
-              : syncDiff && (() => {
+      <Dialog open={pathname !== "/output" && syncDiff !== null} onOpenChange={(open) => { if (!open && !applying) closeSyncDialog(); }}>
+        <DialogContent className={`gap-0 rounded-3xl p-8 ${effectsDialogWidth}`}>
+          {syncDiff && !pendingAction && (
+            <>
+              <DialogTitle className="text-2xl font-normal leading-tight">Review versions</DialogTitle>
+              <DialogDescription className="mt-4 text-base text-foreground">
+                {(() => {
                   const remoteTime = latestRemoteTime(syncDiff);
-                  return remoteTime
-                    ? `Your synced version was last updated ${remoteTime.toLocaleString()}. Merge to receive the online version, or Push to overwrite what's online with your local version.`
-                    : "Your local version has offline changes. Push to upload them, or Merge to sync both ways.";
-                })()
-            }
-          </DialogDescription>
-          <div className="mt-8 flex gap-3">
-            <button
-              onClick={handleMerge}
-              disabled={syncing !== null}
-              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
-            >
-              {syncing === 'merge' ? "Merging…" : "Merge"}
-            </button>
-            <button
-              onClick={handlePush}
-              disabled={syncing !== null}
-              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background disabled:opacity-50"
-            >
-              {syncing === 'push' ? "Pushing…" : "Push"}
-            </button>
-          </div>
+                  const when = remoteTime
+                    ? `Your synced version was last updated on ${formatSyncTime(remoteTime)}. `
+                    : "Your local version has offline changes. ";
+                  return `${when}Merge to combine both, Push to overwrite what's online with your local version, or Replace to discard local and use the account.`;
+                })()}
+              </DialogDescription>
+              <div className="mt-8 flex gap-3">
+                <button
+                  onClick={() => setPendingAction('merge')}
+                  className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+                >
+                  Merge
+                </button>
+                <button
+                  onClick={() => setPendingAction('push')}
+                  className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+                >
+                  Push
+                </button>
+                <button
+                  onClick={() => setPendingAction('replace')}
+                  className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+                >
+                  Replace
+                </button>
+              </div>
+            </>
+          )}
+
+          {syncDiff && pendingAction && (
+            <>
+              <DialogTitle className="text-2xl font-normal leading-tight">
+                {SYNC_ACTION_LABEL[pendingAction]}
+              </DialogTitle>
+              <DialogDescription className="mt-2 text-sm text-muted-foreground">
+                {applying ? "Applying…" : "Review what this will change before applying."}
+              </DialogDescription>
+              {pendingEffects && <EffectsSummary effects={pendingEffects} />}
+              <div className="mt-8 flex gap-3">
+                <button
+                  onClick={handleApply}
+                  disabled={applying}
+                  className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {applying ? "Applying…" : "Apply"}
+                </button>
+                <button
+                  onClick={() => setPendingAction(null)}
+                  disabled={applying}
+                  className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background disabled:opacity-50"
+                >
+                  Back
+                </button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
       <TestSiteWarning />

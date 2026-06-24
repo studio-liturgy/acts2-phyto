@@ -412,7 +412,11 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
 // Conflict resolution: Merge (remote wins for modified)
 // ---------------------------------------------------------------------------
 
-export async function applyMerge(diff: SyncDiff): Promise<void> {
+export async function applyMerge(
+  diff: SyncDiff,
+  opts: { localPolicy?: 'push' | 'drop' } = {},
+): Promise<void> {
+  const { localPolicy = 'push' } = opts;
   const session = getSession();
   const userId = session?.user.id;
   const deviceId = getDeviceId();
@@ -489,8 +493,21 @@ export async function applyMerge(diff: SyncDiff): Promise<void> {
     }
   }
 
+  // ── Step 4 (Replace): drop truly only-local items instead of pushing them.
+  //    "Replace" takes the account wholesale — local-only sets/gatherings are
+  //    discarded, not uploaded. Kept gatherings are remote-authoritative and
+  //    never reference an only-local set, so deleting them is referentially safe. ──
+  if (localPolicy === 'drop') {
+    if (diff.onlyLocal.sets.length) {
+      await db.sets.bulkDelete(diff.onlyLocal.sets.map((s) => s.id));
+    }
+    if (diff.onlyLocal.gatherings.length) {
+      await db.gatherings.bulkDelete(diff.onlyLocal.gatherings.map((p) => p.id));
+    }
+  }
+
   // ── Step 4: push truly only-local items to Supabase, KEEPING their ids. ──
-  if (session && userId) {
+  if (localPolicy === 'push' && session && userId) {
     if (diff.onlyLocal.sets.length) {
       const { error } = await supabase
         .from('sets')
@@ -761,6 +778,76 @@ export async function mergeFromSupabase(): Promise<void> {
   });
 }
 
+/**
+ * Serialized "take the account wholesale" replace. Like {@link mergeFromSupabase}
+ * but local-only items are DELETED rather than pushed — the account wins
+ * everywhere and nothing local is uploaded. Recomputes the diff inside the lock
+ * so a concurrent/repeat invocation no-ops cleanly.
+ */
+export async function replaceWithSupabase(): Promise<void> {
+  await withSyncLock(async () => {
+    const fresh = await diffWithSupabase();
+    if (fresh && hasDifferences(fresh)) await applyMerge(fresh, { localPolicy: 'drop' });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Effects preview (shown in the confirmation dialog before applying)
+// ---------------------------------------------------------------------------
+
+export type SyncAction = 'merge' | 'push' | 'replace';
+
+type EffectNames = { sets: string[]; gatherings: string[] };
+export type SyncEffects = {
+  local: { added: EffectNames; updated: EffectNames; removed: EffectNames };
+  account: { added: EffectNames; updated: EffectNames; removed: EffectNames };
+};
+
+const emptyNames = (): EffectNames => ({ sets: [], gatherings: [] });
+const emptySide = () => ({ added: emptyNames(), updated: emptyNames(), removed: emptyNames() });
+
+/**
+ * Human-readable summary of what an action will do, derived from the diff. Only
+ * user-meaningful buckets are surfaced (onlyLocal / onlyRemote / modified); the
+ * internal reconciliation buckets (rekeyed / touched / strandedLocal) are
+ * content-identical or housekeeping and intentionally omitted.
+ */
+export function previewEffects(diff: SyncDiff, action: SyncAction): SyncEffects {
+  const effects: SyncEffects = { local: emptySide(), account: emptySide() };
+
+  if (action === 'merge') {
+    // Local gains remote-only items and adopts remote versions of conflicts.
+    effects.local.added.sets = diff.onlyRemote.sets.map((s) => s.name);
+    effects.local.added.gatherings = diff.onlyRemote.gatherings.map((p) => p.name);
+    effects.local.updated.sets = diff.modified.sets.map(({ remote }) => remote.name);
+    effects.local.updated.gatherings = diff.modified.gatherings.map(({ remote }) => remote.name);
+    // Account gains the local-only items (pushed up).
+    effects.account.added.sets = diff.onlyLocal.sets.map((s) => s.name);
+    effects.account.added.gatherings = diff.onlyLocal.gatherings.map((p) => p.name);
+  } else if (action === 'push') {
+    // Account becomes an exact mirror of local: gains local-only items, adopts the
+    // local version of conflicts, and LOSES items that exist only online.
+    effects.account.added.sets = diff.onlyLocal.sets.map((s) => s.name);
+    effects.account.added.gatherings = diff.onlyLocal.gatherings.map((p) => p.name);
+    effects.account.updated.sets = diff.modified.sets.map(({ local }) => local.name);
+    effects.account.updated.gatherings = diff.modified.gatherings.map(({ local }) => local.name);
+    effects.account.removed.sets = diff.onlyRemote.sets.map((s) => s.name);
+    effects.account.removed.gatherings = diff.onlyRemote.gatherings.map((p) => p.name);
+    // Local is left unchanged.
+  } else {
+    // replace: local mirrors the account; local-only items are deleted.
+    effects.local.added.sets = diff.onlyRemote.sets.map((s) => s.name);
+    effects.local.added.gatherings = diff.onlyRemote.gatherings.map((p) => p.name);
+    effects.local.updated.sets = diff.modified.sets.map(({ remote }) => remote.name);
+    effects.local.updated.gatherings = diff.modified.gatherings.map(({ remote }) => remote.name);
+    effects.local.removed.sets = diff.onlyLocal.sets.map((s) => s.name);
+    effects.local.removed.gatherings = diff.onlyLocal.gatherings.map((p) => p.name);
+    // Account is left unchanged.
+  }
+
+  return effects;
+}
+
 export async function pushToSupabase(target?: PushTarget): Promise<boolean> {
   const session = getSession();
   if (!session) {
@@ -771,4 +858,38 @@ export async function pushToSupabase(target?: PushTarget): Promise<boolean> {
   }
   const userId = session.user.id;
   return withSyncLock(async () => doPush(userId, target));
+}
+
+/** Delete the account-only sets/gatherings named by the diff. `gathering_sets`
+ *  rows cascade-delete with their parent (schema.sql `on delete cascade`), so
+ *  only the parent rows are removed here. */
+async function deleteRemoteOnly(userId: string, diff: SyncDiff): Promise<void> {
+  const gatheringIds = diff.onlyRemote.gatherings.map((p) => p.id);
+  const setIds = diff.onlyRemote.sets.map((s) => s.id);
+  if (gatheringIds.length) {
+    const { error } = await supabase.from('gatherings').delete().in('id', gatheringIds).eq('user_id', userId);
+    if (error) console.error('[sync] pushMirror: gatherings delete error', error);
+  }
+  if (setIds.length) {
+    const { error } = await supabase.from('sets').delete().in('id', setIds).eq('user_id', userId);
+    if (error) console.error('[sync] pushMirror: sets delete error', error);
+  }
+}
+
+/**
+ * "Push" from the conflict dialog: make the account an exact MIRROR of local —
+ * upload every local row (overwriting conflicts with the local version) AND
+ * delete the rows that exist only online. The symmetric opposite of
+ * {@link replaceWithSupabase}. Acts on the previewed `diff` so the deletions
+ * match what the user was shown; deletes are idempotent if the rows already
+ * changed remotely. Local Dexie is left untouched.
+ */
+export async function pushMirrorToSupabase(diff: SyncDiff): Promise<void> {
+  const session = getSession();
+  if (!session) return;
+  const userId = session.user.id;
+  await withSyncLock(async () => {
+    await doPush(userId);
+    await deleteRemoteOnly(userId, diff);
+  });
 }
