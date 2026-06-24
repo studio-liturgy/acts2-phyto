@@ -80,6 +80,29 @@ function schedulePush(opts?: { set?: string; gathering?: string }) {
   }, 500);
 }
 
+// Best-effort cleanup of R2-hosted uploads when their slides go away. Only
+// `videoSource === "file"` slides own an R2 object (youtube/url slides just
+// reference external URLs). Fired and forgotten: a failed delete leaves an
+// orphan but never blocks or breaks the local edit. The server re-validates
+// that the object belongs to the caller before deleting.
+function purgeUploadedVideos(slides: Slide[]): void {
+  const urls = slides
+    .filter((sl) => sl.kind === "video" && sl.videoSource === "file" && sl.videoUrl)
+    .map((sl) => sl.videoUrl as string);
+  if (urls.length === 0) return;
+  const token = useAuthStore.getState().session?.access_token;
+  if (!token) return;
+  for (const url of urls) {
+    fetch("/api/media/upload", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    }).catch(() => {
+      // Orphaned object; the quota check is the backstop. Nothing to do.
+    });
+  }
+}
+
 /**
  * Pure derivation of the library store shape from raw Dexie rows. Shared by
  * `loadFromDb` and the cross-tab `liveQuery` subscription so both produce an
@@ -227,6 +250,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     // Serialize against pushes/merges under the shared sync lock so an in-flight
     // push (holding a pre-delete Dexie snapshot) can't re-upsert this row.
     await withSyncLock(async () => {
+      const removedSlides = get().sets[id]?.slides ?? [];
       const session = useAuthStore.getState().session;
       if (session) {
         const { error } = await supabase
@@ -237,6 +261,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         if (error) console.error('[deleteSet] Supabase delete error:', error);
       }
       await db.sets.delete(id);
+      purgeUploadedVideos(removedSlides);
       set((s) => {
         const { [id]: _gone, ...rest } = s.sets;
         return { sets: rest, order: s.order.filter((x) => x !== id) };
@@ -288,12 +313,14 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     set((s) => {
       const d = s.sets[setId];
       if (!d) return s;
+      const removed = d.slides.find((sl) => sl.id === slideId);
       const updated = {
         ...d,
         slides: d.slides.filter((sl) => sl.id !== slideId),
         updatedAt: Date.now(),
       };
       db.sets.put(updated).then(() => schedulePush({ set: setId }));
+      if (removed) purgeUploadedVideos([removed]);
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 

@@ -187,6 +187,7 @@ function SetEditor() {
   const [groupView, setGroupView] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [showFileSizeDialog, setShowFileSizeDialog] = useState(false);
+  const [showStorageLimitDialog, setShowStorageLimitDialog] = useState(false);
   const [fileOver, setFileOver] = useState(false);
   const [converting, setConverting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -413,9 +414,18 @@ function SetEditor() {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": file.type },
         body: file,
       });
-      const json = (await res.json()) as { ok?: boolean; url?: string; error?: string };
+      const json = (await res.json()) as {
+        ok?: boolean;
+        url?: string;
+        error?: string;
+        code?: string;
+      };
       if (!res.ok || !json.ok || !json.url) {
-        setVideoErr(json.error ?? "Upload failed.");
+        if (json.code === "quota") {
+          setShowStorageLimitDialog(true);
+        } else {
+          setVideoErr(json.error ?? "Upload failed.");
+        }
         return false;
       }
       addSlide(phytoSet.id, { kind: "video", videoSource: "file", videoUrl: json.url, lines: [] });
@@ -646,10 +656,28 @@ function SetEditor() {
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             One or more files exceeds the limit (5 MB for images and PDFs, 100 MB for videos). Please resize or compress your files and try again.
           </AlertDialogDescription>
-          <div className="mt-6 flex justify-end">
+          <div className="mt-8 flex justify-end">
             <button
+              type="button"
               onClick={() => setShowFileSizeDialog(false)}
-              className="pill border border-foreground bg-background px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+              className="mono uppercase rounded-full border border-foreground bg-transparent px-8 py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              OK
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={showStorageLimitDialog} onOpenChange={setShowStorageLimitDialog}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">Storage limit reached</AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            Each account can store up to 300 MB of video. To make room for this upload, delete some of your previous videos, images, or slides, then try again.
+          </AlertDialogDescription>
+          <div className="mt-8 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowStorageLimitDialog(false)}
+              className="mono uppercase rounded-full border border-foreground bg-transparent px-8 py-2 text-sm transition hover:bg-foreground hover:text-background"
             >
               OK
             </button>

@@ -6,6 +6,10 @@
  *  request-body limit; bump alongside that limit if larger clips are needed. */
 export const MEDIA_MAX_BYTES = 100 * 1024 * 1024; // 100 MB
 
+/** Total stored media a single user may keep in R2, summed across all their
+ *  uploads. Enforced server-side before each upload. */
+export const MEDIA_USER_QUOTA_BYTES = 300 * 1024 * 1024; // 300 MB
+
 /** Accepted video MIME types → file extension used in the R2 object key. */
 export const VIDEO_EXT_BY_TYPE: Record<string, string> = {
   "video/mp4": "mp4",
