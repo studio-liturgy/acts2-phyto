@@ -20,7 +20,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: 'offli
             </TabsTrigger>
           </TabsList>
 
-          <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">Effective Date: June 11, 2026</p>
+          <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">Effective Date: June 24, 2026</p>
 
           {/* OFFLINE TAB */}
           <TabsContent value="offline">
@@ -44,6 +44,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: 'offli
                   <li>May be lost if you clear your browser data or uninstall the app</li>
                 </ul>
                 <p className="mt-2">You can export your catalogue at any time using the built-in export feature. The exported <code>.phyto</code> file is created and saved entirely on your device. It is never transmitted to any server. We strongly recommend exporting periodically to avoid data loss.</p>
+                <p className="mt-2">The one exception is video media you upload. Uploading video to your account is a signed-in feature that stores the file on our servers; it is described in the Online policy below. Images, PDFs, and all other content you add stay on your device as described above.</p>
               </section>
 
               <section>
@@ -51,7 +52,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: 'offli
                 <p className="mt-2">
                   phyto includes an optional feedback form at{" "}
                   <a href="https://phyto.live/feedback" className="underline hover:opacity-60">phyto.live/feedback</a>.
-                  If you choose to submit feedback, the content of your message and any contact information you voluntarily provide (such as your email address) will be transmitted to and stored in our Supabase database (hosted in the US East region). This information is used solely to review feedback and improve the app. We do not sell your information or share it with unrelated third parties. Submitting feedback is entirely optional and is not required to use any feature of the app.
+                  If you choose to submit feedback, the content of your message and any contact information you voluntarily provide (such as your email address) will be transmitted to and stored in our Supabase database (hosted in the US East region), and a copy is emailed to the developer via Resend (our email provider) so it can be reviewed. This information is used solely to review feedback and improve the app. We do not sell your information or share it with unrelated third parties. Submitting feedback is entirely optional and is not required to use any feature of the app.
                 </p>
                 <p className="mt-2">
                   Positive feedback such as testimonials may be shared publicly on phyto's social media channels. We will not share personally sensitive information without your consent.
@@ -74,11 +75,12 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: 'offli
 
               <section>
                 <h2 className="text-2xl">6. Third-Party APIs</h2>
-                <p className="mt-2">phyto uses two external APIs to fetch content on your behalf:</p>
+                <p className="mt-2">phyto relies on the following external services:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
                   <li><strong>bolls.life:</strong> fetches Bible verse text when you look up scripture passages. The request includes the translation name, book, and chapter you selected. No personal information is sent. <a href="https://bolls.life" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">bolls.life</a></li>
                   <li><strong>lrclib.net:</strong> fetches song lyrics when you search for a song in the song editor. The request includes the search query you typed. No personal information is sent. <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">lrclib.net</a></li>
                   <li><strong>Supabase:</strong> feedback you submit via the feedback form is stored in a Supabase database hosted in the US East region (AWS us-east-1). No account is required to submit feedback. <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Supabase Privacy Policy</a></li>
+                  <li><strong>Resend:</strong> delivers email on our behalf. Feedback you submit is forwarded to the developer by email through Resend. <a href="https://resend.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Resend Privacy Policy</a></li>
                 </ul>
                 <p className="mt-2">If you prefer not to use these services, you can enter scripture text or song lyrics manually instead.</p>
               </section>
@@ -121,8 +123,9 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: 'offli
                 <h2 className="text-2xl">1. Information We Collect</h2>
                 <p className="mt-2">When you create an account, we collect:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
-                  <li><strong>Email address:</strong> used solely for authentication via one-time code or Google OAuth</li>
+                  <li><strong>Email address:</strong> used to authenticate you via one-time code or Google OAuth, to send you a one-time welcome email, and — only if you opt in at sign-in — to send occasional product updates. See section 6 below.</li>
                   <li><strong>Catalogue content:</strong> your sets and gatherings, synced to our database so you can access them across devices</li>
+                  <li><strong>Uploaded media:</strong> any video files you upload for use in your slides are stored on our servers. See section 5 below.</li>
                   <li><strong>Device identifier:</strong> an anonymous ID generated locally on each device, used only to resolve sync conflicts between devices. It is never linked to your identity.</li>
                 </ul>
                 <p className="mt-2">We do not collect your name, payment information, location, or any other personal data beyond what is listed above.</p>
@@ -134,8 +137,9 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: 'offli
                 <ul className="mt-2 list-disc space-y-1 pl-6">
                   <li><strong>Locally:</strong> on your device using IndexedDB, so the app works offline</li>
                   <li><strong>In the cloud:</strong> in a Supabase database hosted in the US East region (AWS us-east-1), so your catalogue stays in sync across devices</li>
+                  <li><strong>Object storage:</strong> any video files you upload are stored in Cloudflare R2, separate from your catalogue database. See section 5.</li>
                 </ul>
-                <p className="mt-2">Your data is isolated by account. No other user can access your catalogue.</p>
+                <p className="mt-2">Your catalogue data is isolated by account. No other user can access your catalogue.</p>
               </section>
 
               <section>
@@ -149,39 +153,53 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: 'offli
               </section>
 
               <section>
-                <h2 className="text-2xl">5. Third-Party Services</h2>
+                <h2 className="text-2xl">5. Uploaded Media</h2>
+                <p className="mt-2">Signed-in users can upload short video clips to use as slide media. Uploaded videos are stored in Cloudflare R2 (object storage) rather than on your device. Each account can store up to 300 MB of video.</p>
+                <p className="mt-2">Each uploaded file is served from its own public URL containing a random, unguessable identifier. The URL is not listed or searchable anywhere, but it is not access-controlled: anyone you share the link with, or who otherwise obtains it, can view the file. Please do not upload anything you would not want to be publicly accessible.</p>
+                <p className="mt-2">You can delete an uploaded video at any time by removing the slide that uses it, which also frees up your storage quota. Deleting your account removes your uploaded media as described in section 8.</p>
+              </section>
+
+              <section>
+                <h2 className="text-2xl">6. Email Communications</h2>
+                <p className="mt-2">When you first sign in, we send a one-time welcome email to your address through Resend, our email delivery provider. If you check the optional "keep me in the loop" box at sign-in, your email address is also added to our mailing list (managed in Resend) so we can send occasional updates and news about phyto.</p>
+                <p className="mt-2">Marketing emails are strictly opt-in. Every such email includes an unsubscribe link, and you can opt out at any time. We do not sell your email address or share it with unrelated third parties.</p>
+              </section>
+
+              <section>
+                <h2 className="text-2xl">7. Third-Party Services</h2>
                 <p className="mt-2">phyto uses the following third-party services for online features:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
                   <li><strong>Supabase:</strong> database and authentication, hosted in US East. <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Supabase Privacy Policy</a></li>
                   <li><strong>Google:</strong> optional OAuth sign-in only. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Google Privacy Policy</a></li>
-                  <li><strong>Cloudflare Workers:</strong> web hosting. <a href="https://cloudflare.com/privacypolicy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Cloudflare Privacy Policy</a></li>
+                  <li><strong>Cloudflare Workers & R2:</strong> web hosting and object storage for uploaded video media. <a href="https://cloudflare.com/privacypolicy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Cloudflare Privacy Policy</a></li>
+                  <li><strong>Resend:</strong> sends the welcome email and, if you opt in, mailing-list updates. <a href="https://resend.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">Resend Privacy Policy</a></li>
                   <li><strong>bolls.life:</strong> Bible text API for scripture lookups. <a href="https://bolls.life" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">bolls.life</a></li>
                   <li><strong>lrclib.net:</strong> song lyric search API. <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">lrclib.net</a></li>
                 </ul>
               </section>
 
               <section>
-                <h2 className="text-2xl">6. Data Retention & Deletion</h2>
-                <p className="mt-2">Your data is retained for as long as your account exists. To request deletion of your account and all associated data from Supabase, contact us via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>. We will process deletion requests within 30 days. Local data on your device must be cleared separately by clearing your browser's IndexedDB storage.</p>
+                <h2 className="text-2xl">8. Data Retention & Deletion</h2>
+                <p className="mt-2">Your data is retained for as long as your account exists. To request deletion of your account and all associated data from Supabase, contact us via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>. We will process deletion requests within 30 days. Account deletion also removes any video media you uploaded to Cloudflare R2. If you opted in to the mailing list, you can unsubscribe at any time using the link in any email. Local data on your device must be cleared separately by clearing your browser's IndexedDB storage.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">7. Analytics & Tracking</h2>
+                <h2 className="text-2xl">9. Analytics & Tracking</h2>
                 <p className="mt-2">phyto does not use analytics, advertising trackers, or any behavioural monitoring. The only cookies used are strictly functional: a session cookie set by Supabase to maintain your signed-in state, and the sidebar_state preference cookie described in the offline policy.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">8. Children's Privacy</h2>
+                <h2 className="text-2xl">10. Children's Privacy</h2>
                 <p className="mt-2">phyto's online features are not directed at children under 13. We do not knowingly collect personal information from children. If you believe a child has created an account, please contact us via the feedback form and we will delete it promptly.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">9. Changes to This Policy</h2>
+                <h2 className="text-2xl">11. Changes to This Policy</h2>
                 <p className="mt-2">We may update this Privacy Policy from time to time. Updates will be reflected on this page with a revised effective date. Continued use of online features after any change constitutes acceptance of the updated policy.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">10. Contact</h2>
+                <h2 className="text-2xl">12. Contact</h2>
                 <p className="mt-2">Questions about this Privacy Policy can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>.</p>
               </section>
             </div>

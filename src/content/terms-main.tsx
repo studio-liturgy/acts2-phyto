@@ -20,7 +20,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: 'offline
             </TabsTrigger>
           </TabsList>
 
-          <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">Effective Date: June 11, 2026</p>
+          <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">Effective Date: June 24, 2026</p>
 
           {/* OFFLINE TAB */}
           <TabsContent value="offline">
@@ -53,7 +53,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: 'offline
               </section>
 
               <section>
-                <h2 className="text-2xl">7. Music Licensing Is Your Responsibility</h2>
+                <h2 className="text-2xl">6. Music Licensing Is Your Responsibility</h2>
                 <p className="mt-2">phyto is a presentation tool only. It does not license, distribute, or authorise the public performance, reproduction, or display of copyrighted musical works.</p>
                 <p className="mt-2">If you use phyto to display song lyrics or other copyrighted content in a public or congregational setting, you are solely responsible for obtaining the appropriate licences. We strongly recommend licensing through one or more of the following:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
@@ -66,23 +66,23 @@ export default function TermsMain({ defaultSection }: { defaultSection: 'offline
               </section>
 
               <section>
-                <h2 className="text-2xl">8. Feedback</h2>
+                <h2 className="text-2xl">7. Feedback</h2>
                 <p className="mt-2">The feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link> is provided so users can share bug reports, feature requests, and encouragement. Feedback you submit is transmitted to and stored in our Supabase database. It is used solely to review and improve the app and is not shared with unrelated third parties. By submitting feedback, you grant the developer a non-exclusive, royalty-free right to use that feedback to improve the app. The developer may share positive feedback such as testimonials on social media. Personally sensitive information will not be shared publicly.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">9. Disclaimer of Warranties</h2>
+                <h2 className="text-2xl">8. Disclaimer of Warranties</h2>
                 <p className="mt-2 uppercase">The app is provided "as is" and "as available", without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement. The developer does not warrant that the app will be error-free, uninterrupted, or meet your specific requirements.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">10. Limitation of Liability</h2>
+                <h2 className="text-2xl">9. Limitation of Liability</h2>
                 <p className="mt-2 uppercase">To the fullest extent permitted by applicable law, the developer shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, loss of content, or interruption of service, arising from your use of or inability to use the app.</p>
                 <p className="mt-2">Because all data in offline mode is stored locally in your browser, the developer has no access to your content and cannot be held responsible for any loss of data resulting from browser clearing, device failure, or software updates.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">11. Acceptable Use</h2>
+                <h2 className="text-2xl">10. Acceptable Use</h2>
                 <p className="mt-2">You agree to use phyto only for lawful purposes. You agree not to:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
                   <li>Infringe any copyright, trademark, or other intellectual property right</li>
@@ -94,17 +94,17 @@ export default function TermsMain({ defaultSection }: { defaultSection: 'offline
               </section>
 
               <section>
-                <h2 className="text-2xl">12. Changes to the App and Terms</h2>
+                <h2 className="text-2xl">11. Changes to the App and Terms</h2>
                 <p className="mt-2">We reserve the right to modify, suspend, or discontinue the app at any time without notice. We may also update these Terms from time to time. Continued use of the app after any changes constitutes your acceptance of the revised Terms.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">13. Governing Law</h2>
+                <h2 className="text-2xl">12. Governing Law</h2>
                 <p className="mt-2">These Terms shall be governed by and construed in accordance with the laws of British Columbia, Canada, without regard to conflict of law principles.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">14. Contact</h2>
+                <h2 className="text-2xl">13. Contact</h2>
                 <p className="mt-2">Questions about these Terms can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>, or by reaching out on Instagram at <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">instagram.com/phyto.live</a>.</p>
               </section>
             </div>
@@ -117,7 +117,8 @@ export default function TermsMain({ defaultSection }: { defaultSection: 'offline
 
               <section>
                 <h2 className="text-2xl">1. Accounts</h2>
-                <p className="mt-2">Creating an account is optional. You may sign in using a one-time code sent to your email address, or via Google OAuth. You are responsible for maintaining the security of your account. phyto currently supports one account per email address. The app is fully usable without an account. Creating one unlocks cross-device sync and live sharing only.</p>
+                <p className="mt-2">Creating an account is optional. You may sign in using a one-time code sent to your email address, or via Google OAuth. You are responsible for maintaining the security of your account. phyto currently supports one account per email address. The app is fully usable without an account. Creating one unlocks cross-device sync, live sharing, and media uploads.</p>
+                <p className="mt-2">When you first sign in, we send you a one-time welcome email. Product-update emails are sent only if you opt in at sign-in, and you can unsubscribe at any time using the link in any such email.</p>
               </section>
 
               <section>
@@ -128,48 +129,56 @@ export default function TermsMain({ defaultSection }: { defaultSection: 'offline
               <section>
                 <h2 className="text-2xl">3. Live Sharing</h2>
                 <p className="mt-2">When you start a live session, a unique public URL and QR code are generated for your gathering. Anyone with that link can view your gathering content. You are solely responsible for all content you share publicly via this feature. phyto does not review or moderate publicly shared content. The live session and public link remain active until you choose to end the session or start a new one.</p>
-                <p className="mt-2">If you use the live sharing feature to publicly display copyrighted content such as song lyrics, you remain solely responsible for holding the appropriate licences as described in the offline Terms section 5.</p>
+                <p className="mt-2">If you use the live sharing feature to publicly display copyrighted content such as song lyrics, you remain solely responsible for holding the appropriate licences as described in the offline Terms section 6.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">4. Account Termination</h2>
-                <p className="mt-2">You may request deletion of your account and all associated cloud data at any time by contacting us via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>. We will process deletion requests within 30 days. Deleting your account removes your data from Supabase but does not affect data stored locally on your devices.</p>
+                <h2 className="text-2xl">4. Uploaded Media</h2>
+                <p className="mt-2">Signed-in users can upload short video clips for use as slide media. Uploaded videos are stored on our servers (Cloudflare R2), subject to a limit of 100 MB per file and 300 MB total per account. Each uploaded file is served from a public, unguessable URL and is not access-controlled, so you should treat anything you upload as potentially viewable by anyone who obtains the link.</p>
+                <p className="mt-2">You are solely responsible for the content you upload and for holding any licences required to store or display it, as described in the offline Terms section 6. You agree not to upload content that is unlawful, infringing, malicious, or that you do not have the right to use. phyto does not review or moderate uploaded media but may remove content and reserves the right to suspend accounts that abuse this feature.</p>
+                <p className="mt-2">You can delete an uploaded video at any time by removing the slide that uses it, which also frees up your storage quota.</p>
+              </section>
+
+              <section>
+                <h2 className="text-2xl">5. Account Termination</h2>
+                <p className="mt-2">You may request deletion of your account and all associated cloud data at any time by contacting us via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>. We will process deletion requests within 30 days. Deleting your account removes your data from Supabase and any video media you uploaded to Cloudflare R2, but does not affect data stored locally on your devices.</p>
                 <p className="mt-2">We reserve the right to suspend or terminate accounts that violate these Terms.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">5. Disclaimer of Warranties</h2>
-                <p className="mt-2 uppercase">Online features including sync and live sharing are provided "as is" without warranty of any kind. The developer does not guarantee uninterrupted sync, data integrity across devices, or availability of the live sharing feature at any given time.</p>
+                <h2 className="text-2xl">6. Disclaimer of Warranties</h2>
+                <p className="mt-2 uppercase">Online features including sync, live sharing, and media uploads are provided "as is" without warranty of any kind. The developer does not guarantee uninterrupted sync, data integrity across devices, retention of uploaded media, or availability of online features at any given time.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">6. Limitation of Liability</h2>
-                <p className="mt-2 uppercase">To the fullest extent permitted by applicable law, the developer shall not be liable for any loss of data, sync conflicts, or damages arising from the use of online features including cross-device sync, live sharing, or account authentication.</p>
+                <h2 className="text-2xl">7. Limitation of Liability</h2>
+                <p className="mt-2 uppercase">To the fullest extent permitted by applicable law, the developer shall not be liable for any loss of data, sync conflicts, or damages arising from the use of online features including cross-device sync, live sharing, media uploads, or account authentication.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">7. Acceptable Use</h2>
+                <h2 className="text-2xl">8. Acceptable Use</h2>
                 <p className="mt-2">In addition to the acceptable use terms in the offline section, you agree not to:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-6">
                   <li>Attempt to access another user's account, catalogue, or gatherings</li>
                   <li>Use the live sharing feature to publicly distribute unlicensed copyrighted content</li>
-                  <li>Use automated tools to create accounts or abuse the sync infrastructure</li>
+                  <li>Upload media that is unlawful, infringing, malicious, or that you do not have the right to use</li>
+                  <li>Use automated tools to create accounts or abuse the sync, storage, or email infrastructure</li>
                   <li>Share your account credentials with others</li>
                 </ul>
               </section>
 
               <section>
-                <h2 className="text-2xl">8. Changes to Online Terms</h2>
+                <h2 className="text-2xl">9. Changes to Online Terms</h2>
                 <p className="mt-2">We may update these online terms from time to time. We will make reasonable efforts to notify signed-in users of significant changes. Continued use of online features after any update constitutes acceptance of the revised terms.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">9. Governing Law</h2>
+                <h2 className="text-2xl">10. Governing Law</h2>
                 <p className="mt-2">These Terms shall be governed by and construed in accordance with the laws of British Columbia, Canada, without regard to conflict of law principles.</p>
               </section>
 
               <section>
-                <h2 className="text-2xl">10. Contact</h2>
+                <h2 className="text-2xl">11. Contact</h2>
                 <p className="mt-2">Questions about these Terms can be submitted via the feedback form at <Link to="/feedback" className="underline hover:opacity-60">phyto.live/feedback</Link>, or by reaching out on Instagram at <a href="https://www.instagram.com/phyto.live" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-60">instagram.com/phyto.live</a>.</p>
               </section>
             </div>
