@@ -1067,6 +1067,7 @@ function MediaAutoAdvance() {
   const setId = useLive((s) => s.setId);
   const slideId = useLive((s) => s.slideId);
   const blackout = useLive((s) => s.blackout);
+  const videoEnded = useLive((s) => s.videoEnded);
   const phytoSet = useLibrary((s) => (setId ? s.sets[setId] : null));
   useEffect(() => {
     if (!phytoSet || phytoSet.kind !== "media") return;
@@ -1074,6 +1075,10 @@ function MediaAutoAdvance() {
     if (ms <= 0 || !slideId || blackout) return;
     const idx = phytoSet.slides.findIndex((s) => s.id === slideId);
     if (idx === -1) return;
+    // For video slides, hold off the auto-advance delay until the video has
+    // finished playing — then wait `ms` before moving on. The effect re-runs
+    // when `videoEnded` flips to true (set by the output window).
+    if (phytoSet.slides[idx].kind === "video" && !videoEnded) return;
     const t = setTimeout(() => {
       const go = useLive.getState().go;
       const next = phytoSet.slides[idx + 1];
@@ -1081,13 +1086,14 @@ function MediaAutoAdvance() {
       else if (phytoSet.loop && phytoSet.slides[0]) go(phytoSet.id, phytoSet.slides[0].id);
     }, ms);
     return () => clearTimeout(t);
-  }, [phytoSet, slideId, blackout]);
+  }, [phytoSet, slideId, blackout, videoEnded]);
   return null;
 }
 
 function MediaPlaybackControls({ setId }: { setId: string }) {
   const phytoSet = useLibrary((s) => s.sets[setId]);
   const updateSet = useLibrary((s) => s.updateSet);
+  const [autoplayNotice, setAutoplayNotice] = useState(false);
   if (!phytoSet) return null;
   const auto = phytoSet.autoAdvanceMs ?? 0;
   return (
@@ -1103,7 +1109,17 @@ function MediaPlaybackControls({ setId }: { setId: string }) {
             placeholder="off"
             onChange={(e) => {
               const n = Number(e.target.value);
-              updateSet(setId, { autoAdvanceMs: n > 0 ? Math.round(n * 1000) : 0 });
+              const ms = n > 0 ? Math.round(n * 1000) : 0;
+              const patch: Partial<PhytoSet> = { autoAdvanceMs: ms };
+              // Auto advance relies on videos playing on their own, so turning it
+              // on flips every video slide to autoplay. Tell the operator.
+              if (ms > 0 && phytoSet.slides.some((s) => s.kind === "video" && !s.autoplay)) {
+                patch.slides = phytoSet.slides.map((s) =>
+                  s.kind === "video" ? { ...s, autoplay: true } : s
+                );
+                setAutoplayNotice(true);
+              }
+              updateSet(setId, patch);
             }}
             className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
           />
@@ -1118,6 +1134,27 @@ function MediaPlaybackControls({ setId }: { setId: string }) {
           onChange={(e) => updateSet(setId, { loop: e.target.checked })}
         />
       </div>
+      <Dialog open={autoplayNotice} onOpenChange={setAutoplayNotice}>
+        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+          <DialogTitle className="text-2xl font-normal leading-tight">Videos set to autoplay</DialogTitle>
+
+          <p className="mt-4 text-base">
+            Auto advance needs videos to start on their own, so every video slide
+            in this set is now set to autoplay. They'll play, then the set advances
+            after the delay you set.
+          </p>
+
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={() => setAutoplayNotice(false)}
+              className="mono uppercase w-full rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
+            >
+              Got it
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

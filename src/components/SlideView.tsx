@@ -11,7 +11,7 @@ interface Props {
   /** Visual template (font size/family/background) from the parent set. */
   template?: SetTemplate;
   /** Video playback command from live state. Only acted on by variant="stage". */
-  videoCmd?: { action: "play" | "pause" | "restart"; nonce: number };
+  videoCmd?: { action: "play" | "pause" | "restart" | "stop"; nonce: number };
   /** Called (stage only) when the current video reaches its end. */
   onVideoEnded?: () => void;
   /**
@@ -52,7 +52,7 @@ function VideoLayer({
 }: {
   slide: Slide;
   variant: "stage" | "thumb" | "preview";
-  videoCmd?: { action: "play" | "pause" | "restart"; nonce: number };
+  videoCmd?: { action: "play" | "pause" | "restart" | "stop"; nonce: number };
   onEnded?: () => void;
   active?: boolean;
   playbackEnabled?: boolean;
@@ -80,7 +80,10 @@ function VideoLayer({
     if (!playbackEnabled) return;
     if (action === "play") el.play().catch(() => {});
     else if (action === "pause") el.pause();
-    else if (action === "restart") {
+    else if (action === "stop") {
+      el.pause();
+      el.currentTime = 0;
+    } else if (action === "restart") {
       el.currentTime = 0;
       el.play().catch(() => {});
     }
@@ -126,9 +129,9 @@ function VideoLayer({
     // half-second.
     const dispatch = (first: boolean) => {
       send("addEventListener", ["onStateChange"]);
-      if (action === "restart" && first) send("seekTo", [0, true]);
+      if ((action === "restart" || action === "stop") && first) send("seekTo", [0, true]);
       if (action === "play" || action === "restart") send("playVideo");
-      else if (action === "pause") send("pauseVideo");
+      else if (action === "pause" || action === "stop") send("pauseVideo");
     };
     dispatch(true);
     let timer: ReturnType<typeof setInterval> | undefined;

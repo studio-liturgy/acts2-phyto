@@ -721,7 +721,17 @@ export const useLive = create<LiveStore>((set, get) => ({
       }, 520);
     }
   },
-  toggleBlackout: () => get().setLive({ blackout: !get().blackout, blackoutFadeMs: 500 }),
+  toggleBlackout: () => {
+    const goingDark = !get().blackout;
+    const patch: Partial<LiveState> = { blackout: goingDark, blackoutFadeMs: 500 };
+    // Fading to black stops the current video and rewinds it to the start,
+    // rather than leaving it playing behind the black cover.
+    if (goingDark) {
+      patch.videoCmd = { action: "stop", nonce: (get().videoCmd?.nonce ?? 0) + 1 };
+      patch.videoEnded = false;
+    }
+    get().setLive(patch);
+  },
   toggleClear: () => get().setLive({ clear: !get().clear }),
   setVideoPlaying: (play) =>
     get().setLive({
