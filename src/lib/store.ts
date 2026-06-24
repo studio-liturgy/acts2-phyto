@@ -145,6 +145,9 @@ interface LibraryState {
   createSet: (set: Omit<PhytoSet, "id" | "createdAt" | "updatedAt">) => string;
   updateSet: (id: string, patch: Partial<PhytoSet>) => void;
   deleteSet: (id: string) => void;
+  /** Delete several sets in a single batch (one state update + one Supabase
+   *  round-trip) so the catalogue doesn't visibly drain one row at a time. */
+  deleteSets: (ids: string[]) => Promise<void>;
   addSlide: (setId: string, slide: Omit<Slide, "id">) => string;
   updateSlide: (setId: string, slideId: string, patch: Partial<Slide>) => void;
   removeSlide: (setId: string, slideId: string) => void;
@@ -272,6 +275,46 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       for (const p of Object.values(gatherings)) {
         if (p.setIds.includes(id)) {
           toUpdate.push({ ...p, setIds: p.setIds.filter((s) => s !== id), updatedAt: Date.now() });
+        }
+      }
+      if (toUpdate.length) {
+        await Promise.all(toUpdate.map((p) => db.gatherings.put(p)));
+        set((s) => ({
+          gatherings: { ...s.gatherings, ...Object.fromEntries(toUpdate.map((p) => [p.id, p])) },
+        }));
+        for (const p of toUpdate) schedulePush({ gathering: p.id });
+      }
+    });
+  },
+
+  deleteSets: async (ids) => {
+    const idSet = new Set(ids);
+    if (idSet.size === 0) return;
+    await withSyncLock(async () => {
+      const current = get().sets;
+      const removedSlides = ids.flatMap((id) => current[id]?.slides ?? []);
+      const session = useAuthStore.getState().session;
+      if (session) {
+        const { error } = await supabase
+          .from('sets')
+          .delete()
+          .in('id', [...idSet])
+          .eq('user_id', session.user.id);
+        if (error) console.error('[deleteSets] Supabase delete error:', error);
+      }
+      await db.sets.bulkDelete([...idSet]);
+      purgeUploadedVideos(removedSlides);
+      set((s) => {
+        const rest = { ...s.sets };
+        for (const id of idSet) delete rest[id];
+        return { sets: rest, order: s.order.filter((x) => !idSet.has(x)) };
+      });
+      // Drop the deleted sets from every gathering to avoid FK violations on push.
+      const gatherings = get().gatherings;
+      const toUpdate: Gathering[] = [];
+      for (const p of Object.values(gatherings)) {
+        if (p.setIds.some((sid) => idSet.has(sid))) {
+          toUpdate.push({ ...p, setIds: p.setIds.filter((sid) => !idSet.has(sid)), updatedAt: Date.now() });
         }
       }
       if (toUpdate.length) {
@@ -589,6 +632,35 @@ if (typeof window !== "undefined") {
     error: (err) => console.error("[store] liveQuery subscription error:", err),
   });
 }
+
+// Per-tab section visibility for the presenter, keyed by set id; values are the
+// leader slide ids of hidden section groups. Backed by sessionStorage so the
+// hiding survives leaving the presenter (home, set editor) but is cleared when
+// the tab closes.
+const HIDDEN_SECTIONS_KEY = "hidden-sections-v1";
+
+function readHiddenSections(): Record<string, string[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = sessionStorage.getItem(HIDDEN_SECTIONS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {};
+}
+
+interface HiddenSectionsStore {
+  hiddenBySet: Record<string, string[]>;
+  setHidden: (setId: string, leaderIds: string[]) => void;
+}
+export const useHiddenSections = create<HiddenSectionsStore>((set) => ({
+  hiddenBySet: typeof window !== "undefined" ? readHiddenSections() : {},
+  setHidden: (setId, leaderIds) =>
+    set((s) => {
+      const next = { ...s.hiddenBySet, [setId]: leaderIds };
+      try { sessionStorage.setItem(HIDDEN_SECTIONS_KEY, JSON.stringify(next)); } catch {}
+      return { hiddenBySet: next };
+    }),
+}));
 
 // Ephemeral, non-persisted preview of the song template while the editor is
 // open. When non-null, slide views should render with this draft instead of

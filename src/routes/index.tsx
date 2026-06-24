@@ -37,6 +37,7 @@ import {
   Copy,
   Check,
   QrCode,
+  Eraser,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -52,8 +53,8 @@ import {
   DialogDescription,
   DialogClose,
 } from "@/components/ui/dialog";
-import { useMemo, useRef, useState } from "react";
-import type { SetKind } from "@/lib/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Set as PhytoSet, SetKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
@@ -145,6 +146,21 @@ function kindChip(kind: KindFilter, active: boolean): string {
   return "";
 }
 
+/** A short multi-line summary of a set's slides, used for duplicate previews. */
+function previewText(d: PhytoSet): string {
+  if (d.slides.length === 0) return "Empty — no slides.";
+  const lines = d.slides.slice(0, 10).map((s) => {
+    if (s.lines?.length) return s.lines.join(" / ");
+    if (s.reference) return s.reference;
+    if (s.title) return s.title;
+    if (s.imageUrl) return "[image]";
+    if (s.videoUrl || s.youtubeId) return "[video]";
+    return "[blank]";
+  });
+  if (d.slides.length > 10) lines.push("…");
+  return lines.join("\n");
+}
+
 function Library() {
   const navigate = useNavigate();
   const {
@@ -156,7 +172,7 @@ function Library() {
     sets = {},
     order = [],
     createSet,
-    deleteSet,
+    deleteSets,
     gatherings = {},
     gatheringOrder = [],
     createGathering,
@@ -206,6 +222,74 @@ function Library() {
   const [showCatalogueSearch, setShowCatalogueSearch] = useState(false);
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("az");
+
+  // Catalogue edit mode: reveals checkboxes for bulk delete and the
+  // clear-empty / fix-duplicates maintenance actions.
+  const [editMode, setEditMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [showClearEmpty, setShowClearEmpty] = useState(false);
+  const [showDuplicates, setShowDuplicates] = useState(false);
+
+  const exitEditMode = () => {
+    setEditMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const allSets = useMemo(
+    () => order.map((id) => sets[id]).filter(Boolean) as PhytoSet[],
+    [order, sets]
+  );
+
+  const emptySets = useMemo(
+    () => allSets.filter((d) => d.slides.length === 0),
+    [allSets]
+  );
+
+  // Group sets that share a name (case-insensitive, trimmed) so duplicates can be merged down.
+  const duplicateGroups = useMemo(() => {
+    const groups = new Map<string, PhytoSet[]>();
+    for (const d of allSets) {
+      const key = d.name.trim().toLowerCase();
+      const list = groups.get(key);
+      if (list) list.push(d);
+      else groups.set(key, [d]);
+    }
+    return [...groups.entries()]
+      .filter(([, list]) => list.length > 1)
+      .map(([key, list]) => ({ key, name: list[0].name, sets: list }));
+  }, [allSets]);
+
+  const selectedSets = useMemo(
+    () => allSets.filter((d) => selectedIds.has(d.id)),
+    [allSets, selectedIds]
+  );
+
+  const handleBulkDelete = async () => {
+    await deleteSets([...selectedIds]);
+    setShowBulkDelete(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleClearEmpty = async () => {
+    await deleteSets(emptySets.map((d) => d.id));
+    setShowClearEmpty(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleResolveDuplicates = async (idsToDelete: string[]) => {
+    await deleteSets(idsToDelete);
+    setShowDuplicates(false);
+    setSelectedIds(new Set());
+  };
 
   const newSet = (kind: SetKind) => {
     const id = createSet({
@@ -351,28 +435,81 @@ function Library() {
         {/* Catalogue */}
         <section>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            {/* Left: heading + import/export icons */}
+            {/* Left: heading + import/export/edit icons */}
             <div className="flex items-center gap-2">
               <h2 className="text-4xl md:text-5xl leading-none">Catalogue</h2>
               <div className="ml-8 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowExportConfirm(true)}
-                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                  title="Export"
-                  aria-label="Export"
-                >
-                  <Upload className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => importFileRef.current?.click()}
-                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                  title="Import"
-                  aria-label="Import"
-                >
-                  <Download className="h-4 w-4" />
-                </button>
+                {editMode ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowDuplicates(true)}
+                      disabled={duplicateGroups.length === 0}
+                      className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                      title={duplicateGroups.length ? "Amend sets with duplicate names" : "No duplicate names"}
+                    >
+                      <Copy className="h-4 w-4" /> Fix duplicates
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowClearEmpty(true)}
+                      disabled={emptySets.length === 0}
+                      className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                      title={emptySets.length ? "Clear sets with no slides" : "No empty sets"}
+                    >
+                      <Eraser className="h-4 w-4" /> Clear empty
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkDelete(true)}
+                      disabled={selectedIds.size === 0}
+                      className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
+                      title={selectedIds.size ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}` : "Select sets to delete"}
+                      aria-label="Delete selected sets"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={exitEditMode}
+                      className="pill mono uppercase flex items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                      title="Done editing"
+                      aria-label="Done editing"
+                    >
+                      Done
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setEditMode(true)}
+                      className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                      title="Edit catalogue"
+                      aria-label="Edit catalogue"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowExportConfirm(true)}
+                      className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                      title="Export"
+                      aria-label="Export"
+                    >
+                      <Upload className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => importFileRef.current?.click()}
+                      className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                      title="Import"
+                      aria-label="Import"
+                    >
+                      <Download className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
                 <input
                   ref={importFileRef}
                   type="file"
@@ -436,24 +573,26 @@ function Library() {
                   <Search className="h-4 w-4" /> Search
                 </button>
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90">
-                    <Plus className="h-4 w-4" /> New
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => newSet("song")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]">
-                    New Song
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => newSet("scripture")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]">
-                    New Scripture
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => newSet("media")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]">
-                    New Media
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {!editMode && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90">
+                      <Plus className="h-4 w-4" /> New
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => newSet("song")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]">
+                      New Song
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => newSet("scripture")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]">
+                      New Scripture
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => newSet("media")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]">
+                      New Media
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
 
@@ -466,19 +605,37 @@ function Library() {
           ) : (
             <div className="rounded-3xl border border-foreground p-4 max-h-[480px] overflow-y-auto catalogue-scroll">
               <ul className="space-y-1">
-                {catalogueRows.map((d) => (
+                {catalogueRows.map((d) => {
+                  const checked = selectedIds.has(d.id);
+                  return (
                   <li
                     key={d.id}
-                    draggable
+                    draggable={!editMode}
                     onDragStart={(e) => {
+                      if (editMode) return;
                       e.dataTransfer.setData(SET_DRAG_TYPE, d.id);
                       e.dataTransfer.setData("text/plain", d.id);
                       e.dataTransfer.effectAllowed = "copy";
                       setCircleDragGhost(e, KIND_COLOR[d.kind] ?? "#212121", 56);
                     }}
-                    className={`pill group flex items-center gap-4 px-5 py-2 ${kindBg(d.kind)}`}
+                    onClick={editMode ? () => toggleSelected(d.id) : undefined}
+                    className={`pill group flex items-center gap-4 px-5 py-2 ${kindBg(d.kind)} ${editMode ? "cursor-pointer" : ""}`}
                   >
-                    <DotsGrip className="cursor-grab opacity-80" />
+                    {editMode ? (
+                      <span
+                        role="checkbox"
+                        aria-checked={checked}
+                        className="flex h-4 w-4 shrink-0 items-center justify-center border border-current"
+                      >
+                        {checked && (
+                          <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
+                            <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                          </svg>
+                        )}
+                      </span>
+                    ) : (
+                      <DotsGrip className="cursor-grab opacity-80" />
+                    )}
                     <span className="flex-1 truncate text-base">{d.name}</span>
                     <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
                       {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
@@ -486,6 +643,7 @@ function Library() {
                     <Link
                       to="/set/$setId"
                       params={{ setId: d.id }}
+                      onClick={(e) => e.stopPropagation()}
                       className="rounded-full p-1.5 transition hover:bg-white/20"
                       title="Edit set"
                       aria-label="Edit set"
@@ -493,7 +651,8 @@ function Library() {
                       <Pencil className="h-4 w-4" />
                     </Link>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
           )}
@@ -593,7 +752,217 @@ function Library() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk delete selected sets */}
+      <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Delete {selectedSets.length} set{selectedSets.length === 1 ? "" : "s"}?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            This will permanently delete the selected sets. This cannot be undone.
+          </AlertDialogDescription>
+          <ul className="mono mt-4 max-h-48 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-muted-foreground">
+            {selectedSets.map((d) => (
+              <li key={d.id} className="truncate">{d.name}</li>
+            ))}
+          </ul>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+            >
+              Delete
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowBulkDelete(false)}
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              Cancel
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear sets with no slides */}
+      <AlertDialog open={showClearEmpty} onOpenChange={setShowClearEmpty}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            {emptySets.length === 0
+              ? "No empty sets"
+              : `Clear ${emptySets.length} empty set${emptySets.length === 1 ? "" : "s"}?`}
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            {emptySets.length === 0
+              ? "Every set in your catalogue has at least one slide."
+              : "This will permanently delete every set that has no slides. This cannot be undone."}
+          </AlertDialogDescription>
+          {emptySets.length > 0 && (
+            <ul className="mono mt-4 max-h-48 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-muted-foreground">
+              {emptySets.map((d) => (
+                <li key={d.id} className="truncate">{d.name}</li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-8 flex gap-3">
+            {emptySets.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowClearEmpty(false)}
+                className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
+              >
+                Close
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleClearEmpty}
+                  className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowClearEmpty(false)}
+                  className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Amend sets with duplicate names */}
+      <DuplicatesDialog
+        open={showDuplicates}
+        onOpenChange={setShowDuplicates}
+        groups={duplicateGroups}
+        onResolve={handleResolveDuplicates}
+      />
     </div>
+  );
+}
+
+function DuplicatesDialog({
+  open,
+  onOpenChange,
+  groups,
+  onResolve,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  groups: { key: string; name: string; sets: PhytoSet[] }[];
+  onResolve: (idsToDelete: string[]) => void;
+}) {
+  // Per-group choice of which set to keep; the rest in the group get deleted.
+  const [keep, setKeep] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!open) return;
+    const init: Record<string, string> = {};
+    for (const g of groups) {
+      // Default to the most complete (most slides, then most recently updated).
+      const best = [...g.sets].sort(
+        (a, b) => b.slides.length - a.slides.length || b.updatedAt - a.updatedAt
+      )[0];
+      init[g.key] = best.id;
+    }
+    setKeep(init);
+  }, [open, groups]);
+
+  const totalToDelete = groups.reduce((n, g) => n + (g.sets.length - 1), 0);
+
+  const handleResolve = () => {
+    const ids: string[] = [];
+    for (const g of groups) {
+      const keepId = keep[g.key];
+      for (const s of g.sets) if (s.id !== keepId) ids.push(s.id);
+    }
+    onResolve(ids);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+        <DialogTitle className="text-2xl font-normal leading-tight">Fix duplicates</DialogTitle>
+        {groups.length === 0 ? (
+          <>
+            <p className="mt-4 text-base text-muted-foreground">No sets share the same name.</p>
+            <div className="mt-8">
+              <DialogClose asChild>
+                <button className="mono uppercase w-full rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90">
+                  Close
+                </button>
+              </DialogClose>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mt-4 text-base text-foreground">
+              These sets share a name. Pick the one to keep in each group: the rest will be deleted. Hover a set to preview its slides.
+            </p>
+            <div className="mt-6 max-h-[50vh] space-y-6 overflow-y-auto pr-1">
+              {groups.map((g) => (
+                <div key={g.key}>
+                  <h4 className="mono mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                    “{g.name}”
+                  </h4>
+                  <div className="space-y-1.5">
+                    {g.sets.map((d) => {
+                      const isKeep = keep[g.key] === d.id;
+                      return (
+                        <button
+                          key={d.id}
+                          type="button"
+                          title={previewText(d)}
+                          onClick={() => setKeep((p) => ({ ...p, [g.key]: d.id }))}
+                          className={`flex w-full items-center gap-3 rounded-full border px-4 py-2 text-left transition ${
+                            isKeep
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-foreground/40 hover:border-foreground"
+                          }`}
+                        >
+                          <span
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                              isKeep ? "border-background" : "border-current"
+                            }`}
+                          >
+                            {isKeep && <span className="h-2 w-2 rounded-full bg-background" />}
+                          </span>
+                          <span className="flex-1 truncate text-sm">{d.name}</span>
+                          <span className="mono shrink-0 text-[10px] uppercase tracking-wider opacity-80">
+                            {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 flex gap-3">
+              <button
+                type="button"
+                onClick={handleResolve}
+                className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+              >
+                Delete {totalToDelete} duplicate{totalToDelete === 1 ? "" : "s"}
+              </button>
+              <DialogClose asChild>
+                <button className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background">
+                  Cancel
+                </button>
+              </DialogClose>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -810,7 +1179,7 @@ function GatheringCard({
         {editMode && (
           <button
             onClick={() => setShowDeleteDialog(true)}
-            className="pill flex h-10 w-10 items-center justify-center text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+            className="pill flex h-10 w-10 items-center justify-center text-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
             aria-label="Delete gathering"
             title="Delete gathering"
           >

@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft, isVideoPlaying } from "@/lib/store";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft, useHiddenSections, isVideoPlaying } from "@/lib/store";
 import { useIsSignedIn } from "@/lib/authStore";
 import { APP_NAME } from "@/lib/appConfig";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
@@ -7,6 +7,12 @@ import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   ArrowUpLeft,
   ArrowUpRight,
@@ -67,10 +73,17 @@ function kindLiveColor(kind: SetKind): string {
   return "var(--brand-red)";
 }
 
-function KindBadge({ kind }: { kind: SetKind }) {
+const KIND_ABBREV: Record<SetKind, string> = {
+  song: "SO",
+  scripture: "SC",
+  media: "ME",
+  mixed: "MX",
+};
+
+function KindBadge({ kind, abbrev = false }: { kind: SetKind; abbrev?: boolean }) {
   return (
     <span className={`pill mono px-2 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(kind)}`}>
-      {kind === "mixed" ? "Mixed" : kind}
+      {abbrev ? KIND_ABBREV[kind] : kind === "mixed" ? "Mixed" : kind}
     </span>
   );
 }
@@ -100,6 +113,9 @@ function Presenter() {
   const removeSetFromGathering = useLibrary((s) => s.removeSetFromGathering);
   const reorderGatheringSets = useLibrary((s) => s.reorderGatheringSets);
   const renameGathering = useLibrary((s) => s.renameGathering);
+  const createSet = useLibrary((s) => s.createSet);
+  const createGathering = useLibrary((s) => s.createGathering);
+  const navigate = useNavigate();
   const live = useLive();
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
@@ -142,30 +158,39 @@ function Presenter() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [mediaFunctionsOpen, setMediaFunctionsOpen] = useState(false);
 
-  // Session-only section hiding, used while running a gathering. Keyed by set id;
-  // values are the leader slide ids of hidden section groups. `manageSet` is the
-  // set whose sections are currently being toggled (eye icon clicked).
-  const [hiddenBySet, setHiddenBySet] = useState<Record<string, string[]>>({});
+  // Per-tab section hiding, used while running a gathering. Keyed by set id;
+  // values are the stable section keys (label + occurrence) of hidden groups.
+  // Persisted in sessionStorage (see store) so it survives leaving the presenter
+  // to edit a set or go home, and clears only when the tab closes. Using the
+  // stable key (not the slide id) is what keeps a section hidden after the set
+  // is edited, since editing regenerates every slide id. `manageSet` is the set
+  // whose sections are currently being toggled (eye icon clicked).
+  const hiddenBySet = useHiddenSections((s) => s.hiddenBySet);
+  const setHidden = useHiddenSections((s) => s.setHidden);
   const [manageSet, setManageSet] = useState<string | null>(null);
   // Cursor-following warning shown when the user tries to hide the last
   // remaining visible section. Auto-clears 3s after the blocked click.
   const [hideWarning, setHideWarning] = useState<{ x: number; y: number } | null>(null);
   const hideWarningTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const toggleSection = (setId: string, leaderId: string, clientX: number, clientY: number) => {
+  const toggleSection = (setId: string, sectionKey: string, clientX: number, clientY: number) => {
     const cur = hiddenBySet[setId] ?? [];
-    const alreadyHidden = cur.includes(leaderId);
-    // Hiding (not un-hiding) the last visible section is not allowed.
+    const alreadyHidden = cur.includes(sectionKey);
+    // Hiding (not un-hiding) the last visible section is not allowed. Count
+    // against the set's *current* groups so stale keys (from a prior edit) don't
+    // skew the math.
     if (!alreadyHidden) {
-      const total = sets[setId] ? groupSlides(sets[setId]).length : 0;
-      if (total - cur.length <= 1) {
+      const groups = sets[setId] ? groupSlides(sets[setId]) : [];
+      const hiddenNow = new Set(cur);
+      const visible = groups.filter((g) => !hiddenNow.has(g.key)).length;
+      if (visible <= 1) {
         if (hideWarningTimer.current) clearTimeout(hideWarningTimer.current);
         setHideWarning({ x: clientX, y: clientY });
         hideWarningTimer.current = setTimeout(() => setHideWarning(null), 3000);
         return;
       }
     }
-    const next = alreadyHidden ? cur.filter((id) => id !== leaderId) : [...cur, leaderId];
-    setHiddenBySet((prev) => ({ ...prev, [setId]: next }));
+    const next = alreadyHidden ? cur.filter((k) => k !== sectionKey) : [...cur, sectionKey];
+    setHidden(setId, next);
   };
 
   // While the warning is showing, let it follow the cursor.
@@ -344,6 +369,37 @@ function Presenter() {
 
   const openOutput = () => window.open("/output", "_blank", "noopener,noreferrer");
 
+  // Where the set editor should return to when opened from here.
+  const presenterHere = gatheringFromUrl
+    ? `/present?gathering=${gatheringFromUrl}`
+    : activeSetId
+    ? `/present?set=${activeSetId}`
+    : "/present";
+
+  // Mirror the home page's "New" — create the set and open its editor. The
+  // editor's Back returns here (and, because redirectTo is /present, it hides
+  // its own Present button).
+  const newSet = (kind: SetKind) => {
+    const id = createSet({
+      name: kind === "song" ? "New Song" : kind === "scripture" ? "New Scripture" : "New Media",
+      kind,
+      slides: [],
+    });
+    navigate({ to: "/set/$setId", params: { setId: id }, search: { redirectTo: presenterHere } });
+  };
+
+  // Create a fresh, empty gathering (named with today's date, like home) and
+  // drop straight into it. The name can be changed from the top bar.
+  const newGathering = () => {
+    const today = new Date().toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+    const id = createGathering(today);
+    navigate({ to: "/present", search: { gathering: id } });
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* Top bar */}
@@ -358,6 +414,31 @@ function Presenter() {
             >
               <House className="h-5 w-5" />
             </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="pill flex h-10 w-10 items-center justify-center bg-foreground text-background transition hover:opacity-90"
+                  title="New"
+                  aria-label="New"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => newSet("song")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]">
+                  New Song
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => newSet("scripture")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]">
+                  New Scripture
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => newSet("media")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]">
+                  New Media
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={newGathering} className="mono uppercase text-xs tracking-wider">
+                  New Gathering
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button
               onClick={() => setSidebarOpen((v) => !v)}
               className="rounded-full p-2 transition hover:bg-muted"
@@ -404,14 +485,24 @@ function Presenter() {
                     }}
                   />
                 ) : (
-                  <span
-                    className="min-w-0 truncate cursor-text text-3xl font-normal"
-                    style={{ letterSpacing: "-0.045em", paddingRight: "0.1em" }}
-                    onClick={() => { setEditingGatheringName(true); setTimeout(() => gatheringNameInputRef.current?.select(), 0); }}
-                    title="Click to rename"
-                  >
-                    {activeGathering.name}
-                  </span>
+                  <>
+                    <span
+                      className="min-w-0 truncate cursor-text text-3xl font-normal"
+                      style={{ letterSpacing: "-0.045em", paddingRight: "0.1em" }}
+                      onClick={() => { setEditingGatheringName(true); setTimeout(() => gatheringNameInputRef.current?.select(), 0); }}
+                      title="Click to rename"
+                    >
+                      {activeGathering.name}
+                    </span>
+                    <button
+                      onClick={() => { setEditingGatheringName(true); setTimeout(() => gatheringNameInputRef.current?.select(), 0); }}
+                      className="pill flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                      title="Rename gathering"
+                      aria-label="Rename gathering"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </>
                 )}
               </>
             )}
@@ -529,7 +620,7 @@ function Presenter() {
                         >
                           <span className="truncate">{d.name}</span>
                           <span className="flex items-center gap-1">
-                            <KindBadge kind={d.kind} />
+                            <KindBadge kind={d.kind} abbrev />
                             <Plus className="h-4 w-4 opacity-40 group-hover:opacity-100" />
                           </span>
                         </button>
@@ -574,7 +665,7 @@ function Presenter() {
                   {filteredSets.length === 0 && (
                     <p className="px-2 text-xs text-muted-foreground">
                       {activeGathering
-                        ? q ? "No sets in this gathering match." : "Gathering is empty."
+                        ? q ? "No sets in this gathering match." : "Gathering is empty. Search above to add a set."
                         : q ? "No matches." : "No sets yet."}
                     </p>
                   )}
@@ -643,7 +734,7 @@ function Presenter() {
                             {d.name}
                           </span>
                           <span className="flex items-center gap-1">
-                            <KindBadge kind={d.kind} />
+                            <KindBadge kind={d.kind} abbrev />
                             {inGathering && activeGathering && (
                               <span
                                 role="button"
@@ -679,7 +770,7 @@ function Presenter() {
           {activeGathering ? (
             setList.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                Gathering is empty. Drag sets here.
+                Gathering is empty. Search the sidebar or drag a set here to add one.
               </div>
             ) : null
           ) : !activeSet ? (
@@ -725,8 +816,17 @@ function Presenter() {
                 const d = sets[id];
                 if (!d) return null;
                 const canHide = d.kind === "song";
-                const hiddenLeaders = hiddenBySet[id] ?? [];
-                const hasHidden = hiddenLeaders.length > 0;
+                const hiddenKeys = hiddenBySet[id] ?? [];
+                // Count only keys that still match a current section group, so a
+                // stale key left over from a prior edit never shows a phantom
+                // "hidden" badge.
+                const activeHiddenCount = canHide
+                  ? (() => {
+                      const groupKeys = new Set(groupSlides(d).map((g) => g.key));
+                      return hiddenKeys.filter((k) => groupKeys.has(k)).length;
+                    })()
+                  : 0;
+                const hasHidden = activeHiddenCount > 0;
                 const managing = manageSet === id;
                 return (
                   <section key={id} id={`set-section-${id}`}>
@@ -759,7 +859,7 @@ function Presenter() {
                             managing
                               ? "Done hiding sections"
                               : hasHidden
-                              ? `Sections hidden (${hiddenLeaders.length}) — click to manage`
+                              ? `Sections hidden (${activeHiddenCount}): click to manage`
                               : "Hide sections"
                           }
                           aria-label={managing ? "Done hiding sections" : "Hide sections"}
@@ -786,9 +886,9 @@ function Presenter() {
                         phytoSet={d}
                         live={live}
                         slideW={slideW}
-                        hiddenLeaders={hiddenLeaders}
+                        hiddenKeys={hiddenKeys}
                         manageMode={managing}
-                        onToggleSection={(leaderId, x, y) => toggleSection(id, leaderId, x, y)}
+                        onToggleSection={(sectionKey, x, y) => toggleSection(id, sectionKey, x, y)}
                       />
                     )}
                   </section>
@@ -1173,8 +1273,11 @@ function sectionOf(s: Slide): string | null {
 type SlideGroup = {
   /** Resolved section label for the group; null when unlabeled. */
   section: string | null;
-  /** First slide's id — a stable key for this group across renders. */
-  leaderId: string;
+  /** Stable identity for section-hiding and React keys: the resolved label plus
+   *  its occurrence index (e.g. "Chorus#0", "Verse 2#0", "§none#0"). Unlike a
+   *  slide id, this survives the slide-id regeneration that happens when a
+   *  song/scripture set is edited, so a hidden section stays hidden. */
+  key: string;
   items: { slide: Slide; index: number }[];
 };
 
@@ -1188,22 +1291,31 @@ function groupSlides(phytoSet: PhytoSet): SlideGroup[] {
     const resolvedSection = sec ?? currentSection;
     const last = groups[groups.length - 1];
     if (!last || resolvedSection !== currentSection) {
-      groups.push({ section: resolvedSection, leaderId: s.id, items: [{ slide: s, index: i }] });
+      groups.push({ section: resolvedSection, key: "", items: [{ slide: s, index: i }] });
       currentSection = resolvedSection;
     } else {
       last.items.push({ slide: s, index: i });
     }
   });
+  // Assign stable keys: label + per-label occurrence index, so two distinct
+  // "Chorus" sections stay independently hideable.
+  const seen = new Map<string, number>();
+  for (const g of groups) {
+    const label = g.section ?? "§none";
+    const n = seen.get(label) ?? 0;
+    seen.set(label, n + 1);
+    g.key = `${label}#${n}`;
+  }
   return groups;
 }
 
-/** Slide ids belonging to the hidden section groups (identified by leader id). */
-function hiddenSlideIds(phytoSet: PhytoSet, hiddenLeaders: string[]): Set<string> {
+/** Slide ids belonging to the hidden section groups (identified by stable key). */
+function hiddenSlideIds(phytoSet: PhytoSet, hiddenKeys: string[]): Set<string> {
   const ids = new Set<string>();
-  if (hiddenLeaders.length === 0) return ids;
-  const leaders = new Set(hiddenLeaders);
+  if (hiddenKeys.length === 0) return ids;
+  const keys = new Set(hiddenKeys);
   for (const g of groupSlides(phytoSet)) {
-    if (leaders.has(g.leaderId)) for (const it of g.items) ids.add(it.slide.id);
+    if (keys.has(g.key)) for (const it of g.items) ids.add(it.slide.id);
   }
   return ids;
 }
@@ -1247,19 +1359,19 @@ function SlideGridForPresenter({
   phytoSet,
   live,
   slideW,
-  hiddenLeaders = [],
+  hiddenKeys = [],
   manageMode = false,
   onToggleSection,
 }: {
   phytoSet: PhytoSet;
   live: LiveApi;
   slideW: number;
-  /** Leader slide ids of section groups hidden this session. */
-  hiddenLeaders?: string[];
+  /** Stable section keys (label + occurrence) hidden this session. */
+  hiddenKeys?: string[];
   /** When true, hidden sections stay visible (dimmed) with a toggle so they can
    *  be brought back; otherwise they collapse to a small marker. */
   manageMode?: boolean;
-  onToggleSection?: (leaderId: string, clientX: number, clientY: number) => void;
+  onToggleSection?: (sectionKey: string, clientX: number, clientY: number) => void;
 }) {
   const useSections = phytoSet.kind === "song" || phytoSet.kind === "scripture";
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1288,7 +1400,7 @@ function SlideGridForPresenter({
   }
 
   const groups = groupSlides(phytoSet);
-  const hidden = new Set(hiddenLeaders);
+  const hidden = new Set(hiddenKeys);
 
   // How many slides fit in one row given the measured container width
   const slidesPerRow = containerWidth > 0
@@ -1298,7 +1410,7 @@ function SlideGridForPresenter({
   return (
     <div ref={containerRef} className="flex flex-wrap gap-2">
       {groups.map((g, gi) => {
-        const isHidden = hidden.has(g.leaderId);
+        const isHidden = hidden.has(g.key);
 
         // Hidden and not being managed: render nothing — fully hidden.
         if (isHidden && !manageMode) return null;
@@ -1307,7 +1419,7 @@ function SlideGridForPresenter({
         const sectionWidth = cols * slideW + (cols - 1) * SLIDE_GAP + SECTION_PAD * 2;
         return (
           <div
-            key={g.leaderId}
+            key={g.key}
             className="relative flex flex-wrap gap-2 rounded-xl p-2"
             style={{
               width: sectionWidth,
@@ -1316,7 +1428,7 @@ function SlideGridForPresenter({
           >
             {manageMode && (
               <button
-                onClick={(e) => onToggleSection?.(g.leaderId, e.clientX, e.clientY)}
+                onClick={(e) => onToggleSection?.(g.key, e.clientX, e.clientY)}
                 className="pill absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center border border-foreground bg-background transition hover:bg-foreground hover:text-background"
                 title={isHidden ? `Show ${g.section ?? "section"}` : `Hide ${g.section ?? "section"}`}
                 aria-label={isHidden ? "Show section" : "Hide section"}

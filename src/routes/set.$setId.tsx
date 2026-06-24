@@ -85,6 +85,12 @@ function SetHeader({
   deleteSet: (id: string) => void;
 }) {
   const [showDeleteSetDialog, setShowDeleteSetDialog] = useState(false);
+  // Gathering this set was added to during this edit session; the Present button
+  // jumps there instead of presenting the set on its own. Most recent wins.
+  const [presentGatheringId, setPresentGatheringId] = useState<string | null>(null);
+  // Opened from the presenter — Back returns there, and we hide Present so the
+  // only way out is Back (to wherever they came from).
+  const fromPresenter = !!redirectTo?.startsWith("/present");
   return (
     <header className="flex shrink-0 items-center gap-3 border-b border-foreground px-6 py-4">
       {/* Back */}
@@ -158,13 +164,22 @@ function SetHeader({
           </div>
         </AlertDialogContent>
       </AlertDialog>
-      <AddToGathering setId={phytoSet.id} />
-      <button
-        onClick={() => navigate({ to: "/present", search: { set: phytoSet.id } })}
-        className="pill flex shrink-0 items-center gap-2 border border-foreground bg-background px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
-      >
-        Present <ArrowUpRight className="h-4 w-4" />
-      </button>
+      <AddToGathering setId={phytoSet.id} onAdded={setPresentGatheringId} />
+      {!fromPresenter && (
+        <button
+          onClick={() =>
+            navigate({
+              to: "/present",
+              search: presentGatheringId
+                ? { gathering: presentGatheringId }
+                : { set: phytoSet.id },
+            })
+          }
+          className="pill mono uppercase flex shrink-0 items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+        >
+          Present <ArrowUpRight className="h-4 w-4" />
+        </button>
+      )}
     </header>
   );
 }
@@ -1533,7 +1548,7 @@ function MediaImporter({
   );
 }
 
-function AddToGathering({ setId }: { setId: string }) {
+function AddToGathering({ setId, onAdded }: { setId: string; onAdded?: (gatheringId: string) => void }) {
   const gatherings = useLibrary((s) => s.gatherings);
   const gatheringOrder = useLibrary((s) => s.gatheringOrder);
   const addSetToGathering = useLibrary((s) => s.addSetToGathering);
@@ -1570,6 +1585,7 @@ function AddToGathering({ setId }: { setId: string }) {
               onMouseDown={(e) => {
                 e.preventDefault();
                 addSetToGathering(p.id, setId);
+                onAdded?.(p.id);
                 setAdded(p.name);
                 setQuery("");
                 setOpen(false);
