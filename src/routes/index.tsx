@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { QRCodeCanvas } from "qrcode.react";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
-import { useIsSignedIn } from "@/lib/authStore";
+import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { exportCatalogue, importCatalogue } from "@/lib/catalogue-io";
 import { APP_NAME } from "@/lib/appConfig";
@@ -186,6 +186,7 @@ function Library() {
   } = useLibrary();
 
   const isSignedIn = useIsSignedIn();
+  const userEmail = useUserEmail();
   const syncStatus = useSyncStatus();
   const [showGoLivePrompt, setShowGoLivePrompt] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
@@ -364,6 +365,11 @@ function Library() {
             >
               Sign out
             </button>
+          )}
+          {isSignedIn && syncStatus !== 'offline' && userEmail && (
+            <span className="mono text-xs uppercase tracking-wider text-foreground/60" title="Signed in as">
+              {userEmail}
+            </span>
           )}
           {isSignedIn && syncStatus !== 'offline' && (
             <span

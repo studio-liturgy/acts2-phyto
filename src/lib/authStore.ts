@@ -17,3 +17,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
 export function useIsSignedIn() {
   return useAuthStore((s) => s.session !== null);
 }
+
+/** Returns the signed-in user's email, or null if signed out. */
+export function useUserEmail() {
+  return useAuthStore((s) => s.session?.user?.email ?? null);
+}
