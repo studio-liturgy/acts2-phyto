@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
-import { parseLyrics, fileToCompressedImageDataUrl, scriptureToSlides, parseYouTubeId } from "@/lib/parsers";
+import { fileToCompressedImageDataUrl, parseYouTubeId } from "@/lib/parsers";
 import { supabase } from "@/lib/supabase";
 import { MEDIA_MAX_BYTES, isUploadableVideo } from "@/lib/media";
 import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
@@ -10,8 +10,22 @@ import { searchSongs, preloadSongs, parseQuery, songPreview, type SongResult } f
 import { SlideView } from "@/components/SlideView";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowUpLeft, ArrowUpRight, Plus, Trash2, GripVertical, Search, Loader2, Pencil, ChevronDown } from "lucide-react";
-import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
+import {
+  ArrowUpLeft,
+  ArrowUpRight,
+  Plus,
+  Trash2,
+  GripVertical,
+  Search,
+  Loader2,
+  ChevronDown,
+} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogTitle,
+  AlertDialogDescription,
+} from "@/components/ui/alert-dialog";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { Slide, SetKind } from "@/lib/types";
 import { z } from "zod";
@@ -29,10 +43,7 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/set/$setId")({
   validateSearch: searchSchema,
   head: () => ({
-    meta: [
-      { title: `Set Editor | ${APP_NAME}` },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: `Set Editor | ${APP_NAME}` }, { name: "robots", content: "noindex" }],
   }),
   component: SetEditor,
 });
@@ -59,9 +70,7 @@ function PanelCard({
 }) {
   return (
     <section className={`rounded-3xl border border-foreground bg-background p-5 ${className}`}>
-      {label && (
-        <h3 className="mono mb-4 text-xs uppercase tracking-wider">{label}</h3>
-      )}
+      {label && <h3 className="mono mb-4 text-xs uppercase tracking-wider">{label}</h3>}
       {children}
     </section>
   );
@@ -142,14 +151,19 @@ function SetHeader({
       </button>
       <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-2xl font-normal leading-tight">Delete this set?</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Delete this set?
+          </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             This cannot be undone.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
               type="button"
-              onClick={() => { deleteSet(phytoSet.id); navigate({ to: redirectTo ?? "/" }); }}
+              onClick={() => {
+                deleteSet(phytoSet.id);
+                navigate({ to: redirectTo ?? "/" });
+              }}
               className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
             >
               Delete
@@ -170,9 +184,7 @@ function SetHeader({
           onClick={() =>
             navigate({
               to: "/present",
-              search: presentGatheringId
-                ? { gathering: presentGatheringId }
-                : { set: phytoSet.id },
+              search: presentGatheringId ? { gathering: presentGatheringId } : { set: phytoSet.id },
             })
           }
           className="pill mono uppercase flex shrink-0 items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
@@ -209,10 +221,9 @@ function SetEditor() {
   const [videoLink, setVideoLink] = useState("");
   const [videoErr, setVideoErr] = useState<string | null>(null);
 
-
   const selected = useMemo(
     () => phytoSet?.slides.find((s) => s.id === selectedId) ?? phytoSet?.slides[0] ?? null,
-    [phytoSet, selectedId]
+    [phytoSet, selectedId],
   );
 
   useEffect(() => {
@@ -224,12 +235,18 @@ function SetEditor() {
         e.preventDefault();
         const idx = phytoSet.slides.findIndex((s) => s.id === (selected?.id ?? ""));
         const next = phytoSet.slides[Math.min(phytoSet.slides.length - 1, idx + 1)];
-        if (next) { setSelectedId(next.id); setMultiSel(new Set([next.id])); }
+        if (next) {
+          setSelectedId(next.id);
+          setMultiSel(new Set([next.id]));
+        }
       } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
         e.preventDefault();
         const idx = phytoSet.slides.findIndex((s) => s.id === (selected?.id ?? ""));
         const prev = phytoSet.slides[Math.max(0, idx - 1)];
-        if (prev) { setSelectedId(prev.id); setMultiSel(new Set([prev.id])); }
+        if (prev) {
+          setSelectedId(prev.id);
+          setMultiSel(new Set([prev.id]));
+        }
       } else if (e.key === "Delete" || e.key === "Backspace") {
         if (multiSel.size > 0) {
           e.preventDefault();
@@ -247,7 +264,9 @@ function SetEditor() {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <p className="text-muted-foreground">Set not found.</p>
-          <Link to="/" className="mt-3 inline-block underline">Back to library</Link>
+          <Link to="/" className="mt-3 inline-block underline">
+            Back to library
+          </Link>
         </div>
       </div>
     );
@@ -282,43 +301,47 @@ function SetEditor() {
               <p className="py-16 text-center text-sm text-muted-foreground">
                 Slides will appear here as you type
               </p>
-            ) : (() => {
-              const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
-              const groups: { label: string | undefined; slides: Slide[] }[] = [];
-              for (const s of phytoSet.slides) {
-                const last = groups[groups.length - 1];
-                if (!last || s.section !== last.label) {
-                  groups.push({ label: s.section, slides: [s] });
-                } else {
-                  last.slides.push(s);
+            ) : (
+              (() => {
+                const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+                const groups: { label: string | undefined; slides: Slide[] }[] = [];
+                for (const s of phytoSet.slides) {
+                  const last = groups[groups.length - 1];
+                  if (!last || s.section !== last.label) {
+                    groups.push({ label: s.section, slides: [s] });
+                  } else {
+                    last.slides.push(s);
+                  }
                 }
-              }
-              return (
-                <div className="space-y-4">
-                  {groups.map((g, gi) => (
-                    <div key={gi}>
-                      {g.label && (
-                        <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-                          {g.label}
-                        </div>
-                      )}
-                      <div
-                        className="rounded-xl p-2"
-                        style={{ backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 20%, transparent)` }}
-                      >
-                        <div className="grid grid-cols-2 gap-2">
-                          {g.slides.map((s) => (
-                            <div key={s.id} className="overflow-hidden rounded-md">
-                              <SlideView slide={s} variant="thumb" template={effectiveTemplate} />
-                            </div>
-                          ))}
+                return (
+                  <div className="space-y-4">
+                    {groups.map((g, gi) => (
+                      <div key={gi}>
+                        {g.label && (
+                          <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            {g.label}
+                          </div>
+                        )}
+                        <div
+                          className="rounded-xl p-2"
+                          style={{
+                            backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 20%, transparent)`,
+                          }}
+                        >
+                          <div className="grid grid-cols-2 gap-2">
+                            {g.slides.map((s) => (
+                              <div key={s.id} className="overflow-hidden rounded-md">
+                                <SlideView slide={s} variant="thumb" template={effectiveTemplate} />
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
+                    ))}
+                  </div>
+                );
+              })()
+            )}
           </div>
         </div>
       </div>
@@ -344,43 +367,51 @@ function SetEditor() {
               <p className="py-16 text-center text-sm text-muted-foreground">
                 Slides will appear here as you type
               </p>
-            ) : (() => {
-              const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
-              const groups: { label: string | undefined; slides: Slide[] }[] = [];
-              for (const s of phytoSet.slides) {
-                const last = groups[groups.length - 1];
-                if (!last || s.section !== last.label) {
-                  groups.push({ label: s.section, slides: [s] });
-                } else {
-                  last.slides.push(s);
+            ) : (
+              (() => {
+                const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+                const groups: { label: string | undefined; slides: Slide[] }[] = [];
+                for (const s of phytoSet.slides) {
+                  const last = groups[groups.length - 1];
+                  if (!last || s.section !== last.label) {
+                    groups.push({ label: s.section, slides: [s] });
+                  } else {
+                    last.slides.push(s);
+                  }
                 }
-              }
-              return (
-                <div className="space-y-4">
-                  {groups.map((g, gi) => (
-                    <div key={gi}>
-                      {g.label && (
-                        <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-                          {g.label}
-                        </div>
-                      )}
-                      <div
-                        className="rounded-xl p-2"
-                        style={{ backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 20%, transparent)` }}
-                      >
-                        <div className="grid grid-cols-2 gap-2">
-                          {g.slides.map((s) => (
-                            <div key={s.id} className="overflow-hidden rounded-md">
-                              <SlideView slide={s} variant="thumb" template={effectiveScriptureTemplate} />
-                            </div>
-                          ))}
+                return (
+                  <div className="space-y-4">
+                    {groups.map((g, gi) => (
+                      <div key={gi}>
+                        {g.label && (
+                          <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            {g.label}
+                          </div>
+                        )}
+                        <div
+                          className="rounded-xl p-2"
+                          style={{
+                            backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 20%, transparent)`,
+                          }}
+                        >
+                          <div className="grid grid-cols-2 gap-2">
+                            {g.slides.map((s) => (
+                              <div key={s.id} className="overflow-hidden rounded-md">
+                                <SlideView
+                                  slide={s}
+                                  variant="thumb"
+                                  template={effectiveScriptureTemplate}
+                                />
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
+                    ))}
+                  </div>
+                );
+              })()
+            )}
           </div>
         </div>
       </div>
@@ -395,7 +426,8 @@ function SetEditor() {
     if (e && (e.metaKey || e.ctrlKey)) {
       setMultiSel((prev) => {
         const next = new Set(prev);
-        next.has(id) ? next.delete(id) : next.add(id);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
         return next;
       });
     } else if (e && e.shiftKey && selected) {
@@ -477,7 +509,10 @@ function SetEditor() {
     const nonVideo = all.filter((f) => !isUploadableVideo(f.type));
 
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
-    if (nonVideo.some((f) => f.size > MAX_FILE_SIZE) || videoFiles.some((f) => f.size > MEDIA_MAX_BYTES)) {
+    if (
+      nonVideo.some((f) => f.size > MAX_FILE_SIZE) ||
+      videoFiles.some((f) => f.size > MEDIA_MAX_BYTES)
+    ) {
       setShowFileSizeDialog(true);
       return;
     }
@@ -490,14 +525,12 @@ function SetEditor() {
       setUploading(false);
     }
 
-    const imageFiles = nonVideo.filter((f) =>
-      /^image\/(png|jpe?g|webp|gif|bmp)$/i.test(f.type)
-    );
+    const imageFiles = nonVideo.filter((f) => /^image\/(png|jpe?g|webp|gif|bmp)$/i.test(f.type));
     const pdfFiles = nonVideo.filter((f) => f.type === "application/pdf");
 
     if (imageFiles.length > 0) {
       const urls = await Promise.all(
-        imageFiles.map((f) => fileToCompressedImageDataUrl(f).catch(() => null))
+        imageFiles.map((f) => fileToCompressedImageDataUrl(f).catch(() => null)),
       );
       urls.forEach((url) => {
         if (url) addSlide(phytoSet.id, { kind: "image", imageUrl: url, lines: [] });
@@ -509,9 +542,7 @@ function SetEditor() {
       for (const pdf of pdfFiles) {
         try {
           const urls = await pdfToImageUrls(pdf);
-          urls.forEach((url) =>
-            addSlide(phytoSet.id, { kind: "image", imageUrl: url, lines: [] })
-          );
+          urls.forEach((url) => addSlide(phytoSet.id, { kind: "image", imageUrl: url, lines: [] }));
         } catch {
           // skip failed files silently
         }
@@ -596,14 +627,18 @@ function SetEditor() {
                   converting || uploading
                     ? "cursor-wait border-foreground/30 text-muted-foreground"
                     : fileOver
-                    ? "border-foreground bg-foreground/5"
-                    : "border-foreground/60 text-muted-foreground hover:border-foreground"
+                      ? "border-foreground bg-foreground/5"
+                      : "border-foreground/60 text-muted-foreground hover:border-foreground"
                 }`}
               >
                 {uploading ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Uploading…
+                  </>
                 ) : converting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Converting…</>
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Converting…
+                  </>
                 ) : fileOver ? (
                   "Drop to upload"
                 ) : (
@@ -667,9 +702,12 @@ function SetEditor() {
 
       <AlertDialog open={showFileSizeDialog} onOpenChange={setShowFileSizeDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-2xl font-normal leading-tight">File too large</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            File too large
+          </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            One or more files exceeds the limit (5 MB for images and PDFs, 100 MB for videos). Please resize or compress your files and try again.
+            One or more files exceeds the limit (5 MB for images and PDFs, 100 MB for videos).
+            Please resize or compress your files and try again.
           </AlertDialogDescription>
           <div className="mt-8 flex justify-end">
             <button
@@ -684,9 +722,12 @@ function SetEditor() {
       </AlertDialog>
       <AlertDialog open={showStorageLimitDialog} onOpenChange={setShowStorageLimitDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-2xl font-normal leading-tight">Storage limit reached</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Storage limit reached
+          </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            Each account can store up to 300 MB of video. To make room for this upload, delete some of your previous videos, images, or slides, then try again.
+            Each account can store up to 300 MB of video. To make room for this upload, delete some
+            of your previous videos, images, or slides, then try again.
           </AlertDialogDescription>
           <div className="mt-8 flex justify-end">
             <button
@@ -699,15 +740,6 @@ function SetEditor() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="mono w-24 text-[10px] uppercase tracking-wider">{label}</div>
-      <div className="flex-1">{children}</div>
     </div>
   );
 }
@@ -727,7 +759,7 @@ function PillInput({
     <input
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      onKeyDown={(e) => e.key === 'Enter' && onEnter?.()}
+      onKeyDown={(e) => e.key === "Enter" && onEnter?.()}
       placeholder={placeholder}
       className="pill mono uppercase w-full border border-foreground bg-background px-4 py-1.5 text-sm outline-none focus:ring-1 focus:ring-foreground"
     />
@@ -781,10 +813,10 @@ function SlideGrid({
     <div
       className={`grid gap-3 ${cols}`}
       onDrop={(e) => {
-          if (e.dataTransfer.files?.length) return;
-          e.stopPropagation();
-          commitOrder();
-        }}
+        if (e.dataTransfer.files?.length) return;
+        e.stopPropagation();
+        commitOrder();
+      }}
     >
       {displaySlides.map((s, i) => {
         const isSelected = selectedId === s.id;
@@ -793,8 +825,8 @@ function SlideGrid({
         const borderStyle: React.CSSProperties | undefined = isSelected
           ? { borderColor: selColor }
           : inMulti
-          ? { borderColor: `color-mix(in oklab, ${selColor} 60%, transparent)` }
-          : undefined;
+            ? { borderColor: `color-mix(in oklab, ${selColor} 60%, transparent)` }
+            : undefined;
         return (
           <div
             key={s.id}
@@ -841,58 +873,6 @@ function SlideGrid({
           </div>
         );
       })}
-    </div>
-  );
-}
-
-function GroupedSongGrid(props: {
-  slides: Slide[];
-  selectedId: string | null;
-  multiSel: Set<string>;
-  onSelect: (id: string, e?: React.MouseEvent) => void;
-  onRemove: (id: string) => void;
-  onReorder: (ids: string[]) => void;
-  dense?: boolean;
-  kind?: SetKind;
-}) {
-  const SECTION_RE = /^\s*\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?\s*$/i;
-  const sectionOf = (s: Slide): string | null => {
-    if (s.section && s.section.trim()) return s.section.trim();
-    if (s.kind === "lyric" && s.reference && SECTION_RE.test(s.reference)) {
-      return s.reference.trim();
-    }
-    return null;
-  };
-
-  const groups: { label: string; slides: Slide[] }[] = [];
-  let currentLabel = "Section";
-  for (const s of props.slides) {
-    const sec = sectionOf(s);
-    if (sec) currentLabel = sec;
-    const last = groups[groups.length - 1];
-    if (!last || last.label !== currentLabel) groups.push({ label: currentLabel, slides: [s] });
-    else last.slides.push(s);
-  }
-
-  return (
-    <div className="space-y-5">
-      {groups.map((g, gi) => (
-        <section key={`${g.label}-${gi}`}>
-          <h3 className="mono mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-            {g.label}
-          </h3>
-          <SlideGrid
-            slides={g.slides}
-            selectedId={props.selectedId}
-            multiSel={props.multiSel}
-            onSelect={props.onSelect}
-            onRemove={props.onRemove}
-            onReorder={props.onReorder}
-            dense={props.dense}
-            kind={props.kind}
-          />
-        </section>
-      ))}
     </div>
   );
 }
@@ -948,7 +928,10 @@ function parseLyricsFromText(text: string): Slide[] {
       slides.push({
         id: uid(),
         kind: "lyric" as const,
-        lines: content.split("\n").map((l) => l.trim()).filter(Boolean),
+        lines: content
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean),
         section: currentSection,
       });
     }
@@ -1081,7 +1064,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       }
       setManualText(slideParts.join("\n---\n"));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Persist linesPer across navigations.
@@ -1182,7 +1165,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     const list = Array.from(files).filter((f) => ACCEPTED.test(f.type));
     if (list.length === 0) return;
     const urls = await Promise.all(
-      list.map((f) => fileToCompressedImageDataUrl(f).catch(() => null))
+      list.map((f) => fileToCompressedImageDataUrl(f).catch(() => null)),
     );
     urls.forEach((url) => {
       if (url) addSlide(setId, { kind: "image", imageUrl: url, lines: [] });
@@ -1209,7 +1192,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               className="pill flex h-10 w-10 items-center justify-center bg-foreground text-background transition hover:opacity-90 disabled:opacity-50"
               aria-label="Search"
             >
-              {songSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              {songSearching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
             </button>
           </form>
           {songErr && <p className="mt-2 text-xs text-destructive">{songErr}</p>}
@@ -1219,13 +1206,10 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 // Thin blue line at the boundary between local DB results and
                 // online results (only when there are local results above).
                 const showDivider =
-                  s.source === "online" &&
-                  songResults[idx - 1]?.source === "local";
+                  s.source === "online" && songResults[idx - 1]?.source === "local";
                 return (
                   <Fragment key={`${s.title}-${s.artist}-${idx}`}>
-                    {showDivider && (
-                      <div className="mx-2 my-1 h-px bg-[var(--brand-blue)]" />
-                    )}
+                    {showDivider && <div className="mx-2 my-1 h-px bg-[var(--brand-blue)]" />}
                     <button
                       onClick={() => {
                         setLyrics(applyDividers(s.lyrics, linesPer));
@@ -1240,7 +1224,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                         setPreview((p) =>
                           p
                             ? { ...p, x: e.clientX, y: e.clientY }
-                            : { text: songPreview(s.lyrics), x: e.clientX, y: e.clientY }
+                            : { text: songPreview(s.lyrics), x: e.clientX, y: e.clientY },
                         )
                       }
                       onMouseLeave={() => setPreview(null)}
@@ -1249,7 +1233,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-bold">{s.title}</div>
                         <div className="mono uppercase truncate text-xs text-muted-foreground">
-                          {s.artist}{s.album ? ` · ${s.album}` : ""}
+                          {s.artist}
+                          {s.album ? ` · ${s.album}` : ""}
                         </div>
                       </div>
                       <Plus className="h-4 w-4 opacity-40 group-hover:opacity-100" />
@@ -1293,30 +1278,47 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         </div>
 
         {/* Hover preview — chorus (or top of song) following the cursor. */}
-        {preview && preview.text && (() => {
-          const W = 240, H = 200, GAP = 16;
-          const vw = window.innerWidth, vh = window.innerHeight;
-          const left = preview.x + W + GAP > vw ? Math.max(8, preview.x - W - GAP) : preview.x + GAP;
-          const top = preview.y + H + GAP > vh ? Math.max(8, preview.y - H - GAP) : preview.y + GAP;
-          return (
-            <div
-              className="mono pointer-events-none fixed z-50 whitespace-pre-line rounded-2xl border border-foreground bg-background p-3 text-[11px] leading-relaxed shadow-lg"
-              style={{
-                left,
-                top,
-                width: W,
-                maxHeight: H,
-                overflow: "hidden",
-              }}
-            >
-              {preview.text}
-            </div>
-          );
-        })()}
+        {preview &&
+          preview.text &&
+          (() => {
+            const W = 240,
+              H = 200,
+              GAP = 16;
+            const vw = window.innerWidth,
+              vh = window.innerHeight;
+            const left =
+              preview.x + W + GAP > vw ? Math.max(8, preview.x - W - GAP) : preview.x + GAP;
+            const top =
+              preview.y + H + GAP > vh ? Math.max(8, preview.y - H - GAP) : preview.y + GAP;
+            return (
+              <div
+                className="mono pointer-events-none fixed z-50 whitespace-pre-line rounded-2xl border border-foreground bg-background p-3 text-[11px] leading-relaxed shadow-lg"
+                style={{
+                  left,
+                  top,
+                  width: W,
+                  maxHeight: H,
+                  overflow: "hidden",
+                }}
+              >
+                {preview.text}
+              </div>
+            );
+          })()}
 
-        <AlertDialog open={pendingLinesPerConfirm !== null} onOpenChange={(o) => { if (!o) { setPendingLinesPerConfirm(null); setLinesPer(prevLinesPer.current); } }}>
+        <AlertDialog
+          open={pendingLinesPerConfirm !== null}
+          onOpenChange={(o) => {
+            if (!o) {
+              setPendingLinesPerConfirm(null);
+              setLinesPer(prevLinesPer.current);
+            }
+          }}
+        >
           <AlertDialogContent className="gap-0 rounded-3xl p-8">
-            <AlertDialogTitle className="text-2xl font-normal leading-tight">Reset slide dividers?</AlertDialogTitle>
+            <AlertDialogTitle className="text-2xl font-normal leading-tight">
+              Reset slide dividers?
+            </AlertDialogTitle>
             <AlertDialogDescription className="mt-4 text-base text-foreground">
               This will reset your slide dividers. Your text edits will be kept.
             </AlertDialogDescription>
@@ -1336,7 +1338,10 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               </button>
               <button
                 type="button"
-                onClick={() => { setPendingLinesPerConfirm(null); setLinesPer(prevLinesPer.current); }}
+                onClick={() => {
+                  setPendingLinesPerConfirm(null);
+                  setLinesPer(prevLinesPer.current);
+                }}
                 className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
               >
                 Cancel
@@ -1353,14 +1358,24 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       <div className="flex h-full flex-col gap-0 overflow-hidden">
         {/* API lookup section */}
         <div className="shrink-0 border-b border-foreground/20 p-4">
-          <PillInput value={ref} onChange={setRef} placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2" onEnter={() => { if (ref.trim() && !busy) importScripture(); }} />
+          <PillInput
+            value={ref}
+            onChange={setRef}
+            placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2"
+            onEnter={() => {
+              if (ref.trim() && !busy) importScripture();
+            }}
+          />
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <div className="mono mb-1 text-[10px] uppercase tracking-wider">Version</div>
               <div className="relative">
-                <div className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-2 cursor-pointer"
+                <div
+                  className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-2 cursor-pointer"
                   onClick={() => setVersionOpen((o) => !o)}
-                  onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setVersionOpen(false); }}
+                  onBlur={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setVersionOpen(false);
+                  }}
                   tabIndex={0}
                 >
                   <span className="mono uppercase flex-1 truncate text-xs">{translation}</span>
@@ -1379,7 +1394,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                         className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-muted ${t.code === translation ? "bg-muted" : ""}`}
                       >
                         <span className="mono uppercase text-xs shrink-0">{t.code}</span>
-                        <span className="mono uppercase text-[10px] tracking-wider text-muted-foreground truncate text-right">{t.label.replace(/^.+?—\s*/, "")}</span>
+                        <span className="mono uppercase text-[10px] tracking-wider text-muted-foreground truncate text-right">
+                          {t.label.replace(/^.+?—\s*/, "")}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -1424,7 +1441,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           <Textarea
             value={manualText}
             onChange={(e) => setManualText(e.target.value)}
-            placeholder={"Paste verses here, or import above.\n\n[John 3:16-17]\nFor God so loved the world…\n---\nFor God did not send his Son…"}
+            placeholder={
+              "Paste verses here, or import above.\n\n[John 3:16-17]\nFor God so loved the world…\n---\nFor God did not send his Son…"
+            }
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
         </div>
@@ -1476,7 +1495,7 @@ function MediaImporter({
   const handleFiles = async (files: FileList | null) => {
     if (!files || converting) return;
     const imageFiles = Array.from(files).filter((f) =>
-      /^image\/(png|jpe?g|webp|gif|bmp)$/i.test(f.type)
+      /^image\/(png|jpe?g|webp|gif|bmp)$/i.test(f.type),
     );
     const pdfFiles = Array.from(files).filter((f) => f.type === "application/pdf");
 
@@ -1491,9 +1510,7 @@ function MediaImporter({
       for (const pdf of pdfFiles) {
         try {
           const urls = await pdfToImageUrls(pdf);
-          urls.forEach((url) =>
-            addSlide(setId, { kind: "image", imageUrl: url, lines: [] })
-          );
+          urls.forEach((url) => addSlide(setId, { kind: "image", imageUrl: url, lines: [] }));
         } catch {
           // skip failed files silently
         }
@@ -1521,8 +1538,8 @@ function MediaImporter({
           converting
             ? "cursor-wait border-foreground/30 text-muted-foreground"
             : over
-            ? "border-foreground bg-foreground/5"
-            : "border-foreground/60 text-muted-foreground hover:border-foreground"
+              ? "border-foreground bg-foreground/5"
+              : "border-foreground/60 text-muted-foreground hover:border-foreground"
         }`}
       >
         {converting ? (
@@ -1548,7 +1565,13 @@ function MediaImporter({
   );
 }
 
-function AddToGathering({ setId, onAdded }: { setId: string; onAdded?: (gatheringId: string) => void }) {
+function AddToGathering({
+  setId,
+  onAdded,
+}: {
+  setId: string;
+  onAdded?: (gatheringId: string) => void;
+}) {
   const gatherings = useLibrary((s) => s.gatherings);
   const gatheringOrder = useLibrary((s) => s.gatheringOrder);
   const addSetToGathering = useLibrary((s) => s.addSetToGathering);
@@ -1570,7 +1593,11 @@ function AddToGathering({ setId, onAdded }: { setId: string; onAdded?: (gatherin
         <Search className="h-4 w-4" />
         <input
           value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); setAdded(null); }}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+            setAdded(null);
+          }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder={added ? `Added to ${added}` : "Add to a gathering…"}

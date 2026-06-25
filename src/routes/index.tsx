@@ -1,6 +1,4 @@
-import { Fragment } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { QRCodeCanvas } from "qrcode.react";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
@@ -10,19 +8,12 @@ import { APP_NAME } from "@/lib/appConfig";
 import {
   AlertDialog,
   AlertDialogContent,
-  AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Plus,
-  Music,
-  BookOpen,
-  Image as ImageIcon,
   X,
   ArrowDownAZ,
   ArrowDownWideNarrow,
@@ -35,8 +26,6 @@ import {
   Download,
   Wifi,
   Copy,
-  Check,
-  QrCode,
   Eraser,
 } from "lucide-react";
 import {
@@ -45,17 +34,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Set as PhytoSet, SetKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
+import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
 const KIND_COLOR: Record<string, string> = {
@@ -68,14 +51,18 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: `Home | ${APP_NAME}` },
-      { name: "description", content: "Prepare sets, group them into gatherings, and present them live!" },
+      {
+        name: "description",
+        content: "Prepare sets, group them into gatherings, and present them live!",
+      },
       { property: "og:title", content: `Home | ${APP_NAME}` },
-      { property: "og:description", content: "Prepare sets, group them into gatherings, and present them live!" },
+      {
+        property: "og:description",
+        content: "Prepare sets, group them into gatherings, and present them live!",
+      },
       { property: "og:url", content: "https://phyto.live/" },
     ],
-    links: [
-      { rel: "canonical", href: "https://phyto.live/" },
-    ],
+    links: [{ rel: "canonical", href: "https://phyto.live/" }],
     scripts: [
       {
         type: "application/ld+json",
@@ -86,14 +73,16 @@ export const Route = createFileRoute("/")({
               "@type": "WebSite",
               name: "phyto",
               url: "https://phyto.live/",
-              description: "A lightweight, open-source presentation tool for small home worship gatherings.",
+              description:
+                "A lightweight, open-source presentation tool for small home worship gatherings.",
             },
             {
               "@type": "SoftwareApplication",
               name: "phyto",
               applicationCategory: "PresentationApplication",
               operatingSystem: "Any",
-              description: "Prepare sets of songs, scripture, and media – group them into gatherings – and present them live.",
+              description:
+                "Prepare sets of songs, scripture, and media – group them into gatherings – and present them live.",
               url: "https://phyto.live/",
               offers: {
                 "@type": "Offer",
@@ -204,16 +193,16 @@ function Library() {
     setPendingImportFile(file);
     setImportedCount(null);
     setImportError(null);
-    e.target.value = '';
+    e.target.value = "";
   };
 
-  const handleImport = async (mode: 'merge' | 'replace') => {
+  const handleImport = async (mode: "merge" | "replace") => {
     if (!pendingImportFile) return;
     try {
       const count = await importCatalogue(pendingImportFile, mode);
       setImportedCount(count);
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Import failed.');
+      setImportError(err instanceof Error ? err.message : "Import failed.");
     } finally {
       setPendingImportFile(null);
     }
@@ -247,13 +236,10 @@ function Library() {
 
   const allSets = useMemo(
     () => order.map((id) => sets[id]).filter(Boolean) as PhytoSet[],
-    [order, sets]
+    [order, sets],
   );
 
-  const emptySets = useMemo(
-    () => allSets.filter((d) => d.slides.length === 0),
-    [allSets]
-  );
+  const emptySets = useMemo(() => allSets.filter((d) => d.slides.length === 0), [allSets]);
 
   // Group sets that share a name (case-insensitive, trimmed) so duplicates can be merged down.
   const duplicateGroups = useMemo(() => {
@@ -271,7 +257,7 @@ function Library() {
 
   const selectedSets = useMemo(
     () => allSets.filter((d) => selectedIds.has(d.id)),
-    [allSets, selectedIds]
+    [allSets, selectedIds],
   );
 
   const handleBulkDelete = async () => {
@@ -316,11 +302,18 @@ function Library() {
       .map((id) => sets[id])
       .filter(Boolean)
       .filter((d) => kindFilter === "all" || d.kind === kindFilter)
-      .filter((d) => !q || d.name.toLowerCase().includes(q) || d.slides.some((slide) => slide.lines?.some((line) => line.toLowerCase().includes(q))));
+      .filter(
+        (d) =>
+          !q ||
+          d.name.toLowerCase().includes(q) ||
+          d.slides.some((slide) => slide.lines?.some((line) => line.toLowerCase().includes(q))),
+      );
     rows = [...rows].sort((a, b) => {
       switch (sortMode) {
-        case "az": return a.name.localeCompare(b.name);
-        case "newest": return b.createdAt - a.createdAt;
+        case "az":
+          return a.name.localeCompare(b.name);
+        case "newest":
+          return b.createdAt - a.createdAt;
       }
     });
     return rows;
@@ -366,17 +359,22 @@ function Library() {
               Sign out
             </button>
           )}
-          {isSignedIn && syncStatus !== 'offline' && userEmail && (
-            <span className="mono text-xs uppercase tracking-wider text-foreground/60" title="Signed in as">
+          {isSignedIn && syncStatus !== "offline" && userEmail && (
+            <span
+              className="mono text-xs uppercase tracking-wider text-foreground/60"
+              title="Signed in as"
+            >
               {userEmail}
             </span>
           )}
-          {isSignedIn && syncStatus !== 'offline' && (
+          {isSignedIn && syncStatus !== "offline" && (
             <span
               data-sync={syncStatus}
-              className={`h-4 w-4 rounded-full ${syncStatus === 'syncing' ? 'bg-[var(--brand-orange)]' : 'bg-[var(--brand-green)]'}`}
-              style={{ transition: `background-color ${syncStatus === 'syncing' ? '0.5s' : '1.5s'} ease` }}
-              title={syncStatus === 'syncing' ? 'Syncing…' : 'Synced'}
+              className={`h-4 w-4 rounded-full ${syncStatus === "syncing" ? "bg-[var(--brand-orange)]" : "bg-[var(--brand-green)]"}`}
+              style={{
+                transition: `background-color ${syncStatus === "syncing" ? "0.5s" : "1.5s"} ease`,
+              }}
+              title={syncStatus === "syncing" ? "Syncing…" : "Synced"}
             />
           )}
 
@@ -429,7 +427,9 @@ function Library() {
                     onAdd={(setId) => addSetToGathering(pid, setId)}
                     onRemoveAt={(i) => removeSetFromGathering(pid, i)}
                     onReorder={(ids) => reorderGatheringSets(pid, ids)}
-                    onGoLive={() => isSignedIn ? goLive(pid) : (setShowGoLivePrompt(true), Promise.resolve())}
+                    onGoLive={() =>
+                      isSignedIn ? goLive(pid) : (setShowGoLivePrompt(true), Promise.resolve())
+                    }
                     onEndSession={() => endSession(pid)}
                   />
                 );
@@ -452,7 +452,11 @@ function Library() {
                       onClick={() => setShowDuplicates(true)}
                       disabled={duplicateGroups.length === 0}
                       className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
-                      title={duplicateGroups.length ? "Amend sets with duplicate names" : "No duplicate names"}
+                      title={
+                        duplicateGroups.length
+                          ? "Amend sets with duplicate names"
+                          : "No duplicate names"
+                      }
                     >
                       <Copy className="h-4 w-4" /> Fix duplicates
                     </button>
@@ -470,7 +474,11 @@ function Library() {
                       onClick={() => setShowBulkDelete(true)}
                       disabled={selectedIds.size === 0}
                       className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
-                      title={selectedIds.size ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}` : "Select sets to delete"}
+                      title={
+                        selectedIds.size
+                          ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
+                          : "Select sets to delete"
+                      }
                       aria-label="Delete selected sets"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -520,7 +528,7 @@ function Library() {
                   ref={importFileRef}
                   type="file"
                   accept=".phyto"
-                  style={{ display: 'none' }}
+                  style={{ display: "none" }}
                   onChange={handleImportFileChange}
                 />
               </div>
@@ -533,7 +541,13 @@ function Library() {
                   onClick={() => setKindFilter(k)}
                   className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, kindFilter === k)}`}
                 >
-                  {k === "all" ? "All" : k === "song" ? "Songs" : k === "scripture" ? "Scriptures" : "Media"}
+                  {k === "all"
+                    ? "All"
+                    : k === "song"
+                      ? "Songs"
+                      : k === "scripture"
+                        ? "Scriptures"
+                        : "Media"}
                 </button>
               ))}
               <button
@@ -587,13 +601,22 @@ function Library() {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => newSet("song")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]">
+                    <DropdownMenuItem
+                      onClick={() => newSet("song")}
+                      className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
+                    >
                       New Song
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => newSet("scripture")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]">
+                    <DropdownMenuItem
+                      onClick={() => newSet("scripture")}
+                      className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
+                    >
                       New Scripture
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => newSet("media")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]">
+                    <DropdownMenuItem
+                      onClick={() => newSet("media")}
+                      className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
+                    >
                       New Media
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -614,49 +637,54 @@ function Library() {
                 {catalogueRows.map((d) => {
                   const checked = selectedIds.has(d.id);
                   return (
-                  <li
-                    key={d.id}
-                    draggable={!editMode}
-                    onDragStart={(e) => {
-                      if (editMode) return;
-                      e.dataTransfer.setData(SET_DRAG_TYPE, d.id);
-                      e.dataTransfer.setData("text/plain", d.id);
-                      e.dataTransfer.effectAllowed = "copy";
-                      setCircleDragGhost(e, KIND_COLOR[d.kind] ?? "#212121", 56);
-                    }}
-                    onClick={editMode ? () => toggleSelected(d.id) : undefined}
-                    className={`pill group flex items-center gap-4 px-5 py-2 ${kindBg(d.kind)} ${editMode ? "cursor-pointer" : ""}`}
-                  >
-                    {editMode ? (
-                      <span
-                        role="checkbox"
-                        aria-checked={checked}
-                        className="flex h-4 w-4 shrink-0 items-center justify-center border border-current"
-                      >
-                        {checked && (
-                          <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
-                            <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                          </svg>
-                        )}
-                      </span>
-                    ) : (
-                      <DotsGrip className="cursor-grab opacity-80" />
-                    )}
-                    <span className="flex-1 truncate text-base">{d.name}</span>
-                    <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
-                      {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
-                    </span>
-                    <Link
-                      to="/set/$setId"
-                      params={{ setId: d.id }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="rounded-full p-1.5 transition hover:bg-white/20"
-                      title="Edit set"
-                      aria-label="Edit set"
+                    <li
+                      key={d.id}
+                      draggable={!editMode}
+                      onDragStart={(e) => {
+                        if (editMode) return;
+                        e.dataTransfer.setData(SET_DRAG_TYPE, d.id);
+                        e.dataTransfer.setData("text/plain", d.id);
+                        e.dataTransfer.effectAllowed = "copy";
+                        setCircleDragGhost(e, KIND_COLOR[d.kind] ?? "#212121", 56);
+                      }}
+                      onClick={editMode ? () => toggleSelected(d.id) : undefined}
+                      className={`pill group flex items-center gap-4 px-5 py-2 ${kindBg(d.kind)} ${editMode ? "cursor-pointer" : ""}`}
                     >
-                      <Pencil className="h-4 w-4" />
-                    </Link>
-                  </li>
+                      {editMode ? (
+                        <span
+                          role="checkbox"
+                          aria-checked={checked}
+                          className="flex h-4 w-4 shrink-0 items-center justify-center border border-current"
+                        >
+                          {checked && (
+                            <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
+                              <path
+                                d="M2 2l6 6M8 2l-6 6"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          )}
+                        </span>
+                      ) : (
+                        <DotsGrip className="cursor-grab opacity-80" />
+                      )}
+                      <span className="flex-1 truncate text-base">{d.name}</span>
+                      <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
+                        {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
+                      </span>
+                      <Link
+                        to="/set/$setId"
+                        params={{ setId: d.id }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded-full p-1.5 transition hover:bg-white/20"
+                        title="Edit set"
+                        aria-label="Edit set"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                    </li>
                   );
                 })}
               </ul>
@@ -671,20 +699,28 @@ function Library() {
       <Footer />
 
       {importedCount !== null && (
-        <p>{importedCount} set{importedCount === 1 ? '' : 's'} imported successfully.</p>
+        <p>
+          {importedCount} set{importedCount === 1 ? "" : "s"} imported successfully.
+        </p>
       )}
       {importError && <p>{importError}</p>}
 
       <AlertDialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-2xl font-normal leading-tight">Sign out?</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Sign out?
+          </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            Any live sessions you've started will remain live and accessible to viewers until you end them.
+            Any live sessions you've started will remain live and accessible to viewers until you
+            end them.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
               type="button"
-              onClick={() => { setShowSignOutDialog(false); signOut(); }}
+              onClick={() => {
+                setShowSignOutDialog(false);
+                signOut();
+              }}
               className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
             >
               Sign out
@@ -709,7 +745,10 @@ function Library() {
           <div className="mt-8 flex gap-3">
             <button
               type="button"
-              onClick={() => { setShowExportConfirm(false); exportCatalogue(); }}
+              onClick={() => {
+                setShowExportConfirm(false);
+                exportCatalogue();
+              }}
               className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
             >
               Download
@@ -725,24 +764,30 @@ function Library() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={pendingImportFile !== null} onOpenChange={(open) => { if (!open) setPendingImportFile(null); }}>
+      <AlertDialog
+        open={pendingImportFile !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingImportFile(null);
+        }}
+      >
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">Import</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            Merge adds and overwrites sets with the same name without deleting anything. Replace clears your current catalogue.
+            Merge adds and overwrites sets with the same name without deleting anything. Replace
+            clears your current catalogue.
           </AlertDialogDescription>
           <div className="mt-8 flex flex-col gap-3">
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => handleImport('merge')}
+                onClick={() => handleImport("merge")}
                 className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
               >
                 Merge
               </button>
               <button
                 type="button"
-                onClick={() => handleImport('replace')}
+                onClick={() => handleImport("replace")}
                 className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
               >
                 Replace
@@ -770,7 +815,9 @@ function Library() {
           </AlertDialogDescription>
           <ul className="mono mt-4 max-h-48 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-muted-foreground">
             {selectedSets.map((d) => (
-              <li key={d.id} className="truncate">{d.name}</li>
+              <li key={d.id} className="truncate">
+                {d.name}
+              </li>
             ))}
           </ul>
           <div className="mt-8 flex gap-3">
@@ -808,7 +855,9 @@ function Library() {
           {emptySets.length > 0 && (
             <ul className="mono mt-4 max-h-48 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-muted-foreground">
               {emptySets.map((d) => (
-                <li key={d.id} className="truncate">{d.name}</li>
+                <li key={d.id} className="truncate">
+                  {d.name}
+                </li>
               ))}
             </ul>
           )}
@@ -874,7 +923,7 @@ function DuplicatesDialog({
     for (const g of groups) {
       // Default to the most complete (most slides, then most recently updated).
       const best = [...g.sets].sort(
-        (a, b) => b.slides.length - a.slides.length || b.updatedAt - a.updatedAt
+        (a, b) => b.slides.length - a.slides.length || b.updatedAt - a.updatedAt,
       )[0];
       init[g.key] = best.id;
     }
@@ -910,7 +959,8 @@ function DuplicatesDialog({
         ) : (
           <>
             <p className="mt-4 text-base text-foreground">
-              These sets share a name. Pick the one to keep in each group: the rest will be deleted. Hover a set to preview its slides.
+              These sets share a name. Pick the one to keep in each group: the rest will be deleted.
+              Hover a set to preview its slides.
             </p>
             <div className="mt-6 max-h-[50vh] space-y-6 overflow-y-auto pr-1">
               {groups.map((g) => (
@@ -1019,57 +1069,9 @@ function GatheringCard({
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [isGoingLive, setIsGoingLive] = useState(false);
-  const [showShareQr, setShowShareQr] = useState(false);
-  const [copiedShare, setCopiedShare] = useState(false);
-  const [qrFg, setQrFg] = useState("#212121");
-  const [qrBg, setQrBg] = useState("#ffffff");
-  const [qrTransparent, setQrTransparent] = useState(false);
-  const shareQrRef = useRef<HTMLCanvasElement>(null);
-  const qrFgCustomRef = useRef<HTMLInputElement>(null);
-
-  const QR_FG_PRESETS = qrTransparent
-    ? ['#212121', '#F5EFEF', '#2E7299', '#538844', '#E07D31', '#C01E21']
-    : qrBg === '#000000'
-      ? ['#F5EFEF', '#2E7299', '#538844', '#E07D31', '#C01E21']
-      : ['#212121', '#2E7299', '#538844', '#E07D31', '#C01E21'];
-
-  const setQrBackground = (bg: string | null) => {
-    if (bg === null) {
-      setQrTransparent(true);
-    } else {
-      setQrTransparent(false);
-      setQrBg(bg);
-      if (bg === '#ffffff' && qrFg === '#F5EFEF') setQrFg('#212121');
-      if (bg === '#000000' && qrFg === '#212121') setQrFg('#F5EFEF');
-    }
-  };
-
   const shareUrl = `${window.location.origin}/g/${shareToken}`;
 
-  const downloadQr = (ref: React.RefObject<HTMLCanvasElement | null>, filename: string) => {
-    const canvas = ref.current;
-    if (!canvas) return;
-    const padding = 20;
-    const out = document.createElement('canvas');
-    out.width = canvas.width + padding * 2;
-    out.height = canvas.height + padding * 2;
-    const ctx = out.getContext('2d')!;
-    if (!qrTransparent) {
-      ctx.fillStyle = qrBg;
-      ctx.fillRect(0, 0, out.width, out.height);
-    }
-    ctx.drawImage(canvas, padding, padding);
-    const url = out.toDataURL('image/png');
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-  };
-
-  const nameLookup = useMemo(
-    () => Object.fromEntries(allSets.map((d) => [d.id, d])),
-    [allSets]
-  );
+  const nameLookup = useMemo(() => Object.fromEntries(allSets.map((d) => [d.id, d])), [allSets]);
 
   const matches = useMemo(() => {
     const q = addQuery.trim().toLowerCase();
@@ -1079,7 +1081,10 @@ function GatheringCard({
   return (
     <div
       onDragOver={(e) => {
-        if (draggingId !== null) { e.preventDefault(); return; }
+        if (draggingId !== null) {
+          e.preventDefault();
+          return;
+        }
         e.preventDefault();
         e.dataTransfer.dropEffect = "copy";
         setDropActive(true);
@@ -1092,7 +1097,8 @@ function GatheringCard({
           e.clientX <= rect.right &&
           e.clientY >= rect.top &&
           e.clientY <= rect.bottom
-        ) return;
+        )
+          return;
         setDropActive(false);
       }}
       onDrop={(e) => {
@@ -1130,7 +1136,9 @@ function GatheringCard({
         <button
           onClick={() => setEditMode((v) => !v)}
           className={`pill flex items-center justify-center border border-foreground transition ${
-            editMode ? "mono uppercase bg-foreground text-background px-4 py-1.5 text-xs tracking-wider" : "h-10 w-10 hover:bg-foreground hover:text-background"
+            editMode
+              ? "mono uppercase bg-foreground text-background px-4 py-1.5 text-xs tracking-wider"
+              : "h-10 w-10 hover:bg-foreground hover:text-background"
           }`}
           title={editMode ? "Done editing" : "Edit"}
           aria-label={editMode ? "Done editing" : "Edit"}
@@ -1151,7 +1159,7 @@ function GatheringCard({
             {isSignedIn && shareToken && (
               <button
                 type="button"
-                onClick={() => { setShowShareQr(false); setShowShareDialog(true); }}
+                onClick={() => setShowShareDialog(true)}
                 className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                 title="Share gathering"
                 aria-label="Share gathering"
@@ -1159,8 +1167,8 @@ function GatheringCard({
                 <Share2 className="h-4 w-4" />
               </button>
             )}
-            {isSignedIn && (
-              isLive ? (
+            {isSignedIn &&
+              (isLive ? (
                 <button
                   onClick={() => setShowEndSessionDialog(true)}
                   className="pill flex h-10 w-10 items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)] transition animate-pulse hover:animate-none [&>svg]:opacity-0 [&>svg]:transition-opacity [&>svg]:duration-200 hover:[&>svg]:opacity-100"
@@ -1178,8 +1186,7 @@ function GatheringCard({
                 >
                   <Wifi className="h-4 w-4" />
                 </button>
-              )
-            )}
+              ))}
           </>
         )}
         {editMode && (
@@ -1249,8 +1256,13 @@ function GatheringCard({
                 }`}
               >
                 {editMode && <DotsGrip className="cursor-grab opacity-80" />}
-                <span draggable={false} className="flex-1 truncate">{d?.name ?? "(missing)"}</span>
-                <span draggable={false} className="mono text-[10px] uppercase tracking-wider opacity-90">
+                <span draggable={false} className="flex-1 truncate">
+                  {d?.name ?? "(missing)"}
+                </span>
+                <span
+                  draggable={false}
+                  className="mono text-[10px] uppercase tracking-wider opacity-90"
+                >
                   {d?.kind}
                 </span>
                 {editMode && (
@@ -1310,112 +1322,22 @@ function GatheringCard({
       )}
 
       {/* Share dialog */}
-      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-          <DialogTitle className="text-2xl font-normal leading-tight">Share this gathering!</DialogTitle>
-
-          <div className="mt-6 flex items-center gap-2">
-            <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
-              <span className="flex-1 truncate px-4 font-mono uppercase text-sm text-muted-foreground">{shareUrl}</span>
-              <button
-                type="button"
-                onClick={() => { navigator.clipboard.writeText(shareUrl); setCopiedShare(true); setTimeout(() => setCopiedShare(false), 2000); }}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
-                aria-label="Copy URL"
-              >
-                <span className="transition-all duration-300">
-                  {copiedShare ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </span>
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowShareQr((v) => !v)}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
-              aria-label="QR Code"
-            >
-              <QrCode className="h-4 w-4" />
-            </button>
-          </div>
-
-          {showShareQr && (
-            <div className="mt-4 flex flex-col items-center gap-3">
-              <div
-                className="rounded-xl p-4"
-                style={qrTransparent ? {
-                  backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
-                  backgroundSize: '10px 10px',
-                  backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px',
-                } : { backgroundColor: qrBg }}
-              >
-                <QRCodeCanvas ref={shareQrRef} value={shareUrl} size={180} fgColor={qrFg} bgColor={qrTransparent ? 'transparent' : qrBg} />
-              </div>
-              <div className="flex flex-col gap-2 self-stretch">
-                <div className="flex items-center gap-3">
-                  <span className="w-28 font-mono text-xs uppercase text-foreground">Dots</span>
-                  <div className="flex gap-1.5">
-                    {QR_FG_PRESETS.map(c => (
-                      <button key={c} type="button" onClick={() => setQrFg(c)}
-                        className="h-7 w-7 rounded-full border-2 transition"
-                        style={{ backgroundColor: c, borderColor: qrFg === c ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
-                      />
-                    ))}
-                    <button type="button" onClick={() => qrFgCustomRef.current?.click()}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
-                      style={{
-                        borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
-                        backgroundColor: QR_FG_PRESETS.includes(qrFg) ? 'transparent' : qrFg,
-                        color: 'var(--foreground)',
-                      }}
-                    >
-                      {QR_FG_PRESETS.includes(qrFg) && <span className="text-sm leading-none">+</span>}
-                    </button>
-                    <input ref={qrFgCustomRef} type="color" value={qrFg} onChange={e => setQrFg(e.target.value)} className="sr-only" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="w-28 font-mono text-xs uppercase text-foreground">Background</span>
-                  <div className="flex gap-1.5">
-                    <button type="button" onClick={() => setQrBackground('#000000')}
-                      className="h-7 w-7 rounded-full border-2 transition"
-                      style={{ backgroundColor: '#000000', borderColor: !qrTransparent && qrBg === '#000000' ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
-                    />
-                    <button type="button" onClick={() => setQrBackground('#ffffff')}
-                      className="h-7 w-7 rounded-full border-2 transition"
-                      style={{ backgroundColor: '#ffffff', borderColor: !qrTransparent && qrBg === '#ffffff' ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
-                    />
-                    <button type="button" onClick={() => setQrBackground(null)}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition overflow-hidden"
-                      style={{ borderColor: qrTransparent ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)', padding: 0 }}
-                    >
-                      <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: 'block' }}>
-                        <path d="M12 2 A10 10 0 0 1 12 22 Z" fill="#212121"/>
-                        <path d="M12 22 A10 10 0 0 1 12 2 Z" fill="#F5EFEF"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => downloadQr(shareQrRef, `${name}-qr.png`)}
-                className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-              >
-                Download
-              </button>
-            </div>
-          )}
-
-          {!isLive && (
-            <p className="mt-6 text-sm text-muted-foreground">
-              Once live, this gathering will be accessible via this link.
-            </p>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ShareGatheringDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        shareUrl={shareUrl}
+        gatheringName={name}
+        isLive={isLive}
+      />
 
       {/* Go Live confirmation dialog */}
-      <Dialog open={showGoLiveDialog} onOpenChange={(open) => { if (isGoingLive) return; setShowGoLiveDialog(open); }}>
+      <Dialog
+        open={showGoLiveDialog}
+        onOpenChange={(open) => {
+          if (isGoingLive) return;
+          setShowGoLiveDialog(open);
+        }}
+      >
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
           <DialogTitle className="text-2xl font-normal leading-tight">Go live!</DialogTitle>
 
@@ -1425,7 +1347,13 @@ function GatheringCard({
 
           <div className="mt-8">
             <button
-              onClick={async () => { setIsGoingLive(true); await onGoLive(); setIsGoingLive(false); setShowGoLiveDialog(false); setShowShareQr(false); setShowShareDialog(true); }}
+              onClick={async () => {
+                setIsGoingLive(true);
+                await onGoLive();
+                setIsGoingLive(false);
+                setShowGoLiveDialog(false);
+                setShowShareDialog(true);
+              }}
               disabled={isGoingLive}
               className="mono uppercase w-full rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90 disabled:opacity-70"
             >
@@ -1438,14 +1366,19 @@ function GatheringCard({
       {/* End Session confirmation dialog */}
       <AlertDialog open={showEndSessionDialog} onOpenChange={setShowEndSessionDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-2xl font-normal leading-tight">End this session?</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            End this session?
+          </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             Ending the session will take this gathering offline. You can go live again at any time.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
               type="button"
-              onClick={() => { onEndSession(); setShowEndSessionDialog(false); }}
+              onClick={() => {
+                onEndSession();
+                setShowEndSessionDialog(false);
+              }}
               className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
             >
               End Session
@@ -1464,14 +1397,19 @@ function GatheringCard({
       {/* Delete gathering confirmation dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-2xl font-normal leading-tight">Delete this gathering?</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Delete this gathering?
+          </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             This will permanently delete this gathering. This cannot be undone.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
               type="button"
-              onClick={() => { onDelete(); setShowDeleteDialog(false); }}
+              onClick={() => {
+                onDelete();
+                setShowDeleteDialog(false);
+              }}
               className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
             >
               Delete

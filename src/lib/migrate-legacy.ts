@@ -1,11 +1,11 @@
-import { db } from './db';
-import type { Set as PhytoSet, Gathering } from './types';
-import { nanoid } from 'nanoid';
+import { db } from "./db";
+import type { Set as PhytoSet, Gathering } from "./types";
+import { nanoid } from "nanoid";
 
 // Keys are frozen contracts on already-shipped (phase-0) data — do NOT rename.
-const LEGACY_KEY = 'stage-library-v1';
-const MIGRATED_FLAG = 'phyto-legacy-migrated-v1';
-const SONG_TEMPLATE_KEY = 'song-template-v1';
+const LEGACY_KEY = "stage-library-v1";
+const MIGRATED_FLAG = "phyto-legacy-migrated-v1";
+const SONG_TEMPLATE_KEY = "song-template-v1";
 
 // Phase-0 shape: catalogue persisted by zustand `persist`. Gatherings were
 // called "playlists" and lacked share_token / is_live. These field names are
@@ -32,14 +32,14 @@ interface LegacyState {
  * migrated (0 if there was nothing to migrate).
  */
 export async function migrateLegacyLocalStorage(): Promise<number> {
-  if (typeof window === 'undefined') return 0;
+  if (typeof window === "undefined") return 0;
 
   try {
     if (localStorage.getItem(MIGRATED_FLAG)) return 0;
 
     const raw = localStorage.getItem(LEGACY_KEY);
     if (!raw) {
-      localStorage.setItem(MIGRATED_FLAG, '1');
+      localStorage.setItem(MIGRATED_FLAG, "1");
       return 0;
     }
 
@@ -47,7 +47,7 @@ export async function migrateLegacyLocalStorage(): Promise<number> {
     // root object if it was stored unwrapped.
     const parsed = JSON.parse(raw) as { state?: LegacyState } | LegacyState;
     const state: LegacyState =
-      parsed && typeof parsed === 'object' && 'state' in parsed && parsed.state
+      parsed && typeof parsed === "object" && "state" in parsed && parsed.state
         ? (parsed.state as LegacyState)
         : (parsed as LegacyState);
 
@@ -69,9 +69,7 @@ export async function migrateLegacyLocalStorage(): Promise<number> {
       id: crypto.randomUUID(),
       name: g.name,
       // Remap set references through the id map; drop any that no longer resolve.
-      setIds: (g.setIds ?? [])
-        .map((sid) => idMap.get(sid))
-        .filter((x): x is string => Boolean(x)),
+      setIds: (g.setIds ?? []).map((sid) => idMap.get(sid)).filter((x): x is string => Boolean(x)),
       // Backfill fields the phase-0 shape lacked.
       share_token: nanoid(10),
       is_live: false,
@@ -89,18 +87,15 @@ export async function migrateLegacyLocalStorage(): Promise<number> {
       } catch {}
     }
 
-    localStorage.setItem(MIGRATED_FLAG, '1');
-    console.log(
-      `[migrate-legacy] migrated ${migratedSets.length} sets, ${migratedGatherings.length} gatherings from "${LEGACY_KEY}"`
-    );
+    localStorage.setItem(MIGRATED_FLAG, "1");
     // Note: the legacy key is intentionally NOT deleted — kept as a safety net.
     return migratedSets.length;
   } catch (e) {
     // A malformed blob must never block app boot. Flag it so we don't retry
     // every load, and continue with an empty Dexie.
-    console.error('[migrate-legacy] migration failed (continuing):', e);
+    console.error("[migrate-legacy] migration failed (continuing):", e);
     try {
-      localStorage.setItem(MIGRATED_FLAG, '1');
+      localStorage.setItem(MIGRATED_FLAG, "1");
     } catch {}
     return 0;
   }

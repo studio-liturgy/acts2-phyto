@@ -19,14 +19,17 @@ export function parseLyrics(text: string, linesPerSlide = 2): Slide[] {
 
   const slides: Slide[] = [];
   for (const block of blocks) {
-    const rawLines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+    const rawLines = block
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
     let section: string | undefined;
     const headerMatch = rawLines[0]?.match(
-      /^\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?$/i
+      /^\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?$/i,
     );
     let lines = rawLines;
     if (headerMatch) {
-      section = rawLines[0].replace(/[\[\]:]/g, "").trim();
+      section = rawLines[0].replace(/[[\]:]/g, "").trim();
       lines = rawLines.slice(1);
     }
     if (lines.length === 0) continue;
@@ -45,7 +48,7 @@ export function parseLyrics(text: string, linesPerSlide = 2): Slide[] {
 /** Fetch scripture passage via bible-api.com (public, no key, KJV/WEB). */
 export async function fetchScripture(
   reference: string,
-  translation = "web"
+  translation = "web",
 ): Promise<{ reference: string; verses: { verse: number; text: string }[] }> {
   const url = `https://bible-api.com/${encodeURIComponent(reference)}?translation=${translation}`;
   const res = await fetch(url);
@@ -64,7 +67,7 @@ export function scriptureToSlides(
   ref: string,
   verses: { verse: number; chapter?: number; text: string }[],
   versesPerSlide = 1,
-  opts: { keepLineBreaks?: boolean } = {}
+  opts: { keepLineBreaks?: boolean } = {},
 ): Slide[] {
   const perSlide = Math.min(3, Math.max(1, versesPerSlide));
   const keepLineBreaks = opts.keepLineBreaks ?? false;
@@ -128,7 +131,7 @@ export function fileToDataUrl(file: File): Promise<string> {
 export async function fileToCompressedImageDataUrl(
   file: File,
   maxDim = 1920,
-  quality = 0.85
+  quality = 0.85,
 ): Promise<string> {
   const url = URL.createObjectURL(file);
   try {

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { z } from "zod";
+import { readEnv, makeRateLimiter } from "@/lib/worker-env";
 
 const CATEGORIES = [
   "Testimony / Encouragement",
@@ -22,38 +23,7 @@ const FeedbackSchema = z.object({
     .or(z.literal("").transform(() => undefined)),
 });
 
-// Reads server env from the Cloudflare Worker runtime (.dev.vars locally,
-// encrypted secrets in production), falling back to process.env. The
-// `cloudflare:workers` module only exists in the Worker runtime, so it's
-// imported dynamically to keep it out of the client bundle.
-async function readEnv(key: string): Promise<string | undefined> {
-  try {
-    const { env } = (await import("cloudflare:workers")) as {
-      env: Record<string, string | undefined>;
-    };
-    if (env?.[key] != null) return env[key];
-  } catch {
-    // not running in the Worker runtime — fall through
-  }
-  return process.env[key];
-}
-
-// Naive in-memory rate limit: 5 requests / minute / IP.
-const RATE_LIMIT = 5;
-const WINDOW_MS = 60_000;
-const hits = new Map<string, number[]>();
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const arr = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (arr.length >= RATE_LIMIT) {
-    hits.set(ip, arr);
-    return true;
-  }
-  arr.push(now);
-  hits.set(ip, arr);
-  return false;
-}
+const rateLimited = makeRateLimiter();
 
 export const Route = createFileRoute("/api/public/feedback")({
   server: {
@@ -88,10 +58,7 @@ export const Route = createFileRoute("/api/public/feedback")({
 
         const parsed = FeedbackSchema.safeParse(body);
         if (!parsed.success) {
-          return Response.json(
-            { ok: false, error: "Invalid submission." },
-            { status: 400 },
-          );
+          return Response.json({ ok: false, error: "Invalid submission." }, { status: 400 });
         }
 
         const { category, message, email } = parsed.data;

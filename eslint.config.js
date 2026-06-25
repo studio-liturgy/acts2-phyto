@@ -34,6 +34,9 @@ export default tseslint.config(
       ],
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Intentional empty catches are used throughout (best-effort localStorage /
+      // BroadcastChannel / clipboard ops that must never throw); allow them.
+      "no-empty": ["error", { allowEmptyCatch: true }],
     },
   },
   eslintPluginPrettier,

@@ -1,11 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useLibrary, useLive, useSongTemplateDraft, useScriptureTemplateDraft, useHiddenSections, isVideoPlaying } from "@/lib/store";
+import {
+  useLibrary,
+  useLive,
+  useSongTemplateDraft,
+  useScriptureTemplateDraft,
+  useHiddenSections,
+  isVideoPlaying,
+} from "@/lib/store";
 import { useIsSignedIn } from "@/lib/authStore";
 import { APP_NAME } from "@/lib/appConfig";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
-import { Input } from "@/components/ui/input";
+import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -28,20 +35,16 @@ import {
   ChevronDown,
   ChevronUp,
   House,
-  Copy,
   Check,
-  QrCode,
   Eye,
   EyeOff,
   Play,
   Pause,
   RotateCcw,
 } from "lucide-react";
-import { QRCodeCanvas } from "qrcode.react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
-
 
 type LiveApi = ReturnType<typeof useLive.getState>;
 
@@ -82,7 +85,9 @@ const KIND_ABBREV: Record<SetKind, string> = {
 
 function KindBadge({ kind, abbrev = false }: { kind: SetKind; abbrev?: boolean }) {
   return (
-    <span className={`pill mono px-2 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(kind)}`}>
+    <span
+      className={`pill mono px-2 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(kind)}`}
+    >
       {abbrev ? KIND_ABBREV[kind] : kind === "mixed" ? "Mixed" : kind}
     </span>
   );
@@ -96,9 +101,7 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/present")({
   validateSearch: searchSchema,
   head: () => ({
-    meta: [
-      { title: `Presenter | ${APP_NAME}` },
-    ],
+    meta: [{ title: `Presenter | ${APP_NAME}` }],
   }),
   component: Presenter,
 });
@@ -128,18 +131,14 @@ function Presenter() {
 
   const activeGathering = gatheringFromUrl ? gatherings[gatheringFromUrl] : null;
 
-  const setList = activeGathering
-    ? activeGathering.setIds.filter((id) => sets[id])
-    : order;
+  const setList = activeGathering ? activeGathering.setIds.filter((id) => sets[id]) : order;
 
   const [activeSetId, setActiveSetId] = useState<string | null>(
-    setFromUrl ?? (live.setId && sets[live.setId] ? live.setId : null) ?? setList[0] ?? null
+    setFromUrl ?? (live.setId && sets[live.setId] ? live.setId : null) ?? setList[0] ?? null,
   );
 
   const presenterReturn = (setId: string) =>
-    gatheringFromUrl
-      ? `/present?gathering=${gatheringFromUrl}`
-      : `/present?set=${setId}`;
+    gatheringFromUrl ? `/present?gathering=${gatheringFromUrl}` : `/present?set=${setId}`;
   const [query, setQuery] = useState("");
   const [setSortMode, setSetSortMode] = useState<"az" | "newest">("az");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -196,48 +195,16 @@ function Presenter() {
   // While the warning is showing, let it follow the cursor.
   useEffect(() => {
     if (!hideWarning) return;
-    const onMove = (e: MouseEvent) => setHideWarning((w) => (w ? { x: e.clientX, y: e.clientY } : w));
+    const onMove = (e: MouseEvent) =>
+      setHideWarning((w) => (w ? { x: e.clientX, y: e.clientY } : w));
     window.addEventListener("mousemove", onMove);
     return () => window.removeEventListener("mousemove", onMove);
   }, [!!hideWarning]);
 
   const isSignedIn = useIsSignedIn();
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [showShareQr, setShowShareQr] = useState(false);
-  const [copiedShare, setCopiedShare] = useState(false);
-  const [qrFg, setQrFg] = useState("#212121");
-  const [qrBg, setQrBg] = useState("#ffffff");
-  const [qrTransparent, setQrTransparent] = useState(false);
-  const shareQrRef = useRef<HTMLCanvasElement>(null);
-  const qrFgCustomRef = useRef<HTMLInputElement>(null);
-
-  const QR_FG_PRESETS = qrTransparent
-    ? ['#212121', '#F5EFEF', '#2E7299', '#538844', '#E07D31', '#C01E21']
-    : qrBg === '#000000'
-      ? ['#F5EFEF', '#2E7299', '#538844', '#E07D31', '#C01E21']
-      : ['#212121', '#2E7299', '#538844', '#E07D31', '#C01E21'];
-
-  const setQrBackground = (bg: string | null) => {
-    if (bg === null) {
-      setQrTransparent(true);
-    } else {
-      setQrTransparent(false);
-      setQrBg(bg);
-      if (bg === '#ffffff' && qrFg === '#F5EFEF') setQrFg('#212121');
-      if (bg === '#000000' && qrFg === '#212121') setQrFg('#F5EFEF');
-    }
-  };
   const activeShareToken = activeGathering?.share_token ?? null;
   const shareUrl = activeShareToken ? `${window.location.origin}/g/${activeShareToken}` : "";
-
-  function downloadQr(ref: React.RefObject<HTMLCanvasElement | null>, filename: string) {
-    const canvas = ref.current;
-    if (!canvas) return;
-    const link = document.createElement("a");
-    link.download = filename;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  }
 
   useEffect(() => {
     if (setFromUrl) setActiveSetId(setFromUrl);
@@ -274,7 +241,7 @@ function Presenter() {
   const liveSet = live.setId ? sets[live.setId] : null;
   const liveSlide = useMemo(
     () => liveSet?.slides.find((s) => s.id === live.slideId) ?? null,
-    [liveSet, live.slideId]
+    [liveSet, live.slideId],
   );
 
   const q = query.trim().toLowerCase();
@@ -285,9 +252,7 @@ function Presenter() {
       const s = sets[id];
       if (!s) return false;
       if (s.name.toLowerCase().includes(q)) return true;
-      return s.slides.some((slide) =>
-        slide.lines?.some((line) => line.toLowerCase().includes(q))
-      );
+      return s.slides.some((slide) => slide.lines?.some((line) => line.toLowerCase().includes(q)));
     })
     // Only the catalogue list is sorted; inside a gathering the order is
     // manual (drag-reorderable) and must be left untouched.
@@ -296,9 +261,7 @@ function Presenter() {
       const sa = sets[a];
       const sb = sets[b];
       if (!sa || !sb) return 0;
-      return setSortMode === "az"
-        ? sa.name.localeCompare(sb.name)
-        : sb.createdAt - sa.createdAt;
+      return setSortMode === "az" ? sa.name.localeCompare(sb.name) : sb.createdAt - sa.createdAt;
     });
   const filteredGatherings = showAll ? gatheringOrder : [];
 
@@ -313,7 +276,7 @@ function Presenter() {
           if (!s) return false;
           if (s.name.toLowerCase().includes(q)) return true;
           return s.slides.some((slide) =>
-            slide.lines?.some((line) => line.toLowerCase().includes(q))
+            slide.lines?.some((line) => line.toLowerCase().includes(q)),
           );
         })
       : [];
@@ -373,8 +336,8 @@ function Presenter() {
   const presenterHere = gatheringFromUrl
     ? `/present?gathering=${gatheringFromUrl}`
     : activeSetId
-    ? `/present?set=${activeSetId}`
-    : "/present";
+      ? `/present?set=${activeSetId}`
+      : "/present";
 
   // Mirror the home page's "New" — create the set and open its editor. The
   // editor's Back returns here (and, because redirectTo is /present, it hides
@@ -425,16 +388,28 @@ function Presenter() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => newSet("song")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]">
+                <DropdownMenuItem
+                  onClick={() => newSet("song")}
+                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
+                >
                   New Song
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => newSet("scripture")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]">
+                <DropdownMenuItem
+                  onClick={() => newSet("scripture")}
+                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
+                >
                   New Scripture
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => newSet("media")} className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]">
+                <DropdownMenuItem
+                  onClick={() => newSet("media")}
+                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
+                >
                   New Media
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={newGathering} className="mono uppercase text-xs tracking-wider">
+                <DropdownMenuItem
+                  onClick={newGathering}
+                  className="mono uppercase text-xs tracking-wider"
+                >
                   New Gathering
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -445,7 +420,11 @@ function Presenter() {
               title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
               aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
             >
-              {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
+              {sidebarOpen ? (
+                <PanelLeftClose className="h-5 w-5" />
+              ) : (
+                <PanelLeftOpen className="h-5 w-5" />
+              )}
             </button>
             <input
               type="range"
@@ -478,9 +457,18 @@ function Presenter() {
                     defaultValue={activeGathering.name}
                     className="w-48 rounded-full border border-foreground bg-transparent px-4 py-1.5 text-base font-normal outline-none"
                     style={{ letterSpacing: "-0.045em" }}
-                    onBlur={(e) => { renameGathering(activeGathering.id, e.target.value || activeGathering.name); setEditingGatheringName(false); }}
+                    onBlur={(e) => {
+                      renameGathering(activeGathering.id, e.target.value || activeGathering.name);
+                      setEditingGatheringName(false);
+                    }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") { renameGathering(activeGathering.id, e.currentTarget.value || activeGathering.name); setEditingGatheringName(false); }
+                      if (e.key === "Enter") {
+                        renameGathering(
+                          activeGathering.id,
+                          e.currentTarget.value || activeGathering.name,
+                        );
+                        setEditingGatheringName(false);
+                      }
                       if (e.key === "Escape") setEditingGatheringName(false);
                     }}
                   />
@@ -489,13 +477,19 @@ function Presenter() {
                     <span
                       className="min-w-0 truncate cursor-text text-3xl font-normal"
                       style={{ letterSpacing: "-0.045em", paddingRight: "0.1em" }}
-                      onClick={() => { setEditingGatheringName(true); setTimeout(() => gatheringNameInputRef.current?.select(), 0); }}
+                      onClick={() => {
+                        setEditingGatheringName(true);
+                        setTimeout(() => gatheringNameInputRef.current?.select(), 0);
+                      }}
                       title="Click to rename"
                     >
                       {activeGathering.name}
                     </span>
                     <button
-                      onClick={() => { setEditingGatheringName(true); setTimeout(() => gatheringNameInputRef.current?.select(), 0); }}
+                      onClick={() => {
+                        setEditingGatheringName(true);
+                        setTimeout(() => gatheringNameInputRef.current?.select(), 0);
+                      }}
                       className="pill flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                       title="Rename gathering"
                       aria-label="Rename gathering"
@@ -511,7 +505,7 @@ function Presenter() {
           <div className="flex shrink-0 items-center gap-2">
             {isSignedIn && activeShareToken && (
               <button
-                onClick={() => { setShowShareQr(false); setShowShareDialog(true); }}
+                onClick={() => setShowShareDialog(true)}
                 className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                 title="Share gathering"
                 aria-label="Share gathering"
@@ -561,7 +555,9 @@ function Presenter() {
             <div className="catalogue-scroll flex-1 overflow-auto pr-1">
               {showAll && filteredGatherings.length > 0 && (
                 <div className="mb-5">
-                  <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">Gatherings</div>
+                  <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">
+                    Gatherings
+                  </div>
                   <div className="space-y-1">
                     {filteredGatherings.map((pid) => {
                       const p = gatherings[pid];
@@ -595,7 +591,10 @@ function Presenter() {
                         >
                           <span className="truncate">{p.name}</span>
                           {p.is_live && pid !== gatheringFromUrl && (
-                            <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--brand-red)]" title="Live" />
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full bg-[var(--brand-red)]"
+                              title="Live"
+                            />
                           )}
                         </Link>
                       );
@@ -606,7 +605,9 @@ function Presenter() {
 
               {activeGathering && q && catalogueResults.length > 0 && (
                 <div className="mb-2">
-                  <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">Catalogue</div>
+                  <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">
+                    Catalogue
+                  </div>
                   <div className="space-y-1">
                     {catalogueResults.map((id) => {
                       const d = sets[id];
@@ -614,7 +615,10 @@ function Presenter() {
                       return (
                         <button
                           key={id}
-                          onClick={() => { addSetToGathering(activeGathering.id, id); setQuery(""); }}
+                          onClick={() => {
+                            addSetToGathering(activeGathering.id, id);
+                            setQuery("");
+                          }}
                           className={`group flex w-full items-center justify-between gap-2 rounded-lg border-2 border-transparent px-2 py-1.5 text-left text-sm transition ${kindHoverBg(d.kind)}`}
                           title="Add to gathering"
                         >
@@ -665,8 +669,12 @@ function Presenter() {
                   {filteredSets.length === 0 && (
                     <p className="px-2 text-xs text-muted-foreground">
                       {activeGathering
-                        ? q ? "No sets in this gathering match." : "Gathering is empty. Search above to add a set."
-                        : q ? "No matches." : "No sets yet."}
+                        ? q
+                          ? "No sets in this gathering match."
+                          : "Gathering is empty. Search above to add a set."
+                        : q
+                          ? "No matches."
+                          : "No sets yet."}
                     </p>
                   )}
                   {(reorderLiveOrder ?? filteredSets).map((id, i) => {
@@ -710,53 +718,55 @@ function Presenter() {
                           reorderDragIndex.current = null;
                         }}
                         onClick={() => {
-                            setActiveSetId(id);
-                            if (activeGathering) {
-                              const el = document.getElementById(`set-section-${id}`);
-                              el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                            }
-                          }}
-                          className={`flex w-full items-center justify-between gap-2 rounded-lg border-2 px-2 py-1.5 text-left text-sm transition ${
-                            isDragging ? "opacity-50" : ""
-                          } ${
-                            isLive
-                              ? ""
-                              : isActive
+                          setActiveSetId(id);
+                          if (activeGathering) {
+                            const el = document.getElementById(`set-section-${id}`);
+                            el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }
+                        }}
+                        className={`flex w-full items-center justify-between gap-2 rounded-lg border-2 px-2 py-1.5 text-left text-sm transition ${
+                          isDragging ? "opacity-50" : ""
+                        } ${
+                          isLive
+                            ? ""
+                            : isActive
                               ? `border-transparent ${kindActiveBg(d.kind)}`
                               : `border-transparent ${kindHoverBg(d.kind)}`
-                          }`}
-                          style={isLive ? { borderColor: kindLiveColor(d.kind) } : undefined}
-                        >
-                          <span className="flex items-center gap-1 truncate">
-                            {inGathering && (
-                              <span className="mono mr-1 text-[10px] text-muted-foreground">{i + 1}.</span>
-                            )}
-                            {d.name}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <KindBadge kind={d.kind} abbrev />
-                            {inGathering && activeGathering && (
-                              <span
-                                role="button"
-                                tabIndex={0}
-                                onClick={(e) => {
+                        }`}
+                        style={isLive ? { borderColor: kindLiveColor(d.kind) } : undefined}
+                      >
+                        <span className="flex items-center gap-1 truncate">
+                          {inGathering && (
+                            <span className="mono mr-1 text-[10px] text-muted-foreground">
+                              {i + 1}.
+                            </span>
+                          )}
+                          {d.name}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <KindBadge kind={d.kind} abbrev />
+                          {inGathering && activeGathering && (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeSetFromGathering(activeGathering.id, i);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
                                   e.stopPropagation();
                                   removeSetFromGathering(activeGathering.id, i);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.stopPropagation();
-                                    removeSetFromGathering(activeGathering.id, i);
-                                  }
-                                }}
-                                className="rounded-full p-0.5 text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground hover:opacity-100"
-                                title="Remove from gathering"
-                              >
-                                <X className="h-3 w-3" />
-                              </span>
-                            )}
-                          </span>
-                        </button>
+                                }
+                              }}
+                              className="rounded-full p-0.5 text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground hover:opacity-100"
+                              title="Remove from gathering"
+                            >
+                              <X className="h-3 w-3" />
+                            </span>
+                          )}
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
@@ -837,46 +847,50 @@ function Presenter() {
                       </h3>
                       <KindBadge kind={d.kind} />
                       <div className="flex items-center gap-1.5">
-                      <Link
-                        to="/set/$setId"
-                        params={{ setId: d.id }}
-                        search={{ redirectTo: presenterReturn(d.id) }}
-                        className="pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                        title="Edit set"
-                        aria-label="Edit set"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Link>
-                      {canHide && (
-                        <button
-                          onClick={() => setManageSet((prev) => (prev === id ? null : id))}
-                          className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition ${
-                            managing
-                              ? "bg-foreground text-background"
-                              : "hover:bg-foreground hover:text-background"
-                          }`}
-                          title={
-                            managing
-                              ? "Done hiding sections"
-                              : hasHidden
-                              ? `Sections hidden (${activeHiddenCount}): click to manage`
-                              : "Hide sections"
-                          }
-                          aria-label={managing ? "Done hiding sections" : "Hide sections"}
-                          aria-pressed={managing}
+                        <Link
+                          to="/set/$setId"
+                          params={{ setId: d.id }}
+                          search={{ redirectTo: presenterReturn(d.id) }}
+                          className="pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                          title="Edit set"
+                          aria-label="Edit set"
                         >
-                          {managing ? (
-                            <Check className="h-3.5 w-3.5" />
-                          ) : hasHidden ? (
-                            <EyeOff className="h-3.5 w-3.5" />
-                          ) : (
-                            <Eye className="h-3.5 w-3.5" />
-                          )}
-                        </button>
-                      )}
+                          <Pencil className="h-3 w-3" />
+                        </Link>
+                        {canHide && (
+                          <button
+                            onClick={() => setManageSet((prev) => (prev === id ? null : id))}
+                            className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition ${
+                              managing
+                                ? "bg-foreground text-background"
+                                : "hover:bg-foreground hover:text-background"
+                            }`}
+                            title={
+                              managing
+                                ? "Done hiding sections"
+                                : hasHidden
+                                  ? `Sections hidden (${activeHiddenCount}): click to manage`
+                                  : "Hide sections"
+                            }
+                            aria-label={managing ? "Done hiding sections" : "Hide sections"}
+                            aria-pressed={managing}
+                          >
+                            {managing ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : hasHidden ? (
+                              <EyeOff className="h-3.5 w-3.5" />
+                            ) : (
+                              <Eye className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        )}
                       </div>
                       {id === live.setId && (
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: kindLiveColor(d.kind) }} title="Live" />
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: kindLiveColor(d.kind) }}
+                          title="Live"
+                        />
                       )}
                     </div>
                     {d.slides.length === 0 ? (
@@ -909,9 +923,11 @@ function Presenter() {
                 durationMs={fadeMs}
                 videoCmd={live.videoCmd}
                 template={
-                  liveSet?.kind === "song" ? effectiveSongTemplate
-                  : liveSet?.kind === "scripture" ? effectiveScriptureTemplate
-                  : liveSet?.template
+                  liveSet?.kind === "song"
+                    ? effectiveSongTemplate
+                    : liveSet?.kind === "scripture"
+                      ? effectiveScriptureTemplate
+                      : liveSet?.template
                 }
               />
               <div
@@ -960,7 +976,11 @@ function Presenter() {
                       title={isVideoPlaying(live) ? "Stop video" : "Play video"}
                       aria-label={isVideoPlaying(live) ? "Stop video" : "Play video"}
                     >
-                      {isVideoPlaying(live) ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                      {isVideoPlaying(live) ? (
+                        <Pause className="h-4 w-4" />
+                      ) : (
+                        <Play className="h-4 w-4" />
+                      )}
                     </button>
                     <button
                       onClick={() => live.restartVideo()}
@@ -984,8 +1004,8 @@ function Presenter() {
             </div>
           </div>
 
-          {activeSet?.kind === "media" && (
-            mediaFunctionsOpen ? (
+          {activeSet?.kind === "media" &&
+            (mediaFunctionsOpen ? (
               <div className="rounded-2xl border border-foreground p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <div className="mono text-[10px] uppercase tracking-wider">Media Functions</div>
@@ -1011,8 +1031,7 @@ function Presenter() {
               >
                 Edit Media Functions
               </button>
-            )
-          )}
+            ))}
 
           {activeSet?.kind === "song" && <SongTemplateEditor />}
           {activeSet?.kind === "scripture" && <ScriptureTemplateEditor />}
@@ -1023,14 +1042,17 @@ function Presenter() {
               className="mono uppercase flex w-full items-center justify-between px-4 py-1.5 text-xs tracking-wider"
             >
               <span>Shortcuts</span>
-              {shortcutsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {shortcutsOpen ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
             </button>
             {shortcutsOpen && (
               <div className="mono uppercase space-y-1 border-t border-foreground/20 px-4 py-3 text-xs text-muted-foreground">
                 <div>→ / Space — next slide</div>
                 <div>← — previous slide</div>
                 <div>Esc — stop (fade to black)</div>
-                
               </div>
             )}
           </div>
@@ -1040,125 +1062,38 @@ function Presenter() {
       <MediaAutoAdvance />
 
       {/* Cursor-following warning when hiding the last visible section. */}
-      {hideWarning && (() => {
-        const W = 220, GAP = 16;
-        const vw = window.innerWidth, vh = window.innerHeight;
-        const left = hideWarning.x + W + GAP > vw ? Math.max(8, hideWarning.x - W - GAP) : hideWarning.x + GAP;
-        const top = hideWarning.y + 60 + GAP > vh ? Math.max(8, hideWarning.y - 60 - GAP) : hideWarning.y + GAP;
-        return (
-          <div
-            className="mono pointer-events-none fixed z-50 rounded-2xl border border-foreground bg-background p-3 text-[11px] leading-relaxed shadow-lg"
-            style={{ left, top, width: W }}
-          >
-            You must have at least 1 section visible.
-          </div>
-        );
-      })()}
+      {hideWarning &&
+        (() => {
+          const W = 220,
+            GAP = 16;
+          const vw = window.innerWidth,
+            vh = window.innerHeight;
+          const left =
+            hideWarning.x + W + GAP > vw
+              ? Math.max(8, hideWarning.x - W - GAP)
+              : hideWarning.x + GAP;
+          const top =
+            hideWarning.y + 60 + GAP > vh
+              ? Math.max(8, hideWarning.y - 60 - GAP)
+              : hideWarning.y + GAP;
+          return (
+            <div
+              className="mono pointer-events-none fixed z-50 rounded-2xl border border-foreground bg-background p-3 text-[11px] leading-relaxed shadow-lg"
+              style={{ left, top, width: W }}
+            >
+              You must have at least 1 section visible.
+            </div>
+          );
+        })()}
 
       {/* Share dialog */}
-      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-          <DialogTitle className="text-2xl font-normal leading-tight">Share this gathering!</DialogTitle>
-
-          <div className="mt-6 flex items-center gap-2">
-            <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
-              <span className="flex-1 truncate px-4 font-mono uppercase text-sm text-muted-foreground">{shareUrl}</span>
-              <button
-                type="button"
-                onClick={() => { navigator.clipboard.writeText(shareUrl); setCopiedShare(true); setTimeout(() => setCopiedShare(false), 2000); }}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
-                aria-label="Copy URL"
-              >
-                <span className="transition-all duration-300">
-                  {copiedShare ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </span>
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowShareQr((v) => !v)}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
-              aria-label="QR Code"
-            >
-              <QrCode className="h-4 w-4" />
-            </button>
-          </div>
-
-          {showShareQr && (
-            <div className="mt-4 flex flex-col items-center gap-3">
-              <div
-                className="rounded-xl p-4"
-                style={qrTransparent ? {
-                  backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
-                  backgroundSize: '10px 10px',
-                  backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px',
-                } : { backgroundColor: qrBg }}
-              >
-                <QRCodeCanvas ref={shareQrRef} value={shareUrl} size={180} fgColor={qrFg} bgColor={qrTransparent ? 'transparent' : qrBg} />
-              </div>
-              <div className="flex flex-col gap-2 self-stretch">
-                <div className="flex items-center gap-3">
-                  <span className="w-28 font-mono text-xs uppercase text-foreground">Dots</span>
-                  <div className="flex gap-1.5">
-                    {QR_FG_PRESETS.map(c => (
-                      <button key={c} type="button" onClick={() => setQrFg(c)}
-                        className="h-7 w-7 rounded-full border-2 transition"
-                        style={{ backgroundColor: c, borderColor: qrFg === c ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
-                      />
-                    ))}
-                    <button type="button" onClick={() => qrFgCustomRef.current?.click()}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
-                      style={{
-                        borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
-                        backgroundColor: QR_FG_PRESETS.includes(qrFg) ? 'transparent' : qrFg,
-                        color: 'var(--foreground)',
-                      }}
-                    >
-                      {QR_FG_PRESETS.includes(qrFg) && <span className="text-sm leading-none">+</span>}
-                    </button>
-                    <input ref={qrFgCustomRef} type="color" value={qrFg} onChange={e => setQrFg(e.target.value)} className="sr-only" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="w-28 font-mono text-xs uppercase text-foreground">Background</span>
-                  <div className="flex gap-1.5">
-                    <button type="button" onClick={() => setQrBackground('#000000')}
-                      className="h-7 w-7 rounded-full border-2 transition"
-                      style={{ backgroundColor: '#000000', borderColor: !qrTransparent && qrBg === '#000000' ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
-                    />
-                    <button type="button" onClick={() => setQrBackground('#ffffff')}
-                      className="h-7 w-7 rounded-full border-2 transition"
-                      style={{ backgroundColor: '#ffffff', borderColor: !qrTransparent && qrBg === '#ffffff' ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)' }}
-                    />
-                    <button type="button" onClick={() => setQrBackground(null)}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition overflow-hidden"
-                      style={{ borderColor: qrTransparent ? 'var(--foreground)' : 'color-mix(in srgb, var(--foreground) 20%, transparent)', padding: 0 }}
-                    >
-                      <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: 'block' }}>
-                        <path d="M12 2 A10 10 0 0 1 12 22 Z" fill="#212121"/>
-                        <path d="M12 22 A10 10 0 0 1 12 2 Z" fill="#F5EFEF"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => downloadQr(shareQrRef, `${activeGathering?.name ?? 'gathering'}-qr.png`)}
-                className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-              >
-                Download
-              </button>
-            </div>
-          )}
-
-          {!activeGathering?.is_live && (
-            <p className="mt-6 text-sm text-muted-foreground">
-              Once live, this gathering will be accessible via this link.
-            </p>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ShareGatheringDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        shareUrl={shareUrl}
+        gatheringName={activeGathering?.name ?? "gathering"}
+        isLive={activeGathering?.is_live ?? null}
+      />
     </div>
   );
 }
@@ -1215,7 +1150,7 @@ function MediaPlaybackControls({ setId }: { setId: string }) {
               // on flips every video slide to autoplay. Tell the operator.
               if (ms > 0 && phytoSet.slides.some((s) => s.kind === "video" && !s.autoplay)) {
                 patch.slides = phytoSet.slides.map((s) =>
-                  s.kind === "video" ? { ...s, autoplay: true } : s
+                  s.kind === "video" ? { ...s, autoplay: true } : s,
                 );
                 setAutoplayNotice(true);
               }
@@ -1236,12 +1171,13 @@ function MediaPlaybackControls({ setId }: { setId: string }) {
       </div>
       <Dialog open={autoplayNotice} onOpenChange={setAutoplayNotice}>
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-          <DialogTitle className="text-2xl font-normal leading-tight">Videos set to autoplay</DialogTitle>
+          <DialogTitle className="text-2xl font-normal leading-tight">
+            Videos set to autoplay
+          </DialogTitle>
 
           <p className="mt-4 text-base">
-            Auto advance needs videos to start on their own, so every video slide
-            in this set is now set to autoplay. They'll play, then the set advances
-            after the delay you set.
+            Auto advance needs videos to start on their own, so every video slide in this set is now
+            set to autoplay. They'll play, then the set advances after the delay you set.
           </p>
 
           <div className="mt-8">
@@ -1320,16 +1256,30 @@ function hiddenSlideIds(phytoSet: PhytoSet, hiddenKeys: string[]): Set<string> {
   return ids;
 }
 
-function PresenterThumb({ slide, index, phytoSet, live, disabled = false }: { slide: Slide; index: number; phytoSet: PhytoSet; live: LiveApi; disabled?: boolean }) {
+function PresenterThumb({
+  slide,
+  index,
+  phytoSet,
+  live,
+  disabled = false,
+}: {
+  slide: Slide;
+  index: number;
+  phytoSet: PhytoSet;
+  live: LiveApi;
+  disabled?: boolean;
+}) {
   const isLive = live.setId === phytoSet.id && live.slideId === slide.id;
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
   const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
   const scriptureDraft = useScriptureTemplateDraft((s) => s.draft);
   const template =
-    phytoSet.kind === "song" ? (songDraft ?? songTemplate)
-    : phytoSet.kind === "scripture" ? (scriptureDraft ?? scriptureTemplate)
-    : phytoSet.template;
+    phytoSet.kind === "song"
+      ? (songDraft ?? songTemplate)
+      : phytoSet.kind === "scripture"
+        ? (scriptureDraft ?? scriptureTemplate)
+        : phytoSet.template;
   return (
     <button
       onClick={() => live.go(phytoSet.id, slide.id)}
@@ -1342,7 +1292,10 @@ function PresenterThumb({ slide, index, phytoSet, live, disabled = false }: { sl
       <SlideView slide={slide} variant="thumb" template={template} />
       <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
         {isLive && (
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: kindLiveColor(phytoSet.kind) }} />
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: kindLiveColor(phytoSet.kind) }}
+          />
         )}
         {index + 1}
       </div>
@@ -1403,9 +1356,13 @@ function SlideGridForPresenter({
   const hidden = new Set(hiddenKeys);
 
   // How many slides fit in one row given the measured container width
-  const slidesPerRow = containerWidth > 0
-    ? Math.max(1, Math.floor((containerWidth - SECTION_PAD * 2 + SLIDE_GAP) / (slideW + SLIDE_GAP)))
-    : 999;
+  const slidesPerRow =
+    containerWidth > 0
+      ? Math.max(
+          1,
+          Math.floor((containerWidth - SECTION_PAD * 2 + SLIDE_GAP) / (slideW + SLIDE_GAP)),
+        )
+      : 999;
 
   return (
     <div ref={containerRef} className="flex flex-wrap gap-2">
@@ -1430,19 +1387,25 @@ function SlideGridForPresenter({
               <button
                 onClick={(e) => onToggleSection?.(g.key, e.clientX, e.clientY)}
                 className="pill absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center border border-foreground bg-background transition hover:bg-foreground hover:text-background"
-                title={isHidden ? `Show ${g.section ?? "section"}` : `Hide ${g.section ?? "section"}`}
+                title={
+                  isHidden ? `Show ${g.section ?? "section"}` : `Hide ${g.section ?? "section"}`
+                }
                 aria-label={isHidden ? "Show section" : "Hide section"}
                 aria-pressed={isHidden}
               >
                 {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               </button>
             )}
-            <div
-              className={`flex flex-wrap gap-2 transition ${isHidden ? "opacity-40" : ""}`}
-            >
+            <div className={`flex flex-wrap gap-2 transition ${isHidden ? "opacity-40" : ""}`}>
               {g.items.map(({ slide, index }) => (
                 <div key={slide.id} style={{ width: slideW }}>
-                  <PresenterThumb slide={slide} index={index} phytoSet={phytoSet} live={live} disabled={manageMode} />
+                  <PresenterThumb
+                    slide={slide}
+                    index={index}
+                    phytoSet={phytoSet}
+                    live={live}
+                    disabled={manageMode}
+                  />
                 </div>
               ))}
             </div>
@@ -1452,5 +1415,3 @@ function SlideGridForPresenter({
     </div>
   );
 }
-
-

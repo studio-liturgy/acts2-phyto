@@ -1,17 +1,19 @@
-import { supabase } from './supabase';
-import { useAuthStore } from './authStore';
-import { db } from './db';
-import type { Set as PhytoSet, Gathering } from './types';
-import { useSyncStatusStore } from '../hooks/use-sync-status';
-import { nanoid } from 'nanoid';
+import { supabase } from "./supabase";
+import { useAuthStore } from "./authStore";
+import { db } from "./db";
+import type { Set as PhytoSet, Gathering } from "./types";
+import { useSyncStatusStore } from "../hooks/use-sync-status";
+import { nanoid } from "nanoid";
 
 // Deterministic UUID v5-like from two strings using SubtleCrypto.
 // Used to generate stable UUIDs for gathering_sets rows from (gathering_id, position).
 async function deterministicUuid(a: string, b: string): Promise<string> {
   const enc = new TextEncoder();
-  const buf = await crypto.subtle.digest('SHA-256', enc.encode(`${a}:${b}`));
-  const hex = Array.from(new Uint8Array(buf)).map((x) => x.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0,8)}-${hex.slice(8,12)}-4${hex.slice(13,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
+  const buf = await crypto.subtle.digest("SHA-256", enc.encode(`${a}:${b}`));
+  const hex = Array.from(new Uint8Array(buf))
+    .map((x) => x.toString(16).padStart(2, "0"))
+    .join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -24,7 +26,7 @@ function getSession() {
 
 /** Returns a stable device ID, generated once and persisted in localStorage. */
 function getDeviceId(): string {
-  const key = 'phyto-device-id';
+  const key = "phyto-device-id";
   let id = localStorage.getItem(key);
   if (!id) {
     id = crypto.randomUUID();
@@ -54,7 +56,6 @@ function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
 }
 
 function toSupabaseGathering(p: Gathering, userId: string, deviceId: string) {
-  console.log('[toSupabaseGathering] pushing gathering', p.id, '| updatedAt:', new Date(p.updatedAt).toISOString());
   // NOTE: `is_live` is intentionally omitted. It is server-authoritative and
   // managed exclusively by goLive/endSession. Including it here would let an
   // unrelated content push clobber the server's true live flag with stale
@@ -78,9 +79,9 @@ function fromSupabaseSet(row: Record<string, unknown>): PhytoSet {
   return {
     id: row.id as string,
     name: row.title as string,
-    kind: row.type as PhytoSet['kind'],
-    slides: (content.slides as PhytoSet['slides']) ?? [],
-    template: content.template as PhytoSet['template'],
+    kind: row.type as PhytoSet["kind"],
+    slides: (content.slides as PhytoSet["slides"]) ?? [],
+    template: content.template as PhytoSet["template"],
     autoAdvanceMs: content.autoAdvanceMs as number | undefined,
     loop: content.loop as boolean | undefined,
     dissolveMs: content.dissolveMs as number | undefined,
@@ -89,10 +90,7 @@ function fromSupabaseSet(row: Record<string, unknown>): PhytoSet {
   };
 }
 
-function fromSupabaseGathering(
-  row: Record<string, unknown>,
-  setIds: string[],
-): Gathering {
+function fromSupabaseGathering(row: Record<string, unknown>, setIds: string[]): Gathering {
   return {
     id: row.id as string,
     name: row.title as string,
@@ -119,13 +117,14 @@ function fromSupabaseGathering(
 
 async function fetchRemote(userId: string) {
   const [setsRes, gatheringsRes, gatheringSetsRes] = await Promise.all([
-    supabase.from('sets').select('*').eq('user_id', userId),
-    supabase.from('gatherings').select('*').eq('user_id', userId),
-    supabase.from('gathering_sets').select('*'),
+    supabase.from("sets").select("*").eq("user_id", userId),
+    supabase.from("gatherings").select("*").eq("user_id", userId),
+    supabase.from("gathering_sets").select("*"),
   ]);
 
-  if (setsRes.error) console.error('[sync] fetchRemote: sets error', setsRes.error);
-  if (gatheringsRes.error) console.error('[sync] fetchRemote: gatherings error', gatheringsRes.error);
+  if (setsRes.error) console.error("[sync] fetchRemote: sets error", setsRes.error);
+  if (gatheringsRes.error)
+    console.error("[sync] fetchRemote: gatherings error", gatheringsRes.error);
 
   const gsRows = (gatheringSetsRes.data ?? []) as {
     gathering_id: string;
@@ -144,7 +143,7 @@ async function fetchRemote(userId: string) {
     fromSupabaseGathering(
       r as Record<string, unknown>,
       (setIdsByGathering.get((r as Record<string, unknown>).id as string) ?? []).filter(Boolean),
-    )
+    ),
   );
 
   return { sets, gatherings };
@@ -211,13 +210,15 @@ function gatheringContentKey(p: Gathering): string {
 // keys, so a plain JSON.stringify of a round-tripped slide would differ) and
 // undefined-key-insensitive (JSONB drops undefined keys on the way in).
 function stableStringify(v: unknown): string {
-  if (Array.isArray(v)) return `[${v.map(stableStringify).join(',')}]`;
-  if (v && typeof v === 'object') {
+  if (Array.isArray(v)) return `[${v.map(stableStringify).join(",")}]`;
+  if (v && typeof v === "object") {
     const o = v as Record<string, unknown>;
-    const keys = Object.keys(o).filter((k) => o[k] !== undefined).sort();
-    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(o[k])}`).join(',')}}`;
+    const keys = Object.keys(o)
+      .filter((k) => o[k] !== undefined)
+      .sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(o[k])}`).join(",")}}`;
   }
-  return JSON.stringify(v) ?? 'null';
+  return JSON.stringify(v) ?? "null";
 }
 
 /** Everything that round-trips through the Supabase `sets` row (title + content
@@ -366,7 +367,11 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
   // 2. Content-key reconciliation: pair id-disjoint items that are the same
   //    logical content, so Merge converges on the remote id instead of dup-ing.
   const setRec = reconcileByContentKey(reconcileLocalSets, idOnlyRemoteSets, setContentKey);
-  const gatheringRec = reconcileByContentKey(reconcileLocalGatherings, idOnlyRemoteGatherings, gatheringContentKey);
+  const gatheringRec = reconcileByContentKey(
+    reconcileLocalGatherings,
+    idOnlyRemoteGatherings,
+    gatheringContentKey,
+  );
 
   // 3. Id-matched timestamp mismatches, partitioned by deep content equality:
   //    identical content → `touched` (timestamp-only drift, e.g. the server
@@ -386,7 +391,9 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
   const modifiedSets: { local: PhytoSet; remote: PhytoSet }[] = [];
   const touchedSets: { local: PhytoSet; remote: PhytoSet }[] = [];
   for (const pair of tsChanged(remoteSets, localSetMap)) {
-    (setFingerprint(pair.local) === setFingerprint(pair.remote) ? touchedSets : modifiedSets).push(pair);
+    (setFingerprint(pair.local) === setFingerprint(pair.remote) ? touchedSets : modifiedSets).push(
+      pair,
+    );
   }
 
   const modifiedGatherings: { local: Gathering; remote: Gathering }[] = [];
@@ -414,9 +421,9 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
 
 export async function applyMerge(
   diff: SyncDiff,
-  opts: { localPolicy?: 'push' | 'drop' } = {},
+  opts: { localPolicy?: "push" | "drop" } = {},
 ): Promise<void> {
-  const { localPolicy = 'push' } = opts;
+  const { localPolicy = "push" } = opts;
   const session = getSession();
   const userId = session?.user.id;
   const deviceId = getDeviceId();
@@ -486,8 +493,10 @@ export async function applyMerge(
       await db.gatherings.bulkPut(remoteGatheringsToWrite);
     } catch {
       for (const p of remoteGatheringsToWrite) {
-        try { await db.gatherings.put(p); } catch (e) {
-          console.error('[applyMerge] Dexie put failed for gathering:', p.id, e);
+        try {
+          await db.gatherings.put(p);
+        } catch (e) {
+          console.error("[applyMerge] Dexie put failed for gathering:", p.id, e);
         }
       }
     }
@@ -497,7 +506,7 @@ export async function applyMerge(
   //    "Replace" takes the account wholesale — local-only sets/gatherings are
   //    discarded, not uploaded. Kept gatherings are remote-authoritative and
   //    never reference an only-local set, so deleting them is referentially safe. ──
-  if (localPolicy === 'drop') {
+  if (localPolicy === "drop") {
     if (diff.onlyLocal.sets.length) {
       await db.sets.bulkDelete(diff.onlyLocal.sets.map((s) => s.id));
     }
@@ -507,23 +516,28 @@ export async function applyMerge(
   }
 
   // ── Step 4: push truly only-local items to Supabase, KEEPING their ids. ──
-  if (localPolicy === 'push' && session && userId) {
+  if (localPolicy === "push" && session && userId) {
     if (diff.onlyLocal.sets.length) {
-      const { error } = await supabase
-        .from('sets')
-        .upsert(diff.onlyLocal.sets.map((s) => toSupabaseSet(s, userId, deviceId)), { onConflict: 'id' });
+      const { error } = await supabase.from("sets").upsert(
+        diff.onlyLocal.sets.map((s) => toSupabaseSet(s, userId, deviceId)),
+        { onConflict: "id" },
+      );
       if (error) {
         // Fallback: a set id is owned by another user (imported someone else's
         // .phyto). Re-ID just these and retry; Step 5 fixes gathering refs.
-        console.error('[applyMerge] sets upsert error — re-IDing and retrying:', error);
-        const reIded = diff.onlyLocal.sets.map((s) => ({ ...s, id: crypto.randomUUID() as string }));
+        console.error("[applyMerge] sets upsert error — re-IDing and retrying:", error);
+        const reIded = diff.onlyLocal.sets.map((s) => ({
+          ...s,
+          id: crypto.randomUUID() as string,
+        }));
         diff.onlyLocal.sets.forEach((s, i) => setIdMap.set(s.id, reIded[i].id));
         await db.sets.bulkDelete(diff.onlyLocal.sets.map((s) => s.id));
         await db.sets.bulkPut(reIded);
-        const { error: retryErr } = await supabase
-          .from('sets')
-          .upsert(reIded.map((s) => toSupabaseSet(s, userId, deviceId)), { onConflict: 'id' });
-        if (retryErr) console.error('[applyMerge] sets re-ID retry error:', retryErr);
+        const { error: retryErr } = await supabase.from("sets").upsert(
+          reIded.map((s) => toSupabaseSet(s, userId, deviceId)),
+          { onConflict: "id" },
+        );
+        if (retryErr) console.error("[applyMerge] sets re-ID retry error:", retryErr);
       }
     }
 
@@ -531,15 +545,19 @@ export async function applyMerge(
       // Keep id AND share_token (no remote twin exists to collide with), only
       // remap setIds through rekeyed/stranded set ids. Persist the remap locally
       // so Dexie and Supabase agree.
-      const remapped = diff.onlyLocal.gatherings.map((p) => ({ ...p, setIds: remapSetIds(p.setIds) }));
+      const remapped = diff.onlyLocal.gatherings.map((p) => ({
+        ...p,
+        setIds: remapSetIds(p.setIds),
+      }));
       if (setIdMap.size) await db.gatherings.bulkPut(remapped);
 
       // Track which gatherings actually landed so we only write join rows for them
       // (a failed parent insert would make its gathering_sets fail RLS — the 42501).
       const pushed: typeof remapped = [];
-      const { error } = await supabase
-        .from('gatherings')
-        .upsert(remapped.map((p) => toSupabaseGathering(p, userId, deviceId)), { onConflict: 'id' });
+      const { error } = await supabase.from("gatherings").upsert(
+        remapped.map((p) => toSupabaseGathering(p, userId, deviceId)),
+        { onConflict: "id" },
+      );
       if (!error) {
         pushed.push(...remapped);
       } else {
@@ -547,18 +565,21 @@ export async function applyMerge(
         // owns the token — a stranded duplicate that slipped past the diff (e.g.
         // created remotely between fetch and push). Retry per-row: drop the
         // colliding local copy, keep pushing the rest.
-        console.error('[applyMerge] gatherings upsert error — retrying per-row:', error);
+        console.error("[applyMerge] gatherings upsert error — retrying per-row:", error);
         for (const p of remapped) {
           const { error: rowErr } = await supabase
-            .from('gatherings')
-            .upsert([toSupabaseGathering(p, userId, deviceId)], { onConflict: 'id' });
+            .from("gatherings")
+            .upsert([toSupabaseGathering(p, userId, deviceId)], { onConflict: "id" });
           if (!rowErr) {
             pushed.push(p);
-          } else if (rowErr.code === '23505') {
-            console.warn('[applyMerge] dropping stranded duplicate gathering (token collision):', p.id);
+          } else if (rowErr.code === "23505") {
+            console.warn(
+              "[applyMerge] dropping stranded duplicate gathering (token collision):",
+              p.id,
+            );
             await db.gatherings.delete(p.id);
           } else {
-            console.error('[applyMerge] gathering upsert error:', p.id, rowErr);
+            console.error("[applyMerge] gathering upsert error:", p.id, rowErr);
           }
         }
       }
@@ -570,14 +591,14 @@ export async function applyMerge(
             gathering_id: p.id,
             set_id: setId,
             position: i,
-          }))
-        )
+          })),
+        ),
       );
       if (gatheringSetRows.length) {
         const { error: gsErr } = await supabase
-          .from('gathering_sets')
-          .upsert(gatheringSetRows, { onConflict: 'id' });
-        if (gsErr) console.error('[applyMerge] gathering_sets upsert error:', gsErr);
+          .from("gathering_sets")
+          .upsert(gatheringSetRows, { onConflict: "id" });
+        if (gsErr) console.error("[applyMerge] gathering_sets upsert error:", gsErr);
       }
     }
   }
@@ -608,8 +629,7 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
   const { setStatus } = useSyncStatusStore.getState();
   const deviceId = getDeviceId();
 
-  console.log('[sync] pushToSupabase: starting push for user', userId, 'device', deviceId);
-  setStatus('syncing');
+  setStatus("syncing");
   try {
     // Incremental: read ONLY the dirty rows (filtering out any deleted between
     // mark and push). Full: read everything. bulkGet returns undefined for
@@ -617,23 +637,29 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
     const [sets, gatherings] = target
       ? await Promise.all([
           db.sets.bulkGet(target.setIds).then((rows) => rows.filter((r): r is PhytoSet => !!r)),
-          db.gatherings.bulkGet(target.gatheringIds).then((rows) => rows.filter((r): r is Gathering => !!r)),
+          db.gatherings
+            .bulkGet(target.gatheringIds)
+            .then((rows) => rows.filter((r): r is Gathering => !!r)),
         ])
       : await Promise.all([db.sets.toArray(), db.gatherings.toArray()]);
 
-    console.log('[sync] pushToSupabase: pushing', sets.length, 'sets,', gatherings.length, 'gatherings');
-
     if (sets.length) {
       const { data: savedSets, error } = await supabase
-        .from('sets')
-        .upsert(sets.map((s) => toSupabaseSet(s, userId, deviceId)), { onConflict: 'id' })
+        .from("sets")
+        .upsert(
+          sets.map((s) => toSupabaseSet(s, userId, deviceId)),
+          { onConflict: "id" },
+        )
         .select();
-      if (error) console.error('[sync] pushToSupabase: sets upsert error', error);
+      if (error) console.error("[sync] pushToSupabase: sets upsert error", error);
       if (savedSets?.length) {
         for (const row of savedSets as Record<string, unknown>[]) {
-          await db.sets.where('id').equals(row.id as string).modify({
-            updatedAt: new Date(row.updated_at as string).getTime(),
-          });
+          await db.sets
+            .where("id")
+            .equals(row.id as string)
+            .modify({
+              updatedAt: new Date(row.updated_at as string).getTime(),
+            });
         }
       }
     }
@@ -645,8 +671,11 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
       const savedGatherings: Record<string, unknown>[] = [];
 
       const { data, error: gErr } = await supabase
-        .from('gatherings')
-        .upsert(gatherings.map((p) => toSupabaseGathering(p, userId, deviceId)), { onConflict: 'id' })
+        .from("gatherings")
+        .upsert(
+          gatherings.map((p) => toSupabaseGathering(p, userId, deviceId)),
+          { onConflict: "id" },
+        )
         .select();
       if (!gErr) {
         savedGatherings.push(...((data ?? []) as Record<string, unknown>[]));
@@ -655,21 +684,24 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
         // gathering already owns that token under a different id — this local copy
         // is a stranded duplicate. Retry per-row: drop the colliding local copy,
         // keep pushing the rest. Mirrors the applyMerge guard.
-        console.error('[sync] pushToSupabase: gatherings upsert error — retrying per-row', gErr);
+        console.error("[sync] pushToSupabase: gatherings upsert error — retrying per-row", gErr);
         const survivors: typeof gatherings = [];
         for (const p of gatherings) {
           const { data: rowData, error: rowErr } = await supabase
-            .from('gatherings')
-            .upsert([toSupabaseGathering(p, userId, deviceId)], { onConflict: 'id' })
+            .from("gatherings")
+            .upsert([toSupabaseGathering(p, userId, deviceId)], { onConflict: "id" })
             .select();
           if (!rowErr) {
             survivors.push(p);
             if (rowData?.length) savedGatherings.push(...(rowData as Record<string, unknown>[]));
-          } else if (rowErr.code === '23505') {
-            console.warn('[sync] pushToSupabase: dropping stranded duplicate gathering (token collision):', p.id);
+          } else if (rowErr.code === "23505") {
+            console.warn(
+              "[sync] pushToSupabase: dropping stranded duplicate gathering (token collision):",
+              p.id,
+            );
             await db.gatherings.delete(p.id);
           } else {
-            console.error('[sync] pushToSupabase: gathering upsert error', p.id, rowErr);
+            console.error("[sync] pushToSupabase: gathering upsert error", p.id, rowErr);
           }
         }
         pushedGatherings = survivors;
@@ -681,24 +713,33 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
       // We only update the timestamp field, not setIds (gathering_sets haven't been
       // written yet so reading them back would produce the wrong order).
       for (const row of savedGatherings) {
-        await db.gatherings.where('id').equals(row.id as string).modify({
-          updatedAt: new Date(row.updated_at as string).getTime(),
-        });
+        await db.gatherings
+          .where("id")
+          .equals(row.id as string)
+          .modify({
+            updatedAt: new Date(row.updated_at as string).getTime(),
+          });
       }
 
       if (!pushedGatherings.length) {
-        console.log('[sync] pushToSupabase: done');
-        setStatus('synced');
+        setStatus("synced");
         return true;
       }
 
       const { data: existingGs } = await supabase
-        .from('gathering_sets')
-        .select('set_id, position, gathering_id')
-        .in('gathering_id', pushedGatherings.map((p) => p.id));
+        .from("gathering_sets")
+        .select("set_id, position, gathering_id")
+        .in(
+          "gathering_id",
+          pushedGatherings.map((p) => p.id),
+        );
 
       const existingByGathering = new Map<string, string[]>();
-      for (const row of (existingGs ?? []) as { gathering_id: string; set_id: string; position: number }[]) {
+      for (const row of (existingGs ?? []) as {
+        gathering_id: string;
+        set_id: string;
+        position: number;
+      }[]) {
         const arr = existingByGathering.get(row.gathering_id) ?? [];
         arr[row.position] = row.set_id;
         existingByGathering.set(row.gathering_id, arr);
@@ -708,7 +749,9 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
       // churning the join table (and the public viewer's poll) on every push.
       const gatheringsToSync = pushedGatherings.filter((p) => {
         const existing = existingByGathering.get(p.id) ?? [];
-        return existing.length !== p.setIds.length || p.setIds.some((sid, i) => existing[i] !== sid);
+        return (
+          existing.length !== p.setIds.length || p.setIds.some((sid, i) => existing[i] !== sid)
+        );
       });
 
       // Atomic rewrite per gathering: the row id is deterministic from
@@ -722,33 +765,32 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
             gathering_id: p.id,
             set_id: setId,
             position: i,
-          }))
+          })),
         );
 
         if (rows.length) {
           const { error: upErr } = await supabase
-            .from('gathering_sets')
-            .upsert(rows, { onConflict: 'id' });
-          if (upErr) console.error('[sync] pushToSupabase: gathering_sets upsert error', upErr);
+            .from("gathering_sets")
+            .upsert(rows, { onConflict: "id" });
+          if (upErr) console.error("[sync] pushToSupabase: gathering_sets upsert error", upErr);
         }
 
         const { error: trimErr } = await supabase
-          .from('gathering_sets')
+          .from("gathering_sets")
           .delete()
-          .eq('gathering_id', p.id)
-          .gte('position', p.setIds.length);
-        if (trimErr) console.error('[sync] pushToSupabase: gathering_sets trim error', trimErr);
+          .eq("gathering_id", p.id)
+          .gte("position", p.setIds.length);
+        if (trimErr) console.error("[sync] pushToSupabase: gathering_sets trim error", trimErr);
       }
     }
 
-    console.log('[sync] pushToSupabase: done');
-    setStatus('synced');
+    setStatus("synced");
     // No broadcast needed: the timestamp writebacks above mutate Dexie, which the
     // cross-tab `liveQuery` in store.ts picks up to refresh every tab's store.
     return true;
   } catch (e) {
-    console.error('[sync] pushToSupabase: unexpected error', e);
-    setStatus('synced');
+    console.error("[sync] pushToSupabase: unexpected error", e);
+    setStatus("synced");
     return false;
   }
 }
@@ -760,8 +802,8 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
  * is not idempotent, so a concurrent second pass would duplicate everything).
  */
 export async function withSyncLock<T>(fn: () => Promise<T>): Promise<T> {
-  if (typeof navigator !== 'undefined' && navigator.locks) {
-    return navigator.locks.request('phyto-sync', fn) as Promise<T>;
+  if (typeof navigator !== "undefined" && navigator.locks) {
+    return navigator.locks.request("phyto-sync", fn) as Promise<T>;
   }
   return fn();
 }
@@ -787,7 +829,7 @@ export async function mergeFromSupabase(): Promise<void> {
 export async function replaceWithSupabase(): Promise<void> {
   await withSyncLock(async () => {
     const fresh = await diffWithSupabase();
-    if (fresh && hasDifferences(fresh)) await applyMerge(fresh, { localPolicy: 'drop' });
+    if (fresh && hasDifferences(fresh)) await applyMerge(fresh, { localPolicy: "drop" });
   });
 }
 
@@ -795,7 +837,7 @@ export async function replaceWithSupabase(): Promise<void> {
 // Effects preview (shown in the confirmation dialog before applying)
 // ---------------------------------------------------------------------------
 
-export type SyncAction = 'merge' | 'push' | 'replace';
+export type SyncAction = "merge" | "push" | "replace";
 
 type EffectNames = { sets: string[]; gatherings: string[] };
 export type SyncEffects = {
@@ -815,7 +857,7 @@ const emptySide = () => ({ added: emptyNames(), updated: emptyNames(), removed: 
 export function previewEffects(diff: SyncDiff, action: SyncAction): SyncEffects {
   const effects: SyncEffects = { local: emptySide(), account: emptySide() };
 
-  if (action === 'merge') {
+  if (action === "merge") {
     // Local gains remote-only items and adopts remote versions of conflicts.
     effects.local.added.sets = diff.onlyRemote.sets.map((s) => s.name);
     effects.local.added.gatherings = diff.onlyRemote.gatherings.map((p) => p.name);
@@ -824,7 +866,7 @@ export function previewEffects(diff: SyncDiff, action: SyncAction): SyncEffects 
     // Account gains the local-only items (pushed up).
     effects.account.added.sets = diff.onlyLocal.sets.map((s) => s.name);
     effects.account.added.gatherings = diff.onlyLocal.gatherings.map((p) => p.name);
-  } else if (action === 'push') {
+  } else if (action === "push") {
     // Account becomes an exact mirror of local: gains local-only items, adopts the
     // local version of conflicts, and LOSES items that exist only online.
     effects.account.added.sets = diff.onlyLocal.sets.map((s) => s.name);
@@ -851,7 +893,6 @@ export function previewEffects(diff: SyncDiff, action: SyncAction): SyncEffects 
 export async function pushToSupabase(target?: PushTarget): Promise<boolean> {
   const session = getSession();
   if (!session) {
-    console.log('[sync] pushToSupabase: skipped — no session');
     // Nothing was pushed, but it's not a failure to retry — treat as success so
     // the caller doesn't re-queue dirty ids forever while signed out.
     return true;
@@ -867,12 +908,16 @@ async function deleteRemoteOnly(userId: string, diff: SyncDiff): Promise<void> {
   const gatheringIds = diff.onlyRemote.gatherings.map((p) => p.id);
   const setIds = diff.onlyRemote.sets.map((s) => s.id);
   if (gatheringIds.length) {
-    const { error } = await supabase.from('gatherings').delete().in('id', gatheringIds).eq('user_id', userId);
-    if (error) console.error('[sync] pushMirror: gatherings delete error', error);
+    const { error } = await supabase
+      .from("gatherings")
+      .delete()
+      .in("id", gatheringIds)
+      .eq("user_id", userId);
+    if (error) console.error("[sync] pushMirror: gatherings delete error", error);
   }
   if (setIds.length) {
-    const { error } = await supabase.from('sets').delete().in('id', setIds).eq('user_id', userId);
-    if (error) console.error('[sync] pushMirror: sets delete error', error);
+    const { error } = await supabase.from("sets").delete().in("id", setIds).eq("user_id", userId);
+    if (error) console.error("[sync] pushMirror: sets delete error", error);
   }
 }
 

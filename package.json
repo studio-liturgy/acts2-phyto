@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "build:songs": "node scripts/build-songs.mjs",
-    "deploy:test": "CLOUDFLARE_ENV=test vite build && wrangler deploy",
+    "deploy:test": "CLOUDFLARE_ENV=test vite build && wrangler deploy --env test",
     "deploy:prod": "vite build && wrangler deploy"
   },
   "dependencies": {

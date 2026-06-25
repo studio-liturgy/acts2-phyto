@@ -15,7 +15,7 @@ import {
 import appCss from "../styles.css?url";
 import { APP_NAME } from "@/lib/appConfig";
 
-const isTest = import.meta.env.VITE_APP_ENV === 'test';
+const isTest = import.meta.env.VITE_APP_ENV === "test";
 const domain = isTest ? "https://phytoexp.live" : "https://phyto.live";
 const ogImage = `${domain}/${isTest ? "og-image-or.png" : "og-image.png"}`;
 const favicon32 = isTest ? "/favicon-32-or.png" : "/favicon-32.png";
@@ -39,13 +39,7 @@ import {
   type SyncEffects,
   type SyncDiff,
 } from "@/lib/sync";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { TestSiteWarning } from "@/components/TestSiteWarning";
 import { Button } from "@/components/ui/button";
 
@@ -54,7 +48,9 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <p className="font-mono text-xs uppercase text-muted-foreground">404</p>
-        <h1 className="mt-3 text-xl font-semibold tracking-tight text-foreground">Page not found</h1>
+        <h1 className="mt-3 text-xl font-semibold tracking-tight text-foreground">
+          Page not found
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           The page you're looking for doesn't exist or has been moved.
         </p>
@@ -119,15 +115,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: `${APP_NAME} | home gatherings` },
-      { name: "description", content: "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live." },
+      {
+        name: "description",
+        content:
+          "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live.",
+      },
       { property: "og:title", content: `${APP_NAME} | home gatherings` },
-      { property: "og:description", content: "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live." },
+      {
+        property: "og:description",
+        content:
+          "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: APP_NAME },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@phyto.live" },
       { name: "twitter:title", content: `${APP_NAME} | home gatherings` },
-      { name: "twitter:description", content: "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live." },
+      {
+        name: "twitter:description",
+        content:
+          "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live.",
+      },
       { property: "og:image", content: ogImage },
       { name: "twitter:image", content: ogImage },
     ],
@@ -146,7 +154,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches,
   );
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 767px)");
@@ -233,18 +241,24 @@ function EffectColumn({
   const sortedSets = [...sets].sort(byName);
   return (
     <div className="min-w-0 flex-1">
-      <div className={`mono text-xs uppercase ${destructive ? "text-red-600" : "text-muted-foreground"}`}>
+      <div
+        className={`mono text-xs uppercase ${destructive ? "text-red-600" : "text-muted-foreground"}`}
+      >
         {label}
       </div>
       <ul className="catalogue-scroll mt-1 max-h-40 space-y-0.5 overflow-y-auto pr-2">
         {sortedGatherings.map((name, i) => (
-          <li key={`g-${i}`} className="truncate text-sm">{name || "Untitled gathering"}</li>
+          <li key={`g-${i}`} className="truncate text-sm">
+            {name || "Untitled gathering"}
+          </li>
         ))}
         {sortedGatherings.length > 0 && sortedSets.length > 0 && (
           <li aria-hidden className="mb-1.5 mt-1.5 border-t border-border" />
         )}
         {sortedSets.map((name, i) => (
-          <li key={`s-${i}`} className="truncate text-sm">{name || "Untitled set"}</li>
+          <li key={`s-${i}`} className="truncate text-sm">
+            {name || "Untitled set"}
+          </li>
         ))}
       </ul>
     </div>
@@ -303,7 +317,9 @@ function RootComponent() {
   const isMobile = useIsMobile();
   // Use resolvedLocation (committed) not the pending location so the mobile
   // block stays visible for the full duration of any navigation transition.
-  const resolvedPathname = useRouterState({ select: (s) => (s.resolvedLocation ?? s.location).pathname });
+  const resolvedPathname = useRouterState({
+    select: (s) => (s.resolvedLocation ?? s.location).pathname,
+  });
   const allowedOnMobile = MOBILE_ALLOWED.includes(resolvedPathname);
   const showOutlet = !isMobile || allowedOnMobile;
   const { session, setSession } = useAuthStore();
@@ -350,14 +366,16 @@ function RootComponent() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
-      if (event === 'SIGNED_OUT') {
+      if (event === "SIGNED_OUT") {
         diffRanThisSession = false;
         // No local truth for live status while signed out.
         nullLocalLiveState();
       }
-      if (event === 'SIGNED_IN' && s) {
+      if (event === "SIGNED_IN" && s) {
         // Welcome email is sent from auth.callback.tsx (respects mailing-list opt-in).
         const isFirstLogin = s.user.created_at === s.user.last_sign_in_at;
         refreshLiveState();
@@ -386,14 +404,13 @@ function RootComponent() {
   const handleApply = async () => {
     if (!pendingAction || !syncDiff) return;
     setApplying(true);
-    if (pendingAction === 'merge') await mergeFromSupabase();
-    else if (pendingAction === 'push') await pushMirrorToSupabase(syncDiff);
+    if (pendingAction === "merge") await mergeFromSupabase();
+    else if (pendingAction === "push") await pushMirrorToSupabase(syncDiff);
     else await replaceWithSupabase();
     closeSyncDialog();
   };
 
-  const pendingEffects =
-    syncDiff && pendingAction ? previewEffects(syncDiff, pendingAction) : null;
+  const pendingEffects = syncDiff && pendingAction ? previewEffects(syncDiff, pendingAction) : null;
   const effectsDialogWidth = pendingEffects
     ? (EFFECTS_DIALOG_WIDTH[countEffectColumns(pendingEffects)] ?? "sm:max-w-4xl")
     : "";
@@ -402,11 +419,18 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {showOutlet && <Outlet />}
       {isMobile && !allowedOnMobile && <MobileBlock />}
-      <Dialog open={pathname !== "/output" && syncDiff !== null} onOpenChange={(open) => { if (!open && !applying) closeSyncDialog(); }}>
+      <Dialog
+        open={pathname !== "/output" && syncDiff !== null}
+        onOpenChange={(open) => {
+          if (!open && !applying) closeSyncDialog();
+        }}
+      >
         <DialogContent className={`gap-0 rounded-3xl p-8 ${effectsDialogWidth}`}>
           {syncDiff && !pendingAction && (
             <>
-              <DialogTitle className="text-2xl font-normal leading-tight">Review versions</DialogTitle>
+              <DialogTitle className="text-2xl font-normal leading-tight">
+                Review versions
+              </DialogTitle>
               <DialogDescription className="mt-4 text-base text-foreground">
                 {(() => {
                   const remoteTime = latestRemoteTime(syncDiff);
@@ -418,19 +442,19 @@ function RootComponent() {
               </DialogDescription>
               <div className="mt-8 flex gap-3">
                 <button
-                  onClick={() => setPendingAction('merge')}
+                  onClick={() => setPendingAction("merge")}
                   className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
                 >
                   Merge
                 </button>
                 <button
-                  onClick={() => setPendingAction('push')}
+                  onClick={() => setPendingAction("push")}
                   className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
                 >
                   Push
                 </button>
                 <button
-                  onClick={() => setPendingAction('replace')}
+                  onClick={() => setPendingAction("replace")}
                   className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
                 >
                   Replace

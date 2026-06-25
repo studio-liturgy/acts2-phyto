@@ -11,17 +11,32 @@ function uid() {
   return crypto.randomUUID();
 }
 
+// Shared slide-template defaults. Spread these (`{ ...DEFAULT_* }`) so each caller
+// gets a fresh object and never mutates the shared constant.
+const SLIDE_FONT_STACK = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+const DEFAULT_SONG_TEMPLATE: SetTemplate = {
+  fontScale: 1,
+  fontFamily: SLIDE_FONT_STACK,
+  bg: "black",
+};
+const DEFAULT_SCRIPTURE_TEMPLATE: SetTemplate = {
+  fontScale: 1,
+  fontFamily: SLIDE_FONT_STACK,
+  bg: "black",
+  align: "left",
+  referencePosition: "below",
+};
+
 // --- Song template persistence + cross-window sync ---
 const TEMPLATE_KEY = "song-template-v1";
 
 function readSongTemplate(): SetTemplate {
-  if (typeof window === "undefined")
-    return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" };
+  if (typeof window === "undefined") return { ...DEFAULT_SONG_TEMPLATE };
   try {
     const raw = localStorage.getItem(TEMPLATE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" };
+  return { ...DEFAULT_SONG_TEMPLATE };
 }
 
 // --- Scripture template persistence + cross-window sync ---
@@ -40,13 +55,12 @@ function readFadeMs(): number {
 }
 
 function readScriptureTemplate(): SetTemplate {
-  if (typeof window === "undefined")
-    return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black", align: "left", referencePosition: "below" };
+  if (typeof window === "undefined") return { ...DEFAULT_SCRIPTURE_TEMPLATE };
   try {
     const raw = localStorage.getItem(SCRIPTURE_TEMPLATE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black", align: "left", referencePosition: "below" };
+  return { ...DEFAULT_SCRIPTURE_TEMPLATE };
 }
 
 // Debounce pushToSupabase so rapid consecutive mutations fire only one push,
@@ -68,7 +82,6 @@ function schedulePush(opts?: { set?: string; gathering?: string }) {
     const gatheringIds = [...dirtyGatheringIds];
     dirtySetIds.clear();
     dirtyGatheringIds.clear();
-    console.log('[sync] schedulePush: debounce elapsed, pushing', setIds.length, 'sets,', gatheringIds.length, 'gatherings at', new Date().toISOString());
     pushToSupabase({ setIds, gatheringIds }).then((ok) => {
       if (ok) return;
       // Push failed (e.g. offline). Re-mark the rows dirty and reschedule so the
@@ -178,8 +191,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   order: [],
   gatherings: {},
   gatheringOrder: [],
-  songTemplate: typeof window !== "undefined" ? readSongTemplate() : { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black" },
-  scriptureTemplate: typeof window !== "undefined" ? readScriptureTemplate() : { fontScale: 1, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", bg: "black", align: "left", referencePosition: "below" },
+  songTemplate: typeof window !== "undefined" ? readSongTemplate() : { ...DEFAULT_SONG_TEMPLATE },
+  scriptureTemplate:
+    typeof window !== "undefined" ? readScriptureTemplate() : { ...DEFAULT_SCRIPTURE_TEMPLATE },
   fadeMs: typeof window !== "undefined" ? readFadeMs() : 0,
 
   loadFromDb: async () => {
@@ -257,11 +271,11 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const session = useAuthStore.getState().session;
       if (session) {
         const { error } = await supabase
-          .from('sets')
+          .from("sets")
           .delete()
-          .eq('id', id)
-          .eq('user_id', session.user.id);
-        if (error) console.error('[deleteSet] Supabase delete error:', error);
+          .eq("id", id)
+          .eq("user_id", session.user.id);
+        if (error) console.error("[deleteSet] Supabase delete error:", error);
       }
       await db.sets.delete(id);
       purgeUploadedVideos(removedSlides);
@@ -296,11 +310,11 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const session = useAuthStore.getState().session;
       if (session) {
         const { error } = await supabase
-          .from('sets')
+          .from("sets")
           .delete()
-          .in('id', [...idSet])
-          .eq('user_id', session.user.id);
-        if (error) console.error('[deleteSets] Supabase delete error:', error);
+          .in("id", [...idSet])
+          .eq("user_id", session.user.id);
+        if (error) console.error("[deleteSets] Supabase delete error:", error);
       }
       await db.sets.bulkDelete([...idSet]);
       purgeUploadedVideos(removedSlides);
@@ -314,7 +328,11 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const toUpdate: Gathering[] = [];
       for (const p of Object.values(gatherings)) {
         if (p.setIds.some((sid) => idSet.has(sid))) {
-          toUpdate.push({ ...p, setIds: p.setIds.filter((sid) => !idSet.has(sid)), updatedAt: Date.now() });
+          toUpdate.push({
+            ...p,
+            setIds: p.setIds.filter((sid) => !idSet.has(sid)),
+            updatedAt: Date.now(),
+          });
         }
       }
       if (toUpdate.length) {
@@ -415,17 +433,17 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       if (session) {
         const userId = session.user.id;
         const { error: gsErr } = await supabase
-          .from('gathering_sets')
+          .from("gathering_sets")
           .delete()
-          .eq('gathering_id', id);
-        if (gsErr) console.error('[deleteGathering] gathering_sets delete error:', gsErr);
+          .eq("gathering_id", id);
+        if (gsErr) console.error("[deleteGathering] gathering_sets delete error:", gsErr);
 
         const { error: gErr } = await supabase
-          .from('gatherings')
+          .from("gatherings")
           .delete()
-          .eq('id', id)
-          .eq('user_id', userId);
-        if (gErr) console.error('[deleteGathering] gatherings delete error:', gErr);
+          .eq("id", id)
+          .eq("user_id", userId);
+        if (gErr) console.error("[deleteGathering] gatherings delete error:", gErr);
       }
 
       await db.gatherings.delete(id);
@@ -442,11 +460,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const p = s.gatherings[gatheringId];
       if (!p) return s;
       const updated = { ...p, setIds: [...p.setIds, setId], updatedAt: Date.now() };
-      console.log('[addSetToGathering] gathering', gatheringId, '| added set', setId, '| setIds now:', updated.setIds, '| is_live:', updated.is_live, '| scheduling push in 500ms');
-      db.gatherings.put(updated).then(() => {
-        console.log('[addSetToGathering] Dexie write done, firing schedulePush');
-        schedulePush({ gathering: gatheringId });
-      });
+      db.gatherings.put(updated).then(() => schedulePush({ gathering: gatheringId }));
       return { gatherings: { ...s.gatherings, [gatheringId]: updated } };
     }),
 
@@ -480,12 +494,12 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     const { gatherings } = get();
     const target = gatherings[gatheringId];
     if (!target) {
-      console.error('[goLive] aborted — gathering not found in store:', gatheringId);
+      console.error("[goLive] aborted — gathering not found in store:", gatheringId);
       return;
     }
     const session = useAuthStore.getState().session;
     if (!session) {
-      console.error('[goLive] aborted — no session');
+      console.error("[goLive] aborted — no session");
       return;
     }
     const userId = session.user.id;
@@ -494,20 +508,19 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     // 1. Take every other gathering offline first, so there is never a window
     //    with two live rows.
     const { error: offlineErr } = await supabase
-      .from('gatherings')
+      .from("gatherings")
       .update({ is_live: false })
-      .neq('id', gatheringId)
-      .eq('user_id', userId);
+      .neq("id", gatheringId)
+      .eq("user_id", userId);
     if (offlineErr) {
-      console.error('[goLive] offline-others error:', offlineErr);
+      console.error("[goLive] offline-others error:", offlineErr);
       throw offlineErr;
     }
 
     // 2. Upsert the target with is_live: true in a single call — this both
     //    ensures a never-pushed gathering exists and flips it live atomically.
-    const { error: liveErr } = await supabase
-      .from('gatherings')
-      .upsert({
+    const { error: liveErr } = await supabase.from("gatherings").upsert(
+      {
         id: target.id,
         user_id: userId,
         title: target.name,
@@ -517,16 +530,18 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         current_slide_index: 0,
         created_at: new Date(target.createdAt).toISOString(),
         updated_at: new Date(target.updatedAt).toISOString(),
-      }, { onConflict: 'id' });
+      },
+      { onConflict: "id" },
+    );
     if (liveErr) {
-      console.error('[goLive] live upsert error:', liveErr);
+      console.error("[goLive] live upsert error:", liveErr);
       throw liveErr;
     }
 
     // ── Reflect into Dexie + Zustand (do NOT bump updatedAt — is_live is not a
     //    synced content change, and bumping it would trigger a false conflict).
     const allGatherings = await db.gatherings.toArray();
-    await db.transaction('rw', db.gatherings, async () => {
+    await db.transaction("rw", db.gatherings, async () => {
       for (const p of allGatherings) {
         if (p.id === gatheringId && p.is_live !== true) {
           await db.gatherings.put({ ...p, is_live: true });
@@ -550,18 +565,18 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     if (!target) return;
     const session = useAuthStore.getState().session;
     if (!session) {
-      console.error('[endSession] aborted — no session');
+      console.error("[endSession] aborted — no session");
       return;
     }
 
     // ── Supabase (source of truth) ────────────────────────────────────────────
     const { error } = await supabase
-      .from('gatherings')
+      .from("gatherings")
       .update({ is_live: false })
-      .eq('id', gatheringId)
-      .eq('user_id', session.user.id);
+      .eq("id", gatheringId)
+      .eq("user_id", session.user.id);
     if (error) {
-      console.error('[endSession] error:', error);
+      console.error("[endSession] error:", error);
       throw error;
     }
 
@@ -575,11 +590,11 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     const session = useAuthStore.getState().session;
     if (!session) return;
     const { data, error } = await supabase
-      .from('gatherings')
-      .select('id, is_live')
-      .eq('user_id', session.user.id);
+      .from("gatherings")
+      .select("id, is_live")
+      .eq("user_id", session.user.id);
     if (error) {
-      console.error('[refreshLiveState] error:', error);
+      console.error("[refreshLiveState] error:", error);
       return;
     }
     const liveById = new Map(
@@ -588,7 +603,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
 
     // Update only gatherings that exist on the server; leave local-only ones.
     const localGatherings = await db.gatherings.toArray();
-    await db.transaction('rw', db.gatherings, async () => {
+    await db.transaction("rw", db.gatherings, async () => {
       for (const p of localGatherings) {
         if (liveById.has(p.id)) {
           const isLive = liveById.get(p.id)!;
@@ -657,7 +672,9 @@ export const useHiddenSections = create<HiddenSectionsStore>((set) => ({
   setHidden: (setId, leaderIds) =>
     set((s) => {
       const next = { ...s.hiddenBySet, [setId]: leaderIds };
-      try { sessionStorage.setItem(HIDDEN_SECTIONS_KEY, JSON.stringify(next)); } catch {}
+      try {
+        sessionStorage.setItem(HIDDEN_SECTIONS_KEY, JSON.stringify(next));
+      } catch {}
       return { hiddenBySet: next };
     }),
 }));
@@ -730,9 +747,7 @@ function videoCmdForSlide(
   slideId: string,
   prevNonce: number,
 ): LiveState["videoCmd"] {
-  const slide = useLibrary
-    .getState()
-    .sets[setId]?.slides.find((s) => s.id === slideId);
+  const slide = useLibrary.getState().sets[setId]?.slides.find((s) => s.id === slideId);
   const action = slide?.kind === "video" && slide.autoplay ? "play" : "pause";
   return { action, nonce: prevNonce + 1 };
 }
@@ -769,7 +784,9 @@ export const useLive = create<LiveStore>((set, get) => ({
     };
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
-      try { getChannel()?.postMessage(snapshot); } catch {}
+      try {
+        getChannel()?.postMessage(snapshot);
+      } catch {}
     }
   },
   go: (setId, slideId) => {
@@ -781,7 +798,15 @@ export const useLive = create<LiveStore>((set, get) => ({
         setTimeout(() => get().setLive({ blackout: false, blackoutFadeMs: 500 }), 80);
       }
     } else {
-      get().setLive({ setId, slideId, blackout: false, clear: false, blackoutFadeMs: 0, videoCmd, videoEnded: false });
+      get().setLive({
+        setId,
+        slideId,
+        blackout: false,
+        clear: false,
+        blackoutFadeMs: 0,
+        videoCmd,
+        videoEnded: false,
+      });
     }
   },
   clearLive: () => {
@@ -789,7 +814,13 @@ export const useLive = create<LiveStore>((set, get) => ({
     get().setLive({ blackout: true, blackoutFadeMs: 500 });
     if (typeof window !== "undefined") {
       setTimeout(() => {
-        get().setLive({ setId: null, slideId: null, blackout: false, clear: false, blackoutFadeMs: 0 });
+        get().setLive({
+          setId: null,
+          slideId: null,
+          blackout: false,
+          clear: false,
+          blackoutFadeMs: 0,
+        });
       }, 520);
     }
   },
