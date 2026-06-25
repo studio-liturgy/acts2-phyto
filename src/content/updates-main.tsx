@@ -23,6 +23,26 @@ export default function UpdatesMain() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-12">
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
+            <div className="text-2xl">June 25, 2026</div>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-60">Presenter</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>Catalogue edit mode on the home page, plus a range of smaller presenter UX refinements</FeatureItem>
+              <FeatureItem>Smoother media auto-advance, with cleaner fade-to-black handling for videos</FeatureItem>
+            </ul>
+
+            <div className="mono mt-3 text-xs uppercase tracking-wider opacity-60">Gathering viewer (mobile)</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>Video and YouTube media now play in the public mobile viewer, not just on the presenter screen</FeatureItem>
+            </ul>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Online</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>Your signed-in email now shows next to the sync indicator on the home page, so you can see which account you are using</FeatureItem>
+              <FeatureItem>Signing in on a device with existing content now offers a Replace option, with a confirmation before any effects are applied</FeatureItem>
+            </ul>
+          </li>
+          <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">June 23, 2026</div>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Offline</div>

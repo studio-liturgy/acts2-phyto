@@ -154,7 +154,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: 'offli
 
               <section>
                 <h2 className="text-2xl">5. Uploaded Media</h2>
-                <p className="mt-2">Signed-in users can upload short video clips to use as slide media. Uploaded videos are stored in Cloudflare R2 (object storage) rather than on your device. Each account can store up to 300 MB of video.</p>
+                <p className="mt-2">Signed-in users can upload short video clips to use as slide media. Uploaded videos are stored in Cloudflare R2 (object storage) rather than on your device, subject to a limit of 100 MB per file and 300 MB total per account.</p>
                 <p className="mt-2">Each uploaded file is served from its own public URL containing a random, unguessable identifier. The URL is not listed or searchable anywhere, but it is not access-controlled: anyone you share the link with, or who otherwise obtains it, can view the file. Please do not upload anything you would not want to be publicly accessible.</p>
                 <p className="mt-2">You can delete an uploaded video at any time by removing the slide that uses it, which also frees up your storage quota. Deleting your account removes your uploaded media as described in section 8.</p>
               </section>
