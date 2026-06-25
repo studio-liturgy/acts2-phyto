@@ -1,0 +1,36 @@
+# graphify ignore — keeps the knowledge graph code-only so it builds without an
+# LLM API key. Remove the doc/image excludes and rebuild with a backend
+# (e.g. ANTHROPIC_API_KEY) if you want prose + diagrams in the graph too.
+
+# Generated / vendored
+src/routeTree.gen.ts
+node_modules/
+graphify-out/
+dist/
+.wrangler/
+
+# Docs & prose (need an LLM backend for semantic extraction)
+*.md
+*.mdx
+*.txt
+*.html
+*.yml
+*.yaml
+LICENSE
+public/llms.txt
+
+# Binary assets & fonts
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.svg
+*.ttf
+*.woff
+*.woff2
+*.webp
+
+# Email HTML templates (marketing markup, not app code)
+email-templates/
+public/email/
