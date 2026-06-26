@@ -110,7 +110,8 @@ export interface ParsedRef {
   wholeChapter: boolean;
 }
 
-const BOOK_RE = /^(\d?\s*[A-Za-z][A-Za-z\s]*?)\s+(\d+)(?::(\d+))?(?:\s*[-–]\s*(?:(\d?\s*[A-Za-z][A-Za-z\s]*?)\s+(\d+):(\d+)|(\d+):(\d+)|(\d+)))?$/;
+const BOOK_RE =
+  /^(\d?\s*[A-Za-z][A-Za-z\s]*?)\s+(\d+)(?::(\d+))?(?:\s*[-–]\s*(?:(\d?\s*[A-Za-z][A-Za-z\s]*?)\s+(\d+):(\d+)|(\d+):(\d+)|(\d+)))?$/;
 
 export function parseReference(input: string): ParsedRef | null {
   const m = input.trim().match(BOOK_RE);
@@ -128,8 +129,7 @@ export function parseReference(input: string): ParsedRef | null {
   if (m[4]) {
     // cross-book/chapter "John 3:21 - John 4:2"
     const otherBookId = lookupBook(m[4]);
-    if (!otherBookId || otherBookId !== bookId)
-      return null; // only same-book ranges supported
+    if (!otherBookId || otherBookId !== bookId) return null; // only same-book ranges supported
     endChapter = Number(m[5]);
     endVerse = Number(m[6]);
     wholeChapter = false;
@@ -171,13 +171,11 @@ async function fetchChapter(translation: string, bookId: number, chapter: number
 export async function fetchScriptureBolls(
   ref: string,
   translation: string,
-  opts: { removeLineBreaks?: boolean } = {}
+  opts: { removeLineBreaks?: boolean } = {},
 ): Promise<{ reference: string; bookName: string; verses: FetchedVerse[] }> {
   const parsed = parseReference(ref);
   if (!parsed)
-    throw new Error(
-      `Couldn't parse "${ref}". Try "John 3:16", "John 3", or "John 3:21-John 4:2".`
-    );
+    throw new Error(`Couldn't parse "${ref}". Try "John 3:16", "John 3", or "John 3:21-John 4:2".`);
   const removeLineBreaks = opts.removeLineBreaks ?? true;
 
   const collected: FetchedVerse[] = [];
@@ -217,6 +215,18 @@ export async function fetchScriptureBolls(
   return { reference, bookName: parsed.bookName, verses: collected };
 }
 
+// Strip HTML tags robustly by repeating until the string stops changing. A
+// single `replace(/<[^>]+>/g, "")` pass can leave a tag behind on overlapping
+// input (e.g. "<a<b>c>" → "c>"), so loop to a fixpoint.
+function stripTags(s: string): string {
+  let prev: string;
+  do {
+    prev = s;
+    s = s.replace(/<[^>]+>/g, "");
+  } while (s !== prev);
+  return s;
+}
+
 function cleanVerseText(s: string, { removeLineBreaks }: { removeLineBreaks: boolean }) {
   let out = s;
   // Strip paired tags that contain non-verse metadata (header, pericope,
@@ -233,7 +243,7 @@ function cleanVerseText(s: string, { removeLineBreaks }: { removeLineBreaks: boo
   // (no terminal sentence punctuation, mostly title-case words) and drop it.
   const brIdx = out.search(/<br\s*\/?>/i);
   if (brIdx > 0) {
-    const head = out.slice(0, brIdx).replace(/<[^>]+>/g, "").trim();
+    const head = stripTags(out.slice(0, brIdx)).trim();
     const headIsTitle =
       head.length > 0 &&
       head.length < 120 &&
@@ -250,7 +260,7 @@ function cleanVerseText(s: string, { removeLineBreaks }: { removeLineBreaks: boo
   // <br> → controlled newline marker
   out = out.replace(/<br\s*\/?>/gi, removeLineBreaks ? " " : "\n");
   // Strip any remaining tags but keep their inner text (e.g. <i>added</i>)
-  out = out.replace(/<[^>]+>/g, "");
+  out = stripTags(out);
   // Drop markdown-style bold headers a few translations smuggle in
   out = out.replace(/^\s*\*\*[^*\n]+\*\*\s*/g, "");
   if (removeLineBreaks) {
@@ -264,4 +274,3 @@ function cleanVerseText(s: string, { removeLineBreaks }: { removeLineBreaks: boo
   }
   return out.trim();
 }
-

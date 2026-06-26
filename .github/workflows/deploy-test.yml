@@ -4,6 +4,11 @@ on:
   push:
     branches: [test]
 
+# Least privilege: the job only checks out code and deploys to Cloudflare; it
+# never writes back to the repo, so the default GITHUB_TOKEN needs read-only.
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

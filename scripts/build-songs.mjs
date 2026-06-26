@@ -93,13 +93,11 @@ function cleanLyrics(raw) {
   return out.join("\n").trim();
 }
 
+const XML_ENTITIES = { amp: "&", lt: "<", gt: ">", apos: "'", quot: '"' };
+// Single pass so an already-escaped "&amp;lt;" decodes to "&lt;", not "<"
+// (decoding &amp; before &lt; would double-unescape).
 function decodeXmlEntities(s) {
-  return s
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&apos;/g, "'")
-    .replace(/&quot;/g, '"');
+  return s.replace(/&(amp|lt|gt|apos|quot);/g, (_, e) => XML_ENTITIES[e]);
 }
 
 function extractField(xml, tag) {
@@ -141,10 +139,10 @@ async function main() {
 
   await writeFile(outPath, JSON.stringify(songs));
 
-  const kb = Math.round(
-    Buffer.byteLength(JSON.stringify(songs), "utf-8") / 1024
+  const kb = Math.round(Buffer.byteLength(JSON.stringify(songs), "utf-8") / 1024);
+  console.log(
+    `✓ ${songs.length} songs written to public/songs-en.json (${kb} KB uncompressed, ${errors} errors)`,
   );
-  console.log(`✓ ${songs.length} songs written to public/songs-en.json (${kb} KB uncompressed, ${errors} errors)`);
 }
 
 main().catch((e) => {
