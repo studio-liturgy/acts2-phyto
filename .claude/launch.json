@@ -2,19 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "dev",
-      "runtimeExecutable": "bun",
-      "runtimeArgs": ["dev:env"],
+      "name": "phyto-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "dev"],
       "port": 8080,
       "autoPort": true
-    },
-    {
-      "name": "dev-test",
-      "runtimeExecutable": "bun",
-      "runtimeArgs": ["dev:test"],
-      "port": 8081,
-      "autoPort": true
     }
-  ],
-  "autoVerify": false
+  ]
 }

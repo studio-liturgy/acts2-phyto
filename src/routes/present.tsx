@@ -1284,10 +1284,14 @@ function PresenterThumb({
     <button
       onClick={() => live.go(phytoSet.id, slide.id)}
       disabled={disabled}
-      className={`group relative w-full overflow-hidden rounded-lg border-2 text-left transition ${
-        isLive ? "" : disabled ? "border-transparent" : "border-transparent hover:border-foreground"
+      className={`group relative w-full overflow-hidden rounded-lg border-2 text-left transition focus:outline-none focus-visible:outline-none ${
+        isLive
+          ? "border-[var(--live-color)] dark:border-foreground"
+          : disabled
+            ? "border-transparent"
+            : "border-transparent hover:border-white dark:hover:border-foreground"
       } ${disabled ? "cursor-default" : ""}`}
-      style={isLive ? { borderColor: kindLiveColor(phytoSet.kind) } : undefined}
+      style={isLive ? ({ "--live-color": kindLiveColor(phytoSet.kind) } as React.CSSProperties) : undefined}
     >
       <SlideView slide={slide} variant="thumb" template={template} />
       <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">

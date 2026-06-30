@@ -219,6 +219,13 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 9999px;
 }
 
+/* Document-level proximity snapping, toggled on <html> only while the
+   first-time landing is mounted. Cards opt in with `snap-center`. */
+@utility snap-scroll-y {
+  scroll-snap-type: y proximity;
+  scroll-padding-top: 80px;
+}
+
 /* Hide native drag preview when an element opts in */
 @utility no-drag-ghost {
   -webkit-user-drag: element;

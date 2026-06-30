@@ -38,6 +38,7 @@ import { Dialog, DialogContent, DialogTitle, DialogClose } from "@/components/ui
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Set as PhytoSet, SetKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
+import { FirstTimeLanding } from "@/components/FirstTimeLanding";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
@@ -48,6 +49,11 @@ const KIND_COLOR: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/")({
+  // `?intro` forces the first-time landing to render even when the catalogue
+  // has content, so signed-in users can revisit it from the home header.
+  validateSearch: (search: Record<string, unknown>): { intro?: boolean } => ({
+    ...(search.intro === true || search.intro === "true" ? { intro: true } : {}),
+  }),
   head: () => ({
     meta: [
       { title: `Home | ${APP_NAME}` },
@@ -296,6 +302,12 @@ function Library() {
     createGathering(today);
   };
 
+  // First-time experience: when there's nothing to show — or when the user
+  // opens the Intro link — replace the home view with the onboarding landing.
+  const { intro } = Route.useSearch();
+  const isEmpty = gatheringOrder.length === 0 && order.length === 0;
+  const showLanding = isEmpty || !!intro;
+
   const catalogueRows = useMemo(() => {
     const q = catalogueFilter.trim().toLowerCase();
     let rows = order
@@ -333,370 +345,388 @@ function Library() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="pt-6 md:pt-10">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6">
-          <a
-            href="https://www.instagram.com/p/DY51Nn4yylm/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-          >
-            Quick Tutorial
-          </a>
-          {!isSignedIn && (
+      {/* Header chrome only for the normal home view — on the landing it's overlaid
+          onto the top band by FirstTimeLanding. */}
+      {!showLanding && (
+        <header className="pt-6 md:pt-10">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6">
             <Link
-              to="/login"
+              to="/"
+              search={{ intro: true }}
               className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
             >
-              Sign in
+              Intro
             </Link>
-          )}
-          {isSignedIn && (
-            <button
-              onClick={() => setShowSignOutDialog(true)}
-              className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-            >
-              Sign out
-            </button>
-          )}
-          {isSignedIn && syncStatus !== "offline" && userEmail && (
-            <span
-              className="mono text-xs uppercase tracking-wider text-foreground/60"
-              title="Signed in as"
-            >
-              {userEmail}
-            </span>
-          )}
-          {isSignedIn && syncStatus !== "offline" && (
-            <span
-              data-sync={syncStatus}
-              className={`h-4 w-4 rounded-full ${syncStatus === "syncing" ? "bg-[var(--brand-orange)]" : "bg-[var(--brand-green)]"}`}
-              style={{
-                transition: `background-color ${syncStatus === "syncing" ? "0.5s" : "1.5s"} ease`,
-              }}
-              title={syncStatus === "syncing" ? "Syncing…" : "Synced"}
-            />
-          )}
-
-          <div className="ml-auto flex flex-wrap items-center gap-4">
-            <Link
-              to="/present"
-              className="pill flex items-center gap-3 border border-foreground px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-foreground transition hover:bg-foreground hover:text-background"
-            >
-              Present <ArrowUpRight className="size-[1em]" />
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
-        {/* Gatherings */}
-        <section className="mb-24">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-4xl md:text-5xl">Gatherings</h2>
-            <div className="flex items-center gap-2 pl-[80px]">
-              <button
-                onClick={createNewGathering}
-                className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+            {!isSignedIn && (
+              <Link
+                to="/login"
+                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
               >
-                <Plus className="h-4 w-4" /> New
+                Sign in
+              </Link>
+            )}
+            {isSignedIn && (
+              <button
+                onClick={() => setShowSignOutDialog(true)}
+                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+              >
+                Sign out
               </button>
+            )}
+            {isSignedIn && syncStatus !== "offline" && userEmail && (
+              <span
+                className="mono text-xs uppercase tracking-wider text-foreground/60"
+                title="Signed in as"
+              >
+                {userEmail}
+              </span>
+            )}
+            {isSignedIn && syncStatus !== "offline" && (
+              <span
+                data-sync={syncStatus}
+                className={`h-4 w-4 rounded-full ${syncStatus === "syncing" ? "bg-[var(--brand-orange)]" : "bg-[var(--brand-green)]"}`}
+                style={{
+                  transition: `background-color ${syncStatus === "syncing" ? "0.5s" : "1.5s"} ease`,
+                }}
+                title={syncStatus === "syncing" ? "Syncing…" : "Synced"}
+              />
+            )}
+
+            <div className="ml-auto flex flex-wrap items-center gap-4">
+              <Link
+                to="/present"
+                className="pill flex items-center gap-3 border border-foreground px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-foreground transition hover:bg-foreground hover:text-background"
+              >
+                Present <ArrowUpRight className="size-[1em]" />
+              </Link>
             </div>
           </div>
+        </header>
+      )}
 
-          {gatheringOrder.length === 0 ? (
-            <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
-              No gatherings yet. Click New to plan a gathering!
-            </div>
-          ) : (
-            <div className="grid gap-1.5 lg:grid-cols-2">
-              {gatheringOrder.map((pid) => {
-                const p = gatherings[pid];
-                if (!p) return null;
-                return (
-                  <GatheringCard
-                    key={pid}
-                    gatheringId={pid}
-                    name={p.name}
-                    setIds={p.setIds}
-                    isLive={p.is_live}
-                    shareToken={p.share_token}
-                    allSets={Object.values(sets)}
-                    onRename={(name) => renameGathering(pid, name)}
-                    onDelete={() => deleteGathering(pid)}
-                    onAdd={(setId) => addSetToGathering(pid, setId)}
-                    onRemoveAt={(i) => removeSetFromGathering(pid, i)}
-                    onReorder={(ids) => reorderGatheringSets(pid, ids)}
-                    onGoLive={() =>
-                      isSignedIn ? goLive(pid) : (setShowGoLivePrompt(true), Promise.resolve())
-                    }
-                    onEndSession={() => endSession(pid)}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Catalogue */}
-        <section>
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            {/* Left: heading + import/export/edit icons */}
-            <div className="flex items-center gap-2">
-              <h2 className="text-4xl md:text-5xl leading-none">Catalogue</h2>
-              <div className="ml-8 flex items-center gap-2">
-                {editMode ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setShowDuplicates(true)}
-                      disabled={duplicateGroups.length === 0}
-                      className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
-                      title={
-                        duplicateGroups.length
-                          ? "Amend sets with duplicate names"
-                          : "No duplicate names"
-                      }
-                    >
-                      <Copy className="h-4 w-4" /> Fix duplicates
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowClearEmpty(true)}
-                      disabled={emptySets.length === 0}
-                      className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
-                      title={emptySets.length ? "Clear sets with no slides" : "No empty sets"}
-                    >
-                      <Eraser className="h-4 w-4" /> Clear empty
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowBulkDelete(true)}
-                      disabled={selectedIds.size === 0}
-                      className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
-                      title={
-                        selectedIds.size
-                          ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
-                          : "Select sets to delete"
-                      }
-                      aria-label="Delete selected sets"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={exitEditMode}
-                      className="pill mono uppercase flex items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-                      title="Done editing"
-                      aria-label="Done editing"
-                    >
-                      Done
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setEditMode(true)}
-                      className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                      title="Edit catalogue"
-                      aria-label="Edit catalogue"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowExportConfirm(true)}
-                      className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                      title="Export"
-                      aria-label="Export"
-                    >
-                      <Upload className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => importFileRef.current?.click()}
-                      className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                      title="Import"
-                      aria-label="Import"
-                    >
-                      <Download className="h-4 w-4" />
-                    </button>
-                  </>
-                )}
-                <input
-                  ref={importFileRef}
-                  type="file"
-                  accept=".phyto"
-                  style={{ display: "none" }}
-                  onChange={handleImportFileChange}
-                />
+      {showLanding ? (
+        <FirstTimeLanding
+          onNewGathering={() => {
+            createNewGathering();
+            navigate({ to: "/", search: {} });
+          }}
+          onNewSet={newSet}
+          isSignedIn={isSignedIn}
+          isEmpty={isEmpty}
+          userEmail={userEmail}
+          syncStatus={syncStatus}
+          onSignOut={() => setShowSignOutDialog(true)}
+        />
+      ) : (
+        <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
+          {/* Gatherings */}
+          <section className="mb-24">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-4xl md:text-5xl">Gatherings</h2>
+              <div className="flex items-center gap-2 pl-[80px]">
+                <button
+                  onClick={createNewGathering}
+                  className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                >
+                  <Plus className="h-4 w-4" /> New
+                </button>
               </div>
             </div>
-            {/* Right: filter chips + sort + search + new */}
-            <div className="flex flex-wrap items-center gap-2">
-              {(["all", "song", "scripture", "media"] as KindFilter[]).map((k) => (
-                <button
-                  key={k}
-                  onClick={() => setKindFilter(k)}
-                  className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, kindFilter === k)}`}
-                >
-                  {k === "all"
-                    ? "All"
-                    : k === "song"
-                      ? "Songs"
-                      : k === "scripture"
-                        ? "Scriptures"
-                        : "Media"}
-                </button>
-              ))}
-              <button
-                onClick={() => setSortMode(sortMode === "az" ? "newest" : "az")}
-                title={`Sort: ${sortLabel[sortMode]}`}
-                aria-label={`Sort: ${sortLabel[sortMode]}`}
-                className="mono uppercase flex items-center px-2 py-1.5 text-xs tracking-wider"
-              >
-                {sortMode === "az" ? (
-                  <ArrowDownAZ className="h-4 w-4" />
-                ) : (
-                  <ArrowDownWideNarrow className="h-4 w-4" />
-                )}
-              </button>
-              {showCatalogueSearch ? (
-                <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
-                  <Search className="h-4 w-4" />
-                  <input
-                    autoFocus
-                    value={catalogueFilter}
-                    onChange={(e) => setCatalogueFilter(e.target.value)}
-                    onBlur={() => !catalogueFilter && setShowCatalogueSearch(false)}
-                    placeholder="Search"
-                    className="mono uppercase w-40 bg-transparent text-xs outline-none"
-                  />
-                  {catalogueFilter && (
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => setCatalogueFilter("")}
-                      className="shrink-0 rounded-full p-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                      title="Clear search"
-                      aria-label="Clear search"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowCatalogueSearch(true)}
-                  className="pill mono uppercase flex items-center gap-2 border border-foreground bg-background px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-                >
-                  <Search className="h-4 w-4" /> Search
-                </button>
-              )}
-              {!editMode && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90">
-                      <Plus className="h-4 w-4" /> New
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => newSet("song")}
-                      className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
-                    >
-                      New Song
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => newSet("scripture")}
-                      className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
-                    >
-                      New Scripture
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => newSet("media")}
-                      className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
-                    >
-                      New Media
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          </div>
 
-          {catalogueRows.length === 0 ? (
-            <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
-              {catalogueFilter.trim()
-                ? `Nothing matches "${catalogueFilter}".`
-                : emptyCategoryLabel[kindFilter]}
-            </div>
-          ) : (
-            <div className="rounded-3xl border border-foreground p-4 max-h-[480px] overflow-y-auto catalogue-scroll">
-              <ul className="space-y-1">
-                {catalogueRows.map((d) => {
-                  const checked = selectedIds.has(d.id);
+            {gatheringOrder.length === 0 ? (
+              <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
+                No gatherings yet. Click New to plan a gathering!
+              </div>
+            ) : (
+              <div className="grid gap-1.5 lg:grid-cols-2">
+                {gatheringOrder.map((pid) => {
+                  const p = gatherings[pid];
+                  if (!p) return null;
                   return (
-                    <li
-                      key={d.id}
-                      draggable={!editMode}
-                      onDragStart={(e) => {
-                        if (editMode) return;
-                        e.dataTransfer.setData(SET_DRAG_TYPE, d.id);
-                        e.dataTransfer.setData("text/plain", d.id);
-                        e.dataTransfer.effectAllowed = "copy";
-                        setCircleDragGhost(e, KIND_COLOR[d.kind] ?? "#212121", 56);
-                      }}
-                      onClick={editMode ? () => toggleSelected(d.id) : undefined}
-                      className={`pill group flex items-center gap-4 px-5 py-2 ${kindBg(d.kind)} ${editMode ? "cursor-pointer" : ""}`}
-                    >
-                      {editMode ? (
-                        <span
-                          role="checkbox"
-                          aria-checked={checked}
-                          className="flex h-4 w-4 shrink-0 items-center justify-center border border-current"
-                        >
-                          {checked && (
-                            <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
-                              <path
-                                d="M2 2l6 6M8 2l-6 6"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                          )}
-                        </span>
-                      ) : (
-                        <DotsGrip className="cursor-grab opacity-80" />
-                      )}
-                      <span className="flex-1 truncate text-base">{d.name}</span>
-                      <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
-                        {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
-                      </span>
-                      <Link
-                        to="/set/$setId"
-                        params={{ setId: d.id }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded-full p-1.5 transition hover:bg-white/20"
-                        title="Edit set"
-                        aria-label="Edit set"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Link>
-                    </li>
+                    <GatheringCard
+                      key={pid}
+                      gatheringId={pid}
+                      name={p.name}
+                      setIds={p.setIds}
+                      isLive={p.is_live}
+                      shareToken={p.share_token}
+                      allSets={Object.values(sets)}
+                      onRename={(name) => renameGathering(pid, name)}
+                      onDelete={() => deleteGathering(pid)}
+                      onAdd={(setId) => addSetToGathering(pid, setId)}
+                      onRemoveAt={(i) => removeSetFromGathering(pid, i)}
+                      onReorder={(ids) => reorderGatheringSets(pid, ids)}
+                      onGoLive={() =>
+                        isSignedIn ? goLive(pid) : (setShowGoLivePrompt(true), Promise.resolve())
+                      }
+                      onEndSession={() => endSession(pid)}
+                    />
                   );
                 })}
-              </ul>
-            </div>
-          )}
-          <p className="mono uppercase mt-10 text-xs text-muted-foreground">
-            Tip: Drag a set into a gathering.
-          </p>
-        </section>
-      </main>
+              </div>
+            )}
+          </section>
 
-      <Footer />
+          {/* Catalogue */}
+          <section>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              {/* Left: heading + import/export/edit icons */}
+              <div className="flex items-center gap-2">
+                <h2 className="text-4xl md:text-5xl leading-none">Catalogue</h2>
+                <div className="ml-8 flex items-center gap-2">
+                  {editMode ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowDuplicates(true)}
+                        disabled={duplicateGroups.length === 0}
+                        className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                        title={
+                          duplicateGroups.length
+                            ? "Amend sets with duplicate names"
+                            : "No duplicate names"
+                        }
+                      >
+                        <Copy className="h-4 w-4" /> Fix duplicates
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowClearEmpty(true)}
+                        disabled={emptySets.length === 0}
+                        className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                        title={emptySets.length ? "Clear sets with no slides" : "No empty sets"}
+                      >
+                        <Eraser className="h-4 w-4" /> Clear empty
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowBulkDelete(true)}
+                        disabled={selectedIds.size === 0}
+                        className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
+                        title={
+                          selectedIds.size
+                            ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
+                            : "Select sets to delete"
+                        }
+                        aria-label="Delete selected sets"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={exitEditMode}
+                        className="pill mono uppercase flex items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                        title="Done editing"
+                        aria-label="Done editing"
+                      >
+                        Done
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setEditMode(true)}
+                        className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                        title="Edit catalogue"
+                        aria-label="Edit catalogue"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowExportConfirm(true)}
+                        className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                        title="Export"
+                        aria-label="Export"
+                      >
+                        <Upload className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => importFileRef.current?.click()}
+                        className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                        title="Import"
+                        aria-label="Import"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                  <input
+                    ref={importFileRef}
+                    type="file"
+                    accept=".phyto"
+                    style={{ display: "none" }}
+                    onChange={handleImportFileChange}
+                  />
+                </div>
+              </div>
+              {/* Right: filter chips + sort + search + new */}
+              <div className="flex flex-wrap items-center gap-2">
+                {(["all", "song", "scripture", "media"] as KindFilter[]).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => setKindFilter(k)}
+                    className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, kindFilter === k)}`}
+                  >
+                    {k === "all"
+                      ? "All"
+                      : k === "song"
+                        ? "Songs"
+                        : k === "scripture"
+                          ? "Scriptures"
+                          : "Media"}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setSortMode(sortMode === "az" ? "newest" : "az")}
+                  title={`Sort: ${sortLabel[sortMode]}`}
+                  aria-label={`Sort: ${sortLabel[sortMode]}`}
+                  className="mono uppercase flex items-center px-2 py-1.5 text-xs tracking-wider"
+                >
+                  {sortMode === "az" ? (
+                    <ArrowDownAZ className="h-4 w-4" />
+                  ) : (
+                    <ArrowDownWideNarrow className="h-4 w-4" />
+                  )}
+                </button>
+                {showCatalogueSearch ? (
+                  <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
+                    <Search className="h-4 w-4" />
+                    <input
+                      autoFocus
+                      value={catalogueFilter}
+                      onChange={(e) => setCatalogueFilter(e.target.value)}
+                      onBlur={() => !catalogueFilter && setShowCatalogueSearch(false)}
+                      placeholder="Search"
+                      className="mono uppercase w-40 bg-transparent text-xs outline-none"
+                    />
+                    {catalogueFilter && (
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => setCatalogueFilter("")}
+                        className="shrink-0 rounded-full p-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                        title="Clear search"
+                        aria-label="Clear search"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowCatalogueSearch(true)}
+                    className="pill mono uppercase flex items-center gap-2 border border-foreground bg-background px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                  >
+                    <Search className="h-4 w-4" /> Search
+                  </button>
+                )}
+                {!editMode && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90">
+                        <Plus className="h-4 w-4" /> New
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => newSet("song")}
+                        className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
+                      >
+                        New Song
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => newSet("scripture")}
+                        className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
+                      >
+                        New Scripture
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => newSet("media")}
+                        className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
+                      >
+                        New Media
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            </div>
+
+            {catalogueRows.length === 0 ? (
+              <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
+                {catalogueFilter.trim()
+                  ? `Nothing matches "${catalogueFilter}".`
+                  : emptyCategoryLabel[kindFilter]}
+              </div>
+            ) : (
+              <div className="rounded-3xl border border-foreground p-4 max-h-[480px] overflow-y-auto catalogue-scroll">
+                <ul className="space-y-1">
+                  {catalogueRows.map((d) => {
+                    const checked = selectedIds.has(d.id);
+                    return (
+                      <li
+                        key={d.id}
+                        draggable={!editMode}
+                        onDragStart={(e) => {
+                          if (editMode) return;
+                          e.dataTransfer.setData(SET_DRAG_TYPE, d.id);
+                          e.dataTransfer.setData("text/plain", d.id);
+                          e.dataTransfer.effectAllowed = "copy";
+                          setCircleDragGhost(e, KIND_COLOR[d.kind] ?? "#212121", 56);
+                        }}
+                        onClick={editMode ? () => toggleSelected(d.id) : undefined}
+                        className={`pill group flex items-center gap-4 px-5 py-2 ${kindBg(d.kind)} ${editMode ? "cursor-pointer" : ""}`}
+                      >
+                        {editMode ? (
+                          <span
+                            role="checkbox"
+                            aria-checked={checked}
+                            className="flex h-4 w-4 shrink-0 items-center justify-center border border-current"
+                          >
+                            {checked && (
+                              <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
+                                <path
+                                  d="M2 2l6 6M8 2l-6 6"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                />
+                              </svg>
+                            )}
+                          </span>
+                        ) : (
+                          <DotsGrip className="cursor-grab opacity-80" />
+                        )}
+                        <span className="flex-1 truncate text-base">{d.name}</span>
+                        <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
+                          {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
+                        </span>
+                        <Link
+                          to="/set/$setId"
+                          params={{ setId: d.id }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded-full p-1.5 transition hover:bg-white/20"
+                          title="Edit set"
+                          aria-label="Edit set"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+            <p className="mono uppercase mt-10 text-xs text-muted-foreground">
+              Tip: Drag a set into a gathering.
+            </p>
+          </section>
+        </main>
+      )}
+
+      {!showLanding && <Footer />}
 
       {importedCount !== null && (
         <p>

@@ -7,7 +7,6 @@ import {
   useRouter,
   useLocation,
   useNavigate,
-  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -21,7 +20,6 @@ const ogImage = `${domain}/${isTest ? "og-image-or.png" : "og-image.png"}`;
 const favicon32 = isTest ? "/favicon-32-or.png" : "/favicon-32.png";
 const faviconAny = isTest ? "/favicon-or.png" : "/favicon.png";
 const appleTouchIcon = isTest ? "/apple-touch-icon-or.png" : "/apple-touch-icon.png";
-import { MobileBlock, MOBILE_ALLOWED } from "@/components/MobileBlock";
 import { supabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { useAuthStore } from "@/lib/authStore";
@@ -151,20 +149,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches,
-  );
-  useEffect(() => {
-    const mql = window.matchMedia("(max-width: 767px)");
-    const update = () => setIsMobile(mql.matches);
-    update();
-    mql.addEventListener("change", update);
-    return () => mql.removeEventListener("change", update);
-  }, []);
-  return isMobile;
-}
 
 const themeInitScript = `(function(){try{var m=localStorage.getItem('phyto-theme');if(!m)m=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';if(m==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`;
 
@@ -314,14 +298,6 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
-  // Use resolvedLocation (committed) not the pending location so the mobile
-  // block stays visible for the full duration of any navigation transition.
-  const resolvedPathname = useRouterState({
-    select: (s) => (s.resolvedLocation ?? s.location).pathname,
-  });
-  const allowedOnMobile = MOBILE_ALLOWED.includes(resolvedPathname);
-  const showOutlet = !isMobile || allowedOnMobile;
   const { session, setSession } = useAuthStore();
   const loadFromDb = useLibrary((s) => s.loadFromDb);
   const refreshLiveState = useLibrary((s) => s.refreshLiveState);
@@ -417,8 +393,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {showOutlet && <Outlet />}
-      {isMobile && !allowedOnMobile && <MobileBlock />}
+      <Outlet />
       <Dialog
         open={pathname !== "/output" && syncDiff !== null}
         onOpenChange={(open) => {
