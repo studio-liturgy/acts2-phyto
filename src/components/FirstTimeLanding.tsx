@@ -163,7 +163,7 @@ export function FirstTimeLanding({
 }) {
   // Tints the mobile overscroll/safe-area chrome (top + bottom) to match the page
   // instead of showing default white/dark bars — same fix used on /about and /legal.
-  usePageBackgroundColor(isTest ? "#ca9174" : "var(--brand-blue)");
+  usePageBackgroundColor("var(--brand-blue)");
 
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -400,38 +400,6 @@ export function FirstTimeLanding({
 
   return (
     <main className="flex-1">
-      {/* ── Mobile-only "stay tuned" popup — fixed on screen, dismissible, remembered via localStorage ── */}
-      {!popupDismissed && (
-        <div className="fixed inset-x-4 bottom-4 z-50 rounded-3xl border border-[var(--brand-black)]/10 bg-[var(--brand-white)] p-5 text-center text-[var(--brand-black)] shadow-xl md:hidden">
-          <button
-            type="button"
-            onClick={dismissMobilePopup}
-            aria-label="Dismiss"
-            className="absolute right-3 top-3 text-[var(--brand-black)]/50 transition-opacity hover:opacity-60"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <p className="mono text-xs uppercase tracking-wider">Mobile support is in the works!</p>
-          <p className="mono mt-1 text-xs uppercase tracking-wider text-[var(--brand-black)]/60">
-            Be the first to know!
-          </p>
-          <form onSubmit={(e) => e.preventDefault()} className="relative mt-4">
-            <input
-              type="email"
-              placeholder="Email address"
-              className="mono w-full rounded-full border border-[var(--brand-black)]/20 bg-transparent py-3 pl-5 pr-14 text-xs uppercase tracking-wider text-[var(--brand-black)] outline-none placeholder:text-[var(--brand-black)]/40 focus:border-[var(--brand-black)]/50"
-            />
-            <button
-              type="submit"
-              aria-label="Submit"
-              className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--brand-black)] text-[var(--brand-white)] transition hover:opacity-90"
-            >
-              <ArrowUpRight className="h-4 w-4" />
-            </button>
-          </form>
-        </div>
-      )}
-
       {/* ── Top band: about-page background + overlay chrome + centered wordmark ── */}
       <section
         className="relative flex min-h-[60svh] w-full flex-col justify-center bg-[var(--brand-blue)] text-[var(--brand-white)] md:block md:min-h-0"
@@ -586,11 +554,45 @@ export function FirstTimeLanding({
           <span className="hidden md:inline">Below is a short guide to get you started with phyto!</span>
           <ArrowDown className="h-4 w-4" />
         </button>
-
-        {/* Reserves room below the CTA so the fixed mobile popup has clear space and
-            doesn't sit on top of the CTA or the first step section. */}
-        <div className="h-40 md:hidden" aria-hidden />
       </section>
+
+      {/* ── Mobile-only "stay tuned" popup. Loads as normal in-flow content (scrolls
+          with the page) right here; once its top edge would scroll just past the top
+          of the viewport, it sticks there for the remainder of the page (no overflow
+          ancestor between here and <main>'s end, so its sticky range isn't bounded
+          early). Dismissible, remembered via localStorage. ── */}
+      {!popupDismissed && (
+        <div className="sticky top-4 z-50 mx-4 mt-6 md:hidden">
+          <div className="relative rounded-3xl border border-[var(--brand-black)] bg-[var(--brand-white)] p-5 text-center text-[var(--brand-black)]">
+            <button
+              type="button"
+              onClick={dismissMobilePopup}
+              aria-label="Dismiss"
+              className="absolute right-3 top-3 text-[var(--brand-black)]/50 transition-opacity hover:opacity-60"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <p className="mono text-xs uppercase tracking-wider">Mobile support is in the works!</p>
+            <p className="mono mt-1 text-xs uppercase tracking-wider text-[var(--brand-black)]/60">
+              Be the first to know!
+            </p>
+            <form onSubmit={(e) => e.preventDefault()} className="relative mt-4">
+              <input
+                type="email"
+                placeholder="Email address"
+                className="mono w-full rounded-full border border-[var(--brand-black)]/20 bg-transparent py-3 pl-5 pr-14 text-xs uppercase tracking-wider text-[var(--brand-black)] outline-none placeholder:text-[var(--brand-black)]/40 focus:border-[var(--brand-black)]/50"
+              />
+              <button
+                type="submit"
+                aria-label="Submit"
+                className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--brand-black)] text-[var(--brand-white)] transition hover:opacity-90"
+              >
+                <ArrowUpRight className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Middle: rotating circle | snap cards | sticky nav (desktop only — mobile has its own stacked layout below) ── */}
       <section ref={sectionRef} className="relative mx-auto mt-12 hidden max-w-6xl px-6 md:block">
@@ -640,7 +642,7 @@ export function FirstTimeLanding({
                     data-idx={i}
                     className={`relative snap-center overflow-hidden rounded-3xl p-8 text-[var(--brand-white)] transition-all duration-500 md:p-10 ${
                       isActive ? "scale-100 opacity-100" : "scale-[0.97] opacity-60"
-                    }`}
+                    } ${i === 2 ? "flex flex-col" : ""}`}
                     style={{
                       backgroundColor: step.color,
                       // card 3 dropped its second video (one wide video instead of two), which
@@ -671,7 +673,13 @@ export function FirstTimeLanding({
                       Non-mirror: videoA right, videoB staggered left
                       Mirror:     videoA left, videoB staggered right
                     */}
-                    <div className="relative z-10 grid grid-cols-2 items-start gap-x-8 gap-y-6 px-[5%]">
+                    <div
+                      className={
+                        i === 2
+                          ? "relative z-10 flex flex-1 flex-col px-[5%]"
+                          : "relative z-10 grid grid-cols-2 items-start gap-x-8 gap-y-6 px-[5%]"
+                      }
+                    >
                       {mirror ? (
                         <>
                           {/* mirror: textA top-left → videoA left → videoB staggered right → textB bottom-left */}
@@ -702,19 +710,24 @@ export function FirstTimeLanding({
                         <>
                           {/* card 3: a single, wider video (design called for 2; replaced by
                               choice with one video spanning both columns) instead of the
-                              videoA/videoB pair — card height is unchanged from this swap. */}
-                          <p className="mono col-span-2 max-w-[26rem] pl-[6rem] text-xs uppercase leading-relaxed">
+                              videoA/videoB pair — card height is unchanged from this swap.
+                              Flex column (not the shared grid) so the video can sit in a
+                              flex-1 wrapper that centres it vertically in the leftover space,
+                              which also pushes textB down toward the bottom of the card. */}
+                          <p className="mono max-w-[26rem] pl-[6rem] text-xs uppercase leading-relaxed">
                             {step.textA}
                           </p>
-                          <StepVideo
-                            src={step.videoA}
-                            aspectClassName="aspect-[2/1]"
-                            className="col-span-2 w-full"
-                            ref={(el) => {
-                              videoRefs.current[i][0] = el;
-                            }}
-                          />
-                          <p className="mono col-span-2 max-w-none pl-[calc(6%+1rem)] pr-0 text-xs uppercase leading-relaxed">
+                          <div className="flex flex-1 items-center justify-center">
+                            <StepVideo
+                              src={step.videoA}
+                              aspectClassName="aspect-[2/1]"
+                              className="w-full"
+                              ref={(el) => {
+                                videoRefs.current[i][0] = el;
+                              }}
+                            />
+                          </div>
+                          <p className="mono max-w-none pl-[calc(6%+1rem)] pr-0 text-xs uppercase leading-relaxed">
                             {step.textB}
                           </p>
                         </>
@@ -894,8 +907,16 @@ export function FirstTimeLanding({
         })}
       </section>
 
-      {/* ── Back to top ── */}
+      {/* ── Closing label (desktop only) + back to top ── */}
       <div className="mx-auto mt-8 flex flex-col items-center gap-6 px-6 text-center">
+        <p className="mono uppercase hidden max-w-3xl text-xs leading-relaxed tracking-wider text-muted-foreground md:block">
+          Now that you've got the basics, start using it, play around with the settings and use it
+          for your next gathering! If you have any feedback, please send it to me through{" "}
+          <Link to="/feedback" className="underline transition-opacity hover:opacity-60">
+            here
+          </Link>
+          .
+        </p>
         <BackToTop />
       </div>
 
@@ -935,9 +956,8 @@ export function FirstTimeLanding({
           </div>
         </div>
 
-        {/* slim footer row — extra bottom padding on mobile so the fixed "stay tuned"
-            popup (until dismissed) doesn't permanently cover these links. */}
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-10 py-8 pb-32 md:flex-row md:items-center md:justify-between md:px-6 md:pb-8">
+        {/* slim footer row */}
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-10 py-8 md:flex-row md:items-center md:justify-between md:px-6">
           <nav className="flex items-center gap-6 text-xs">
             <Link to="/feedback" className={linkCls}>
               Feedback
