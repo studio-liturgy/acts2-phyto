@@ -46,8 +46,8 @@ const STEPS: Step[] = [
     n: 1,
     navLabel: "Create Sets / Gathering",
     color: "var(--brand-blue)",
-    textA: "Create your sets by importing song lyrics, scriptures, or your own media.",
-    textB: "Arrange those sets into a gathering to stay organized and present later on.",
+    textA: "Create your sets by importing song lyrics, scriptures, or your own media",
+    textB: "Arrange those sets into a gathering to stay organized and present later on",
     videoA: "/landing-1.mp4",
     videoB: "/landing-2.mp4",
     svgPath:
@@ -68,8 +68,8 @@ const STEPS: Step[] = [
     n: 3,
     navLabel: "Start Presenting",
     color: "var(--brand-orange)",
-    textA: "Connect your computer to a TV or projector, then hit Present in the top right.",
-    textB: "Drag the Output window to your display and control it through the presenter view.",
+    textA: "Connect your computer to a TV or projector, then hit Present in the top right",
+    textB: "Drag the Output window to your display and control it through the presenter view",
     videoA: "/landing-5.mp4",
     svgPath:
       "M218.635 311.888C204.878 311.888 193.036 309.189 183.11 303.791C173.184 298.218 165.522 290.904 160.123 281.849C154.899 272.619 152.287 262.432 152.287 251.287V237.182H174.229V249.72C174.229 262.78 178.408 273.055 186.767 280.543C195.126 287.857 205.574 291.514 218.112 291.514C225.775 291.514 232.653 289.859 238.748 286.551C245.017 283.068 249.893 278.54 253.376 272.968C257.033 267.221 258.861 260.865 258.861 253.899V252.332C258.861 241.361 255.379 232.828 248.413 226.733C241.447 220.464 232.74 217.329 222.292 217.329H197.738V187.029L257.294 148.892V145.757H153.854V125.383H276.101V158.818L216.545 196.955V200.089H226.994C236.223 200.089 244.93 202.092 253.115 206.097C261.299 210.103 267.917 215.936 272.967 223.599C278.191 231.087 280.803 240.403 280.803 251.548V256.25C280.803 266.699 278.104 276.189 272.706 284.722C267.307 293.081 259.906 299.698 250.503 304.574C241.099 309.45 230.476 311.888 218.635 311.888Z",
@@ -572,7 +572,7 @@ export function FirstTimeLanding({
             >
               <X className="h-4 w-4" />
             </button>
-            <p className="mono text-xs uppercase tracking-wider">Mobile support is in the works!</p>
+            <p className="mono text-xs uppercase tracking-wider">Mobile support is in the works</p>
             <p className="mono mt-1 text-xs uppercase tracking-wider text-[var(--brand-black)]/60">
               Be the first to know!
             </p>
@@ -823,7 +823,7 @@ export function FirstTimeLanding({
           return (
             <div key={step.n}>
               <p
-                className={`mono mb-4 text-xs uppercase tracking-wider ${mirror ? "pl-3" : "pl-[6.5rem]"}`}
+                className={`mono mb-4 text-xs uppercase tracking-wider ${mirror ? "pr-[6.5rem] text-right" : "pl-[6.5rem]"}`}
                 style={{ color: step.color }}
               >
                 {step.navLabel}
