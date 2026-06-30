@@ -7,10 +7,12 @@ export async function sendWelcomeIfNew(user: {
 }) {
   const ageMs = Date.now() - new Date(user.created_at).getTime();
   const isNew = ageMs < 600_000;
-  if (!isNew || !user.email) return;
+  if (!user.email) return;
 
   const subscribe = sessionStorage.getItem("phyto-subscribe") === "true";
   sessionStorage.removeItem("phyto-subscribe");
+  if (!isNew && !subscribe) return;
+
   try {
     const res = await fetch("/api/auth/welcome", {
       method: "POST",
@@ -19,6 +21,7 @@ export async function sendWelcomeIfNew(user: {
         email: user.email,
         name: user.user_metadata?.full_name ?? undefined,
         subscribe,
+        skipEmail: !isNew,
       }),
     });
     if (!res.ok) {
