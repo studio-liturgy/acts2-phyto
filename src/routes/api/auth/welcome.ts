@@ -67,11 +67,14 @@ export const Route = createFileRoute("/api/auth/welcome")({
         }
 
         // Add to Resend Audience for mailing list + unsubscribe support.
-        // Best-effort: log failures but don't block the response.
+        // Best-effort: log failures but don't block the response. The promise
+        // is handed to waitUntil() so the Worker keeps running it after the
+        // response is sent — otherwise Cloudflare can tear down the request
+        // context before the unawaited fetch to Resend completes.
         const RESEND_AUDIENCE_ID = await readEnv("RESEND_AUDIENCE_ID");
         if (RESEND_AUDIENCE_ID && parsed.data.subscribe) {
           const nameParts = (name ?? "").trim().split(/\s+/);
-          resend.contacts
+          const addContact = resend.contacts
             .create({
               audienceId: RESEND_AUDIENCE_ID,
               email,
@@ -79,11 +82,23 @@ export const Route = createFileRoute("/api/auth/welcome")({
               lastName: nameParts.slice(1).join(" ") || undefined,
               unsubscribed: false,
             })
+            .then((res) => {
+              if (res.error) {
+                console.error(`Audience contact create failed: ${res.error.message}`);
+              }
+            })
             .catch((e: unknown) => {
               console.error(
                 `Audience contact create failed: ${e instanceof Error ? e.message : String(e)}`,
               );
             });
+
+          try {
+            const { waitUntil } = await import("cloudflare:workers");
+            waitUntil(addContact);
+          } catch {
+            await addContact;
+          }
         }
 
         return Response.json({ ok: true });
