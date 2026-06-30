@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BackToTop } from "@/components/BackToTop";
+import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 import type { SetKind } from "@/lib/types";
 import type { SyncState } from "@/hooks/use-sync-status";
 import wordmark from "@/assets/wordmark.svg";
@@ -160,6 +161,10 @@ export function FirstTimeLanding({
   syncStatus: SyncState;
   onSignOut: () => void;
 }) {
+  // Tints the mobile overscroll/safe-area chrome (top + bottom) to match the page
+  // instead of showing default white/dark bars — same fix used on /about and /legal.
+  usePageBackgroundColor(isTest ? "#ca9174" : "var(--brand-blue)");
+
   const [activeIndex, setActiveIndex] = useState(0);
 
   const sectionRef = useRef<HTMLDivElement | null>(null);
@@ -335,30 +340,32 @@ export function FirstTimeLanding({
     setPopupDismissed(true);
   };
 
-  // Mobile: each section's circle (a) stays pinned near the top of the viewport
-  // while its section scrolls past — like the desktop circle's sticky behaviour —
-  // and (b) spins one full turn over that same span, landing upright once the
-  // section's bottom reaches the stuck point. Implemented as JS-driven `position:
-  // absolute` + computed `top` rather than CSS `position: sticky`, because any
-  // overflow-hidden ancestor (needed for the edge-clip look) breaks sticky's
-  // containing-block resolution — this sidesteps that entirely. rAF-throttled.
+  // Mobile: each circle only spins while it's pinned (CSS sticky holding it at
+  // viewport middle, `top: calc(50vh - 2.5rem)` in the JSX below) — not while
+  // it's scrolling normally with the page before or after that. Computed as a
+  // deterministic clamp on the wrapper's raw scroll position (same threshold the
+  // CSS `top` value targets) rather than inferred from frame deltas — a
+  // delta/velocity-based "is it currently moving" check is unreliable (slow
+  // scrolling looks identical to "pinned"), and produced drift instead of a
+  // clean sweep. Clamping guarantees rotation is exactly 0° (upright) before the
+  // pinned phase and exactly 360° (upright) after it, with no accumulation
+  // drift. rAF-throttled.
   useEffect(() => {
-    const STUCK_TOP = 16; // px from viewport top where the circle "sticks"
     const CIRCLE_SIZE = 80; // h-20/w-20
+    const EXTRA_BOTTOM = 24; // matches the -bottom-6 extension on the sticky containing block in JSX
     let raf = 0;
     const update = () => {
       raf = 0;
-      mobileSectionRefs.current.forEach((sectionEl, i) => {
-        const circle = mobileCircleRefs.current[i];
-        if (!sectionEl || !circle) return;
+      const stuckY = window.innerHeight / 2 - CIRCLE_SIZE / 2; // matches calc(50vh - 2.5rem)
+      mobileCircleRefs.current.forEach((circle, i) => {
+        const sectionEl = mobileSectionRefs.current[i];
+        if (!circle || !sectionEl) return;
         const r = sectionEl.getBoundingClientRect();
         if (r.height === 0) return; // hidden (desktop viewport)
-        const screenTop = Math.min(
-          Math.max(r.top, STUCK_TOP),
-          r.bottom - CIRCLE_SIZE,
+        const progress = Math.min(
+          1,
+          Math.max(0, (stuckY - r.top) / Math.max(1, r.height + EXTRA_BOTTOM - CIRCLE_SIZE)),
         );
-        circle.style.top = `${screenTop - r.top}px`;
-        const progress = Math.min(1, Math.max(0, (STUCK_TOP - r.top) / (r.height - CIRCLE_SIZE || 1)));
         const spinSign = i === 1 ? 1 : -1; // blue/orange counter-clockwise, green clockwise
         circle.style.transform = `rotate(${spinSign * progress * 360}deg)`;
       });
@@ -367,11 +374,9 @@ export function FirstTimeLanding({
       if (!raf) raf = requestAnimationFrame(update);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
     update();
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
@@ -797,15 +802,15 @@ export function FirstTimeLanding({
         </div>
       </section>
 
-      {/* ── Mobile: stacked steps, each with its own clipped-edge circle that spins
-          independently as its section scrolls, landing upright at the section's end ── */}
+      {/* ── Mobile: stacked steps, each with a circle that sits underneath its card and
+          spins as its section scrolls, landing upright at the section's end ── */}
       <section className="mt-12 flex flex-col gap-12 md:hidden">
         {STEPS.map((step, i) => {
           const mirror = i % 2 === 1;
           return (
             <div key={step.n}>
               <p
-                className={`mono mb-4 text-xs uppercase tracking-wider ${mirror ? "pl-3" : "pl-[4.5rem]"}`}
+                className={`mono mb-4 text-xs uppercase tracking-wider ${mirror ? "pl-3" : "pl-[6.5rem]"}`}
                 style={{ color: step.color }}
               >
                 {step.navLabel}
@@ -814,57 +819,74 @@ export function FirstTimeLanding({
                 ref={(el) => {
                   mobileSectionRefs.current[i] = el;
                 }}
-                className="relative overflow-hidden"
+                className="relative"
               >
-                {/* Pinned via JS-computed `top` (see the rotation effect) rather than CSS
-                    position:sticky — sticky breaks once wrapped by the overflow-hidden
-                    needed here for the edge-clip look, since that ancestor becomes its
-                    containing block. This achieves the same "stuck till section end" feel. */}
+                {/* Zero-footprint layer (doesn't push the card down) holding the sticky
+                    circle — z-layered underneath the card (not vertically below it), fully
+                    within the screen (no edge bleed). Extends slightly past the card's own
+                    bottom edge (-bottom-6 vs. flush) so the circle settles a touch lower than
+                    the card once it releases, instead of flush with the card's bottom. Real
+                    CSS sticky works reliably here since nothing in this chain has overflow
+                    set, so it resolves against the real page scroller: scrolls normally,
+                    then pins at viewport middle — same `50vh` anchor the desktop circle
+                    uses. */}
                 <div
-                  ref={(el) => {
-                    mobileCircleRefs.current[i] = el;
-                  }}
-                  className={`absolute top-0 z-0 h-20 w-20 will-change-transform ${
-                    mirror ? "-right-10" : "-left-10"
-                  }`}
+                  className="pointer-events-none absolute inset-x-0 top-0 -bottom-6 z-0"
+                  aria-hidden
                 >
-                  <svg viewBox="0 0 431 431" className="h-full w-full">
-                    <circle
-                      cx="215.5"
-                      cy="215.5"
-                      r="214"
-                      fill="none"
-                      strokeWidth="3"
-                      style={{ stroke: step.color }}
-                    />
-                    <path d={step.svgPath} style={{ fill: step.color }} />
-                  </svg>
-                </div>
-                <div
-                  className={`relative z-10 rounded-3xl p-6 text-[var(--brand-white)] ${
-                    mirror ? "mr-12 -ml-3" : "ml-12 -mr-3"
-                  }`}
-                  style={{ backgroundColor: step.color }}
-                >
-                  <p className="mono text-xs uppercase leading-relaxed">{step.textA}</p>
-                  <StepVideo
-                    src={step.videoA}
-                    aspectClassName={i === 2 ? "aspect-[2/1]" : "aspect-square"}
-                    className="mt-4 w-full"
+                  <div
                     ref={(el) => {
-                      mobileVideoRefs.current[i][0] = el;
+                      mobileCircleRefs.current[i] = el;
                     }}
-                  />
-                  <p className="mono mt-6 text-xs uppercase leading-relaxed">{step.textB}</p>
-                  {step.videoB && (
+                    className={`sticky -mt-6 h-20 w-20 will-change-transform ${
+                      mirror ? "ml-auto mr-6" : "ml-6"
+                    }`}
+                    style={{ top: "calc(50vh - 2.5rem)" }}
+                  >
+                    <svg viewBox="0 0 431 431" className="h-full w-full">
+                      <circle
+                        cx="215.5"
+                        cy="215.5"
+                        r="214"
+                        fill="none"
+                        strokeWidth="3"
+                        style={{ stroke: step.color }}
+                      />
+                      <path d={step.svgPath} style={{ fill: step.color }} />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Clips just the card's own slight off-screen bleed — scoped here (not on
+                    the outer wrapper) so it doesn't become the sticky circle's containing
+                    block and break its stickiness. */}
+                <div className="overflow-hidden">
+                  <div
+                    className={`relative z-10 rounded-3xl p-6 text-[var(--brand-white)] ${
+                      mirror ? "mr-20 -ml-3" : "ml-20 -mr-3"
+                    }`}
+                    style={{ backgroundColor: step.color }}
+                  >
+                    <p className="mono text-xs uppercase leading-relaxed">{step.textA}</p>
                     <StepVideo
-                      src={step.videoB}
+                      src={step.videoA}
+                      aspectClassName={i === 2 ? "aspect-[2/1]" : "aspect-square"}
                       className="mt-4 w-full"
                       ref={(el) => {
-                        mobileVideoRefs.current[i][1] = el;
+                        mobileVideoRefs.current[i][0] = el;
                       }}
                     />
-                  )}
+                    <p className="mono mt-6 text-xs uppercase leading-relaxed">{step.textB}</p>
+                    {step.videoB && (
+                      <StepVideo
+                        src={step.videoB}
+                        className="mt-4 w-full"
+                        ref={(el) => {
+                          mobileVideoRefs.current[i][1] = el;
+                        }}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
