@@ -23,6 +23,22 @@ export default function UpdatesMain() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-12">
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
+            <div className="text-2xl">July 1, 2026</div>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Mobile</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>Visiting on mobile no longer hits a hard block: you'll land on a mobile-friendly intro with a short guided walkthrough</FeatureItem>
+              <FeatureItem>Leave your email in the new popup to hear when full mobile support lands</FeatureItem>
+            </ul>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Home and catalogue</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>New guided intro when your catalogue is empty: three scrolling steps with short videos covering creating sets, going online, and presenting. Revisit anytime from the new Intro link</FeatureItem>
+              <FeatureItem>Gatherings scroll horizontally once you have more than two, with the live gathering always shown first</FeatureItem>
+              <FeatureItem>Only one gathering can be edited at a time</FeatureItem>
+            </ul>
+          </li>
+          <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">June 25, 2026</div>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-60">Presenter</div>
