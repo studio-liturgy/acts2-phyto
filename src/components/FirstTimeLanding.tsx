@@ -133,7 +133,7 @@ const StepVideo = forwardRef<
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="auto"
         onLoadedData={() => setLoaded(true)}
         className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
           loaded ? "opacity-100" : "opacity-0"
