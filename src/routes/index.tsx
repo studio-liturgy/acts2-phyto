@@ -308,6 +308,15 @@ function Library() {
   const isEmpty = gatheringOrder.length === 0 && order.length === 0;
   const showLanding = isEmpty || !!intro;
 
+  // The live gathering always leads, regardless of creation order.
+  const gatheringDisplayOrder = useMemo(
+    () => [...gatheringOrder].sort((a, b) => Number(!!gatherings[b]?.is_live) - Number(!!gatherings[a]?.is_live)),
+    [gatheringOrder, gatherings],
+  );
+
+  // Only one gathering card can be in edit mode at a time.
+  const [editingGatheringId, setEditingGatheringId] = useState<string | null>(null);
+
   const catalogueRows = useMemo(() => {
     const q = catalogueFilter.trim().toLowerCase();
     let rows = order
@@ -440,8 +449,14 @@ function Library() {
                 No gatherings yet. Click New to plan a gathering!
               </div>
             ) : (
-              <div className="grid gap-1.5 lg:grid-cols-2">
-                {gatheringOrder.map((pid) => {
+              <div
+                className={
+                  gatheringDisplayOrder.length > 2
+                    ? "catalogue-scroll flex gap-1.5 overflow-x-auto pb-2"
+                    : "grid gap-1.5 lg:grid-cols-2"
+                }
+              >
+                {gatheringDisplayOrder.map((pid) => {
                   const p = gatherings[pid];
                   if (!p) return null;
                   return (
@@ -462,6 +477,9 @@ function Library() {
                         isSignedIn ? goLive(pid) : (setShowGoLivePrompt(true), Promise.resolve())
                       }
                       onEndSession={() => endSession(pid)}
+                      className={gatheringDisplayOrder.length > 2 ? "w-[360px] shrink-0" : ""}
+                      editMode={editingGatheringId === pid}
+                      onEditModeChange={(v) => setEditingGatheringId(v ? pid : null)}
                     />
                   );
                 })}
@@ -1068,6 +1086,9 @@ function GatheringCard({
   shareToken,
   onGoLive,
   onEndSession,
+  className = "",
+  editMode,
+  onEditModeChange,
 }: {
   gatheringId: string;
   name: string;
@@ -1082,6 +1103,11 @@ function GatheringCard({
   onReorder: (ids: string[]) => void;
   onGoLive: () => Promise<void>;
   onEndSession: () => void;
+  className?: string;
+  // Edit mode reveals destructive controls + the "search for a set" input.
+  // Lifted to the parent so only one gathering can be edited at a time.
+  editMode: boolean;
+  onEditModeChange: (editing: boolean) => void;
 }) {
   const dragIndex = useRef<number | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -1091,8 +1117,6 @@ function GatheringCard({
   const [addQuery, setAddQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [editingName, setEditingName] = useState(false);
-  // Edit mode reveals destructive controls + the "search for a set" input.
-  const [editMode, setEditMode] = useState(false);
 
   const isSignedIn = useIsSignedIn();
   const [showGoLiveDialog, setShowGoLiveDialog] = useState(false);
@@ -1144,7 +1168,7 @@ function GatheringCard({
       }}
       className={`rounded-3xl border border-foreground bg-background p-5 transition ${
         dropActive ? "ring-2 ring-foreground ring-offset-2 ring-offset-background" : ""
-      }`}
+      } ${className}`}
     >
       <div className="mb-4 flex items-center gap-2">
         {editingName && editMode ? (
@@ -1166,7 +1190,10 @@ function GatheringCard({
           </h3>
         )}
         <button
-          onClick={() => setEditMode((v) => !v)}
+          onClick={() => {
+            if (editMode) setEditingName(false);
+            onEditModeChange(!editMode);
+          }}
           className={`pill flex items-center justify-center border border-foreground transition ${
             editMode
               ? "mono uppercase bg-foreground text-background px-4 py-1.5 text-xs tracking-wider"
