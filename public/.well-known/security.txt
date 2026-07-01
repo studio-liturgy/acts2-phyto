@@ -1,0 +1,4 @@
+Contact: mailto:hello@studioliturgy.com
+Expires: 2027-06-30T00:00:00.000Z
+Canonical: https://phyto.live/.well-known/security.txt
+Canonical: https://phytoexp.live/.well-known/security.txt
