@@ -91,11 +91,13 @@ const CONNECTORS = [
       "M553.939 766.061C553.354 765.475 553.354 764.525 553.939 763.939L563.485 754.393C564.071 753.808 565.021 753.808 565.607 754.393C566.192 754.979 566.192 755.929 565.607 756.515L557.121 765L565.607 773.485C566.192 774.071 566.192 775.021 565.607 775.607C565.021 776.192 564.071 776.192 563.485 775.607L553.939 766.061ZM592 765L592 766.5L555 766.5L555 765L555 763.5L592 763.5L592 765ZM479.5 617L479.5 615.5L592 615.5L592 617L592 618.5L479.5 618.5L479.5 617ZM622 647L623.5 647L623.5 735L622 735L620.5 735L620.5 647L622 647ZM592 617L592 615.5C609.397 615.5 623.5 629.603 623.5 647L622 647L620.5 647C620.5 631.26 607.74 618.5 592 618.5L592 617ZM592 765L592 763.5C607.74 763.5 620.5 750.74 620.5 735L622 735L623.5 735C623.5 752.397 609.397 766.5 592 766.5L592 765Z",
   },
   {
-    windowMinY: 1321.5,
-    windowHeight: 193,
-    strokePath: "M622 1363L622 1473",
+    // copied verbatim from connector 0 (blue→green), which renders correctly — connector 1's
+    // own source-design geometry didn't render right after the inter-card gap was removed.
+    windowMinY: 605.5,
+    windowHeight: 171,
+    strokePath: "M622 647L622 735",
     arrowPath:
-      "M553.939 1504.06C553.354 1503.47 553.354 1502.53 553.939 1501.94L563.485 1492.39C564.071 1491.81 565.021 1491.81 565.607 1492.39C566.192 1492.98 566.192 1493.93 565.607 1494.51L557.121 1503L565.607 1511.49C566.192 1512.07 566.192 1513.02 565.607 1513.61C565.021 1514.19 564.071 1514.19 563.485 1513.61L553.939 1504.06ZM592 1333L592 1331.5L592 1333ZM592 1503L592 1504.5L555 1504.5L555 1503L555 1501.5L592 1501.5L592 1503ZM505 1333L505 1331.5L592 1331.5L592 1333L592 1334.5L505 1334.5L505 1333ZM622 1363L623.5 1363L623.5 1473L622 1473L620.5 1473L620.5 1363L622 1363ZM592 1333L592 1331.5C609.397 1331.5 623.5 1345.6 623.5 1363L622 1363L620.5 1363C620.5 1347.26 607.74 1334.5 592 1334.5L592 1333ZM592 1503L592 1501.5C607.74 1501.5 620.5 1488.74 620.5 1473L622 1473L623.5 1473C623.5 1490.4 609.397 1504.5 592 1504.5L592 1503Z",
+      "M553.939 766.061C553.354 765.475 553.354 764.525 553.939 763.939L563.485 754.393C564.071 753.808 565.021 753.808 565.607 754.393C566.192 754.979 566.192 755.929 565.607 756.515L557.121 765L565.607 773.485C566.192 774.071 566.192 775.021 565.607 775.607C565.021 776.192 564.071 776.192 563.485 775.607L553.939 766.061ZM592 765L592 766.5L555 766.5L555 765L555 763.5L592 763.5L592 765ZM479.5 617L479.5 615.5L592 615.5L592 617L592 618.5L479.5 618.5L479.5 617ZM622 647L623.5 647L623.5 735L622 735L620.5 735L620.5 647L622 647ZM592 617L592 615.5C609.397 615.5 623.5 629.603 623.5 647L622 647L620.5 647C620.5 631.26 607.74 618.5 592 618.5L592 617ZM592 765L592 763.5C607.74 763.5 620.5 750.74 620.5 735L622 735L623.5 735C623.5 752.397 609.397 766.5 592 766.5L592 765Z",
   },
 ];
 
@@ -340,6 +342,30 @@ export function FirstTimeLanding({
     setPopupDismissed(true);
   };
 
+  const [subscribeEmail, setSubscribeEmail] = useState("");
+  const [subscribeStatus, setSubscribeStatus] = useState<"idle" | "submitting" | "done" | "error">(
+    "idle",
+  );
+
+  // Same Resend Audience the sign-in page's "subscribe" checkbox adds to (see
+  // sendWelcomeIfNew/login.tsx) — skipEmail so this doesn't also trigger the
+  // "Welcome to phyto" account email, since there's no account here.
+  const submitMobileSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (subscribeStatus === "submitting" || subscribeStatus === "done") return;
+    setSubscribeStatus("submitting");
+    try {
+      const res = await fetch("/api/auth/welcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: subscribeEmail, subscribe: true, skipEmail: true }),
+      });
+      setSubscribeStatus(res.ok ? "done" : "error");
+    } catch {
+      setSubscribeStatus("error");
+    }
+  };
+
   // Mobile: each circle only spins while it's pinned (CSS sticky holding it at
   // viewport middle, `top: calc(50vh - 2.5rem)` in the JSX below) — not while
   // it's scrolling normally with the page before or after that. Computed as a
@@ -475,10 +501,14 @@ export function FirstTimeLanding({
           </Link>
           <h1 className="mt-10 text-5xl leading-[1.1] md:text-6xl">
             <span className="md:hidden">
-              Built for small home worship gatherings, like yours and mine.
+              Built for small home worship gatherings,
+              <br />
+              like yours and mine.
             </span>
             <span className="hidden md:inline">
-              I built this tool for small home worship gatherings, like yours and mine.
+              Built for small home worship gatherings,
+              <br />
+              like yours and mine.
             </span>
           </h1>
         </div>
@@ -560,36 +590,60 @@ export function FirstTimeLanding({
           with the page) right here; once its top edge would scroll just past the top
           of the viewport, it sticks there for the remainder of the page (no overflow
           ancestor between here and <main>'s end, so its sticky range isn't bounded
-          early). Dismissible, remembered via localStorage. ── */}
+          early). Dismissible, remembered via localStorage.
+
+          Colored brand-blue (not white) on purpose: iOS Safari auto-matches its
+          toolbar/safe-area color to whatever sticky element looks like a "header"
+          near the top of the viewport, and was picking up this popup's white
+          background instead of the page's actual blue — recoloring it to match
+          the page is what actually fixes the white safe-area bar, not fighting
+          Safari's heuristic. ── */}
       {!popupDismissed && (
         <div className="sticky top-4 z-50 mx-4 mt-6 md:hidden">
-          <div className="relative rounded-3xl border border-[var(--brand-black)] bg-[var(--brand-white)] p-5 text-center text-[var(--brand-black)]">
+          <div className="relative rounded-3xl border border-[var(--brand-white)] bg-[var(--brand-blue)] p-5 text-center text-[var(--brand-white)]">
             <button
               type="button"
               onClick={dismissMobilePopup}
               aria-label="Dismiss"
-              className="absolute right-3 top-3 text-[var(--brand-black)]/50 transition-opacity hover:opacity-60"
+              className="absolute right-3 top-3 text-[var(--brand-white)]/60 transition-opacity hover:opacity-80"
             >
               <X className="h-4 w-4" />
             </button>
             <p className="mono text-xs uppercase tracking-wider">Mobile support is in the works</p>
-            <p className="mono mt-1 text-xs uppercase tracking-wider text-[var(--brand-black)]/60">
+            <p className="mono mt-1 text-xs uppercase tracking-wider text-[var(--brand-white)]/70">
               Be the first to know!
             </p>
-            <form onSubmit={(e) => e.preventDefault()} className="relative mt-4">
-              <input
-                type="email"
-                placeholder="Email address"
-                className="mono w-full rounded-full border border-[var(--brand-black)]/20 bg-transparent py-3 pl-5 pr-14 text-xs uppercase tracking-wider text-[var(--brand-black)] outline-none placeholder:text-[var(--brand-black)]/40 focus:border-[var(--brand-black)]/50"
-              />
-              <button
-                type="submit"
-                aria-label="Submit"
-                className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--brand-black)] text-[var(--brand-white)] transition hover:opacity-90"
-              >
-                <ArrowUpRight className="h-4 w-4" />
-              </button>
-            </form>
+            {subscribeStatus === "done" ? (
+              <p className="mono mt-4 text-xs uppercase tracking-wider">You're on the list!</p>
+            ) : (
+              <form onSubmit={submitMobileSubscribe} className="relative mt-4">
+                <input
+                  type="email"
+                  required
+                  value={subscribeEmail}
+                  onChange={(e) => {
+                    setSubscribeEmail(e.target.value);
+                    if (subscribeStatus === "error") setSubscribeStatus("idle");
+                  }}
+                  placeholder="Email address"
+                  disabled={subscribeStatus === "submitting"}
+                  className="mono w-full rounded-full border border-[var(--brand-white)]/30 bg-transparent py-3 pl-5 pr-14 text-xs uppercase tracking-wider text-[var(--brand-white)] outline-none placeholder:text-[var(--brand-white)]/50 focus:border-[var(--brand-white)]/60 disabled:opacity-60"
+                />
+                <button
+                  type="submit"
+                  aria-label="Submit"
+                  disabled={subscribeStatus === "submitting"}
+                  className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--brand-white)] text-[var(--brand-blue)] transition hover:opacity-90 disabled:opacity-60"
+                >
+                  <ArrowUpRight className="h-4 w-4" />
+                </button>
+              </form>
+            )}
+            {subscribeStatus === "error" && (
+              <p className="mono mt-2 text-xs uppercase tracking-wider text-[var(--brand-white)]/70">
+                Something went wrong — try again?
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -629,7 +683,7 @@ export function FirstTimeLanding({
           </div>
 
           {/* Center: the three snap cards */}
-          <div className="relative z-10 flex flex-col gap-8 pt-[14vh] pb-[6vh]">
+          <div className="relative z-10 flex flex-col pt-[14vh] pb-[6vh]">
             {STEPS.map((step, i) => {
               const isActive = i === activeIndex;
               const mirror = i % 2 === 1;

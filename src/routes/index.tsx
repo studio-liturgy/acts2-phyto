@@ -344,7 +344,9 @@ function Library() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div
+      className={`flex flex-col bg-background text-foreground ${showLanding ? "" : "min-h-screen"}`}
+    >
       {/* Header chrome only for the normal home view — on the landing it's overlaid
           onto the top band by FirstTimeLanding. */}
       {!showLanding && (

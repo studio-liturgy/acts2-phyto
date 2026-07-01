@@ -115,6 +115,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "viewport",
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
+      // Baseline so the tag exists from first paint (matches --background) — pages that
+      // tint via usePageBackgroundColor then update this element's content in place
+      // instead of inserting a brand-new <meta>, which Safari picks up more reliably
+      // for coloring the safe-area/bottom-toolbar region.
+      { name: "theme-color", content: "#F5EFEF" },
       { title: `${APP_NAME} | home gatherings` },
       {
         name: "description",
