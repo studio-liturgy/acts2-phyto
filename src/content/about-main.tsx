@@ -66,7 +66,7 @@ export default function AboutMain() {
           </div>
 
           {/* Mono footnote */}
-          <p className="mono mt-20 max-w-4xl text-xs leading-relaxed text-[var(--brand-white)]">
+          <p className="mono mt-20 max-w-4xl text-xs uppercase leading-relaxed text-[var(--brand-white)]">
             phyto is short for phytoplankton. Organisms that use sunlight, freely available in abundance, to survive, live, and breathe. Our times of worship together should work the same way.
           </p>
           <div className="mt-12">

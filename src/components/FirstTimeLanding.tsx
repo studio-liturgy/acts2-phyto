@@ -19,6 +19,8 @@ const isTest = import.meta.env.VITE_APP_ENV === "test";
 const aboutBg = "/about-bg.jpg";
 const linkCls = "mono uppercase transition-opacity duration-200 hover:opacity-60";
 const MOBILE_POPUP_DISMISSED_KEY = "phyto-mobile-popup-dismissed";
+const MOBILE_POPUP_SUBSCRIBED_KEY = "phyto-mobile-popup-subscribed";
+const MOBILE_POPUP_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
 
 type Step = {
   n: number;
@@ -332,13 +334,20 @@ export function FirstTimeLanding({
   };
 
   // Mobile popup: stays hidden until we've checked localStorage post-mount, so it
-  // never flashes for a user who already dismissed it.
+  // never flashes for a user who already dismissed it. A dismissal (no email
+  // submitted) only snoozes the popup for MOBILE_POPUP_SNOOZE_MS; submitting an
+  // email hides it for good.
   useEffect(() => {
-    setPopupDismissed(localStorage.getItem(MOBILE_POPUP_DISMISSED_KEY) === "1");
+    if (localStorage.getItem(MOBILE_POPUP_SUBSCRIBED_KEY) === "1") {
+      setPopupDismissed(true);
+      return;
+    }
+    const dismissedAt = Number(localStorage.getItem(MOBILE_POPUP_DISMISSED_KEY) ?? 0);
+    setPopupDismissed(Date.now() - dismissedAt < MOBILE_POPUP_SNOOZE_MS);
   }, []);
 
   const dismissMobilePopup = () => {
-    localStorage.setItem(MOBILE_POPUP_DISMISSED_KEY, "1");
+    localStorage.setItem(MOBILE_POPUP_DISMISSED_KEY, String(Date.now()));
     setPopupDismissed(true);
   };
 
@@ -360,6 +369,7 @@ export function FirstTimeLanding({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: subscribeEmail, subscribe: true, skipEmail: true }),
       });
+      if (res.ok) localStorage.setItem(MOBILE_POPUP_SUBSCRIBED_KEY, "1");
       setSubscribeStatus(res.ok ? "done" : "error");
     } catch {
       setSubscribeStatus("error");
@@ -981,7 +991,7 @@ export function FirstTimeLanding({
             This project will always be free and open source.
           </h2>
           <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-[var(--brand-white)]/85 md:text-lg">
-            If you feel God's prompting, I want to invite you to partner with me financially by
+            If you feel God's prompting, I invite you to partner with me financially by
             giving generously and cheerfully!
           </p>
           <div className="mt-10 flex flex-col items-stretch gap-4 md:flex-row md:flex-wrap md:items-center md:justify-center">

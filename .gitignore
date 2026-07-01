@@ -33,3 +33,6 @@ dist-ssr
 
 # graphify knowledge graph (regenerate with: graphify update .)
 graphify-out/
+
+# Claude Code session handoff notes
+.claude/handoff.md
