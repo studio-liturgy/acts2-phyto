@@ -619,10 +619,7 @@ export function FirstTimeLanding({
             >
               <X className="h-4 w-4" />
             </button>
-            <p className="mono text-xs uppercase tracking-wider">Mobile support is in the works</p>
-            <p className="mono mt-1 text-xs uppercase tracking-wider text-[var(--brand-white)]/70">
-              Be the first to know!
-            </p>
+            <p className="mono text-xs uppercase tracking-wider">Be notified when mobile launches</p>
             {subscribeStatus === "done" ? (
               <p className="mono mt-4 text-xs uppercase tracking-wider">You're on the list!</p>
             ) : (
@@ -637,7 +634,7 @@ export function FirstTimeLanding({
                   }}
                   placeholder="Email address"
                   disabled={subscribeStatus === "submitting"}
-                  className="mono w-full rounded-full border border-[var(--brand-white)]/30 bg-transparent py-3 pl-5 pr-14 text-xs uppercase tracking-wider text-[var(--brand-white)] outline-none placeholder:text-[var(--brand-white)]/50 focus:border-[var(--brand-white)]/60 disabled:opacity-60"
+                  className="mono w-full rounded-full border border-[var(--brand-white)]/30 bg-transparent py-3 pl-5 pr-14 text-[16px] uppercase tracking-wider text-[var(--brand-white)] outline-none placeholder:text-[var(--brand-white)]/50 focus:border-[var(--brand-white)]/60 disabled:opacity-60"
                 />
                 <button
                   type="submit"
