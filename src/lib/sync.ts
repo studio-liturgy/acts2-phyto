@@ -603,6 +603,43 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
 // Conflict resolution: Merge (remote wins for modified)
 // ---------------------------------------------------------------------------
 
+/** Rewrite one gathering's remote gathering_sets rows to match its local
+ *  setIds. Row ids are deterministic from (gathering_id, position), so the
+ *  upsert overwrites each position IN PLACE — no delete-then-insert window
+ *  where a public viewer could read an empty set list — then any now-removed
+ *  tail positions are trimmed. Idempotent; safe to repeat. Returns false if
+ *  either write failed. */
+async function writeGatheringSetRows(p: Gathering): Promise<boolean> {
+  let ok = true;
+  const rows = await Promise.all(
+    p.setIds.map(async (setId, i) => ({
+      id: await deterministicUuid(p.id, String(i)),
+      gathering_id: p.id,
+      set_id: setId,
+      position: i,
+    })),
+  );
+  if (rows.length) {
+    const { error: upErr } = await supabase.from("gathering_sets").upsert(rows, {
+      onConflict: "id",
+    });
+    if (upErr) {
+      console.error("[sync] gathering_sets upsert error", p.id, upErr);
+      ok = false;
+    }
+  }
+  const { error: trimErr } = await supabase
+    .from("gathering_sets")
+    .delete()
+    .eq("gathering_id", p.id)
+    .gte("position", p.setIds.length);
+  if (trimErr) {
+    console.error("[sync] gathering_sets trim error", p.id, trimErr);
+    ok = false;
+  }
+  return ok;
+}
+
 export async function applyMerge(
   diff: SyncDiff,
   opts: { localPolicy?: "push" | "drop" } = {},
@@ -700,13 +737,18 @@ export async function applyMerge(
   }
 
   // ── Step 4: push truly only-local items to Supabase, KEEPING their ids. ──
+  // Ids of only-local sets that actually LANDED remotely (post re-ID), so
+  // Step 6 can heal join rows that previously FK-failed against them.
+  const pushedSetIds: string[] = [];
   if (localPolicy === "push" && session && userId) {
     if (diff.onlyLocal.sets.length) {
       const { error } = await supabase.from("sets").upsert(
         diff.onlyLocal.sets.map((s) => toSupabaseSet(s, userId, deviceId)),
         { onConflict: "id" },
       );
-      if (error) {
+      if (!error) {
+        pushedSetIds.push(...diff.onlyLocal.sets.map((s) => s.id));
+      } else {
         // Fallback: a set id is owned by another user (imported someone else's
         // .phyto). Re-ID just these and retry; Step 5 fixes gathering refs.
         console.error("[applyMerge] sets upsert error — re-IDing and retrying:", error);
@@ -722,6 +764,7 @@ export async function applyMerge(
           { onConflict: "id" },
         );
         if (retryErr) console.error("[applyMerge] sets re-ID retry error:", retryErr);
+        else pushedSetIds.push(...reIded.map((s) => s.id));
       }
     }
 
@@ -768,22 +811,7 @@ export async function applyMerge(
         }
       }
 
-      const gatheringSetRows = await Promise.all(
-        pushed.flatMap((p) =>
-          p.setIds.map(async (setId, i) => ({
-            id: await deterministicUuid(p.id, String(i)),
-            gathering_id: p.id,
-            set_id: setId,
-            position: i,
-          })),
-        ),
-      );
-      if (gatheringSetRows.length) {
-        const { error: gsErr } = await supabase
-          .from("gathering_sets")
-          .upsert(gatheringSetRows, { onConflict: "id" });
-        if (gsErr) console.error("[applyMerge] gathering_sets upsert error:", gsErr);
-      }
+      for (const p of pushed) await writeGatheringSetRows(p);
     }
   }
 
@@ -797,6 +825,29 @@ export async function applyMerge(
       .filter((p) => p.setIds.some((sid) => setIdMap.has(sid)))
       .map((p) => ({ ...p, setIds: remapSetIds(p.setIds) }));
     if (fixes.length) await db.gatherings.bulkPut(fixes);
+  }
+
+  // ── Step 6: heal remote join rows for sets that only just became remote.
+  //    A historical push could land a gathering while its sets upsert failed
+  //    silently (the old swallowed-batch bug): the gathering_sets rows were
+  //    rejected by the FK and never retried, leaving the remote gathering
+  //    permanently EMPTY. Such a gathering is id-matched with equal
+  //    timestamps, so no diff bucket ever revisits it — without this pass the
+  //    sets pushed above would stay unlinked remotely forever, and every
+  //    other device would keep pulling gatherings with missing sets. Rewrite
+  //    join rows for every local gathering that references a just-pushed set
+  //    (in-place deterministic upsert; idempotent). ──
+  if (localPolicy === "push" && session && userId && pushedSetIds.length) {
+    const justPushed = new Set(pushedSetIds);
+    const onlyLocalIds = new Set(diff.onlyLocal.gatherings.map((p) => p.id));
+    const all = await db.gatherings.toArray();
+    for (const p of all) {
+      // onlyLocal gatherings already had their rows written in Step 4.
+      if (onlyLocalIds.has(p.id)) continue;
+      if (p.setIds.some((sid) => justPushed.has(sid))) {
+        await writeGatheringSetRows(p);
+      }
+    }
   }
 }
 
@@ -969,39 +1020,10 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
         );
       });
 
-      // Atomic rewrite per gathering: the row id is deterministic from
-      // (gathering_id, position), so upserting on the PK `id` overwrites each
-      // position IN PLACE — no delete-then-insert window where a public viewer
-      // could read an empty set list. Then trim any now-removed tail positions.
+      // Atomic rewrite per gathering (see writeGatheringSetRows): in-place
+      // deterministic upsert, then trim removed tail positions.
       for (const p of gatheringsToSync) {
-        const rows = await Promise.all(
-          p.setIds.map(async (setId, i) => ({
-            id: await deterministicUuid(p.id, String(i)),
-            gathering_id: p.id,
-            set_id: setId,
-            position: i,
-          })),
-        );
-
-        if (rows.length) {
-          const { error: upErr } = await supabase
-            .from("gathering_sets")
-            .upsert(rows, { onConflict: "id" });
-          if (upErr) {
-            console.error("[sync] pushToSupabase: gathering_sets upsert error", upErr);
-            ok = false;
-          }
-        }
-
-        const { error: trimErr } = await supabase
-          .from("gathering_sets")
-          .delete()
-          .eq("gathering_id", p.id)
-          .gte("position", p.setIds.length);
-        if (trimErr) {
-          console.error("[sync] pushToSupabase: gathering_sets trim error", trimErr);
-          ok = false;
-        }
+        if (!(await writeGatheringSetRows(p))) ok = false;
       }
     }
 
