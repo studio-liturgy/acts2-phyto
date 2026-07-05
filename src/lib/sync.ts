@@ -115,16 +115,31 @@ function fromSupabaseGathering(row: Record<string, unknown>, setIds: string[]): 
 // Fetch remote sets + gatherings (shared by diff and apply functions)
 // ---------------------------------------------------------------------------
 
-async function fetchRemote(userId: string) {
+async function fetchRemote(
+  userId: string,
+): Promise<{ sets: PhytoSet[]; gatherings: Gathering[] } | null> {
   const [setsRes, gatheringsRes, gatheringSetsRes] = await Promise.all([
     supabase.from("sets").select("*").eq("user_id", userId),
     supabase.from("gatherings").select("*").eq("user_id", userId),
     supabase.from("gathering_sets").select("*"),
   ]);
 
-  if (setsRes.error) console.error("[sync] fetchRemote: sets error", setsRes.error);
-  if (gatheringsRes.error)
-    console.error("[sync] fetchRemote: gatherings error", gatheringsRes.error);
+  // A failed fetch must NOT be treated as "this account has zero rows" — that
+  // silent `?? []` fallback previously let a transient sets-query failure
+  // sail through while gatherings + gathering_sets still succeeded, so every
+  // gathering landed locally with its full slot count but zero Set records to
+  // back them (rendered as "(missing)" for every slot) — worse, on Replace it
+  // would have deleted local-only sets outright, since they'd look like they
+  // don't belong to the account. Abort the whole sync pass instead so a
+  // partial fetch never gets written to Dexie as if it were the truth.
+  if (setsRes.error || gatheringsRes.error || gatheringSetsRes.error) {
+    console.error("[sync] fetchRemote: fetch error, aborting sync pass", {
+      sets: setsRes.error,
+      gatherings: gatheringsRes.error,
+      gatheringSets: gatheringSetsRes.error,
+    });
+    return null;
+  }
 
   const gsRows = (gatheringSetsRes.data ?? []) as {
     gathering_id: string;
@@ -340,7 +355,9 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
     db.gatherings.toArray(),
   ]);
 
-  const { sets: remoteSets, gatherings: remoteGatherings } = await fetchRemote(session.user.id);
+  const remote = await fetchRemote(session.user.id);
+  if (!remote) return null;
+  const { sets: remoteSets, gatherings: remoteGatherings } = remote;
 
   const localSetMap = new Map(localSets.map((s) => [s.id, s]));
   const localGatheringMap = new Map(localGatherings.map((p) => [p.id, p]));
