@@ -131,18 +131,37 @@ async function fetchRemote(userId: string) {
     set_id: string;
     position: number;
   }[];
-  const setIdsByGathering = new Map<string, string[]>();
+  // Group by gathering, then sort by position and take the set_id in that
+  // order. Sorting (rather than assigning into a sparse array by index) means
+  // a genuine gap just yields a correctly-ordered shorter list instead of
+  // `.filter(Boolean)` silently compacting and reshuffling later entries. A
+  // duplicate position (no timestamp column exists to disambiguate) keeps
+  // whichever row sorts first, deterministically.
+  const rowsByGathering = new Map<string, typeof gsRows>();
   for (const row of gsRows) {
-    const arr = setIdsByGathering.get(row.gathering_id) ?? [];
-    arr[row.position] = row.set_id;
-    setIdsByGathering.set(row.gathering_id, arr);
+    const arr = rowsByGathering.get(row.gathering_id) ?? [];
+    arr.push(row);
+    rowsByGathering.set(row.gathering_id, arr);
+  }
+  const setIdsByGathering = new Map<string, string[]>();
+  for (const [gatheringId, rows] of rowsByGathering) {
+    const seenPositions = new Set<number>();
+    const ids = rows
+      .sort((a, b) => a.position - b.position)
+      .filter((r) => {
+        if (seenPositions.has(r.position)) return false;
+        seenPositions.add(r.position);
+        return true;
+      })
+      .map((r) => r.set_id);
+    setIdsByGathering.set(gatheringId, ids);
   }
 
   const sets = (setsRes.data ?? []).map((r) => fromSupabaseSet(r as Record<string, unknown>));
   const gatherings = (gatheringsRes.data ?? []).map((r) =>
     fromSupabaseGathering(
       r as Record<string, unknown>,
-      (setIdsByGathering.get((r as Record<string, unknown>).id as string) ?? []).filter(Boolean),
+      setIdsByGathering.get((r as Record<string, unknown>).id as string) ?? [],
     ),
   );
 
@@ -629,6 +648,13 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
   const { setStatus } = useSyncStatusStore.getState();
   const deviceId = getDeviceId();
 
+  // Tracks whether every write in this push actually landed. Previously this
+  // function unconditionally returned true and only console.error'd on
+  // failure, so a partial failure (network blip, RLS hiccup, etc.) silently
+  // and permanently dropped data from Supabase — store.ts's dirty-id retry
+  // (which only re-queues on a `false` return) never engaged.
+  let ok = true;
+
   setStatus("syncing");
   try {
     // Incremental: read ONLY the dirty rows (filtering out any deleted between
@@ -651,7 +677,10 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
           { onConflict: "id" },
         )
         .select();
-      if (error) console.error("[sync] pushToSupabase: sets upsert error", error);
+      if (error) {
+        console.error("[sync] pushToSupabase: sets upsert error", error);
+        ok = false;
+      }
       if (savedSets?.length) {
         for (const row of savedSets as Record<string, unknown>[]) {
           await db.sets
@@ -702,6 +731,7 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
             await db.gatherings.delete(p.id);
           } else {
             console.error("[sync] pushToSupabase: gathering upsert error", p.id, rowErr);
+            ok = false;
           }
         }
         pushedGatherings = survivors;
@@ -723,7 +753,7 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
 
       if (!pushedGatherings.length) {
         setStatus("synced");
-        return true;
+        return ok;
       }
 
       const { data: existingGs } = await supabase
@@ -772,7 +802,10 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
           const { error: upErr } = await supabase
             .from("gathering_sets")
             .upsert(rows, { onConflict: "id" });
-          if (upErr) console.error("[sync] pushToSupabase: gathering_sets upsert error", upErr);
+          if (upErr) {
+            console.error("[sync] pushToSupabase: gathering_sets upsert error", upErr);
+            ok = false;
+          }
         }
 
         const { error: trimErr } = await supabase
@@ -780,14 +813,17 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
           .delete()
           .eq("gathering_id", p.id)
           .gte("position", p.setIds.length);
-        if (trimErr) console.error("[sync] pushToSupabase: gathering_sets trim error", trimErr);
+        if (trimErr) {
+          console.error("[sync] pushToSupabase: gathering_sets trim error", trimErr);
+          ok = false;
+        }
       }
     }
 
     setStatus("synced");
     // No broadcast needed: the timestamp writebacks above mutate Dexie, which the
     // cross-tab `liveQuery` in store.ts picks up to refresh every tab's store.
-    return true;
+    return ok;
   } catch (e) {
     console.error("[sync] pushToSupabase: unexpected error", e);
     setStatus("synced");
