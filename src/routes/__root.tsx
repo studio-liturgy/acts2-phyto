@@ -322,8 +322,11 @@ function RootComponent() {
     // `latestRemoteTime` is null when the diff has no onlyRemote/modified/rekeyed
     // items — i.e. only local changes to push (brand-new account / first push),
     // where Merge and Push are equivalent and nothing online can be overwritten.
-    // Apply silently in that case (and on explicit first-login autoMerge).
-    if (autoMerge || latestRemoteTime(diff) === null) {
+    // Apply silently in that case (and on explicit first-login autoMerge), and
+    // also when this browser has zero local sets/gatherings — an empty/fresh
+    // device has nothing to lose, so just pull the account down instead of
+    // making the user pick Merge/Replace/Push for a non-choice.
+    if (autoMerge || diff.localEmpty || latestRemoteTime(diff) === null) {
       // Serialized + recompute-inside-lock so concurrent/repeat auto-merges are
       // clean no-ops. The store refreshes via the Dexie liveQuery in store.ts.
       await mergeFromSupabase();

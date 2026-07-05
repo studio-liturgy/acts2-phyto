@@ -208,6 +208,12 @@ export type SyncDiff = {
     sets: { local: PhytoSet; remote: PhytoSet }[];
     gatherings: { local: Gathering; remote: Gathering }[];
   };
+  /** True when this device had zero local sets AND zero local gatherings at
+   *  diff time — a brand-new/cleared browser. Nothing local to lose, so the
+   *  caller can skip the Review-versions dialog and just pull the account
+   *  down, even though `latestRemoteTime` is non-null (there IS remote data,
+   *  just nothing to reconcile it against). */
+  localEmpty: boolean;
 };
 
 // Stable content-identity keys used to reconcile items whose ids diverged.
@@ -431,6 +437,7 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
     modified: { sets: modifiedSets, gatherings: modifiedGatherings },
     touched: { sets: touchedSets, gatherings: touchedGatherings },
     rekeyed: { sets: setRec.rekeyed, gatherings: gatheringRec.rekeyed },
+    localEmpty: localSets.length === 0 && localGatherings.length === 0,
   };
 }
 
