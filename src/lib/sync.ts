@@ -115,33 +115,136 @@ function fromSupabaseGathering(row: Record<string, unknown>, setIds: string[]): 
 // Fetch remote sets + gatherings (shared by diff and apply functions)
 // ---------------------------------------------------------------------------
 
+/** Page size for paginated list queries. Also dodges PostgREST's silent
+ *  max-rows cap (default 1000) on un-ranged selects. */
+const LIST_PAGE_SIZE = 500;
+
+/** How many full `sets` rows to move per request. `content` JSONB carries
+ *  slides with INLINE base64 images (fileToDataUrl /
+ *  fileToCompressedImageDataUrl), so a single set can weigh megabytes — a
+ *  whole-library `select("*")` or batched upsert can exceed statement
+ *  timeouts / request limits and fail wholesale. Small batches keep every
+ *  request bounded by a handful of sets. */
+const SET_BATCH_SIZE = 5;
+
+/** Fetch every row of a query in LIST_PAGE_SIZE pages. Returns null on any
+ *  page error (callers must abort rather than treat a failure as "no rows"). */
+async function fetchAllPages<T>(
+  makeQuery: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message?: string } | null }>,
+  label: string,
+): Promise<T[] | null> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += LIST_PAGE_SIZE) {
+    const { data, error } = await makeQuery(from, from + LIST_PAGE_SIZE - 1);
+    if (error) {
+      console.error(`[sync] fetchRemote: ${label} page error, aborting sync pass`, error);
+      return null;
+    }
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < LIST_PAGE_SIZE) return rows;
+  }
+}
+
 async function fetchRemote(
   userId: string,
 ): Promise<{ sets: PhytoSet[]; gatherings: Gathering[] } | null> {
-  const [setsRes, gatheringsRes, gatheringSetsRes] = await Promise.all([
-    supabase.from("sets").select("*").eq("user_id", userId),
-    supabase.from("gatherings").select("*").eq("user_id", userId),
-    supabase.from("gathering_sets").select("*"),
+  // ── Sets are fetched METADATA-FIRST: the tiny columns for every row, then
+  // `content` only for rows that are new or changed versus Dexie, in small
+  // batches. The old whole-library `select("*")` deterministically failed on
+  // image-heavy accounts precisely on the device that had no data yet — the
+  // fresh-device login — because every set's inline images shipped in one
+  // giant response. ──
+  const [setMetaRows, gatheringRows, gsRowsAll] = await Promise.all([
+    fetchAllPages<Record<string, unknown>>(
+      (from, to) =>
+        supabase
+          .from("sets")
+          .select("id, title, type, created_at, updated_at")
+          .eq("user_id", userId)
+          .order("id")
+          .range(from, to),
+      "sets metadata",
+    ),
+    fetchAllPages<Record<string, unknown>>(
+      (from, to) =>
+        supabase.from("gatherings").select("*").eq("user_id", userId).order("id").range(from, to),
+      "gatherings",
+    ),
+    fetchAllPages<Record<string, unknown>>(
+      (from, to) => supabase.from("gathering_sets").select("*").order("id").range(from, to),
+      "gathering_sets",
+    ),
   ]);
 
   // A failed fetch must NOT be treated as "this account has zero rows" — that
-  // silent `?? []` fallback previously let a transient sets-query failure
-  // sail through while gatherings + gathering_sets still succeeded, so every
-  // gathering landed locally with its full slot count but zero Set records to
-  // back them (rendered as "(missing)" for every slot) — worse, on Replace it
-  // would have deleted local-only sets outright, since they'd look like they
-  // don't belong to the account. Abort the whole sync pass instead so a
-  // partial fetch never gets written to Dexie as if it were the truth.
-  if (setsRes.error || gatheringsRes.error || gatheringSetsRes.error) {
-    console.error("[sync] fetchRemote: fetch error, aborting sync pass", {
-      sets: setsRes.error,
-      gatherings: gatheringsRes.error,
-      gatheringSets: gatheringSetsRes.error,
-    });
-    return null;
+  // silent `?? []` fallback previously let a sets-query failure sail through
+  // while gatherings + gathering_sets still succeeded, so every gathering
+  // landed locally with its full slot count but zero Set records to back them
+  // (rendered as "(missing)" for every slot) — worse, on Replace it would
+  // have deleted local-only sets outright, since they'd look like they don't
+  // belong to the account. Abort the whole sync pass instead so a partial
+  // fetch never gets written to Dexie as if it were the truth.
+  if (!setMetaRows || !gatheringRows || !gsRowsAll) return null;
+
+  // Decide which sets actually need their content downloaded: new ids, or
+  // ids whose remote updated_at differs from Dexie's (same second-rounding
+  // the diff's tsChanged uses — it already treats ts-equal rows as
+  // content-equal, so reusing the local row is behavior-preserving and stops
+  // every login from re-downloading the entire library).
+  const localSets = await db.sets.toArray();
+  const localById = new Map(localSets.map((s) => [s.id, s]));
+  const sameSecond = (aMs: number, bMs: number) =>
+    Math.round(aMs / 1000) === Math.round(bMs / 1000);
+
+  const sets: PhytoSet[] = [];
+  const needContent: string[] = [];
+  for (const row of setMetaRows) {
+    const local = localById.get(row.id as string);
+    const remoteUpdatedAt = new Date(row.updated_at as string).getTime();
+    if (local && sameSecond(local.updatedAt, remoteUpdatedAt)) {
+      // Reuse local content; adopt remote timestamps so downstream checks see
+      // exactly what the server reported.
+      sets.push({
+        ...local,
+        createdAt: new Date(row.created_at as string).getTime(),
+        updatedAt: remoteUpdatedAt,
+      });
+    } else {
+      needContent.push(row.id as string);
+    }
   }
 
-  const gsRows = (gatheringSetsRes.data ?? []) as {
+  for (let i = 0; i < needContent.length; i += SET_BATCH_SIZE) {
+    const chunk = needContent.slice(i, i + SET_BATCH_SIZE);
+    const { data, error } = await supabase.from("sets").select("*").in("id", chunk);
+    let rows = (data ?? []) as Record<string, unknown>[];
+    if (error) {
+      // A batch of several image-heavy sets can still be too big — retry
+      // per-set so only a genuinely oversized single row can fail.
+      console.warn("[sync] fetchRemote: set content batch failed, retrying per-set", error);
+      rows = [];
+      for (const id of chunk) {
+        const { data: one, error: oneErr } = await supabase.from("sets").select("*").eq("id", id);
+        if (oneErr) {
+          console.error(
+            "[sync] fetchRemote: set content fetch failed, aborting sync pass",
+            id,
+            oneErr,
+          );
+          return null;
+        }
+        rows.push(...((one ?? []) as Record<string, unknown>[]));
+      }
+    }
+    // A row deleted remotely between the metadata pass and this batch simply
+    // comes back missing — same outcome as if the metadata pass ran later.
+    for (const r of rows) sets.push(fromSupabaseSet(r));
+  }
+
+  const gsRows = gsRowsAll as unknown as {
     gathering_id: string;
     set_id: string;
     position: number;
@@ -172,12 +275,8 @@ async function fetchRemote(
     setIdsByGathering.set(gatheringId, ids);
   }
 
-  const sets = (setsRes.data ?? []).map((r) => fromSupabaseSet(r as Record<string, unknown>));
-  const gatherings = (gatheringsRes.data ?? []).map((r) =>
-    fromSupabaseGathering(
-      r as Record<string, unknown>,
-      setIdsByGathering.get((r as Record<string, unknown>).id as string) ?? [],
-    ),
+  const gatherings = gatheringRows.map((r) =>
+    fromSupabaseGathering(r, setIdsByGathering.get(r.id as string) ?? []),
   );
 
   return { sets, gatherings };
@@ -694,26 +793,46 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
       : await Promise.all([db.sets.toArray(), db.gatherings.toArray()]);
 
     if (sets.length) {
-      const { data: savedSets, error } = await supabase
-        .from("sets")
-        .upsert(
-          sets.map((s) => toSupabaseSet(s, userId, deviceId)),
-          { onConflict: "id" },
-        )
-        .select();
-      if (error) {
-        console.error("[sync] pushToSupabase: sets upsert error", error);
-        ok = false;
-      }
-      if (savedSets?.length) {
-        for (const row of savedSets as Record<string, unknown>[]) {
-          await db.sets
-            .where("id")
-            .equals(row.id as string)
-            .modify({
-              updatedAt: new Date(row.updated_at as string).getTime(),
-            });
+      // Upsert in small batches: `content` can carry multi-MB inline images,
+      // so a whole-library push (conflict-dialog "Push") in one request can
+      // exceed request/timeout limits — and one bad row would fail the whole
+      // batch, re-queuing every set forever. On a batch error, retry per-row
+      // so only genuinely failing rows are re-marked dirty.
+      const savedSets: Record<string, unknown>[] = [];
+      for (let i = 0; i < sets.length; i += SET_BATCH_SIZE) {
+        const chunk = sets.slice(i, i + SET_BATCH_SIZE);
+        const { data, error } = await supabase
+          .from("sets")
+          .upsert(
+            chunk.map((s) => toSupabaseSet(s, userId, deviceId)),
+            { onConflict: "id" },
+          )
+          .select();
+        if (!error) {
+          savedSets.push(...((data ?? []) as Record<string, unknown>[]));
+          continue;
         }
+        console.warn("[sync] pushToSupabase: sets batch upsert failed, retrying per-row", error);
+        for (const s of chunk) {
+          const { data: rowData, error: rowErr } = await supabase
+            .from("sets")
+            .upsert([toSupabaseSet(s, userId, deviceId)], { onConflict: "id" })
+            .select();
+          if (rowErr) {
+            console.error("[sync] pushToSupabase: set upsert error", s.id, rowErr);
+            ok = false;
+          } else if (rowData?.length) {
+            savedSets.push(...(rowData as Record<string, unknown>[]));
+          }
+        }
+      }
+      for (const row of savedSets) {
+        await db.sets
+          .where("id")
+          .equals(row.id as string)
+          .modify({
+            updatedAt: new Date(row.updated_at as string).getTime(),
+          });
       }
     }
 
