@@ -317,7 +317,14 @@ function RootComponent() {
   const runDiff = async (autoMerge = false) => {
     if (pathname.startsWith("/g/")) return;
     const diff = await diffWithSupabase();
-    if (!diff || !hasDifferences(diff)) return;
+    if (!diff) {
+      // Aborted (fetch failure / no client session) — not "no differences".
+      // Unlatch the once-per-session gate so the next auth event or page
+      // load retries instead of leaving sync silently off until a reload.
+      diffRanThisSession = false;
+      return;
+    }
+    if (!hasDifferences(diff)) return;
     // Only prompt when there's a real remote version to reconcile against.
     // `latestRemoteTime` is null when the diff has no onlyRemote/modified/rekeyed
     // items — i.e. only local changes to push (brand-new account / first push),

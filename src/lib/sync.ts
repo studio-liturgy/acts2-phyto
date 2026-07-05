@@ -275,6 +275,37 @@ async function fetchRemote(
     setIdsByGathering.set(gatheringId, ids);
   }
 
+  // ── Referential-integrity guard on the fetched snapshot. The remote FK
+  // (gathering_sets.set_id → sets.id, on delete cascade) guarantees every
+  // join row's set exists server-side RIGHT NOW — so if a join row for one of
+  // OUR gatherings references a set id absent from the sets snapshot, this
+  // FETCH is lying, not the database. The known way that happens with no
+  // error at all: the sets query ran without a valid user JWT — `sets` RLS is
+  // owner-only and silently returns ZERO rows to anon, while `gatherings` has
+  // a public share_token policy and still returns everything. Writing
+  // gatherings whose slots can't resolve (and, on Replace, deleting
+  // "local-only" sets) would corrupt the device, so abort the pass.
+  // (Scoped to our own gatherings: the public-when-live policy also leaks
+  // OTHER users' live join rows into this query, and those legitimately
+  // reference sets we can never see.) ──
+  const ownGatheringIds = new Set(gatheringRows.map((r) => r.id as string));
+  const fetchedSetIds = new Set(setMetaRows.map((r) => r.id as string));
+  const unresolved = [
+    ...new Set(
+      gsRows
+        .filter((r) => ownGatheringIds.has(r.gathering_id) && !fetchedSetIds.has(r.set_id))
+        .map((r) => r.set_id),
+    ),
+  ];
+  if (unresolved.length) {
+    console.error(
+      "[sync] fetchRemote: gathering_sets reference set ids missing from the sets fetch — " +
+        "aborting sync pass (likely an unauthenticated/partial sets read)",
+      unresolved,
+    );
+    return null;
+  }
+
   const gatherings = gatheringRows.map((r) =>
     fromSupabaseGathering(r, setIdsByGathering.get(r.id as string) ?? []),
   );
@@ -448,6 +479,17 @@ export function latestRemoteTime(diff: SyncDiff): Date | null {
 export async function diffWithSupabase(): Promise<SyncDiff | null> {
   const session = getSession();
   if (!session) return null;
+
+  // The zustand session is only a mirror — make sure the supabase client
+  // itself holds a session (refreshing if expired), or the queries below go
+  // out as anon and RLS silently returns zero sets (no error) while the
+  // public gatherings policy still returns rows: the exact recipe for
+  // treating a populated account as empty.
+  const { data: clientAuth } = await supabase.auth.getSession();
+  if (!clientAuth.session) {
+    console.error("[sync] diffWithSupabase: supabase client has no session — skipping sync pass");
+    return null;
+  }
 
   const [localSets, localGatherings] = await Promise.all([
     db.sets.toArray(),
