@@ -805,6 +805,22 @@ export async function applyMerge(
               p.id,
             );
             await db.gatherings.delete(p.id);
+          } else if (rowErr.code === "42501") {
+            // The id exists remotely under ANOTHER account (imported .phyto
+            // containing someone else's gatherings, or a different account
+            // once used this browser): the upsert's conflict-update path hits
+            // their row and RLS rejects it — forever, on every retry. Re-ID
+            // the local copy (fresh share_token too; the old one may collide
+            // with the owner's row) and push it as this account's own row.
+            console.warn("[applyMerge] re-IDing gathering owned by another account:", p.id);
+            const reIded = { ...p, id: crypto.randomUUID() as string, share_token: nanoid(10) };
+            await db.gatherings.delete(p.id);
+            await db.gatherings.put(reIded);
+            const { error: reErr } = await supabase
+              .from("gatherings")
+              .upsert([toSupabaseGathering(reIded, userId, deviceId)], { onConflict: "id" });
+            if (!reErr) pushed.push(reIded);
+            else console.error("[applyMerge] re-IDed gathering upsert error:", reIded.id, reErr);
           } else {
             console.error("[applyMerge] gathering upsert error:", p.id, rowErr);
           }
@@ -965,6 +981,34 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
               p.id,
             );
             await db.gatherings.delete(p.id);
+          } else if (rowErr.code === "42501") {
+            // Id owned by ANOTHER account (imported .phyto with gatherings, or
+            // a different account once used this browser): the conflict-update
+            // hits their row and RLS rejects it on every retry, forever. Re-ID
+            // the local copy (fresh share_token too) and push it as this
+            // account's own row. Mirrors the applyMerge guard.
+            console.warn(
+              "[sync] pushToSupabase: re-IDing gathering owned by another account:",
+              p.id,
+            );
+            const reIded = { ...p, id: crypto.randomUUID() as string, share_token: nanoid(10) };
+            await db.gatherings.delete(p.id);
+            await db.gatherings.put(reIded);
+            const { data: reData, error: reErr } = await supabase
+              .from("gatherings")
+              .upsert([toSupabaseGathering(reIded, userId, deviceId)], { onConflict: "id" })
+              .select();
+            if (!reErr) {
+              survivors.push(reIded);
+              if (reData?.length) savedGatherings.push(...(reData as Record<string, unknown>[]));
+            } else {
+              console.error(
+                "[sync] pushToSupabase: re-IDed gathering upsert error",
+                reIded.id,
+                reErr,
+              );
+              ok = false;
+            }
           } else {
             console.error("[sync] pushToSupabase: gathering upsert error", p.id, rowErr);
             ok = false;
