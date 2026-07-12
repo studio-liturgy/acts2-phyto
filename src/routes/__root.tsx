@@ -134,7 +134,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: APP_NAME },
-      { name: "twitter:card", content: "summary" },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@phyto.live" },
       { name: "twitter:title", content: `${APP_NAME} | home gatherings` },
       {
@@ -144,6 +144,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:image", content: ogImage },
       { name: "twitter:image", content: ogImage },
+      // Staging (phytoexp.live) mirrors prod content — keep it out of search so it
+      // doesn't compete with phyto.live for the same rankings (duplicate content).
+      ...(isTest ? [{ name: "robots", content: "noindex, nofollow" }] : []),
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -325,6 +328,55 @@ function RootComponent() {
       return;
     }
     if (!hasDifferences(diff)) return;
+
+    // ── TEMPORARY SYNC DIAGNOSTIC (remove once the merge-duplication bug is
+    //    diagnosed). Dumps which bucket every changed item landed in, plus
+    //    sample id/createdAt/name so we can see whether same-content items are
+    //    failing to pair (→ appearing in BOTH onlyLocal and onlyRemote) or are
+    //    being rekeyed. Search "[sync-debug]" in the console. ──
+    {
+      const brief = <T extends { id: string; name?: string; createdAt: number }>(xs: T[]) =>
+        xs.map((x) => ({ id: x.id, name: (x as { name?: string }).name, createdAt: x.createdAt }));
+      const pair = <T extends { id: string; name?: string; createdAt: number }>(
+        ps: { local: T; remote: T }[],
+      ) =>
+        ps.map((p) => ({
+          name: (p.local as { name?: string }).name,
+          localId: p.local.id,
+          remoteId: p.remote.id,
+          localCreatedAt: p.local.createdAt,
+          remoteCreatedAt: p.remote.createdAt,
+        }));
+      console.info("[sync-debug] diff bucket counts", {
+        localEmpty: diff.localEmpty,
+        latestRemoteTime: latestRemoteTime(diff),
+        onlyLocal: { sets: diff.onlyLocal.sets.length, gatherings: diff.onlyLocal.gatherings.length },
+        onlyRemote: {
+          sets: diff.onlyRemote.sets.length,
+          gatherings: diff.onlyRemote.gatherings.length,
+        },
+        modified: { sets: diff.modified.sets.length, gatherings: diff.modified.gatherings.length },
+        rekeyed: { sets: diff.rekeyed.sets.length, gatherings: diff.rekeyed.gatherings.length },
+        touched: { sets: diff.touched.sets.length, gatherings: diff.touched.gatherings.length },
+        strandedLocal: {
+          sets: diff.strandedLocal.sets.length,
+          gatherings: diff.strandedLocal.gatherings.length,
+        },
+      });
+      console.info("[sync-debug] onlyLocal", {
+        sets: brief(diff.onlyLocal.sets),
+        gatherings: brief(diff.onlyLocal.gatherings),
+      });
+      console.info("[sync-debug] onlyRemote", {
+        sets: brief(diff.onlyRemote.sets),
+        gatherings: brief(diff.onlyRemote.gatherings),
+      });
+      console.info("[sync-debug] rekeyed", {
+        sets: pair(diff.rekeyed.sets),
+        gatherings: pair(diff.rekeyed.gatherings),
+      });
+    }
+
     // Only prompt when there's a real remote version to reconcile against.
     // `latestRemoteTime` is null when the diff has no onlyRemote/modified/rekeyed
     // items — i.e. only local changes to push (brand-new account / first push),

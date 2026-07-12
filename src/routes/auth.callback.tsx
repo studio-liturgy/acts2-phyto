@@ -8,6 +8,7 @@ export const Route = createFileRoute("/auth/callback")({
   head: () => ({
     meta: [
       { title: APP_NAME },
+      { name: "robots", content: "noindex" },
     ],
   }),
   component: AuthCallback,

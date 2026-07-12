@@ -25,7 +25,7 @@ export function Footer({ className }: { className?: string }) {
         <nav className="flex items-center justify-end gap-6 text-xs flex-nowrap">
           <a href="https://github.com/studio-liturgy" target="_blank" rel="noopener noreferrer" className={`${linkCls} whitespace-nowrap`}>Source</a>
           <Link to="/updates" className={`${linkCls} whitespace-nowrap`}>{isTest ? 'Test Notes' : 'Updates'}</Link>
-          <Link to="/legal" className={`${linkCls} whitespace-nowrap`}>Legal</Link>
+          <Link to="/terms" className={`${linkCls} whitespace-nowrap`}>Legal</Link>
           <ThemeToggle />
         </nav>
       </div>

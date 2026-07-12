@@ -76,6 +76,13 @@ export const Route = createFileRoute("/")({
           "@context": "https://schema.org",
           "@graph": [
             {
+              "@type": "Organization",
+              name: "phyto",
+              url: "https://phyto.live/",
+              logo: "https://phyto.live/favicon.png",
+              sameAs: ["https://www.instagram.com/phyto.live", "https://github.com/studio-liturgy"],
+            },
+            {
               "@type": "WebSite",
               name: "phyto",
               url: "https://phyto.live/",

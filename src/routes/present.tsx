@@ -101,7 +101,7 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/present")({
   validateSearch: searchSchema,
   head: () => ({
-    meta: [{ title: `Presenter | ${APP_NAME}` }],
+    meta: [{ title: `Presenter | ${APP_NAME}` }, { name: "robots", content: "noindex" }],
   }),
   component: Presenter,
 });

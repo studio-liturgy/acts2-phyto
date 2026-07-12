@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UpdatesRouteImport } from './routes/updates'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PresentRouteImport } from './routes/present'
 import { Route as OutputRouteImport } from './routes/output'
 import { Route as LoginRouteImport } from './routes/login'
@@ -31,9 +33,19 @@ const UpdatesRoute = UpdatesRouteImport.update({
   path: '/updates',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PresentRoute = PresentRouteImport.update({
@@ -116,7 +128,9 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
+  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
@@ -134,7 +148,9 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
+  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
@@ -153,7 +169,9 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/output': typeof OutputRoute
   '/present': typeof PresentRoute
+  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
@@ -173,7 +191,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/output'
     | '/present'
+    | '/privacy'
     | '/sitemap.xml'
+    | '/terms'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
@@ -191,7 +211,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/output'
     | '/present'
+    | '/privacy'
     | '/sitemap.xml'
+    | '/terms'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
@@ -209,7 +231,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/output'
     | '/present'
+    | '/privacy'
     | '/sitemap.xml'
+    | '/terms'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
@@ -228,7 +252,9 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OutputRoute: typeof OutputRoute
   PresentRoute: typeof PresentRoute
+  PrivacyRoute: typeof PrivacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   UpdatesRoute: typeof UpdatesRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   GTokenRoute: typeof GTokenRoute
@@ -247,11 +273,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UpdatesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/present': {
@@ -364,7 +404,9 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OutputRoute: OutputRoute,
   PresentRoute: PresentRoute,
+  PrivacyRoute: PrivacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   UpdatesRoute: UpdatesRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   GTokenRoute: GTokenRoute,

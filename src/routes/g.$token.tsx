@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+// Per-gathering share view — private, ephemeral links. Keep out of search.
+
 // ---------------------------------------------------------------------------
 // Types — raw Supabase rows, kept local to avoid coupling with the auth'd app
 // ---------------------------------------------------------------------------
@@ -92,6 +94,9 @@ function savePrefs(prefs: ViewerPrefs) {
 // ---------------------------------------------------------------------------
 
 export const Route = createFileRoute("/g/$token")({
+  head: () => ({
+    meta: [{ name: "robots", content: "noindex" }],
+  }),
   component: GatheringViewer,
 });
 

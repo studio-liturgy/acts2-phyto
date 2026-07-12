@@ -17,6 +17,7 @@ export const Route = createFileRoute('/login')({
   head: () => ({
     meta: [
       { title: `Sign In | ${APP_NAME}` },
+      { name: 'robots', content: 'noindex' },
     ],
   }),
   component: LoginPage,
