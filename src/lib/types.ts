@@ -42,6 +42,8 @@ export interface SetTemplate {
   align?: "center" | "left";
   /** Where the verse reference is rendered relative to the text. Default "below". */
   referencePosition?: "above" | "below";
+  /** Vertical position of song text on the slide. Default "centre". */
+  position?: "top" | "centre";
 }
 
 export interface Set {

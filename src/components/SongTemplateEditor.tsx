@@ -16,6 +16,7 @@ export function SongTemplateEditor() {
     fontScale: songTemplate.fontScale ?? 1,
     fontFamily: songTemplate.fontFamily ?? FONT_OPTIONS[0].value,
     bg: (songTemplate.bg ?? "black") as "black" | "white",
+    position: (songTemplate.position ?? "centre") as "top" | "centre",
   });
 
   useEffect(() => {
@@ -24,6 +25,7 @@ export function SongTemplateEditor() {
         fontScale: songTemplate.fontScale ?? 1,
         fontFamily: songTemplate.fontFamily ?? FONT_OPTIONS[0].value,
         bg: (songTemplate.bg ?? "black") as "black" | "white",
+        position: (songTemplate.position ?? "centre") as "top" | "centre",
       });
     }
   }, [songTemplate, open]);
@@ -63,7 +65,10 @@ export function SongTemplateEditor() {
     <div className="rounded-2xl border border-foreground p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="mono text-[10px] uppercase tracking-wider">Song Template</div>
-        <button onClick={cancel} className="text-xs text-muted-foreground hover:text-foreground">
+        <button
+          onClick={cancel}
+          className="mono text-[10px] uppercase text-muted-foreground hover:text-foreground"
+        >
           Cancel
         </button>
       </div>
@@ -113,7 +118,7 @@ export function SongTemplateEditor() {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setDraft((d) => ({ ...d, bg: "black" }))}
-              className={`rounded-lg border px-3 py-2 text-xs transition ${
+              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
                 draft.bg === "black"
                   ? "border-foreground bg-black text-white"
                   : "border-foreground/20 bg-black text-white/60 hover:border-foreground"
@@ -123,13 +128,39 @@ export function SongTemplateEditor() {
             </button>
             <button
               onClick={() => setDraft((d) => ({ ...d, bg: "white" }))}
-              className={`rounded-lg border px-3 py-2 text-xs transition ${
+              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
                 draft.bg === "white"
                   ? "border-foreground bg-white text-black"
                   : "border-foreground/20 bg-white text-black/60 hover:border-foreground"
               }`}
             >
               White
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div className="mono mb-2 text-[10px] uppercase tracking-wider">Position</div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setDraft((d) => ({ ...d, position: "top" }))}
+              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                draft.position === "top"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-foreground/20 hover:border-foreground"
+              }`}
+            >
+              Top
+            </button>
+            <button
+              onClick={() => setDraft((d) => ({ ...d, position: "centre" }))}
+              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                draft.position === "centre"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-foreground/20 hover:border-foreground"
+              }`}
+            >
+              Centre
             </button>
           </div>
         </div>

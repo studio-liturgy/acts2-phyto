@@ -1011,7 +1011,7 @@ function Presenter() {
                   <div className="mono text-[10px] uppercase tracking-wider">Media Functions</div>
                   <button
                     onClick={() => setMediaFunctionsOpen(false)}
-                    className="text-xs text-muted-foreground hover:text-foreground"
+                    className="mono text-[10px] uppercase text-muted-foreground hover:text-foreground"
                   >
                     Cancel
                   </button>
@@ -1156,7 +1156,7 @@ function MediaPlaybackControls({ setId }: { setId: string }) {
               }
               updateSet(setId, patch);
             }}
-            className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
+            className="pill mono h-7 w-16 border border-foreground bg-background px-3 text-[10px] uppercase outline-none"
           />
           <span className="text-xs text-muted-foreground">s</span>
         </div>

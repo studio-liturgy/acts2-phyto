@@ -295,6 +295,7 @@ export function SlideView({
   const alignClass =
     template?.align === "left" ? "items-start text-left" : "items-center text-center";
   const refAbove = template?.referencePosition === "above";
+  const positionClass = template?.position === "top" ? "justify-start" : "justify-center";
 
   if (slide?.kind === "video") {
     return (
@@ -328,7 +329,7 @@ export function SlideView({
       >
         {slide?.imageUrl && hasText ? <div className="absolute inset-0 bg-black/40" /> : null}
         <div
-          className={`relative flex h-full w-full flex-col justify-center px-24 py-20 ${alignClass}`}
+          className={`relative flex h-full w-full flex-col px-24 py-20 ${positionClass} ${alignClass}`}
         >
           {slide?.title && (
             <div

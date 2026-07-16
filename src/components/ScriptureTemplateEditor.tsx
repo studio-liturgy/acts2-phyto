@@ -67,7 +67,10 @@ export function ScriptureTemplateEditor() {
     <div className="rounded-2xl border border-foreground p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="mono text-[10px] uppercase tracking-wider">Scripture Template</div>
-        <button onClick={cancel} className="text-xs text-muted-foreground hover:text-foreground">
+        <button
+          onClick={cancel}
+          className="mono text-[10px] uppercase text-muted-foreground hover:text-foreground"
+        >
           Cancel
         </button>
       </div>
@@ -120,7 +123,7 @@ export function ScriptureTemplateEditor() {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setDraft((d) => ({ ...d, bg: "black" }))}
-              className={`rounded-lg border px-3 py-2 text-xs transition ${
+              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
                 draft.bg === "black"
                   ? "border-foreground bg-black text-white"
                   : "border-foreground/20 bg-black text-white/60 hover:border-foreground"
@@ -130,7 +133,7 @@ export function ScriptureTemplateEditor() {
             </button>
             <button
               onClick={() => setDraft((d) => ({ ...d, bg: "white" }))}
-              className={`rounded-lg border px-3 py-2 text-xs transition ${
+              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
                 draft.bg === "white"
                   ? "border-foreground bg-white text-black"
                   : "border-foreground/20 bg-white text-black/60 hover:border-foreground"
@@ -149,7 +152,7 @@ export function ScriptureTemplateEditor() {
               <button
                 key={a}
                 onClick={() => setDraft((d) => ({ ...d, align: a }))}
-                className={`rounded-lg border px-3 py-2 text-xs capitalize transition ${
+                className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
                   draft.align === a
                     ? "border-foreground bg-foreground text-background"
                     : "border-foreground/20 hover:border-foreground"
@@ -169,7 +172,7 @@ export function ScriptureTemplateEditor() {
               <button
                 key={pos}
                 onClick={() => setDraft((d) => ({ ...d, referencePosition: pos }))}
-                className={`rounded-lg border px-3 py-2 text-xs capitalize transition ${
+                className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
                   draft.referencePosition === pos
                     ? "border-foreground bg-foreground text-background"
                     : "border-foreground/20 hover:border-foreground"
