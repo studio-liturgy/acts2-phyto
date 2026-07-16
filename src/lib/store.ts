@@ -5,7 +5,7 @@ import { db } from "./db";
 import { liveQuery } from "dexie";
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
-import { pushToSupabase, withSyncLock } from "./sync";
+import { pushToSupabase, recordDeletions, withSyncLock } from "./sync";
 
 function uid() {
   return crypto.randomUUID();
@@ -276,6 +276,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
           .eq("id", id)
           .eq("user_id", session.user.id);
         if (error) console.error("[deleteSet] Supabase delete error:", error);
+        // Tombstone so other devices holding a copy delete it instead of
+        // pushing it back (sync.ts remotelyDeleted).
+        await recordDeletions("set", [id]);
       }
       await db.sets.delete(id);
       purgeUploadedVideos(removedSlides);
@@ -315,6 +318,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
           .in("id", [...idSet])
           .eq("user_id", session.user.id);
         if (error) console.error("[deleteSets] Supabase delete error:", error);
+        // Tombstones so other devices holding copies delete them instead of
+        // pushing them back (sync.ts remotelyDeleted).
+        await recordDeletions("set", [...idSet]);
       }
       await db.sets.bulkDelete([...idSet]);
       purgeUploadedVideos(removedSlides);
@@ -444,6 +450,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
           .eq("id", id)
           .eq("user_id", userId);
         if (gErr) console.error("[deleteGathering] gatherings delete error:", gErr);
+        // Tombstone so other devices holding a copy delete it instead of
+        // pushing it back (sync.ts remotelyDeleted).
+        await recordDeletions("gathering", [id]);
       }
 
       await db.gatherings.delete(id);

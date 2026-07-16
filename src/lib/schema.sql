@@ -56,6 +56,12 @@
 -- create trigger gatherings_updated_at
 --   before update on gatherings
 --   for each row execute function gatherings_update_updated_at();
+--
+-- Deletion tombstones (REQUIRED for cross-device deletion propagation).
+-- Without this table the client logs a warning and falls back to the old
+-- behavior, where a device still holding a copy of a deleted item pushes it
+-- back to the account. Run the `deletions` table + policies from the schema
+-- below (safe to run as-is: IF NOT EXISTS / create policy).
 -- ------------------------------------------------------------
 
 -- ------------------------------------------------------------
@@ -258,3 +264,40 @@ create policy "gathering_sets: public select when live"
         and g.is_live = true
     )
   );
+
+-- ============================================================
+-- Table: deletions
+-- Deletion tombstones for cross-device sync. `id` IS the deleted
+-- item's own uuid (from `sets` or `gatherings`), so there is one
+-- tombstone per item and re-deleting a resurrected item refreshes
+-- deleted_at via upsert. Consulted by the client's sync diff: a
+-- local copy whose id is tombstoned at-or-after its last edit is
+-- deleted locally instead of being pushed back to the account.
+-- Rows are tiny and never need expiring for correctness (a
+-- tombstone under a live row is ignored by the client).
+-- ============================================================
+create table if not exists deletions (
+  id         uuid        primary key,
+  user_id    uuid        references auth.users not null,
+  kind       text        not null check (kind in ('set', 'gathering')),
+  deleted_at timestamptz not null default now()
+);
+
+alter table deletions enable row level security;
+
+create policy "deletions: owner select"
+  on deletions for select
+  using (user_id = auth.uid());
+
+create policy "deletions: owner insert"
+  on deletions for insert
+  with check (user_id = auth.uid());
+
+create policy "deletions: owner update"
+  on deletions for update
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create policy "deletions: owner delete"
+  on deletions for delete
+  using (user_id = auth.uid());

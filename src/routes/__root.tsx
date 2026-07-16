@@ -365,6 +365,10 @@ function RootComponent() {
           sets: diff.strandedLocal.sets.length,
           gatherings: diff.strandedLocal.gatherings.length,
         },
+        remotelyDeleted: {
+          sets: diff.remotelyDeleted.sets.length,
+          gatherings: diff.remotelyDeleted.gatherings.length,
+        },
       });
       console.info("[sync-debug] onlyLocal", {
         sets: brief(diff.onlyLocal.sets),

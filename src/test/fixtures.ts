@@ -80,10 +80,27 @@ export function gatheringSetRows(p: Gathering): Row[] {
   }));
 }
 
+/** An item's `deletions` tombstone row. `deletedAt` defaults to 1s after the
+ *  fixture items' shared updatedAt, i.e. "deleted after the last local edit". */
+export function tombstoneRow(
+  kind: "set" | "gathering",
+  itemId: string,
+  deletedAt = 1700000001000,
+  userId = USER_ID,
+): Row {
+  return {
+    id: itemId,
+    user_id: userId,
+    kind,
+    deleted_at: new Date(deletedAt).toISOString(),
+  };
+}
+
 export function emptyDiff(overrides: Partial<SyncDiff> = {}): SyncDiff {
   return {
     onlyLocal: { sets: [], gatherings: [] },
     onlyRemote: { sets: [], gatherings: [] },
+    remotelyDeleted: { sets: [], gatherings: [] },
     modified: { sets: [], gatherings: [] },
     rekeyed: { sets: [], gatherings: [] },
     strandedLocal: { sets: [], gatherings: [] },

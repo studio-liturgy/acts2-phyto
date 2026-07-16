@@ -148,16 +148,57 @@ export async function fetchAllPages<T>(
   }
 }
 
+/** A deletion tombstone row. `id` IS the deleted item's own uuid (the PK of
+ *  the `deletions` table), so one tombstone exists per item and a re-delete
+ *  after a resurrection refreshes `deleted_at` via upsert. */
+export type Tombstone = {
+  id: string;
+  kind: "set" | "gathering";
+  deleted_at: string;
+};
+
+/** Fetch this account's deletion tombstones. A missing `deletions` table
+ *  (schema upgrade not yet run) degrades to "no tombstones" — sync keeps its
+ *  old resurrect-prone behavior instead of bricking every pass. Any OTHER
+ *  error aborts the pass (null): treating a failed tombstone read as "nothing
+ *  was deleted" would push remotely-deleted items straight back. */
+async function fetchDeletions(userId: string): Promise<Tombstone[] | null> {
+  const rows: Tombstone[] = [];
+  for (let from = 0; ; from += LIST_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("deletions")
+      .select("id, kind, deleted_at")
+      .eq("user_id", userId)
+      .order("id")
+      .range(from, from + LIST_PAGE_SIZE - 1);
+    if (error) {
+      // 42P01 = Postgres undefined_table; PGRST205 = PostgREST "table not in
+      // schema cache". Both mean the upgrade SQL hasn't been run yet.
+      const code = (error as { code?: string }).code;
+      if (code === "42P01" || code === "PGRST205") {
+        console.warn(
+          "[sync] fetchRemote: deletions table missing — run the schema upgrade (deletions cannot propagate until then)",
+        );
+        return [];
+      }
+      console.error("[sync] fetchRemote: deletions page error, aborting sync pass", error);
+      return null;
+    }
+    rows.push(...((data ?? []) as Tombstone[]));
+    if ((data?.length ?? 0) < LIST_PAGE_SIZE) return rows;
+  }
+}
+
 export async function fetchRemote(
   userId: string,
-): Promise<{ sets: PhytoSet[]; gatherings: Gathering[] } | null> {
+): Promise<{ sets: PhytoSet[]; gatherings: Gathering[]; deletions: Tombstone[] } | null> {
   // ── Sets are fetched METADATA-FIRST: the tiny columns for every row, then
   // `content` only for rows that are new or changed versus Dexie, in small
   // batches. The old whole-library `select("*")` deterministically failed on
   // image-heavy accounts precisely on the device that had no data yet — the
   // fresh-device login — because every set's inline images shipped in one
   // giant response. ──
-  const [setMetaRows, gatheringRows, gsRowsAll] = await Promise.all([
+  const [setMetaRows, gatheringRows, gsRowsAll, deletionRows] = await Promise.all([
     fetchAllPages<Record<string, unknown>>(
       (from, to) =>
         supabase
@@ -177,6 +218,7 @@ export async function fetchRemote(
       (from, to) => supabase.from("gathering_sets").select("*").order("id").range(from, to),
       "gathering_sets",
     ),
+    fetchDeletions(userId),
   ]);
 
   // A failed fetch must NOT be treated as "this account has zero rows" — that
@@ -187,7 +229,7 @@ export async function fetchRemote(
   // have deleted local-only sets outright, since they'd look like they don't
   // belong to the account. Abort the whole sync pass instead so a partial
   // fetch never gets written to Dexie as if it were the truth.
-  if (!setMetaRows || !gatheringRows || !gsRowsAll) return null;
+  if (!setMetaRows || !gatheringRows || !gsRowsAll || !deletionRows) return null;
 
   // Decide which sets actually need their content downloaded: new ids, or
   // ids whose remote updated_at differs from Dexie's (same second-rounding
@@ -310,7 +352,7 @@ export async function fetchRemote(
     fromSupabaseGathering(r, setIdsByGathering.get(r.id as string) ?? []),
   );
 
-  return { sets, gatherings };
+  return { sets, gatherings, deletions: deletionRows };
 }
 
 // ---------------------------------------------------------------------------
@@ -320,6 +362,17 @@ export async function fetchRemote(
 export type SyncDiff = {
   onlyLocal: { sets: PhytoSet[]; gatherings: Gathering[] };
   onlyRemote: { sets: PhytoSet[]; gatherings: Gathering[] };
+  /** Local items whose id carries a deletion tombstone at-or-after the local
+   *  copy's last edit: deleted on another device while this one still held a
+   *  copy. Without this bucket they'd classify as onlyLocal and Merge would
+   *  push them straight back to the account — the resurrection bug. Merge
+   *  DELETES the local copy. A local edit NEWER than the tombstone wins
+   *  instead (stays onlyLocal, re-pushed); the then-stale tombstone is inert
+   *  because tombstones are only consulted for ids absent from the remote
+   *  snapshot. Excluded from `latestRemoteTime` so a deletion-only diff
+   *  applies silently, matching how the deletion looked on the device that
+   *  performed it. */
+  remotelyDeleted: { sets: PhytoSet[]; gatherings: Gathering[] };
   modified: {
     sets: { local: PhytoSet; remote: PhytoSet }[];
     gatherings: { local: Gathering; remote: Gathering }[];
@@ -456,14 +509,18 @@ export function hasDifferences(diff: SyncDiff): boolean {
     diff.strandedLocal.sets.length > 0 ||
     diff.strandedLocal.gatherings.length > 0 ||
     diff.touched.sets.length > 0 ||
-    diff.touched.gatherings.length > 0
+    diff.touched.gatherings.length > 0 ||
+    diff.remotelyDeleted.sets.length > 0 ||
+    diff.remotelyDeleted.gatherings.length > 0
   );
 }
 
-// NOTE: `strandedLocal` and `touched` are intentionally excluded — they are
-// auto-healable non-conflicts, and a diff containing ONLY them must return null
-// here so runDiff's `latestRemoteTime(diff) === null` branch merges silently
-// instead of opening the Review-versions dialog.
+// NOTE: `strandedLocal`, `touched`, and `remotelyDeleted` are intentionally
+// excluded — they are auto-applicable non-conflicts, and a diff containing ONLY
+// them must return null here so runDiff's `latestRemoteTime(diff) === null`
+// branch merges silently instead of opening the Review-versions dialog. (A
+// remote deletion already happened on the account; propagating it locally is
+// not a version choice for the user to arbitrate.)
 export function latestRemoteTime(diff: SyncDiff): Date | null {
   const times = [
     ...diff.onlyRemote.sets.map((s) => s.updatedAt),
@@ -498,7 +555,7 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
 
   const remote = await fetchRemote(session.user.id);
   if (!remote) return null;
-  const { sets: remoteSets, gatherings: remoteGatherings } = remote;
+  const { sets: remoteSets, gatherings: remoteGatherings, deletions: remoteDeletions } = remote;
 
   const localSetMap = new Map(localSets.map((s) => [s.id, s]));
   const localGatheringMap = new Map(localGatherings.map((p) => [p.id, p]));
@@ -547,11 +604,51 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
     return true;
   });
 
+  // 1c. Tombstone check: an id-only-local item whose id carries a deletion
+  //     tombstone at-or-after the local copy's last edit was deleted on another
+  //     device — classify it REMOTELY DELETED so Merge removes the local copy
+  //     instead of pushing it back to the account. A local edit strictly newer
+  //     than the tombstone wins (edit-over-delete): the item stays only-local
+  //     and is re-pushed; once the row exists remotely again the tombstone is
+  //     inert, since only ids ABSENT from the remote snapshot reach this check.
+  //     (For synced-then-untouched copies, updatedAt is the server timestamp
+  //     copied back at push time, so the comparison isn't skewed by this
+  //     device's clock; deleted_at is the deleting device's clock, same as
+  //     every other timestamp this app writes.)
+  const setTombstones = new Map<string, number>();
+  const gatheringTombstones = new Map<string, number>();
+  for (const t of remoteDeletions) {
+    (t.kind === "set" ? setTombstones : gatheringTombstones).set(
+      t.id,
+      new Date(t.deleted_at).getTime(),
+    );
+  }
+
+  const remotelyDeletedSets: PhytoSet[] = [];
+  const liveLocalSets = reconcileLocalSets.filter((s) => {
+    const deletedAt = setTombstones.get(s.id);
+    if (deletedAt !== undefined && deletedAt >= s.updatedAt) {
+      remotelyDeletedSets.push(s);
+      return false;
+    }
+    return true;
+  });
+
+  const remotelyDeletedGatherings: Gathering[] = [];
+  const liveLocalGatherings = reconcileLocalGatherings.filter((p) => {
+    const deletedAt = gatheringTombstones.get(p.id);
+    if (deletedAt !== undefined && deletedAt >= p.updatedAt) {
+      remotelyDeletedGatherings.push(p);
+      return false;
+    }
+    return true;
+  });
+
   // 2. Content-key reconciliation: pair id-disjoint items that are the same
   //    logical content, so Merge converges on the remote id instead of dup-ing.
-  const setRec = reconcileByContentKey(reconcileLocalSets, idOnlyRemoteSets, setContentKey);
+  const setRec = reconcileByContentKey(liveLocalSets, idOnlyRemoteSets, setContentKey);
   const gatheringRec = reconcileByContentKey(
-    reconcileLocalGatherings,
+    liveLocalGatherings,
     idOnlyRemoteGatherings,
     gatheringContentKey,
   );
@@ -590,6 +687,7 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
 
   return {
     strandedLocal: { sets: strandedSets, gatherings: strandedGatherings },
+    remotelyDeleted: { sets: remotelyDeletedSets, gatherings: remotelyDeletedGatherings },
     onlyLocal: { sets: setRec.onlyLocal, gatherings: gatheringRec.onlyLocal },
     onlyRemote: { sets: setRec.onlyRemote, gatherings: gatheringRec.onlyRemote },
     modified: { sets: modifiedSets, gatherings: modifiedGatherings },
@@ -662,11 +760,26 @@ export async function applyMerge(
   // Stranded sets are stale copies of an already-synced set: their references
   // collapse onto the surviving twin's id (then the local copy is deleted below).
   for (const { localId, remoteId } of diff.strandedLocal.sets) setIdMap.set(localId, remoteId);
-  const remapSetIds = (ids: string[]) => ids.map((sid) => setIdMap.get(sid) ?? sid);
+  // Remotely-deleted set ids are stripped (not remapped) so no gathering pushed
+  // below can reference a set that no longer exists remotely (FK failure).
+  const deletedSetIds = new Set(diff.remotelyDeleted.sets.map((s) => s.id));
+  const remapSetIds = (ids: string[]) =>
+    ids.filter((sid) => !deletedSetIds.has(sid)).map((sid) => setIdMap.get(sid) ?? sid);
 
   // Merge = "accept remote." Order matters: reconcile SETS before GATHERINGS so
   // gathering setIds can be remapped to surviving set ids, and so Supabase
   // gathering_sets never reference a set that doesn't exist yet (FK).
+
+  // ── Step 0: propagate remote deletions — drop the local copies of items
+  //    tombstoned on another device. This applies under EVERY localPolicy: the
+  //    deletion already happened on the account, so keeping (or re-pushing)
+  //    the copy would undo it. ──
+  if (diff.remotelyDeleted.sets.length) {
+    await db.sets.bulkDelete([...deletedSetIds]);
+  }
+  if (diff.remotelyDeleted.gatherings.length) {
+    await db.gatherings.bulkDelete(diff.remotelyDeleted.gatherings.map((p) => p.id));
+  }
 
   // ── Step 1: remote-authoritative SETS → Dexie (only-remote + modified +
   //    touched). Touched = identical content, drifted timestamp: adopting the
@@ -833,12 +946,12 @@ export async function applyMerge(
 
   // ── Step 5: defensive Dexie pass — repair any remaining gathering whose
   //    setIds still reference a superseded local set id (e.g. an id-identical
-  //    gathering that pointed at a rekeyed set). Dexie-only; the remote copies
-  //    already reference the surviving ids. ──
-  if (setIdMap.size) {
+  //    gathering that pointed at a rekeyed set) or a remotely-deleted one.
+  //    Dexie-only; the remote copies already reference the surviving ids. ──
+  if (setIdMap.size || deletedSetIds.size) {
     const all = await db.gatherings.toArray();
     const fixes = all
-      .filter((p) => p.setIds.some((sid) => setIdMap.has(sid)))
+      .filter((p) => p.setIds.some((sid) => setIdMap.has(sid) || deletedSetIds.has(sid)))
       .map((p) => ({ ...p, setIds: remapSetIds(p.setIds) }));
     if (fixes.length) await db.gatherings.bulkPut(fixes);
   }
@@ -1145,32 +1258,49 @@ export function previewEffects(diff: SyncDiff, action: SyncAction): SyncEffects 
   const effects: SyncEffects = { local: emptySide(), account: emptySide() };
 
   if (action === "merge") {
-    // Local gains remote-only items and adopts remote versions of conflicts.
+    // Local gains remote-only items and adopts remote versions of conflicts;
+    // remote deletions propagate here (local copies removed).
     effects.local.added.sets = diff.onlyRemote.sets.map((s) => s.name);
     effects.local.added.gatherings = diff.onlyRemote.gatherings.map((p) => p.name);
     effects.local.updated.sets = diff.modified.sets.map(({ remote }) => remote.name);
     effects.local.updated.gatherings = diff.modified.gatherings.map(({ remote }) => remote.name);
+    effects.local.removed.sets = diff.remotelyDeleted.sets.map((s) => s.name);
+    effects.local.removed.gatherings = diff.remotelyDeleted.gatherings.map((p) => p.name);
     // Account gains the local-only items (pushed up).
     effects.account.added.sets = diff.onlyLocal.sets.map((s) => s.name);
     effects.account.added.gatherings = diff.onlyLocal.gatherings.map((p) => p.name);
   } else if (action === "push") {
-    // Account becomes an exact mirror of local: gains local-only items, adopts the
+    // Account becomes an exact mirror of local: gains local-only items (and
+    // resurrects remotely-deleted ones this device still holds), adopts the
     // local version of conflicts, and LOSES items that exist only online.
-    effects.account.added.sets = diff.onlyLocal.sets.map((s) => s.name);
-    effects.account.added.gatherings = diff.onlyLocal.gatherings.map((p) => p.name);
+    effects.account.added.sets = [
+      ...diff.onlyLocal.sets.map((s) => s.name),
+      ...diff.remotelyDeleted.sets.map((s) => s.name),
+    ];
+    effects.account.added.gatherings = [
+      ...diff.onlyLocal.gatherings.map((p) => p.name),
+      ...diff.remotelyDeleted.gatherings.map((p) => p.name),
+    ];
     effects.account.updated.sets = diff.modified.sets.map(({ local }) => local.name);
     effects.account.updated.gatherings = diff.modified.gatherings.map(({ local }) => local.name);
     effects.account.removed.sets = diff.onlyRemote.sets.map((s) => s.name);
     effects.account.removed.gatherings = diff.onlyRemote.gatherings.map((p) => p.name);
     // Local is left unchanged.
   } else {
-    // replace: local mirrors the account; local-only items are deleted.
+    // replace: local mirrors the account; local-only and remotely-deleted
+    // items are deleted.
     effects.local.added.sets = diff.onlyRemote.sets.map((s) => s.name);
     effects.local.added.gatherings = diff.onlyRemote.gatherings.map((p) => p.name);
     effects.local.updated.sets = diff.modified.sets.map(({ remote }) => remote.name);
     effects.local.updated.gatherings = diff.modified.gatherings.map(({ remote }) => remote.name);
-    effects.local.removed.sets = diff.onlyLocal.sets.map((s) => s.name);
-    effects.local.removed.gatherings = diff.onlyLocal.gatherings.map((p) => p.name);
+    effects.local.removed.sets = [
+      ...diff.onlyLocal.sets.map((s) => s.name),
+      ...diff.remotelyDeleted.sets.map((s) => s.name),
+    ];
+    effects.local.removed.gatherings = [
+      ...diff.onlyLocal.gatherings.map((p) => p.name),
+      ...diff.remotelyDeleted.gatherings.map((p) => p.name),
+    ];
     // Account is left unchanged.
   }
 
@@ -1188,9 +1318,32 @@ export async function pushToSupabase(target?: PushTarget): Promise<boolean> {
   return withSyncLock(async () => doPush(userId, target));
 }
 
+/** Write deletion tombstones for items just removed from the account, so other
+ *  devices still holding a local copy classify it as remotely deleted on their
+ *  next diff instead of pushing it back (see `SyncDiff.remotelyDeleted`).
+ *  Best-effort: on failure (e.g. the `deletions` table doesn't exist yet) the
+ *  delete itself already happened — log and fall back to the old no-tombstone
+ *  behavior rather than blocking the deletion. */
+export async function recordDeletions(kind: "set" | "gathering", ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const session = getSession();
+  if (!session) return;
+  const { error } = await supabase.from("deletions").upsert(
+    ids.map((id) => ({
+      id,
+      user_id: session.user.id,
+      kind,
+      deleted_at: new Date().toISOString(),
+    })),
+    { onConflict: "id" },
+  );
+  if (error) console.error("[sync] recordDeletions error", kind, error);
+}
+
 /** Delete the account-only sets/gatherings named by the diff. `gathering_sets`
  *  rows cascade-delete with their parent (schema.sql `on delete cascade`), so
- *  only the parent rows are removed here. */
+ *  only the parent rows are removed here. Each successful delete is tombstoned
+ *  so a third device holding a copy doesn't push it back. */
 async function deleteRemoteOnly(userId: string, diff: SyncDiff): Promise<void> {
   const gatheringIds = diff.onlyRemote.gatherings.map((p) => p.id);
   const setIds = diff.onlyRemote.sets.map((s) => s.id);
@@ -1201,10 +1354,12 @@ async function deleteRemoteOnly(userId: string, diff: SyncDiff): Promise<void> {
       .in("id", gatheringIds)
       .eq("user_id", userId);
     if (error) console.error("[sync] pushMirror: gatherings delete error", error);
+    else await recordDeletions("gathering", gatheringIds);
   }
   if (setIds.length) {
     const { error } = await supabase.from("sets").delete().in("id", setIds).eq("user_id", userId);
     if (error) console.error("[sync] pushMirror: sets delete error", error);
+    else await recordDeletions("set", setIds);
   }
 }
 
