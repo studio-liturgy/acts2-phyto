@@ -4,4 +4,5 @@
 // so a clean typecheck passes; it ships no code.
 declare module "cloudflare:workers" {
   export const env: Record<string, string | undefined>;
+  export function waitUntil(promise: Promise<unknown>): void;
 }
