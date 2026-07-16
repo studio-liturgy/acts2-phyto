@@ -41,8 +41,8 @@ export default function UpdatesMain() {
                 in
               </FeatureItem>
               <FeatureItem>
-                Fixed phantom sync conflicts that could appear just from opening a song or
-                scripture editor
+                Fixed phantom sync conflicts that could appear just from opening a song or scripture
+                editor
               </FeatureItem>
             </ul>
 
