@@ -94,6 +94,13 @@ function SetHeader({
   deleteSet: (id: string) => void;
 }) {
   const [showDeleteSetDialog, setShowDeleteSetDialog] = useState(false);
+  const nameBeforeEditRef = useRef(phytoSet.name);
+  const commitName = () => {
+    if (!phytoSet.name.trim()) {
+      updateSet(phytoSet.id, { name: nameBeforeEditRef.current });
+    }
+    setEditingName(false);
+  };
   // Gathering this set was added to during this edit session; the Present button
   // jumps there instead of presenting the set on its own. Most recent wins.
   const [presentGatheringId, setPresentGatheringId] = useState<string | null>(null);
@@ -118,14 +125,18 @@ function SetHeader({
           <Input
             autoFocus
             value={phytoSet.name}
+            placeholder="Set name"
             onChange={(e) => updateSet(phytoSet.id, { name: e.target.value })}
-            onBlur={() => setEditingName(false)}
-            onKeyDown={(e) => e.key === "Enter" && setEditingName(false)}
+            onBlur={commitName}
+            onKeyDown={(e) => e.key === "Enter" && commitName()}
             className="h-9 w-56 border-foreground text-base shadow-none focus-visible:ring-0"
           />
         ) : (
           <h1
-            onClick={() => setEditingName(true)}
+            onClick={() => {
+              nameBeforeEditRef.current = phytoSet.name;
+              setEditingName(true);
+            }}
             className="cursor-text truncate text-base text-muted-foreground"
             title="Click to rename"
           >
