@@ -10,7 +10,14 @@ permissions:
   contents: read
 
 jobs:
+  # Broken pushes must not reach phytoexp.live: run the same lint/typecheck/
+  # test/build checks as PRs, and only deploy when they pass.
+  checks:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
   deploy:
+    needs: checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
