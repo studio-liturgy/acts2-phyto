@@ -39,5 +39,13 @@ export default tseslint.config(
       "no-empty": ["error", { allowEmptyCatch: true }],
     },
   },
+  {
+    // shadcn/ui convention exports cva variants alongside components; fast
+    // refresh granularity doesn't matter for these vendored files.
+    files: ["src/components/ui/**"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
   eslintPluginPrettier,
 );

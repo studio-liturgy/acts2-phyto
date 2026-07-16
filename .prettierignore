@@ -6,3 +6,6 @@ pnpm-lock.yaml
 package-lock.json
 bun.lock
 routeTree.gen.ts
+graphify-out
+# Email HTML is whitespace/rendering-sensitive (Gmail quirks); never reformat
+email-templates
