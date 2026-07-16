@@ -36,3 +36,9 @@ graphify-out/
 
 # Claude Code session handoff notes
 .claude/handoff.md
+
+# Playwright
+e2e/.auth
+e2e/.artifacts
+test-results
+playwright-report

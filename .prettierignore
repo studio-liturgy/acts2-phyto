@@ -9,3 +9,4 @@ routeTree.gen.ts
 graphify-out
 # Email HTML is whitespace/rendering-sensitive (Gmail quirks); never reformat
 email-templates
+.claude/worktrees
