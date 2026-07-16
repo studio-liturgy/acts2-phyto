@@ -7,6 +7,13 @@ import { supabase } from "@/lib/supabase";
 import { MEDIA_MAX_BYTES, isUploadableVideo } from "@/lib/media";
 import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
 import { searchSongs, preloadSongs, parseQuery, songPreview, type SongResult } from "@/lib/songs";
+import {
+  lyricsToSlides,
+  parseScriptureFromText,
+  reconcileSlideIds,
+  slidesToLyricsText,
+  slidesToScriptureText,
+} from "@/lib/slide-text";
 import { SlideView } from "@/components/SlideView";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,10 +54,6 @@ export const Route = createFileRoute("/set/$setId")({
   }),
   component: SetEditor,
 });
-
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
-}
 
 function kindBadgeBg(kind: SetKind): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
@@ -924,98 +927,6 @@ function applyDividers(text: string, linesPer: number): string {
   return out.join("\n");
 }
 
-// Parses lyrics using only --- as slide breaks, never re-splitting by linesPer.
-// Lines matching /^\[.+\]$/ set the current group label for following slides.
-// Used for the live right-column preview on every keystroke.
-function parseLyricsFromText(text: string): Slide[] {
-  const rawLines = text.split("\n");
-  const slides: Slide[] = [];
-  let currentSection: string | undefined;
-  let currentLines: string[] = [];
-
-  const flushSlide = () => {
-    const content = currentLines.join("\n").trim();
-    if (content) {
-      slides.push({
-        id: uid(),
-        kind: "lyric" as const,
-        lines: content
-          .split("\n")
-          .map((l) => l.trim())
-          .filter(Boolean),
-        section: currentSection,
-      });
-    }
-    currentLines = [];
-  };
-
-  for (const line of rawLines) {
-    if (/^---\s*$/.test(line)) {
-      flushSlide();
-    } else if (/^\[.+\]$/.test(line.trim())) {
-      flushSlide();
-      currentSection = line.trim().slice(1, -1);
-    } else {
-      currentLines.push(line);
-    }
-  }
-  flushSlide();
-  return slides;
-}
-
-function lyricsToSlides(text: string): Slide[] {
-  return parseLyricsFromText(text);
-}
-
-// Parses scripture textarea format into slides.
-// Lines matching /^\[.+\]$/ set the current verse reference.
-// --- forces a slide boundary; versesPer groups verses within each segment.
-// Segments with no [ref] inherit the last seen ref from previous segments.
-function parseScriptureFromText(text: string, versesPer: number): Slide[] {
-  const segments = text.split(/^---\s*$/m);
-  const slides: Slide[] = [];
-  let inheritedRef = "";
-
-  for (const segment of segments) {
-    const verses: { ref: string; lines: string[] }[] = [];
-    let currentRef = inheritedRef;
-    let currentLines: string[] = [];
-
-    const flushVerse = () => {
-      const content = currentLines.join("\n").trim();
-      if (content || currentRef) {
-        verses.push({ ref: currentRef, lines: content ? content.split("\n") : [] });
-      }
-      currentLines = [];
-    };
-
-    for (const line of segment.split("\n")) {
-      if (/^\[.+\]$/.test(line.trim())) {
-        flushVerse();
-        currentRef = line.trim().slice(1, -1);
-        inheritedRef = currentRef;
-      } else {
-        currentLines.push(line);
-      }
-    }
-    flushVerse();
-
-    for (let i = 0; i < verses.length; i += versesPer) {
-      const group = verses.slice(i, i + versesPer);
-      const lines = group.flatMap((v) => v.lines);
-      if (lines.length === 0) continue;
-      slides.push({
-        id: uid(),
-        kind: "scripture" as const,
-        reference: group[0].ref,
-        lines,
-        section: group[0].ref,
-      });
-    }
-  }
-  return slides;
-}
-
 function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const { addSlide, updateSet } = useLibrary();
 
@@ -1023,7 +934,16 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     const stored = localStorage.getItem("phyto_lines_per_slide");
     return stored ? Math.max(1, Number(stored) || 2) : 2;
   });
-  const [lyrics, setLyrics] = useState("");
+  // Seed the textarea from the stored slides in the SAME render the component
+  // mounts, so the live-sync effect's first run sees text that round-trips to
+  // identical content and writes nothing. (The old mount-effect reconstruction
+  // left the first sync pass running against "" — transiently writing
+  // slides: [] — then rebuilt every slide with fresh ids, which changed the
+  // sync fingerprint and flagged a phantom conflict on other devices.)
+  const [lyrics, setLyrics] = useState(() => {
+    if (kind !== "song") return "";
+    return slidesToLyricsText(useLibrary.getState().sets[setId]?.slides ?? []);
+  });
   const prevLinesPer = useRef(linesPer);
 
   const [songQuery, setSongQuery] = useState("");
@@ -1043,40 +963,28 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [manualRef, setManualRef] = useState("");
-  const [manualText, setManualText] = useState("");
+  const [manualText, setManualText] = useState(() => {
+    if (kind !== "scripture") return "";
+    return slidesToScriptureText(useLibrary.getState().sets[setId]?.slides ?? []);
+  });
 
-  // On mount: reconstruct textarea from existing slides.
-  const initialised = useRef(false);
+  // Late hydration: on a direct URL load Dexie may not have populated the
+  // store yet, so the lazy initializers above saw no slides. Reconstruct once
+  // they appear — but never clobber text the user (or an import) already put
+  // in the box, and latch only after an actual reconstruction so this retries
+  // until the store is ready.
+  const hydrated = useRef(lyrics !== "" || manualText !== "");
+  const storeSlides = useLibrary((s) => s.sets[setId]?.slides);
   useEffect(() => {
-    if (initialised.current) return;
-    initialised.current = true;
-    const currentSlides = useLibrary.getState().sets[setId]?.slides ?? [];
-    if (currentSlides.length === 0) return;
-
-    if (kind === "song") {
-      let prevSection: string | undefined;
-      const parts: string[] = [];
-      for (const s of currentSlides) {
-        if (s.section !== prevSection) {
-          if (s.section) parts.push(`[${s.section}]`);
-          prevSection = s.section;
-        }
-        parts.push(s.lines?.join("\n") ?? "");
-      }
-      setLyrics(parts.join("\n---\n"));
-    } else if (kind === "scripture") {
-      const slideParts: string[] = [];
-      let lastRef = "";
-      for (const s of currentSlides) {
-        const ref = s.reference ?? "";
-        const text = (s.lines ?? []).join("\n");
-        slideParts.push(ref !== lastRef ? `[${ref}]\n${text}` : text);
-        lastRef = ref;
-      }
-      setManualText(slideParts.join("\n---\n"));
+    if (hydrated.current) return;
+    if (!storeSlides || storeSlides.length === 0) return;
+    hydrated.current = true;
+    if (kind === "song" && lyrics === "") {
+      setLyrics(slidesToLyricsText(storeSlides));
+    } else if (kind === "scripture" && manualText === "") {
+      setManualText(slidesToScriptureText(storeSlides));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [storeSlides, kind, lyrics, manualText]);
 
   // Persist linesPer across navigations.
   useEffect(() => {
@@ -1088,18 +996,27 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     if (kind === "song") preloadSongs();
   }, [kind]);
 
-  // Live sync: replace all slides whenever lyrics change (song only).
+  // Live sync: rebuild slides whenever the lyrics change (song only).
+  // Reconciled against the stored slides so an unchanged round-trip keeps
+  // every slide id and skips the write entirely — otherwise merely opening
+  // this editor would bump updatedAt and push regenerated ids, which reads as
+  // a real content conflict (`modified`, not `touched`) on other devices.
   useEffect(() => {
     if (kind !== "song") return;
-    const slides = lyrics.trim() ? lyricsToSlides(lyrics) : [];
-    updateSet(setId, { slides });
+    const parsed = lyrics.trim() ? lyricsToSlides(lyrics) : [];
+    const current = useLibrary.getState().sets[setId]?.slides ?? [];
+    const { slides, changed } = reconcileSlideIds(parsed, current);
+    if (changed) updateSet(setId, { slides });
   }, [lyrics, kind, setId, updateSet]);
 
-  // Live sync: replace all slides whenever scripture textarea changes.
+  // Live sync: rebuild slides whenever the scripture textarea changes.
+  // Same id-preserving reconcile as the song effect above.
   useEffect(() => {
     if (kind !== "scripture") return;
-    const slides = manualText.trim() ? parseScriptureFromText(manualText, versesPer) : [];
-    updateSet(setId, { slides });
+    const parsed = manualText.trim() ? parseScriptureFromText(manualText, versesPer) : [];
+    const current = useLibrary.getState().sets[setId]?.slides ?? [];
+    const { slides, changed } = reconcileSlideIds(parsed, current);
+    if (changed) updateSet(setId, { slides });
   }, [manualText, versesPer, kind, setId, updateSet]);
 
   const runSongSearch = async (e?: React.FormEvent) => {

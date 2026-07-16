@@ -15,6 +15,16 @@ async function remoteTitles(): Promise<string[]> {
   return (data ?? []).map((r) => r.title as string);
 }
 
+async function remoteUpdatedAt(title: string): Promise<string | null> {
+  const { data, error } = await admin
+    .from("sets")
+    .select("updated_at")
+    .eq("user_id", userId())
+    .eq("title", title);
+  if (error) throw new Error(error.message);
+  return (data?.[0]?.updated_at as string) ?? null;
+}
+
 async function createSongNamed(page: Page, name: string) {
   // Empty device + empty account → first-time landing; "New Set" is a dropdown.
   // Retry the click until the menu opens: a click that lands before React
@@ -31,6 +41,11 @@ async function createSongNamed(page: Page, name: string) {
   await page.keyboard.type(name);
   await page.keyboard.press("Enter");
   await expect(page.getByTitle("Click to rename")).toHaveText(name);
+  // Give the set real lyric slides so downstream editor-open checks exercise
+  // the text ⇄ slides round-trip, not the trivial empty case.
+  await page
+    .getByPlaceholder(/Paste lyrics here/)
+    .fill("[Verse 1]\nAmazing grace, how sweet the sound\n---\nThat saved a wretch like me");
 }
 
 async function deleteSetByName(page: Page, name: string) {
@@ -67,6 +82,19 @@ test("a set created on device A syncs to device B, and B's delete clears the acc
   const deviceB = await contextB.newPage();
   await deviceB.goto("/");
   await expect(deviceB.getByText(name)).toBeVisible({ timeout: 30_000 });
+
+  // ── Regression: opening the editor and touching nothing must not push.
+  //    (The lyric editor used to regenerate every slide id on mount, dirtying
+  //    the set and flagging a phantom conflict on other devices.) ──
+  const updatedAtBeforeOpen = await remoteUpdatedAt(name);
+  expect(updatedAtBeforeOpen).not.toBeNull();
+  await deviceB.getByRole("link", { name: "Edit set" }).click();
+  await expect(deviceB).toHaveURL(/\/set\//);
+  // Sit past the 500ms push debounce so any spurious write would have landed.
+  await deviceB.waitForTimeout(2_000);
+  expect(await remoteUpdatedAt(name)).toBe(updatedAtBeforeOpen);
+  await deviceB.getByRole("link", { name: "Back" }).click();
+  await expect(deviceB.getByText(name)).toBeVisible();
 
   await deleteSetByName(deviceB, name);
   await expect.poll(remoteTitles, { timeout: 30_000 }).not.toContain(name);
