@@ -28,6 +28,35 @@ export default function UpdatesMain() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-12">
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
+            <div className="text-2xl">July 16, 2026</div>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Sync</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Fixed a bug where deleting a song, set, or gathering on one device could bring it
+                back on another. Deletions now sync reliably across all your devices
+              </FeatureItem>
+              <FeatureItem>
+                First sign-in is noticeably faster, with a loading screen while your account syncs
+                in
+              </FeatureItem>
+              <FeatureItem>
+                Fixed phantom sync conflicts that could appear just from opening a song or
+                scripture editor
+              </FeatureItem>
+            </ul>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">
+              Home and catalogue
+            </div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Set names can no longer be left blank: clearing the name field and clicking away or
+                pressing Enter now reverts to the previous name
+              </FeatureItem>
+            </ul>
+          </li>
+          <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">July 1, 2026</div>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Mobile</div>
