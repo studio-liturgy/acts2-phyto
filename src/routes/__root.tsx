@@ -26,6 +26,7 @@ import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import {
+  applyMerge,
   diffWithSupabase,
   hasDifferences,
   latestRemoteTime,
@@ -33,10 +34,12 @@ import {
   pushMirrorToSupabase,
   replaceWithSupabase,
   previewEffects,
+  withSyncLock,
   type SyncAction,
   type SyncEffects,
   type SyncDiff,
 } from "@/lib/sync";
+import { useSyncStatusStore } from "@/hooks/use-sync-status";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { TestSiteWarning } from "@/components/TestSiteWarning";
 import { Button } from "@/components/ui/button";
@@ -319,6 +322,28 @@ function RootComponent() {
 
   const runDiff = async (autoMerge = false) => {
     if (pathname.startsWith("/g/")) return;
+    // Publish the pull to the sync-status store for the whole pass: the home
+    // page shows a loading view (instead of the first-time landing) while an
+    // empty device is still downloading the account. fetchRemote fills in the
+    // real done/total counts once it knows how many sets need content.
+    const { setPull, setStatus } = useSyncStatusStore.getState();
+    setPull({ done: 0, total: 0 });
+    setStatus("syncing");
+    try {
+      // Diff and auto-apply under ONE lock acquisition. Routing the auto path
+      // through mergeFromSupabase would recompute the diff inside the lock — a
+      // SECOND full fetchRemote, which on a fresh device re-downloads every
+      // set's content and doubles first-login wall time. Holding the lock
+      // across diff + applyMerge gives the same serialization (applyMerge's
+      // re-ID push is not idempotent) with a single fetch.
+      await withSyncLock(() => runDiffLocked(autoMerge));
+    } finally {
+      setPull(null);
+      setStatus("synced");
+    }
+  };
+
+  const runDiffLocked = async (autoMerge: boolean) => {
     const diff = await diffWithSupabase();
     if (!diff) {
       // Aborted (fetch failure / no client session) — not "no differences".
@@ -393,9 +418,10 @@ function RootComponent() {
     // device has nothing to lose, so just pull the account down instead of
     // making the user pick Merge/Replace/Push for a non-choice.
     if (autoMerge || diff.localEmpty || latestRemoteTime(diff) === null) {
-      // Serialized + recompute-inside-lock so concurrent/repeat auto-merges are
-      // clean no-ops. The store refreshes via the Dexie liveQuery in store.ts.
-      await mergeFromSupabase();
+      // Already inside the sync lock (see runDiff), so the freshly-computed
+      // diff can be applied directly — no refetch. The store refreshes via the
+      // Dexie liveQuery in store.ts.
+      await applyMerge(diff);
     } else {
       setSyncDiff(diff);
     }

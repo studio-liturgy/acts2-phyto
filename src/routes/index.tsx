@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
-import { useSyncStatus } from "@/hooks/use-sync-status";
+import { useAccountPull, useSyncStatus } from "@/hooks/use-sync-status";
 import { exportCatalogue, importCatalogue } from "@/lib/catalogue-io";
 import { APP_NAME } from "@/lib/appConfig";
 import {
@@ -190,6 +190,7 @@ function Library() {
   const isSignedIn = useIsSignedIn();
   const userEmail = useUserEmail();
   const syncStatus = useSyncStatus();
+  const accountPull = useAccountPull();
   const [showGoLivePrompt, setShowGoLivePrompt] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
 
@@ -361,6 +362,32 @@ function Library() {
     scripture: "No Scriptures yet!",
     media: "No Media yet!",
   };
+
+  // While the post-login account pull runs on a device with an empty library,
+  // show a dedicated loading view. Without it, the empty library renders the
+  // first-time landing, which reads as "your account has no data" while the
+  // sets are still downloading.
+  if (isSignedIn && isEmpty && accountPull) {
+    const { done, total } = accountPull;
+    const clampedDone = Math.min(done, total);
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 text-foreground">
+        <span className="h-4 w-4 animate-pulse rounded-full bg-[var(--brand-blue)]" />
+        <h1 className="mono mt-6 text-sm uppercase tracking-wider">Loading your library</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {total > 0 ? `Downloading ${clampedDone} of ${total} sets` : "Checking your account"}
+        </p>
+        {total > 0 && (
+          <div className="mt-6 h-1 w-56 overflow-hidden rounded-full bg-foreground/10">
+            <div
+              className="h-full rounded-full bg-[var(--brand-blue)] transition-[width] duration-300 ease-out"
+              style={{ width: `${Math.round((clampedDone / total) * 100)}%` }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div

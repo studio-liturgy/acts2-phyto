@@ -17,6 +17,7 @@ vi.mock("@/lib/supabase", async () => {
 
 import { fetchAllPages, fetchRemote } from "@/lib/sync";
 import { db } from "@/lib/db";
+import { useSyncStatusStore } from "@/hooks/use-sync-status";
 
 beforeEach(async () => {
   supabaseMock.configure();
@@ -143,5 +144,34 @@ describe("fetchRemote", () => {
     // Only the metadata select ran against sets — no content fetch for known ids.
     const setSelects = supabaseMock.callsFor("sets", "select");
     expect(setSelects).toHaveLength(1);
+  });
+
+  it("downloads many sets completely across parallel content batches", async () => {
+    // 23 sets → 5 batches of ≤5 running through the worker pool; every set must
+    // come back exactly once regardless of completion interleaving.
+    const many = Array.from({ length: 23 }, (_, i) => makeSet({ name: `Set ${i}` }));
+    supabaseMock.configure({
+      tables: { sets: many.map((s) => setRow(s)), gatherings: [], gathering_sets: [] },
+    });
+
+    const remote = await fetchRemote(USER_ID);
+    expect(remote!.sets.map((s) => s.id).sort()).toEqual(many.map((s) => s.id).sort());
+  });
+
+  it("reports download progress only into an ACTIVE account pull", async () => {
+    const many = Array.from({ length: 7 }, (_, i) => makeSet({ name: `Set ${i}` }));
+    supabaseMock.configure({
+      tables: { sets: many.map((s) => setRow(s)), gatherings: [], gathering_sets: [] },
+    });
+
+    // No pull active: fetch must not conjure one up (nobody would clear it).
+    await fetchRemote(USER_ID);
+    expect(useSyncStatusStore.getState().pull).toBeNull();
+
+    // Active pull: counts get filled in and reach done === total.
+    useSyncStatusStore.getState().setPull({ done: 0, total: 0 });
+    await fetchRemote(USER_ID);
+    expect(useSyncStatusStore.getState().pull).toEqual({ done: 7, total: 7 });
+    useSyncStatusStore.getState().setPull(null);
   });
 });

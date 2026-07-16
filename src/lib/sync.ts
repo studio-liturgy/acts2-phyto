@@ -127,6 +127,13 @@ const LIST_PAGE_SIZE = 500;
  *  request bounded by a handful of sets. */
 const SET_BATCH_SIZE = 5;
 
+/** How many content batches to keep in flight at once. A first login on a
+ *  fresh device downloads EVERY set, so wall time is dominated by serial
+ *  round-trips; each request stays SET_BATCH_SIZE-bounded, so limited
+ *  parallelism cuts the wait without recreating the one-giant-response
+ *  failure the batching exists to avoid. */
+const CONTENT_FETCH_CONCURRENCY = 4;
+
 /** Fetch every row of a query in LIST_PAGE_SIZE pages. Returns null on any
  *  page error (callers must abort rather than treat a failure as "no rows"). */
 export async function fetchAllPages<T>(
@@ -259,31 +266,61 @@ export async function fetchRemote(
     }
   }
 
+  const batches: string[][] = [];
   for (let i = 0; i < needContent.length; i += SET_BATCH_SIZE) {
-    const chunk = needContent.slice(i, i + SET_BATCH_SIZE);
+    batches.push(needContent.slice(i, i + SET_BATCH_SIZE));
+  }
+
+  // Report download progress into the account-pull indicator, but only when a
+  // pull is active (runDiff owns its lifecycle) — see useSyncStatusStore.pull.
+  let downloadedCount = 0;
+  const reportPull = () => {
+    const { pull, setPull } = useSyncStatusStore.getState();
+    if (pull) setPull({ done: downloadedCount, total: needContent.length });
+  };
+  reportPull();
+
+  const fetchContentBatch = async (chunk: string[]): Promise<Record<string, unknown>[] | null> => {
     const { data, error } = await supabase.from("sets").select("*").in("id", chunk);
-    let rows = (data ?? []) as Record<string, unknown>[];
-    if (error) {
-      // A batch of several image-heavy sets can still be too big — retry
-      // per-set so only a genuinely oversized single row can fail.
-      console.warn("[sync] fetchRemote: set content batch failed, retrying per-set", error);
-      rows = [];
-      for (const id of chunk) {
-        const { data: one, error: oneErr } = await supabase.from("sets").select("*").eq("id", id);
-        if (oneErr) {
-          console.error(
-            "[sync] fetchRemote: set content fetch failed, aborting sync pass",
-            id,
-            oneErr,
-          );
-          return null;
-        }
-        rows.push(...((one ?? []) as Record<string, unknown>[]));
+    if (!error) return (data ?? []) as Record<string, unknown>[];
+    // A batch of several image-heavy sets can still be too big — retry
+    // per-set so only a genuinely oversized single row can fail.
+    console.warn("[sync] fetchRemote: set content batch failed, retrying per-set", error);
+    const rows: Record<string, unknown>[] = [];
+    for (const id of chunk) {
+      const { data: one, error: oneErr } = await supabase.from("sets").select("*").eq("id", id);
+      if (oneErr) {
+        console.error(
+          "[sync] fetchRemote: set content fetch failed, aborting sync pass",
+          id,
+          oneErr,
+        );
+        return null;
       }
+      rows.push(...((one ?? []) as Record<string, unknown>[]));
     }
+    return rows;
+  };
+
+  // Small worker pool over the batches. Results land indexed by batch so the
+  // assembled order stays deterministic regardless of completion order.
+  const batchRows: (Record<string, unknown>[] | null)[] = new Array(batches.length);
+  let nextBatch = 0;
+  const worker = async () => {
+    for (let i = nextBatch++; i < batches.length; i = nextBatch++) {
+      batchRows[i] = await fetchContentBatch(batches[i]);
+      downloadedCount += batches[i].length;
+      reportPull();
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(CONTENT_FETCH_CONCURRENCY, batches.length) }, worker),
+  );
+  if (batchRows.some((rows) => rows === null)) return null;
+  for (const rows of batchRows) {
     // A row deleted remotely between the metadata pass and this batch simply
     // comes back missing — same outcome as if the metadata pass ran later.
-    for (const r of rows) sets.push(fromSupabaseSet(r));
+    for (const r of rows!) sets.push(fromSupabaseSet(r));
   }
 
   const gsRows = gsRowsAll as unknown as {
