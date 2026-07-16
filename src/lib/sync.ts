@@ -7,7 +7,7 @@ import { nanoid } from "nanoid";
 
 // Deterministic UUID v5-like from two strings using SubtleCrypto.
 // Used to generate stable UUIDs for gathering_sets rows from (gathering_id, position).
-async function deterministicUuid(a: string, b: string): Promise<string> {
+export async function deterministicUuid(a: string, b: string): Promise<string> {
   const enc = new TextEncoder();
   const buf = await crypto.subtle.digest("SHA-256", enc.encode(`${a}:${b}`));
   const hex = Array.from(new Uint8Array(buf))
@@ -35,7 +35,7 @@ function getDeviceId(): string {
   return id;
 }
 
-function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
+export function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
   return {
     id: s.id,
     user_id: userId,
@@ -55,7 +55,7 @@ function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
   };
 }
 
-function toSupabaseGathering(p: Gathering, userId: string, deviceId: string) {
+export function toSupabaseGathering(p: Gathering, userId: string, deviceId: string) {
   // NOTE: `is_live` is intentionally omitted. It is server-authoritative and
   // managed exclusively by goLive/endSession. Including it here would let an
   // unrelated content push clobber the server's true live flag with stale
@@ -74,7 +74,7 @@ function toSupabaseGathering(p: Gathering, userId: string, deviceId: string) {
   };
 }
 
-function fromSupabaseSet(row: Record<string, unknown>): PhytoSet {
+export function fromSupabaseSet(row: Record<string, unknown>): PhytoSet {
   const content = (row.content ?? {}) as Record<string, unknown>;
   return {
     id: row.id as string,
@@ -90,7 +90,7 @@ function fromSupabaseSet(row: Record<string, unknown>): PhytoSet {
   };
 }
 
-function fromSupabaseGathering(row: Record<string, unknown>, setIds: string[]): Gathering {
+export function fromSupabaseGathering(row: Record<string, unknown>, setIds: string[]): Gathering {
   return {
     id: row.id as string,
     name: row.title as string,
@@ -129,7 +129,7 @@ const SET_BATCH_SIZE = 5;
 
 /** Fetch every row of a query in LIST_PAGE_SIZE pages. Returns null on any
  *  page error (callers must abort rather than treat a failure as "no rows"). */
-async function fetchAllPages<T>(
+export async function fetchAllPages<T>(
   makeQuery: (
     from: number,
     to: number,
@@ -148,7 +148,7 @@ async function fetchAllPages<T>(
   }
 }
 
-async function fetchRemote(
+export async function fetchRemote(
   userId: string,
 ): Promise<{ sets: PhytoSet[]; gatherings: Gathering[] } | null> {
   // ── Sets are fetched METADATA-FIRST: the tiny columns for every row, then
@@ -368,10 +368,10 @@ export type SyncDiff = {
 // today's date) get different createdAt and stay distinct, instead of one being
 // silently merged away. Sets also use kind + slide count as cheap, edit-tolerant
 // discriminators. (share_token is intentionally excluded — unstable across merges.)
-function setContentKey(s: PhytoSet): string {
+export function setContentKey(s: PhytoSet): string {
   return `${s.kind}::${s.name.trim().toLowerCase()}::${s.slides.length}::${s.createdAt}`;
 }
-function gatheringContentKey(p: Gathering): string {
+export function gatheringContentKey(p: Gathering): string {
   return `${p.name.trim().toLowerCase()}::${p.createdAt}`;
 }
 
@@ -379,7 +379,7 @@ function gatheringContentKey(p: Gathering): string {
 // timestamp-only drift. Key-order-independent (Postgres JSONB re-sorts object
 // keys, so a plain JSON.stringify of a round-tripped slide would differ) and
 // undefined-key-insensitive (JSONB drops undefined keys on the way in).
-function stableStringify(v: unknown): string {
+export function stableStringify(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(stableStringify).join(",")}]`;
   if (v && typeof v === "object") {
     const o = v as Record<string, unknown>;
@@ -393,7 +393,7 @@ function stableStringify(v: unknown): string {
 
 /** Everything that round-trips through the Supabase `sets` row (title + content
  *  JSONB). Timestamps excluded by design. */
-function setFingerprint(s: PhytoSet): string {
+export function setFingerprint(s: PhytoSet): string {
   return stableStringify({
     name: s.name,
     kind: s.kind,
@@ -408,7 +408,7 @@ function setFingerprint(s: PhytoSet): string {
 /** Synced gathering content. `is_live` is deliberately EXCLUDED — it is
  *  server-authoritative session state (goLive/endSession/refreshLiveState), not
  *  content, and including it would turn every live flip into a "real" conflict. */
-function gatheringFingerprint(p: Gathering): string {
+export function gatheringFingerprint(p: Gathering): string {
   return stableStringify({ name: p.name, share_token: p.share_token, setIds: p.setIds });
 }
 
@@ -417,7 +417,7 @@ function gatheringFingerprint(p: Gathering): string {
  * Returns matched pairs plus the reduced leftovers that stay only-local /
  * only-remote. Inputs are pre-sorted by (createdAt, id) for stable pairing.
  */
-function reconcileByContentKey<T extends { id: string; createdAt: number }>(
+export function reconcileByContentKey<T extends { id: string; createdAt: number }>(
   local: T[],
   remote: T[],
   keyOf: (t: T) => string,
@@ -609,7 +609,7 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
  *  where a public viewer could read an empty set list — then any now-removed
  *  tail positions are trimmed. Idempotent; safe to repeat. Returns false if
  *  either write failed. */
-async function writeGatheringSetRows(p: Gathering): Promise<boolean> {
+export async function writeGatheringSetRows(p: Gathering): Promise<boolean> {
   let ok = true;
   const rows = await Promise.all(
     p.setIds.map(async (setId, i) => ({
