@@ -1,7 +1,7 @@
-import { db } from './db';
-import type { Set as PhytoSet, Gathering } from './types';
-import { useLibrary } from './store';
-import { nanoid } from 'nanoid';
+import { db } from "./db";
+import type { Set as PhytoSet, Gathering } from "./types";
+import { useLibrary } from "./store";
+import { nanoid } from "nanoid";
 
 // ---------------------------------------------------------------------------
 // File format
@@ -27,10 +27,10 @@ type PhytoFile = PhytoFileV2;
 // ---------------------------------------------------------------------------
 
 export function migratePhytoFile(data: Record<string, unknown>): PhytoFileV2 {
-  if (!data || typeof data !== 'object') {
-    throw new Error('Invalid .phyto file: not a JSON object.');
+  if (!data || typeof data !== "object") {
+    throw new Error("Invalid .phyto file: not a JSON object.");
   }
-  if (!('version' in data)) {
+  if (!("version" in data)) {
     throw new Error('Invalid .phyto file: missing "version" field.');
   }
   if (data.version === 1) {
@@ -47,7 +47,7 @@ export function migratePhytoFile(data: Record<string, unknown>): PhytoFileV2 {
     return data as unknown as PhytoFileV2;
   }
   throw new Error(
-    `Unrecognised .phyto file version: ${data.version}. Please update phyto to open this file.`
+    `Unrecognised .phyto file version: ${data.version}. Please update phyto to open this file.`,
   );
 }
 
@@ -56,10 +56,7 @@ export function migratePhytoFile(data: Record<string, unknown>): PhytoFileV2 {
 // ---------------------------------------------------------------------------
 
 export async function exportCatalogue(): Promise<void> {
-  const [sets, gatherings] = await Promise.all([
-    db.sets.toArray(),
-    db.gatherings.toArray(),
-  ]);
+  const [sets, gatherings] = await Promise.all([db.sets.toArray(), db.gatherings.toArray()]);
 
   const payload: PhytoFile = {
     version: 2,
@@ -69,11 +66,11 @@ export async function exportCatalogue(): Promise<void> {
   };
 
   const json = JSON.stringify(payload, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+  const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
 
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   a.download = `phyto-catalogue-${today}.phyto`;
   document.body.appendChild(a);
@@ -86,16 +83,13 @@ export async function exportCatalogue(): Promise<void> {
 // Import
 // ---------------------------------------------------------------------------
 
-export async function importCatalogue(
-  file: File,
-  mode: 'merge' | 'replace'
-): Promise<number> {
+export async function importCatalogue(file: File, mode: "merge" | "replace"): Promise<number> {
   const text = await file.text();
   let raw: Record<string, unknown>;
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new Error('Could not parse .phyto file: invalid JSON.');
+    throw new Error("Could not parse .phyto file: invalid JSON.");
   }
 
   const data = migratePhytoFile(raw);
@@ -108,7 +102,7 @@ export async function importCatalogue(
     is_live: g.is_live ?? false,
   }));
 
-  if (mode === 'replace') {
+  if (mode === "replace") {
     await db.sets.clear();
     await db.gatherings.clear();
     await db.sets.bulkAdd(sets);

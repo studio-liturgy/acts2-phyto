@@ -67,10 +67,7 @@ export function ScriptureTemplateEditor() {
     <div className="rounded-2xl border border-foreground p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="mono text-[10px] uppercase tracking-wider">Scripture Template</div>
-        <button
-          onClick={cancel}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
+        <button onClick={cancel} className="text-xs text-muted-foreground hover:text-foreground">
           Cancel
         </button>
       </div>
@@ -88,9 +85,7 @@ export function ScriptureTemplateEditor() {
             max={2}
             step={0.05}
             value={draft.fontScale}
-            onChange={(e) =>
-              setDraft((d) => ({ ...d, fontScale: Number(e.target.value) }))
-            }
+            onChange={(e) => setDraft((d) => ({ ...d, fontScale: Number(e.target.value) }))}
             className="w-full"
           />
         </div>

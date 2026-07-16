@@ -1,5 +1,5 @@
-import Dexie, { type EntityTable } from 'dexie';
-import type { Set as PhytoSet, Gathering } from './types';
+import Dexie, { type EntityTable } from "dexie";
+import type { Set as PhytoSet, Gathering } from "./types";
 
 export interface GatheringSet {
   id: string;
@@ -9,21 +9,21 @@ export interface GatheringSet {
 }
 
 export class PhytoDB extends Dexie {
-  sets!: EntityTable<PhytoSet, 'id'>;
-  gatherings!: EntityTable<Gathering, 'id'>;
-  gathering_sets!: EntityTable<GatheringSet, 'id'>;
+  sets!: EntityTable<PhytoSet, "id">;
+  gatherings!: EntityTable<Gathering, "id">;
+  gathering_sets!: EntityTable<GatheringSet, "id">;
 
   constructor() {
-    super('PhytoDB');
+    super("PhytoDB");
     this.version(1).stores({
-      sets: 'id, createdAt, updatedAt',
-      gatherings: 'id, &share_token, createdAt, updatedAt',
-      gathering_sets: 'id, gathering_id, set_id, position',
+      sets: "id, createdAt, updatedAt",
+      gatherings: "id, &share_token, createdAt, updatedAt",
+      gathering_sets: "id, gathering_id, set_id, position",
     });
     this.version(2).stores({
-      sets: 'id, createdAt, updatedAt',
-      gatherings: 'id, share_token, createdAt, updatedAt',
-      gathering_sets: 'id, gathering_id, set_id, position',
+      sets: "id, createdAt, updatedAt",
+      gatherings: "id, share_token, createdAt, updatedAt",
+      gathering_sets: "id, gathering_id, set_id, position",
     });
   }
 }

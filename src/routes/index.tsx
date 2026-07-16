@@ -317,7 +317,10 @@ function Library() {
 
   // The live gathering always leads, regardless of creation order.
   const gatheringDisplayOrder = useMemo(
-    () => [...gatheringOrder].sort((a, b) => Number(!!gatherings[b]?.is_live) - Number(!!gatherings[a]?.is_live)),
+    () =>
+      [...gatheringOrder].sort(
+        (a, b) => Number(!!gatherings[b]?.is_live) - Number(!!gatherings[a]?.is_live),
+      ),
     [gatheringOrder, gatherings],
   );
 

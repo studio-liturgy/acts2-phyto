@@ -34,8 +34,7 @@ let _ghostHost: HTMLDivElement | null = null;
 function ensureGhostHost(): HTMLDivElement {
   if (_ghostHost) return _ghostHost;
   const host = document.createElement("div");
-  host.style.cssText =
-    "position:fixed;top:-1000px;left:-1000px;pointer-events:none;z-index:-1;";
+  host.style.cssText = "position:fixed;top:-1000px;left:-1000px;pointer-events:none;z-index:-1;";
   document.body.appendChild(host);
   _ghostHost = host;
   return host;
@@ -46,8 +45,7 @@ let _emptyDragImage: HTMLImageElement | null = null;
 function emptyDragImage(): HTMLImageElement {
   if (_emptyDragImage) return _emptyDragImage;
   const img = new Image();
-  img.src =
-    "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+  img.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
   ensureGhostHost().appendChild(img);
   _emptyDragImage = img;
   return img;

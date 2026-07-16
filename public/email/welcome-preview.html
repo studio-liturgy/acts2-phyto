@@ -4,7 +4,7 @@
   and fonts load from /fonts/.
   Open at http://localhost:8080/email/welcome-preview.html
 -->
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -13,105 +13,343 @@
     <title>Preview — phyto welcome email</title>
     <style>
       @font-face {
-        font-family: 'Space Mono';
-        src: url('/fonts/SpaceMono-Regular.ttf') format('truetype');
+        font-family: "Space Mono";
+        src: url("/fonts/SpaceMono-Regular.ttf") format("truetype");
         font-weight: 400;
         font-style: normal;
       }
-      @media only screen and (max-width:600px) {
-        .h1 { font-size:28px !important; }
+      @media only screen and (max-width: 600px) {
+        .h1 {
+          font-size: 28px !important;
+        }
       }
     </style>
   </head>
-  <body bgcolor="#2E7299" style="margin:0;padding:0;background:#2E7299;font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.03em;">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">phyto is a free, open source presentation tool built for small worship gatherings. Thanks for giving it a try!</div>
+  <body
+    bgcolor="#2E7299"
+    style="
+      margin: 0;
+      padding: 0;
+      background: #2e7299;
+      font-family: Arial, Helvetica, sans-serif;
+      letter-spacing: -0.03em;
+    "
+  >
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0">
+      phyto is a free, open source presentation tool built for small worship gatherings. Thanks for
+      giving it a try!
+    </div>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#2E7299" style="background:#2E7299;">
+    <table
+      role="presentation"
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      bgcolor="#2E7299"
+      style="background: #2e7299"
+    >
       <tr>
-        <td align="center" style="padding:0;">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-
+        <td align="center" style="padding: 0">
+          <table
+            role="presentation"
+            width="600"
+            cellpadding="0"
+            cellspacing="0"
+            style="max-width: 600px; width: 100%"
+          >
             <!-- HERO -->
             <tr>
-              <td style="padding:0;font-size:0;line-height:0;">
-                <img src="/email/email-header.png" width="600" alt="phyto"
-                     style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
+              <td style="padding: 0; font-size: 0; line-height: 0">
+                <img
+                  src="/email/email-header.png"
+                  width="600"
+                  alt="phyto"
+                  style="display: block; width: 100%; max-width: 600px; height: auto; border: 0"
+                />
               </td>
             </tr>
 
             <!-- INTRO -->
             <tr>
-              <td style="padding:48px 40px 0;">
-                <h1 class="h1" style="margin:0 0 24px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:32px;line-height:1.25;font-weight:400;letter-spacing:-0.03em;">
+              <td style="padding: 48px 40px 0">
+                <h1
+                  class="h1"
+                  style="
+                    margin: 0 0 24px;
+                    color: #f5efef;
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 32px;
+                    line-height: 1.25;
+                    font-weight: 400;
+                    letter-spacing: -0.03em;
+                  "
+                >
                   Thanks for trying out phyto!
                 </h1>
-                <h1 class="h1" style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:32px;line-height:1.25;font-weight:400;letter-spacing:-0.03em;">
-                  I started building this to serve my local church. But maybe it could bless more people, like you?
+                <h1
+                  class="h1"
+                  style="
+                    margin: 0;
+                    color: #f5efef;
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 32px;
+                    line-height: 1.25;
+                    font-weight: 400;
+                    letter-spacing: -0.03em;
+                  "
+                >
+                  I started building this to serve my local church. But maybe it could bless more
+                  people, like you?
                 </h1>
               </td>
             </tr>
 
             <!-- STORY -->
             <tr>
-              <td style="padding:48px 40px 0;">
-                <p style="margin:0 0 16px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;letter-spacing:0;">
-                  For nearly five years I worked as the &ldquo;creative / production guy&rdquo; at a church in downtown Vancouver. Then God led me to Hong Kong, where I found myself in a small house church community. No gear, no budget. Just an acoustic guitar, a piano, and sometimes a cheap TV or projector on the wall. What I noticed was that our pastor was rushing to type out Bible verses last minute, or finding a song to put up, while also keeping an eye on his kids and welcoming people through the door. I wanted to make that one small thing easier.
+              <td style="padding: 48px 40px 0">
+                <p
+                  style="
+                    margin: 0 0 16px;
+                    color: #f5efef;
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 14px;
+                    line-height: 1.7;
+                    letter-spacing: 0;
+                  "
+                >
+                  For nearly five years I worked as the &ldquo;creative / production guy&rdquo; at a
+                  church in downtown Vancouver. Then God led me to Hong Kong, where I found myself
+                  in a small house church community. No gear, no budget. Just an acoustic guitar, a
+                  piano, and sometimes a cheap TV or projector on the wall. What I noticed was that
+                  our pastor was rushing to type out Bible verses last minute, or finding a song to
+                  put up, while also keeping an eye on his kids and welcoming people through the
+                  door. I wanted to make that one small thing easier.
                 </p>
-                <p style="margin:0 0 16px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;letter-spacing:0;">
-                  As I built it, I started to see who else it could bless: the persecuted church, voluntary pastors with no budget for software, impromptu home gatherings that just need something simple and focused. So I&rsquo;ve kept it completely free.
+                <p
+                  style="
+                    margin: 0 0 16px;
+                    color: #f5efef;
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 14px;
+                    line-height: 1.7;
+                    letter-spacing: 0;
+                  "
+                >
+                  As I built it, I started to see who else it could bless: the persecuted church,
+                  voluntary pastors with no budget for software, impromptu home gatherings that just
+                  need something simple and focused. So I&rsquo;ve kept it completely free.
                 </p>
-                <p style="margin:0 0 16px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;letter-spacing:0;">
-                  I&rsquo;ll keep maintaining and improving it as I&rsquo;m able. If you&rsquo;d like to donate (only cheerfully!) or share feedback, testimonies, bug reports, or feature requests, I&rsquo;d love to hear from you.
+                <p
+                  style="
+                    margin: 0 0 16px;
+                    color: #f5efef;
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 14px;
+                    line-height: 1.7;
+                    letter-spacing: 0;
+                  "
+                >
+                  I&rsquo;ll keep maintaining and improving it as I&rsquo;m able. If you&rsquo;d
+                  like to donate (only cheerfully!) or share feedback, testimonies, bug reports, or
+                  feature requests, I&rsquo;d love to hear from you.
                 </p>
-                <p style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;letter-spacing:0;">
-                  You can reach out to me through the feedback form below, over IG or at <a href="mailto:hello@studioliturgy.com" style="color:#F5EFEF;text-decoration:underline;">hello@studioliturgy.com</a>.
+                <p
+                  style="
+                    margin: 0;
+                    color: #f5efef;
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 14px;
+                    line-height: 1.7;
+                    letter-spacing: 0;
+                  "
+                >
+                  You can reach out to me through the feedback form below, over IG or at
+                  <a
+                    href="mailto:hello@studioliturgy.com"
+                    style="color: #f5efef; text-decoration: underline"
+                    >hello@studioliturgy.com</a
+                  >.
                 </p>
               </td>
             </tr>
 
             <!-- SIGNATURE -->
             <tr>
-              <td style="padding:32px 40px 0;">
-                <p style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;">
+              <td style="padding: 32px 40px 0">
+                <p
+                  style="
+                    margin: 0;
+                    color: #f5efef;
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 15px;
+                    line-height: 1.5;
+                  "
+                >
                   grace + peace,
                 </p>
-                <p style="margin:0 0 12px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;">
+                <p
+                  style="
+                    margin: 0 0 12px;
+                    color: #f5efef;
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 15px;
+                    line-height: 1.5;
+                  "
+                >
                   Valiant Chan
                 </p>
-                <img src="/email/VChanSig.png" width="160" alt="Valiant Chan"
-                     style="display:block;width:160px;height:auto;border:0;" />
+                <img
+                  src="/email/VChanSig.png"
+                  width="160"
+                  alt="Valiant Chan"
+                  style="display: block; width: 160px; height: auto; border: 0"
+                />
               </td>
             </tr>
 
             <!-- TAGLINE -->
             <tr>
-              <td style="padding:24px 40px 0;">
-                <p style="margin:0;color:rgba(245,239,239,0.55);font-family:'Space Mono',Courier,monospace;font-size:11px;letter-spacing:0.02em;text-transform:uppercase;line-height:1.8;">
-                  Phyto is short for phytoplankton. Organisms that use sunlight, freely available in abundance, to survive, live, and breathe. Our times of worship together should work the same way.
+              <td style="padding: 24px 40px 0">
+                <p
+                  style="
+                    margin: 0;
+                    color: rgba(245, 239, 239, 0.55);
+                    font-family: &quot;Space Mono&quot;, Courier, monospace;
+                    font-size: 11px;
+                    letter-spacing: 0.02em;
+                    text-transform: uppercase;
+                    line-height: 1.8;
+                  "
+                >
+                  Phyto is short for phytoplankton. Organisms that use sunlight, freely available in
+                  abundance, to survive, live, and breathe. Our times of worship together should
+                  work the same way.
                 </p>
               </td>
             </tr>
 
             <!-- BUTTONS (style matches the site's "Present"/"Donate" pill CTAs: border-foreground pill, ArrowUpRight icon, tracking-[-0.045em], hover invert. inline-block + div wraps naturally if the row is too tight, unlike table cells. -->
             <tr>
-              <td align="center" style="padding:40px 32px 0;">
-                <div style="text-align:center;">
-                  <a href="#" style="display:inline-block;margin:6px 8px;text-decoration:none;border:1px solid #F5EFEF;border-radius:9999px;padding:8px 20px;white-space:nowrap;">
-                    <span style="display:inline-block;vertical-align:middle;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:32px;letter-spacing:-0.045em;">Donate</span>
-                    <span style="display:inline-block;vertical-align:middle;margin-left:10px;line-height:0;">
-                      <img src="/email/arrow.png" width="20" height="20" alt="&#8599;" style="display:block;width:20px;height:20px;border:0;" />
+              <td align="center" style="padding: 40px 32px 0">
+                <div style="text-align: center">
+                  <a
+                    href="#"
+                    style="
+                      display: inline-block;
+                      margin: 6px 8px;
+                      text-decoration: none;
+                      border: 1px solid #f5efef;
+                      border-radius: 9999px;
+                      padding: 8px 20px;
+                      white-space: nowrap;
+                    "
+                  >
+                    <span
+                      style="
+                        display: inline-block;
+                        vertical-align: middle;
+                        color: #f5efef;
+                        font-family: Arial, Helvetica, sans-serif;
+                        font-size: 32px;
+                        letter-spacing: -0.045em;
+                      "
+                      >Donate</span
+                    >
+                    <span
+                      style="
+                        display: inline-block;
+                        vertical-align: middle;
+                        margin-left: 10px;
+                        line-height: 0;
+                      "
+                    >
+                      <img
+                        src="/email/arrow.png"
+                        width="20"
+                        height="20"
+                        alt="&#8599;"
+                        style="display: block; width: 20px; height: 20px; border: 0"
+                      />
                     </span>
                   </a>
-                  <a href="#" style="display:inline-block;margin:6px 8px;text-decoration:none;border:1px solid #F5EFEF;border-radius:9999px;padding:8px 20px;white-space:nowrap;">
-                    <span style="display:inline-block;vertical-align:middle;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:32px;letter-spacing:-0.045em;">Feedback</span>
-                    <span style="display:inline-block;vertical-align:middle;margin-left:10px;line-height:0;">
-                      <img src="/email/arrow.png" width="20" height="20" alt="&#8599;" style="display:block;width:20px;height:20px;border:0;" />
+                  <a
+                    href="#"
+                    style="
+                      display: inline-block;
+                      margin: 6px 8px;
+                      text-decoration: none;
+                      border: 1px solid #f5efef;
+                      border-radius: 9999px;
+                      padding: 8px 20px;
+                      white-space: nowrap;
+                    "
+                  >
+                    <span
+                      style="
+                        display: inline-block;
+                        vertical-align: middle;
+                        color: #f5efef;
+                        font-family: Arial, Helvetica, sans-serif;
+                        font-size: 32px;
+                        letter-spacing: -0.045em;
+                      "
+                      >Feedback</span
+                    >
+                    <span
+                      style="
+                        display: inline-block;
+                        vertical-align: middle;
+                        margin-left: 10px;
+                        line-height: 0;
+                      "
+                    >
+                      <img
+                        src="/email/arrow.png"
+                        width="20"
+                        height="20"
+                        alt="&#8599;"
+                        style="display: block; width: 20px; height: 20px; border: 0"
+                      />
                     </span>
                   </a>
-                  <a href="#" style="display:inline-block;margin:6px 8px;text-decoration:none;border:1px solid #F5EFEF;border-radius:9999px;padding:8px 20px;white-space:nowrap;">
-                    <span style="display:inline-block;vertical-align:middle;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:32px;letter-spacing:-0.045em;">Instagram</span>
-                    <span style="display:inline-block;vertical-align:middle;margin-left:10px;line-height:0;">
-                      <img src="/email/arrow.png" width="20" height="20" alt="&#8599;" style="display:block;width:20px;height:20px;border:0;" />
+                  <a
+                    href="#"
+                    style="
+                      display: inline-block;
+                      margin: 6px 8px;
+                      text-decoration: none;
+                      border: 1px solid #f5efef;
+                      border-radius: 9999px;
+                      padding: 8px 20px;
+                      white-space: nowrap;
+                    "
+                  >
+                    <span
+                      style="
+                        display: inline-block;
+                        vertical-align: middle;
+                        color: #f5efef;
+                        font-family: Arial, Helvetica, sans-serif;
+                        font-size: 32px;
+                        letter-spacing: -0.045em;
+                      "
+                      >Instagram</span
+                    >
+                    <span
+                      style="
+                        display: inline-block;
+                        vertical-align: middle;
+                        margin-left: 10px;
+                        line-height: 0;
+                      "
+                    >
+                      <img
+                        src="/email/arrow.png"
+                        width="20"
+                        height="20"
+                        alt="&#8599;"
+                        style="display: block; width: 20px; height: 20px; border: 0"
+                      />
                     </span>
                   </a>
                 </div>
@@ -120,13 +358,48 @@
 
             <!-- FOOTER -->
             <tr>
-              <td align="center" style="padding:56px 40px 48px;">
-                <a href="#" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">Source</a>
-                <a href="#" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">Updates</a>
-                <a href="#" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">Legal</a>
+              <td align="center" style="padding: 56px 40px 48px">
+                <a
+                  href="#"
+                  style="
+                    color: #f5efef;
+                    font-family: &quot;Space Mono&quot;, Courier, monospace;
+                    font-size: 12px;
+                    letter-spacing: 0;
+                    text-transform: uppercase;
+                    text-decoration: none;
+                    padding: 0 16px;
+                  "
+                  >Source</a
+                >
+                <a
+                  href="#"
+                  style="
+                    color: #f5efef;
+                    font-family: &quot;Space Mono&quot;, Courier, monospace;
+                    font-size: 12px;
+                    letter-spacing: 0;
+                    text-transform: uppercase;
+                    text-decoration: none;
+                    padding: 0 16px;
+                  "
+                  >Updates</a
+                >
+                <a
+                  href="#"
+                  style="
+                    color: #f5efef;
+                    font-family: &quot;Space Mono&quot;, Courier, monospace;
+                    font-size: 12px;
+                    letter-spacing: 0;
+                    text-transform: uppercase;
+                    text-decoration: none;
+                    padding: 0 16px;
+                  "
+                  >Legal</a
+                >
               </td>
             </tr>
-
           </table>
         </td>
       </tr>

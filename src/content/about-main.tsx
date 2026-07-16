@@ -30,20 +30,32 @@ export default function AboutMain() {
           {/* Large intro */}
           <div className="mt-10 max-w-5xl space-y-10 text-3xl md:text-[2.6rem] md:leading-[1.15] leading-snug">
             <p>
-              phyto is a free, open source presentation tool built for small home worship gatherings.
+              phyto is a free, open source presentation tool built for small home worship
+              gatherings.
             </p>
             <p>
-              I started building this to serve my local church. But maybe it could bless more people?
+              I started building this to serve my local church. But maybe it could bless more
+              people?
             </p>
           </div>
 
           {/* Body paragraphs — placed lower per design */}
           <div className="mt-[28rem] max-w-5xl space-y-6 text-sm md:text-[0.95rem] leading-relaxed">
             <p>
-              For more than five years I worked as the "creative / production guy" at a church in downtown Vancouver. Then God led me to Hong Kong, where I found myself in a small house church community. No gear, no budget. Just an acoustic guitar, a cheap piano, and sometimes a TV or projector on the wall. What I noticed was that our pastor was dealing with slides last minute, while also keeping an eye on his kids and welcoming people through the door. I wanted to make this process just a little easier.
+              For more than five years I worked as the "creative / production guy" at a church in
+              downtown Vancouver. Then God led me to Hong Kong, where I found myself in a small
+              house church community. No gear, no budget. Just an acoustic guitar, a cheap piano,
+              and sometimes a TV or projector on the wall. What I noticed was that our pastor was
+              dealing with slides last minute, while also keeping an eye on his kids and welcoming
+              people through the door. I wanted to make this process just a little easier.
             </p>
             <p>
-              As I built it, I started to see who else it could bless: the underground church, voluntary pastors with no budget for software, impromptu home gatherings that just need something simple and focused. So I've kept it completely free for anyone to use. I'll keep maintaining and improving it as I'm able. If you'd like to donate (only cheerfully!) or share testimonies, bug reports, feedback, or feature requests, I'd love to hear from you.
+              As I built it, I started to see who else it could bless: the underground church,
+              voluntary pastors with no budget for software, impromptu home gatherings that just
+              need something simple and focused. So I've kept it completely free for anyone to use.
+              I'll keep maintaining and improving it as I'm able. If you'd like to donate (only
+              cheerfully!) or share testimonies, bug reports, feedback, or feature requests, I'd
+              love to hear from you.
             </p>
           </div>
 
@@ -67,7 +79,9 @@ export default function AboutMain() {
 
           {/* Mono footnote */}
           <p className="mono mt-20 max-w-4xl text-xs uppercase leading-relaxed text-[var(--brand-white)]">
-            phyto is short for phytoplankton. Organisms that use sunlight, freely available in abundance, to survive, live, and breathe. Our times of worship together should work the same way.
+            phyto is short for phytoplankton. Organisms that use sunlight, freely available in
+            abundance, to survive, live, and breathe. Our times of worship together should work the
+            same way.
           </p>
           <div className="mt-12">
             <BackToTop />

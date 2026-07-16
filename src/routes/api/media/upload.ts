@@ -99,16 +99,12 @@ export const Route = createFileRoute("/api/media/upload")({
         const env = await getWorkerEnv();
         const SUPABASE_URL = readString(env, "SUPABASE_URL");
         const SUPABASE_KEY =
-          readString(env, "SUPABASE_SERVICE_ROLE_KEY") ??
-          readString(env, "SUPABASE_ANON_KEY");
+          readString(env, "SUPABASE_SERVICE_ROLE_KEY") ?? readString(env, "SUPABASE_ANON_KEY");
         const MEDIA_PUBLIC_BASE = readString(env, "MEDIA_PUBLIC_BASE");
         const bucket = env.MEDIA as R2BucketLike | undefined;
 
         if (!SUPABASE_URL || !SUPABASE_KEY) {
-          return Response.json(
-            { ok: false, error: "Auth is not configured." },
-            { status: 500 },
-          );
+          return Response.json({ ok: false, error: "Auth is not configured." }, { status: 500 });
         }
         if (!bucket || !MEDIA_PUBLIC_BASE) {
           return Response.json(
@@ -134,18 +130,12 @@ export const Route = createFileRoute("/api/media/upload")({
           .toLowerCase();
         const ext = VIDEO_EXT_BY_TYPE[contentType];
         if (!ext) {
-          return Response.json(
-            { ok: false, error: "Unsupported file type." },
-            { status: 415 },
-          );
+          return Response.json({ ok: false, error: "Unsupported file type." }, { status: 415 });
         }
 
         const declaredLength = Number(request.headers.get("content-length") ?? "0");
         if (!declaredLength || declaredLength > MEDIA_MAX_BYTES) {
-          return Response.json(
-            { ok: false, error: "File too large." },
-            { status: 413 },
-          );
+          return Response.json({ ok: false, error: "File too large." }, { status: 413 });
         }
         if (!request.body) {
           return Response.json({ ok: false, error: "Empty body." }, { status: 400 });
@@ -192,16 +182,12 @@ export const Route = createFileRoute("/api/media/upload")({
         const env = await getWorkerEnv();
         const SUPABASE_URL = readString(env, "SUPABASE_URL");
         const SUPABASE_KEY =
-          readString(env, "SUPABASE_SERVICE_ROLE_KEY") ??
-          readString(env, "SUPABASE_ANON_KEY");
+          readString(env, "SUPABASE_SERVICE_ROLE_KEY") ?? readString(env, "SUPABASE_ANON_KEY");
         const MEDIA_PUBLIC_BASE = readString(env, "MEDIA_PUBLIC_BASE");
         const bucket = env.MEDIA as R2BucketLike | undefined;
 
         if (!SUPABASE_URL || !SUPABASE_KEY) {
-          return Response.json(
-            { ok: false, error: "Auth is not configured." },
-            { status: 500 },
-          );
+          return Response.json({ ok: false, error: "Auth is not configured." }, { status: 500 });
         }
         if (!bucket || !MEDIA_PUBLIC_BASE) {
           return Response.json(

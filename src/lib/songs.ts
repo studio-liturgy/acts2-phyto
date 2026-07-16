@@ -31,38 +31,84 @@ interface LrcLibTrack {
 // Focus: corporate/congregational worship — not general CCM.
 const WORSHIP_ARTISTS = [
   // Collectives / labels
-  "hillsong", "hillsong worship", "hillsong united", "hillsong young",
-  "hillsong kids", "hillsong español",
-  "bethel", "bethel music",
-  "elevation", "elevation worship",
-  "maverick city", "maverick city music",
-  "passion", "passion music",
-  "upperroom", "upper room",
-  "mosaic msc", "housefires", "vertical worship",
-  "gateway worship", "river valley worship", "cross worship",
-  "planetshakers", "planetboom",
-  "vineyard worship", "vineyard music",
-  "integrity music", "hosanna music",
-  "north point", "sovereign grace",
-  "city alight", "cityalight",
+  "hillsong",
+  "hillsong worship",
+  "hillsong united",
+  "hillsong young",
+  "hillsong kids",
+  "hillsong español",
+  "bethel",
+  "bethel music",
+  "elevation",
+  "elevation worship",
+  "maverick city",
+  "maverick city music",
+  "passion",
+  "passion music",
+  "upperroom",
+  "upper room",
+  "mosaic msc",
+  "housefires",
+  "vertical worship",
+  "gateway worship",
+  "river valley worship",
+  "cross worship",
+  "planetshakers",
+  "planetboom",
+  "vineyard worship",
+  "vineyard music",
+  "integrity music",
+  "hosanna music",
+  "north point",
+  "sovereign grace",
+  "city alight",
+  "cityalight",
   "all sons & daughters",
   "jesus image",
   // Individual worship leaders
-  "chris tomlin", "matt redman", "phil wickham", "lauren daigle",
-  "kari jobe", "pat barrett", "brandon lake", "cody carnes",
-  "kristian stanfill", "jesus culture",
-  "tasha cobbs", "tasha cobbs leonard",
-  "we the kingdom", "stephen mcwhirter",
-  "shane & shane", "shane and shane",
-  "keith getty", "kristyn getty",
-  "rend collective", "crowder", "david crowder", "michael w smith",
-  "tim hughes", "stuart townend", "graham kendrick",
-  "darlene zschech", "reuben morgan",
-  "tauren wells", "leeland", "blessing offor",
-  "jonathan david helser", "melissa helser", "steffany gretzinger",
-  "william mcdowell", "travis greene", "tye tribbett", "israel houghton",
-  "ron kenoly", "don moen", "robin mark", "andy park",
-  "abbie gamboa", "aaron tedeschi",
+  "chris tomlin",
+  "matt redman",
+  "phil wickham",
+  "lauren daigle",
+  "kari jobe",
+  "pat barrett",
+  "brandon lake",
+  "cody carnes",
+  "kristian stanfill",
+  "jesus culture",
+  "tasha cobbs",
+  "tasha cobbs leonard",
+  "we the kingdom",
+  "stephen mcwhirter",
+  "shane & shane",
+  "shane and shane",
+  "keith getty",
+  "kristyn getty",
+  "rend collective",
+  "crowder",
+  "david crowder",
+  "michael w smith",
+  "tim hughes",
+  "stuart townend",
+  "graham kendrick",
+  "darlene zschech",
+  "reuben morgan",
+  "tauren wells",
+  "leeland",
+  "blessing offor",
+  "jonathan david helser",
+  "melissa helser",
+  "steffany gretzinger",
+  "william mcdowell",
+  "travis greene",
+  "tye tribbett",
+  "israel houghton",
+  "ron kenoly",
+  "don moen",
+  "robin mark",
+  "andy park",
+  "abbie gamboa",
+  "aaron tedeschi",
 ];
 
 function isWorshipArtist(name?: string): boolean {
@@ -84,11 +130,17 @@ function stripAnnotations(text: string): string {
       out.push(""); // keep stanza break
       continue;
     }
-    const cleaned = raw.replace(/\([^)\n]*\)/g, "").replace(/\s+/g, " ").trim();
+    const cleaned = raw
+      .replace(/\([^)\n]*\)/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
     if (cleaned === "") continue; // annotation-only line → drop it entirely
     out.push(cleaned);
   }
-  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return out
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**
@@ -108,7 +160,10 @@ function segmentAndDedupe(text: string): string {
     s
       .toLowerCase()
       .replace(/^\s*\[[^\]]+\]\s*$/gm, "")
-      .replace(/^\s*(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\s*:?\s*$/gim, "")
+      .replace(
+        /^\s*(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\s*:?\s*$/gim,
+        "",
+      )
       .replace(/[^\p{L}\p{N}\n]+/gu, " ")
       .trim();
 
@@ -158,7 +213,10 @@ export function parseQuery(raw: string): ParsedQuery {
   }
 
   const artists = artistStr
-    ? artistStr.split(ARTIST_SPLIT).map((s) => s.trim().toLowerCase()).filter(Boolean)
+    ? artistStr
+        .split(ARTIST_SPLIT)
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
     : [];
 
   if (!title.trim()) title = cleaned;
@@ -193,7 +251,10 @@ function lyricsKey(text: string): string {
   return text
     .toLowerCase()
     .replace(/^\s*\[[^\]]+\]\s*$/gm, "")
-    .replace(/^\s*(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\s*:?\s*$/gim, "")
+    .replace(
+      /^\s*(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\s*:?\s*$/gim,
+      "",
+    )
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
@@ -211,8 +272,7 @@ function searchLocal(db: LocalSong[], parse: ParsedQuery): ScoredLocal[] {
   // Strict to the named artist: when an artist is given, every kept song must
   // match one of the named artists.
   const artistOk = (artist: string): boolean =>
-    parse.artists.length === 0 ||
-    parse.artists.some((a) => artist.toLowerCase().includes(a));
+    parse.artists.length === 0 || parse.artists.some((a) => artist.toLowerCase().includes(a));
 
   // Strong: every title term is in the title/alternate-title. Weak: (multi-word
   // titles only) the title phrase appears contiguously in the lyrics body.
@@ -267,7 +327,10 @@ function searchLocal(db: LocalSong[], parse: ParsedQuery): ScoredLocal[] {
 // that isn't a letter or number, collapse whitespace. Same alphabet-only idea
 // used by lyricsKey, so "The Wonderful Blood" and "the wonderful blood!" match.
 function normTitle(s: string): string {
-  return s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  return s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }
 
 // True when an lrclib title is a strong match for the query: one contains the
@@ -294,10 +357,9 @@ async function fetchLrc(q: string): Promise<LrcLibTrack[]> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const res = await fetch(
-      `https://lrclib.net/api/search?q=${encodeURIComponent(q)}`,
-      { signal: ctrl.signal }
-    );
+    const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(q)}`, {
+      signal: ctrl.signal,
+    });
     if (!res.ok) return [];
     return (await res.json()) as LrcLibTrack[];
   } catch {
@@ -332,8 +394,9 @@ function mapTracks(data: LrcLibTrack[], title: string): RankedTrack[] {
 function rankAndDedupe(items: RankedTrack[]): SongResult[] {
   items.sort(
     (a, b) =>
-      (b._worship ? 2 : 0) + (b._titleMatch ? 1 : 0) -
-      ((a._worship ? 2 : 0) + (a._titleMatch ? 1 : 0))
+      (b._worship ? 2 : 0) +
+      (b._titleMatch ? 1 : 0) -
+      ((a._worship ? 2 : 0) + (a._titleMatch ? 1 : 0)),
   );
   const seen = new Set<string>();
   const out: SongResult[] = [];
@@ -395,19 +458,13 @@ async function runSearch(db: LocalSong[], parse: ParsedQuery): Promise<SongResul
   if (strongLocal.length >= 6) return strongLocal.slice(0, 10).map(stripStrong);
 
   const remote = await searchLrcLib(parse);
-  const localKeys = new Set(
-    local.map((s) => `${normTitle(s.title)}|${normTitle(s.artist)}`)
-  );
+  const localKeys = new Set(local.map((s) => `${normTitle(s.title)}|${normTitle(s.artist)}`));
   const extra = remote.filter(
-    (s) => !localKeys.has(`${normTitle(s.title)}|${normTitle(s.artist)}`)
+    (s) => !localKeys.has(`${normTitle(s.title)}|${normTitle(s.artist)}`),
   );
 
   // Strong local first, then online, then weak lyric-only local matches last.
-  return [
-    ...strongLocal.map(stripStrong),
-    ...extra,
-    ...lyricLocal.map(stripStrong),
-  ].slice(0, 10);
+  return [...strongLocal.map(stripStrong), ...extra, ...lyricLocal.map(stripStrong)].slice(0, 10);
 }
 
 export interface SongSearch {
@@ -472,7 +529,10 @@ export function preloadSongs(): void {
 export function songPreview(lyrics: string): string {
   const text = (lyrics ?? "").replace(/\r\n/g, "\n").trim();
   if (!text) return "";
-  const blocks = text.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean);
   if (blocks.length === 0) return "";
 
   const labelOf = (line: string): string | null => {
@@ -480,7 +540,11 @@ export function songPreview(lyrics: string): string {
     if (bracket) return bracket[1].trim().toLowerCase();
     const colon = line.trim().match(/^([A-Za-z][A-Za-z0-9 ]{0,18}):$/);
     if (colon) return colon[1].trim().toLowerCase();
-    if (/^(chorus|refrain|verse\s*\d*|bridge|pre[- ]?chorus|intro|outro|tag|interlude)\s*$/i.test(line.trim()))
+    if (
+      /^(chorus|refrain|verse\s*\d*|bridge|pre[- ]?chorus|intro|outro|tag|interlude)\s*$/i.test(
+        line.trim(),
+      )
+    )
       return line.trim().toLowerCase();
     return null;
   };

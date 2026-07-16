@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { useEffect, useState } from 'react';
+import { create } from "zustand";
+import { useEffect, useState } from "react";
 
-export type SyncState = 'synced' | 'syncing' | 'offline';
+export type SyncState = "synced" | "syncing" | "offline";
 
 interface SyncStatusStore {
   status: SyncState;
@@ -9,27 +9,27 @@ interface SyncStatusStore {
 }
 
 export const useSyncStatusStore = create<SyncStatusStore>((set) => ({
-  status: 'synced',
+  status: "synced",
   setStatus: (status) => set({ status }),
 }));
 
 export function useSyncStatus(): SyncState {
   const storeStatus = useSyncStatusStore((s) => s.status);
   const [isOnline, setIsOnline] = useState(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
+    typeof navigator !== "undefined" ? navigator.onLine : true,
   );
 
   useEffect(() => {
     const onOnline = () => setIsOnline(true);
     const onOffline = () => setIsOnline(false);
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
     return () => {
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
     };
   }, []);
 
-  if (!isOnline) return 'offline';
+  if (!isOnline) return "offline";
   return storeStatus;
 }

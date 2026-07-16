@@ -30,7 +30,8 @@ export default function AboutTest() {
           {/* Large intro */}
           <div className="mt-10 max-w-5xl space-y-10 text-3xl md:text-[2.6rem] md:leading-[1.15] leading-snug">
             <p>
-              phytoexp is an experimental public testing environment for phyto. Feel free to test upcoming features on this site and give feedback if you encounter any bugs!
+              phytoexp is an experimental public testing environment for phyto. Feel free to test
+              upcoming features on this site and give feedback if you encounter any bugs!
             </p>
           </div>
 
@@ -67,7 +68,9 @@ export default function AboutTest() {
 
           {/* Mono footnote */}
           <p className="mono mt-20 max-w-4xl text-xs uppercase leading-relaxed text-[var(--brand-black)]">
-            phyto is short for phytoplankton. Organisms that use sunlight, freely available in abundance, to survive, live, and breathe. Our times of worship together should work the same way.
+            phyto is short for phytoplankton. Organisms that use sunlight, freely available in
+            abundance, to survive, live, and breathe. Our times of worship together should work the
+            same way.
           </p>
           <div className="mt-12">
             <BackToTop />

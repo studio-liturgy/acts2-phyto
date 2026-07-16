@@ -144,9 +144,8 @@ const StepVideo = forwardRef<
         <source src={src} type="video/mp4" />
       </video>
     </div>
-    );
-  },
-);
+  );
+});
 
 export function FirstTimeLanding({
   onNewGathering,
@@ -208,18 +207,29 @@ export function FirstTimeLanding({
         if (!c) return;
         const r = c.getBoundingClientRect();
         const dist = Math.abs(r.top + r.height / 2 - midY);
-        if (dist < minDist) { minDist = dist; closest = i; }
+        if (dist < minDist) {
+          minDist = dist;
+          closest = i;
+        }
       });
       if (closest >= 0 && minDist > 30) {
         snapping = true;
         cardRefs.current[closest]?.scrollIntoView({ behavior: "smooth", block: "center" });
-        setTimeout(() => { snapping = false; }, 800);
+        setTimeout(() => {
+          snapping = false;
+        }, 800);
       }
     };
     let timer = 0;
-    const onScroll = () => { clearTimeout(timer); timer = window.setTimeout(snap, 220); };
+    const onScroll = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(snap, 220);
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => { window.removeEventListener("scroll", onScroll); clearTimeout(timer); };
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      clearTimeout(timer);
+    };
   }, []);
 
   // Which card is centered → drives nav fill, circle number/color, emphasis, video play.
@@ -262,7 +272,7 @@ export function FirstTimeLanding({
       else {
         for (let i = 0; i < centers.length - 1; i++) {
           if (centerY >= centers[i] && centerY <= centers[i + 1]) {
-            cp = i + (centerY - centers[i]) / ((centers[i + 1] - centers[i]) || 1);
+            cp = i + (centerY - centers[i]) / (centers[i + 1] - centers[i] || 1);
             break;
           }
         }
@@ -537,7 +547,9 @@ export function FirstTimeLanding({
             It's designed to be easy to use and to protect the simplicity of worshipping with
             friends and family at home.
           </p>
-          <p className="hidden md:block">All so that we can focus on the one who matters most: Jesus.</p>
+          <p className="hidden md:block">
+            All so that we can focus on the one who matters most: Jesus.
+          </p>
         </div>
 
         <div className="mt-10 hidden flex-wrap items-center justify-center gap-3 md:flex">
@@ -591,7 +603,9 @@ export function FirstTimeLanding({
           className="mono uppercase mx-auto mt-10 inline-flex items-center gap-3 text-xs tracking-wider text-muted-foreground transition-opacity hover:opacity-60 md:mt-20"
         >
           <span className="md:hidden">Learn more about how it works below</span>
-          <span className="hidden md:inline">Below is a short guide to get you started with phyto!</span>
+          <span className="hidden md:inline">
+            Below is a short guide to get you started with phyto!
+          </span>
           <ArrowDown className="h-4 w-4" />
         </button>
       </section>
@@ -619,7 +633,9 @@ export function FirstTimeLanding({
             >
               <X className="h-4 w-4" />
             </button>
-            <p className="mono text-xs uppercase tracking-wider">Be notified when mobile launches</p>
+            <p className="mono text-xs uppercase tracking-wider">
+              Be notified when mobile launches
+            </p>
             {subscribeStatus === "done" ? (
               <p className="mono mt-4 text-xs uppercase tracking-wider">You're on the list!</p>
             ) : (
@@ -988,8 +1004,8 @@ export function FirstTimeLanding({
             This project will always be free and open source.
           </h2>
           <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-[var(--brand-white)]/85 md:text-lg">
-            If you feel God's prompting, I invite you to partner with me financially by
-            giving generously and cheerfully!
+            If you feel God's prompting, I invite you to partner with me financially by giving
+            generously and cheerfully!
           </p>
           <div className="mt-10 flex flex-col items-stretch gap-4 md:flex-row md:flex-wrap md:items-center md:justify-center">
             <a

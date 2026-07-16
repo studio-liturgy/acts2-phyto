@@ -183,7 +183,11 @@ function VideoLayer({
           allowFullScreen
           onLoad={() =>
             iframeRef.current?.contentWindow?.postMessage(
-              JSON.stringify({ event: "command", func: "addEventListener", args: ["onStateChange"] }),
+              JSON.stringify({
+                event: "command",
+                func: "addEventListener",
+                args: ["onStateChange"],
+              }),
               YT_ORIGIN,
             )
           }
@@ -288,13 +292,21 @@ export function SlideView({
   const surfaceBg = bgMode === "white" ? "bg-white" : "bg-black";
   const surfaceText = bgMode === "white" ? "text-black" : "text-white";
   const placeholderText = bgMode === "white" ? "text-black/40" : "text-white/40";
-  const alignClass = template?.align === "left" ? "items-start text-left" : "items-center text-center";
+  const alignClass =
+    template?.align === "left" ? "items-start text-left" : "items-center text-center";
   const refAbove = template?.referencePosition === "above";
 
   if (slide?.kind === "video") {
     return (
       <div className={`relative ${aspect} w-full overflow-hidden bg-black ${className}`}>
-        <VideoLayer slide={slide} variant={variant} videoCmd={videoCmd} onEnded={onVideoEnded} active={active} playbackEnabled={playbackEnabled} />
+        <VideoLayer
+          slide={slide}
+          variant={variant}
+          videoCmd={videoCmd}
+          onEnded={onVideoEnded}
+          active={active}
+          playbackEnabled={playbackEnabled}
+        />
       </div>
     );
   }
@@ -315,7 +327,9 @@ export function SlideView({
         }}
       >
         {slide?.imageUrl && hasText ? <div className="absolute inset-0 bg-black/40" /> : null}
-        <div className={`relative flex h-full w-full flex-col justify-center px-24 py-20 ${alignClass}`}>
+        <div
+          className={`relative flex h-full w-full flex-col justify-center px-24 py-20 ${alignClass}`}
+        >
           {slide?.title && (
             <div
               className="mb-10 font-semibold leading-tight"
@@ -325,10 +339,7 @@ export function SlideView({
             </div>
           )}
           {slide?.reference && slide.kind === "scripture" && refAbove && (
-            <div
-              className="mb-12 opacity-80"
-              style={{ fontSize: `${1.875 * fontScale}rem` }}
-            >
+            <div className="mb-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
               {slide.reference}
             </div>
           )}
@@ -342,16 +353,11 @@ export function SlideView({
             </div>
           ))}
           {slide?.reference && slide.kind === "scripture" && !refAbove && (
-            <div
-              className="mt-12 opacity-80"
-              style={{ fontSize: `${1.875 * fontScale}rem` }}
-            >
+            <div className="mt-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
               {slide.reference}
             </div>
           )}
-          {!slide && (
-            <div className={`text-3xl ${placeholderText}`}>No slide selected</div>
-          )}
+          {!slide && <div className={`text-3xl ${placeholderText}`}>No slide selected</div>}
         </div>
       </div>
     </div>
@@ -389,23 +395,24 @@ export function DissolveSlide({
     lastKey.current = key;
 
     if (durationMs <= 0) {
-      if (front === "a") { setA(slide); setTemplateA(templateRef.current); }
-      else { setB(slide); setTemplateB(templateRef.current); }
+      if (front === "a") {
+        setA(slide);
+        setTemplateA(templateRef.current);
+      } else {
+        setB(slide);
+        setTemplateB(templateRef.current);
+      }
       return;
     }
 
     if (front === "a") {
       setB(slide);
       setTemplateB(templateRef.current);
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => setFront("b"))
-      );
+      requestAnimationFrame(() => requestAnimationFrame(() => setFront("b")));
     } else {
       setA(slide);
       setTemplateA(templateRef.current);
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => setFront("a"))
-      );
+      requestAnimationFrame(() => requestAnimationFrame(() => setFront("a")));
     }
   }, [slide, durationMs, front]);
 
@@ -426,10 +433,30 @@ export function DissolveSlide({
       className={`relative isolate ${variant === "stage" ? "h-full" : "aspect-video"} w-full ${className}`}
     >
       <div className="absolute inset-0" style={layerStyle(front === "a")}>
-        <SlideView slide={a} variant={variant} imageFit={imageFit} template={templateA} videoCmd={videoCmd} onVideoEnded={onVideoEnded} active={front === "a"} playbackEnabled={playbackEnabled} className="h-full w-full" />
+        <SlideView
+          slide={a}
+          variant={variant}
+          imageFit={imageFit}
+          template={templateA}
+          videoCmd={videoCmd}
+          onVideoEnded={onVideoEnded}
+          active={front === "a"}
+          playbackEnabled={playbackEnabled}
+          className="h-full w-full"
+        />
       </div>
       <div className="absolute inset-0" style={layerStyle(front === "b")}>
-        <SlideView slide={b} variant={variant} imageFit={imageFit} template={templateB} videoCmd={videoCmd} onVideoEnded={onVideoEnded} active={front === "b"} playbackEnabled={playbackEnabled} className="h-full w-full" />
+        <SlideView
+          slide={b}
+          variant={variant}
+          imageFit={imageFit}
+          template={templateB}
+          videoCmd={videoCmd}
+          onVideoEnded={onVideoEnded}
+          active={front === "b"}
+          playbackEnabled={playbackEnabled}
+          className="h-full w-full"
+        />
       </div>
     </div>
   );

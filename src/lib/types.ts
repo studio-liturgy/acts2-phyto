@@ -61,7 +61,6 @@ export interface Set {
   updatedAt: number;
 }
 
-
 export interface Gathering {
   id: string;
   name: string;

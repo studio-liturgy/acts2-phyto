@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "@/hooks/use-theme";
 import { Sun, Moon } from "lucide-react";
 
-const isTest = import.meta.env.VITE_APP_ENV === 'test';
+const isTest = import.meta.env.VITE_APP_ENV === "test";
 const iconColor = isTest ? "text-[var(--brand-orange-dark)]" : "text-[var(--brand-blue)]";
 
 export function ThemeToggle({ className = "" }: { className?: string }) {

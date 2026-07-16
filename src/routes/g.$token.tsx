@@ -55,7 +55,6 @@ interface ViewerPrefs {
   fontFamily: FontFamily;
 }
 
-
 const FONT_FAMILY_CSS: Record<FontFamily, string> = {
   sans: "ui-sans-serif, system-ui, sans-serif",
   serif: "Georgia, serif",
@@ -70,9 +69,7 @@ function loadPrefs(): ViewerPrefs {
     return {
       isDark: localStorage.getItem("phyto-viewer-dark") !== "false",
       fontSize: Number(localStorage.getItem("phyto-viewer-fontsize") ?? 1),
-      fontFamily:
-        (localStorage.getItem("phyto-viewer-fontfamily") as FontFamily) ??
-        "sans",
+      fontFamily: (localStorage.getItem("phyto-viewer-fontfamily") as FontFamily) ?? "sans",
     };
   } catch {
     return { isDark: true, fontSize: 1, fontFamily: "sans" };
@@ -170,13 +167,13 @@ function GatheringViewer() {
     if (!tabBarRef.current) return;
     const idx = sets.findIndex((vs) => vs.set.id === activeTabId);
     if (idx < 0) return;
-    const buttons = tabBarRef.current.querySelectorAll('button');
+    const buttons = tabBarRef.current.querySelectorAll("button");
     const activeButton = buttons[idx] as HTMLElement | undefined;
     if (activeButton) {
       const buttonRect = activeButton.getBoundingClientRect();
       const containerRect = tabBarRef.current.getBoundingClientRect();
       const relativeLeft = buttonRect.left - containerRect.left + tabBarRef.current.scrollLeft;
-      tabBarRef.current.scrollTo({ left: Math.max(0, relativeLeft - 16), behavior: 'smooth' });
+      tabBarRef.current.scrollTo({ left: Math.max(0, relativeLeft - 16), behavior: "smooth" });
     }
   }, [activeTabId, sets]);
 
@@ -236,9 +233,12 @@ function GatheringViewer() {
         setSets(viewerSets);
         setStatus("live");
         setActiveSetId((prev) => {
-          const next = prev === null ? (viewerSets[0]?.set.id ?? null)
-            : viewerSets.some((vs) => vs.set.id === prev) ? prev
-            : (viewerSets[0]?.set.id ?? null);
+          const next =
+            prev === null
+              ? (viewerSets[0]?.set.id ?? null)
+              : viewerSets.some((vs) => vs.set.id === prev)
+                ? prev
+                : (viewerSets[0]?.set.id ?? null);
           setActiveTabId(next);
           return next;
         });
@@ -258,9 +258,7 @@ function GatheringViewer() {
   const activeIdx = sets.findIndex((vs) => vs.set.id === activeSetId);
   const activeSet = sets[activeIdx]?.set ?? sets[0]?.set ?? null;
 
-  const themeClasses = prefs.isDark
-    ? "bg-black text-white"
-    : "bg-white text-black";
+  const themeClasses = prefs.isDark ? "bg-black text-white" : "bg-white text-black";
   const borderClass = prefs.isDark ? "border-white/10" : "border-black/10";
   const mutedClass = prefs.isDark ? "text-white/40" : "text-black/40";
 
@@ -306,9 +304,7 @@ function GatheringViewer() {
       }}
     >
       {/* Tab bar */}
-      <div
-        className={`relative flex shrink-0 items-stretch border-b ${borderClass}`}
-      >
+      <div className={`relative flex shrink-0 items-stretch border-b ${borderClass}`}>
         {/* Hamburger */}
         <div ref={menuRef} className="relative shrink-0">
           <button
@@ -317,15 +313,9 @@ function GatheringViewer() {
             aria-label="Settings"
           >
             <span className="flex flex-col gap-[5px]">
-              <span
-                className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`}
-              />
-              <span
-                className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`}
-              />
-              <span
-                className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`}
-              />
+              <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
+              <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
+              <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
             </span>
           </button>
 
@@ -341,9 +331,7 @@ function GatheringViewer() {
             >
               {/* Header */}
               <div className="mb-3 flex items-center justify-between">
-                <div className="text-[10px] uppercase tracking-wider">
-                  Display
-                </div>
+                <div className="text-[10px] uppercase tracking-wider">Display</div>
                 <button
                   onClick={() => setMenuOpen(false)}
                   style={{ fontFamily: "Arial, sans-serif" }}
@@ -366,18 +354,14 @@ function GatheringViewer() {
                     max={1.8}
                     step={0.05}
                     value={prefs.fontSize}
-                    onChange={(e) =>
-                      setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))
-                    }
+                    onChange={(e) => setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))}
                     className="w-full"
                   />
                 </div>
 
                 {/* Font type */}
                 <div>
-                  <div className="mb-2 text-[10px] uppercase tracking-wider">
-                    Font type
-                  </div>
+                  <div className="mb-2 text-[10px] uppercase tracking-wider">Font type</div>
                   <div className="grid grid-cols-1 gap-1">
                     {(["sans", "serif", "mono"] as FontFamily[]).map((f) => {
                       const active = prefs.fontFamily === f;
@@ -405,9 +389,7 @@ function GatheringViewer() {
 
                 {/* Theme */}
                 <div>
-                  <div className="mb-2 text-[10px] uppercase tracking-wider">
-                    Theme
-                  </div>
+                  <div className="mb-2 text-[10px] uppercase tracking-wider">Theme</div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setPrefs((p) => ({ ...p, isDark: true }))}
@@ -439,7 +421,10 @@ function GatheringViewer() {
           {sets.map((vs) => (
             <button
               key={vs.set.id}
-              onClick={() => { setActiveSetId(vs.set.id); setActiveTabId(vs.set.id); }}
+              onClick={() => {
+                setActiveSetId(vs.set.id);
+                setActiveTabId(vs.set.id);
+              }}
               className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm transition-colors ${
                 vs.set.id === activeTabId
                   ? prefs.isDark
@@ -459,7 +444,10 @@ function GatheringViewer() {
         className="flex-1 overflow-y-auto"
         onTouchStart={(e) => {
           // Ignore multi-touch (pinch-to-zoom) — don't start a swipe.
-          if (e.touches.length > 1) { touchStartX.current = null; return; }
+          if (e.touches.length > 1) {
+            touchStartX.current = null;
+            return;
+          }
           touchStartX.current = e.touches[0].clientX;
         }}
         onTouchMove={(e) => {
@@ -541,9 +529,7 @@ function SetContent({ set, isDark }: { set: SetRow; isDark: boolean }) {
   }
 
   if (set.type === "media") {
-    const mediaSlides = slides.filter(
-      (s) => s.imageUrl || s.youtubeId || s.videoUrl,
-    );
+    const mediaSlides = slides.filter((s) => s.imageUrl || s.youtubeId || s.videoUrl);
     return (
       <div className="space-y-4 px-4 py-6">
         {mediaSlides.map((slide, i) => (
@@ -605,9 +591,7 @@ function SlideBlock({
   return (
     <div className="space-y-1">
       {showSection && slide.section && (
-        <p className={`text-xs uppercase tracking-widest ${mutedClass}`}>
-          {slide.section}
-        </p>
+        <p className={`text-xs uppercase tracking-widest ${mutedClass}`}>{slide.section}</p>
       )}
       {slide.title && <p className="font-semibold">{slide.title}</p>}
       {slide.lines?.map((line, j) => (

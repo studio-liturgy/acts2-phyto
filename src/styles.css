@@ -67,30 +67,30 @@
   --radius: 1.25rem;
 
   /* Brand palette */
-  --brand-white: #F5EFEF;
+  --brand-white: #f5efef;
   --brand-black: #212121;
-  --brand-blue: #2E7299;
-  --brand-orange: #E07D31;
-  --brand-orange-dark: #C0681F;
-  --brand-red: #C01E21;
+  --brand-blue: #2e7299;
+  --brand-orange: #e07d31;
+  --brand-orange-dark: #c0681f;
+  --brand-red: #c01e21;
   --brand-green: #538844;
 
-  --background: #F5EFEF;
+  --background: #f5efef;
   --foreground: #212121;
-  --card: #F5EFEF;
+  --card: #f5efef;
   --card-foreground: #212121;
-  --popover: #F5EFEF;
+  --popover: #f5efef;
   --popover-foreground: #212121;
   --primary: #212121;
-  --primary-foreground: #F5EFEF;
-  --secondary: #ECE6E6;
+  --primary-foreground: #f5efef;
+  --secondary: #ece6e6;
   --secondary-foreground: #212121;
-  --muted: #ECE6E6;
-  --muted-foreground: #6F6868;
-  --accent: #ECE6E6;
+  --muted: #ece6e6;
+  --muted-foreground: #6f6868;
+  --accent: #ece6e6;
   --accent-foreground: #212121;
-  --destructive: #C01E21;
-  --destructive-foreground: #F5EFEF;
+  --destructive: #c01e21;
+  --destructive-foreground: #f5efef;
   --border: #212121;
   --input: #212121;
   --ring: #212121;
@@ -98,30 +98,30 @@
 
 .dark {
   --background: #1a1a1a;
-  --foreground: #F5EFEF;
+  --foreground: #f5efef;
   --card: #1a1a1a;
-  --card-foreground: #F5EFEF;
+  --card-foreground: #f5efef;
   --popover: #1a1a1a;
-  --popover-foreground: #F5EFEF;
-  --primary: #F5EFEF;
+  --popover-foreground: #f5efef;
+  --primary: #f5efef;
   --primary-foreground: #212121;
   --secondary: #2a2a2a;
-  --secondary-foreground: #F5EFEF;
+  --secondary-foreground: #f5efef;
   --muted: #2a2a2a;
   --muted-foreground: #9a9696;
   --accent: #2a2a2a;
-  --accent-foreground: #F5EFEF;
-  --destructive: #C01E21;
-  --destructive-foreground: #F5EFEF;
+  --accent-foreground: #f5efef;
+  --destructive: #c01e21;
+  --destructive-foreground: #f5efef;
   --border: rgba(245, 239, 239, 0.25);
   --input: rgba(245, 239, 239, 0.4);
-  --ring: #F5EFEF;
+  --ring: #f5efef;
 
   /* Brand accents stay close to the light-mode tones (slightly deeper) */
-  --brand-blue: #2A688A;
-  --brand-orange: #C96E2A;
-  --brand-orange-dark: #AE5E1C;
-  --brand-red: #A81A1D;
+  --brand-blue: #2a688a;
+  --brand-orange: #c96e2a;
+  --brand-orange-dark: #ae5e1c;
+  --brand-red: #a81a1d;
   --brand-green: #487539;
 }
 
@@ -130,7 +130,8 @@
     border-color: var(--color-border);
   }
 
-  html, body {
+  html,
+  body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
@@ -138,7 +139,10 @@
   }
 
   /* Headings get even tighter kerning to match the design mockups */
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     letter-spacing: -0.045em;
   }
 
@@ -254,7 +258,17 @@ input[type="range"]::-moz-range-thumb {
   scrollbar-width: thin;
   scrollbar-color: var(--foreground) transparent;
 }
-.catalogue-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
-.catalogue-scroll::-webkit-scrollbar-track { background: transparent; }
-.catalogue-scroll::-webkit-scrollbar-thumb { background-color: var(--foreground); border-radius: 9999px; }
-.catalogue-scroll::-webkit-scrollbar-thumb:hover { background-color: var(--foreground); }
+.catalogue-scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.catalogue-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.catalogue-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--foreground);
+  border-radius: 9999px;
+}
+.catalogue-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--foreground);
+}

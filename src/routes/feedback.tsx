@@ -8,14 +8,18 @@ export const Route = createFileRoute("/feedback")({
   head: () => ({
     meta: [
       { title: `Feedback | ${APP_NAME}` },
-      { name: "description", content: "Send your feedback, bug reports, feature requests, and encouragement to phyto." },
+      {
+        name: "description",
+        content: "Send your feedback, bug reports, feature requests, and encouragement to phyto.",
+      },
       { property: "og:title", content: `Feedback | ${APP_NAME}` },
-      { property: "og:description", content: "Send your feedback, bug reports, feature requests, and encouragement to phyto." },
+      {
+        property: "og:description",
+        content: "Send your feedback, bug reports, feature requests, and encouragement to phyto.",
+      },
       { property: "og:url", content: "https://phyto.live/feedback" },
     ],
-    links: [
-      { rel: "canonical", href: "https://phyto.live/feedback" },
-    ],
+    links: [{ rel: "canonical", href: "https://phyto.live/feedback" }],
   }),
   component: FeedbackPage,
 });
@@ -42,10 +46,12 @@ const CATEGORIES: { label: Category; chip: string }[] = [
 ];
 
 const ACTIVE_CHIP: Record<Category, string> = {
-  "Testimony / Encouragement": "border-[var(--brand-green)] bg-[var(--brand-green)] text-[var(--brand-white)]",
+  "Testimony / Encouragement":
+    "border-[var(--brand-green)] bg-[var(--brand-green)] text-[var(--brand-white)]",
   "Bug Fix": "border-[var(--brand-red)] bg-[var(--brand-red)] text-[var(--brand-white)]",
   "Feature Request": "border-[var(--brand-blue)] bg-[var(--brand-blue)] text-[var(--brand-white)]",
-  "Design Feedback": "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]",
+  "Design Feedback":
+    "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]",
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -60,7 +66,8 @@ function FeedbackPage() {
   const [errorMsg, setErrorMsg] = useState<string>("");
 
   const trimmedEmail = email.trim();
-  const emailValid = trimmedEmail.length === 0 || (trimmedEmail.length <= 255 && EMAIL_RE.test(trimmedEmail));
+  const emailValid =
+    trimmedEmail.length === 0 || (trimmedEmail.length <= 255 && EMAIL_RE.test(trimmedEmail));
   const canSubmit =
     category !== null &&
     message.trim().length > 0 &&
@@ -102,7 +109,10 @@ function FeedbackPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="mx-auto w-full max-w-3xl px-6 pt-10">
-        <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60">
+        <Link
+          to="/"
+          className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> BACK
         </Link>
       </header>
@@ -133,14 +143,21 @@ function FeedbackPage() {
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder={category ? `Share your ${category.toLowerCase()}...` : "Select a category, then write here..."}
+            placeholder={
+              category
+                ? `Share your ${category.toLowerCase()}...`
+                : "Select a category, then write here..."
+            }
             rows={10}
             maxLength={5000}
             className="w-full resize-y rounded-3xl border-2 border-foreground bg-background p-6 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
           />
 
           <div className="space-y-2">
-            <label htmlFor="reply-email" className="mono block text-xs uppercase tracking-wider opacity-80">
+            <label
+              htmlFor="reply-email"
+              className="mono block text-xs uppercase tracking-wider opacity-80"
+            >
               Your email <span className="opacity-60">(optional, if you'd like a reply)</span>
             </label>
             <input
@@ -163,7 +180,8 @@ function FeedbackPage() {
           <div className="flex flex-col items-end gap-3">
             {status === "success" && (
               <p className="mono text-xs uppercase tracking-wider text-[var(--brand-green)]">
-                Thanks for sending in your feedback! We appreciate your time in checking out phyto :)
+                Thanks for sending in your feedback! We appreciate your time in checking out phyto
+                :)
               </p>
             )}
             {status === "error" && (

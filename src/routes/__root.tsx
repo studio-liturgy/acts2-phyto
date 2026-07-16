@@ -350,7 +350,10 @@ function RootComponent() {
       console.info("[sync-debug] diff bucket counts", {
         localEmpty: diff.localEmpty,
         latestRemoteTime: latestRemoteTime(diff),
-        onlyLocal: { sets: diff.onlyLocal.sets.length, gatherings: diff.onlyLocal.gatherings.length },
+        onlyLocal: {
+          sets: diff.onlyLocal.sets.length,
+          gatherings: diff.onlyLocal.gatherings.length,
+        },
         onlyRemote: {
           sets: diff.onlyRemote.sets.length,
           gatherings: diff.onlyRemote.gatherings.length,

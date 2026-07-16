@@ -9,10 +9,7 @@ const ARMED_KEY = "phyto-video-armed";
 
 export const Route = createFileRoute("/output")({
   head: () => ({
-    meta: [
-      { title: `Stage Output | ${APP_NAME}` },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: `Stage Output | ${APP_NAME}` }, { name: "robots", content: "noindex" }],
   }),
   component: Output,
 });
@@ -26,15 +23,17 @@ function Output() {
   const scriptureDraft = useScriptureTemplateDraft((s) => s.draft);
   const rawSlide = useMemo(
     () => phytoSet?.slides.find((s) => s.id === live.slideId) ?? null,
-    [phytoSet, live.slideId]
+    [phytoSet, live.slideId],
   );
   const lastSlideRef = useRef<Slide | null>(null);
   if (rawSlide) lastSlideRef.current = rawSlide;
   const slide = rawSlide ?? (live.setId && live.slideId ? lastSlideRef.current : null);
   const template =
-    phytoSet?.kind === "song" ? (songDraft ?? songTemplate)
-    : phytoSet?.kind === "scripture" ? (scriptureDraft ?? scriptureTemplate)
-    : phytoSet?.template;
+    phytoSet?.kind === "song"
+      ? (songDraft ?? songTemplate)
+      : phytoSet?.kind === "scripture"
+        ? (scriptureDraft ?? scriptureTemplate)
+        : phytoSet?.template;
 
   useEffect(() => {
     const prev = document.body.style.background;

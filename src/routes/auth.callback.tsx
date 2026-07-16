@@ -6,10 +6,7 @@ import { sendWelcomeIfNew } from "@/lib/welcome";
 
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({
-    meta: [
-      { title: APP_NAME },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: APP_NAME }, { name: "robots", content: "noindex" }],
   }),
   component: AuthCallback,
 });

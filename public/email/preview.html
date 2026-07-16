@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <!--
   LOCAL PREVIEW ONLY. Source of truth is email-templates/otp.html.
   Differences: asset URLs are relative (/email/...) so the dev server serves them,
@@ -13,69 +13,153 @@
     <title>Preview — phyto OTP email</title>
     <style>
       @font-face {
-        font-family: 'Space Mono';
-        src: url('/fonts/SpaceMono-Regular.ttf') format('truetype');
+        font-family: "Space Mono";
+        src: url("/fonts/SpaceMono-Regular.ttf") format("truetype");
         font-weight: 400;
         font-style: normal;
       }
-      @media only screen and (max-width:600px) {
-        .col { display:block !important; width:100% !important; }
-        .btn-cell { text-align:left !important; padding:24px 0 0 !important; }
-        .h1 { font-size:34px !important; }
+      @media only screen and (max-width: 600px) {
+        .col {
+          display: block !important;
+          width: 100% !important;
+        }
+        .btn-cell {
+          text-align: left !important;
+          padding: 24px 0 0 !important;
+        }
+        .h1 {
+          font-size: 34px !important;
+        }
       }
     </style>
   </head>
-  <body style="margin:0;padding:0;background:#2E7299;font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.03em;">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Here's your code to sign in to phyto. It expires shortly.</div>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background: #2e7299;
+      font-family: Arial, Helvetica, sans-serif;
+      letter-spacing: -0.03em;
+    "
+  >
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0">
+      Here's your code to sign in to phyto. It expires shortly.
+    </div>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#2E7299;">
+    <table
+      role="presentation"
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      style="background: #2e7299"
+    >
       <tr>
-        <td align="center" style="padding:0;">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-
+        <td align="center" style="padding: 0">
+          <table
+            role="presentation"
+            width="600"
+            cellpadding="0"
+            cellspacing="0"
+            style="max-width: 600px; width: 100%"
+          >
             <!-- HERO -->
             <tr>
-              <td style="padding:0;font-size:0;line-height:0;">
-                <img src="/email/email-header.png" width="600" alt="phyto"
-                     style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
+              <td style="padding: 0; font-size: 0; line-height: 0">
+                <img
+                  src="/email/email-header.png"
+                  width="600"
+                  alt="phyto"
+                  style="display: block; width: 100%; max-width: 600px; height: auto; border: 0"
+                />
               </td>
             </tr>
 
             <!-- BODY -->
             <tr>
-              <td style="padding:44px 40px 40px;">
+              <td style="padding: 44px 40px 40px">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                   <!-- Row 1: heading | code pill -->
                   <tr>
-                    <td class="col" valign="middle" width="58%" style="vertical-align:middle;">
-                      <h1 class="h1" style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:40px;line-height:1.05;font-weight:400;letter-spacing:-0.045em;">
+                    <td class="col" valign="middle" width="58%" style="vertical-align: middle">
+                      <h1
+                        class="h1"
+                        style="
+                          margin: 0;
+                          color: #f5efef;
+                          font-family: Arial, Helvetica, sans-serif;
+                          font-size: 40px;
+                          line-height: 1.05;
+                          font-weight: 400;
+                          letter-spacing: -0.045em;
+                        "
+                      >
                         Here's your code!
                       </h1>
                     </td>
-                    <td class="col btn-cell" valign="middle" width="42%" align="right" style="vertical-align:middle;text-align:right;">
-                      <div style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:40px;line-height:1;letter-spacing:0.18em;padding:18px 34px;white-space:nowrap;">
+                    <td
+                      class="col btn-cell"
+                      valign="middle"
+                      width="42%"
+                      align="right"
+                      style="vertical-align: middle; text-align: right"
+                    >
+                      <div
+                        style="
+                          display: inline-block;
+                          border: 1.5px solid #f5efef;
+                          border-radius: 9999px;
+                          color: #f5efef;
+                          font-family: &quot;Space Mono&quot;, Courier, monospace;
+                          font-size: 40px;
+                          line-height: 1;
+                          letter-spacing: 0.18em;
+                          padding: 18px 34px;
+                          white-space: nowrap;
+                        "
+                      >
                         123456
                       </div>
                     </td>
                   </tr>
                   <!-- Row 1b: copy code button, full width -->
                   <tr>
-                    <td colspan="2" align="center" style="padding-top:20px;">
-                      <a href="#"
-                         style="display:inline-block;border:1px solid rgba(245,239,239,0.45);border-radius:9999px;color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;padding:10px 28px;">
+                    <td colspan="2" align="center" style="padding-top: 20px">
+                      <a
+                        href="#"
+                        style="
+                          display: inline-block;
+                          border: 1px solid rgba(245, 239, 239, 0.45);
+                          border-radius: 9999px;
+                          color: #f5efef;
+                          font-family: &quot;Space Mono&quot;, Courier, monospace;
+                          font-size: 12px;
+                          letter-spacing: 0.08em;
+                          text-transform: uppercase;
+                          text-decoration: none;
+                          padding: 10px 28px;
+                        "
+                      >
                         Copy code: 123456
                       </a>
                     </td>
                   </tr>
                   <tr>
-                    <td colspan="2" style="padding-top:54px;text-align:center;">
-                      <p style="margin:0;color:#dce8ef;font-size:13px;line-height:1.6;">
+                    <td colspan="2" style="padding-top: 54px; text-align: center">
+                      <p style="margin: 0; color: #dce8ef; font-size: 13px; line-height: 1.6">
                         Before going online, we recommend reviewing the
-                        <a href="https://phyto.live/legal#terms-online" style="color:#F5EFEF;text-decoration:underline;">Terms of Use</a>
+                        <a
+                          href="https://phyto.live/legal#terms-online"
+                          style="color: #f5efef; text-decoration: underline"
+                          >Terms of Use</a
+                        >
                         and
-                        <a href="https://phyto.live/legal#privacy-online" style="color:#F5EFEF;text-decoration:underline;">Privacy Policy</a>.
+                        <a
+                          href="https://phyto.live/legal#privacy-online"
+                          style="color: #f5efef; text-decoration: underline"
+                          >Privacy Policy</a
+                        >.
                       </p>
-                      <p style="margin:2px 0 0;color:#bcd2dd;font-size:12px;line-height:1.6;">
+                      <p style="margin: 2px 0 0; color: #bcd2dd; font-size: 12px; line-height: 1.6">
                         If you didn't request this, you can safely ignore this email.
                       </p>
                     </td>
@@ -86,20 +170,63 @@
 
             <!-- DIVIDER (inset to match body content width) -->
             <tr>
-              <td style="padding:0 40px;">
-                <div style="border-top:1px solid rgba(245,239,239,0.2);font-size:0;line-height:0;">&nbsp;</div>
+              <td style="padding: 0 40px">
+                <div
+                  style="
+                    border-top: 1px solid rgba(245, 239, 239, 0.2);
+                    font-size: 0;
+                    line-height: 0;
+                  "
+                >
+                  &nbsp;
+                </div>
               </td>
             </tr>
 
             <!-- FOOTER -->
             <tr>
-              <td align="center" style="padding:24px 40px 48px;">
-                <a href="#" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">About</a>
-                <a href="#" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">Instagram</a>
-                <a href="#" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">Donate</a>
+              <td align="center" style="padding: 24px 40px 48px">
+                <a
+                  href="#"
+                  style="
+                    color: #f5efef;
+                    font-family: &quot;Space Mono&quot;, Courier, monospace;
+                    font-size: 12px;
+                    letter-spacing: 0;
+                    text-transform: uppercase;
+                    text-decoration: none;
+                    padding: 0 16px;
+                  "
+                  >About</a
+                >
+                <a
+                  href="#"
+                  style="
+                    color: #f5efef;
+                    font-family: &quot;Space Mono&quot;, Courier, monospace;
+                    font-size: 12px;
+                    letter-spacing: 0;
+                    text-transform: uppercase;
+                    text-decoration: none;
+                    padding: 0 16px;
+                  "
+                  >Instagram</a
+                >
+                <a
+                  href="#"
+                  style="
+                    color: #f5efef;
+                    font-family: &quot;Space Mono&quot;, Courier, monospace;
+                    font-size: 12px;
+                    letter-spacing: 0;
+                    text-transform: uppercase;
+                    text-decoration: none;
+                    padding: 0 16px;
+                  "
+                  >Donate</a
+                >
               </td>
             </tr>
-
           </table>
         </td>
       </tr>

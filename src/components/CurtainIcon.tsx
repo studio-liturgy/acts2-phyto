@@ -1,11 +1,5 @@
 /** Simple curtain icon — two draped panels with a top rod. */
-export function CurtainIcon({
-  className = "",
-  size = 16,
-}: {
-  className?: string;
-  size?: number;
-}) {
+export function CurtainIcon({ className = "", size = 16 }: { className?: string; size?: number }) {
   return (
     <svg
       viewBox="0 0 24 24"

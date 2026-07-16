@@ -1291,7 +1291,11 @@ function PresenterThumb({
             ? "border-transparent"
             : "border-transparent hover:border-white dark:hover:border-foreground"
       } ${disabled ? "cursor-default" : ""}`}
-      style={isLive ? ({ "--live-color": kindLiveColor(phytoSet.kind) } as React.CSSProperties) : undefined}
+      style={
+        isLive
+          ? ({ "--live-color": kindLiveColor(phytoSet.kind) } as React.CSSProperties)
+          : undefined
+      }
     >
       <SlideView slide={slide} variant="thumb" template={template} />
       <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">

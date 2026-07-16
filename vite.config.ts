@@ -16,9 +16,7 @@ function requireSupabaseEnv(): Plugin {
     config(_config, { command, mode }) {
       if (command !== "build") return;
       const env = loadEnv(mode, process.cwd(), "");
-      const missing = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"].filter(
-        (key) => !env[key],
-      );
+      const missing = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"].filter((key) => !env[key]);
       if (missing.length > 0) {
         throw new Error(
           `Build aborted: missing required env ${missing.join(", ")}. ` +

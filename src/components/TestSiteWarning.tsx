@@ -50,7 +50,8 @@ export function TestSiteWarning() {
           Warning
         </AlertDialogTitle>
         <AlertDialogDescription className="mt-4 text-base text-foreground">
-          This is an experimental testing environment for phyto. You’re likely to encounter bugs in this version.
+          This is an experimental testing environment for phyto. You’re likely to encounter bugs in
+          this version.
         </AlertDialogDescription>
         <div className="mt-8 flex gap-3">
           <button

@@ -19,7 +19,12 @@ export default function UpdatesTest() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--brand-orange-dark)] text-[var(--brand-white)]">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
-        <Link to="/" className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"><ArrowLeft className="h-3 w-3" /> BACK</Link>
+        <Link
+          to="/"
+          className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"
+        >
+          <ArrowLeft className="h-3 w-3" /> BACK
+        </Link>
         <h1 className="mt-6 text-5xl">Test Notes</h1>
         <ul className="mt-8 space-y-8">
           <li>
@@ -27,7 +32,9 @@ export default function UpdatesTest() {
             <ul className="mt-3 space-y-1">
               <li className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
-                <div className="flex-1">Artifacts when importing some song lyrics: multiple dashes or underscores</div>
+                <div className="flex-1">
+                  Artifacts when importing some song lyrics: multiple dashes or underscores
+                </div>
               </li>
               <li className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
@@ -40,9 +47,13 @@ export default function UpdatesTest() {
             </ul>
           </li>
           <li>
-            <div className="mono text-xs uppercase tracking-wider opacity-80">Features Being Tested</div>
+            <div className="mono text-xs uppercase tracking-wider opacity-80">
+              Features Being Tested
+            </div>
             <ul className="mt-3 space-y-1">
-              <FeatureItem>Scripture template adjustments on presenter view and set editor</FeatureItem>
+              <FeatureItem>
+                Scripture template adjustments on presenter view and set editor
+              </FeatureItem>
               <FeatureItem>Scripture import flow</FeatureItem>
               <FeatureItem>Song lyric import flow</FeatureItem>
               <FeatureItem>Refined song lyric import API</FeatureItem>
@@ -50,7 +61,9 @@ export default function UpdatesTest() {
               <FeatureItem>
                 Home screen UI adjustments
                 <ul className="mt-1 space-y-1 pl-2">
-                  <FeatureItem>Set dragging on home screen (reordering sets within a gathering)</FeatureItem>
+                  <FeatureItem>
+                    Set dragging on home screen (reordering sets within a gathering)
+                  </FeatureItem>
                   <FeatureItem>Fixed catalogue box size</FeatureItem>
                   <FeatureItem>Search via song lyric</FeatureItem>
                 </ul>
