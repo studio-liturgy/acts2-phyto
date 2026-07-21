@@ -98,14 +98,14 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
                   phytoexp.live/contribute
                 </a>{" "}
                 for people who want to help build phyto (app development, backend, design, social
-                media, and more). If you choose to submit it, the information you provide, which
-                may include your name, email, a link to your portfolio or Instagram, your
-                experience, how you use AI, and a short testimony of your faith, is transmitted to
-                and stored in our Supabase database (hosted in the US East region) and a copy is
-                emailed to the developer via Resend so it can be reviewed. This information is used
-                solely to evaluate and follow up on contributor submissions. We do not sell your
-                information or share it with unrelated third parties. Submitting the contribute
-                form is entirely optional and is not required to use any feature of the app.
+                media, and more). If you choose to submit it, the information you provide, which may
+                include your name, email, a link to your portfolio or Instagram, your experience,
+                how you use AI, and a short testimony of your faith, is transmitted to and stored in
+                our Supabase database (hosted in the US East region) and a copy is emailed to the
+                developer via Resend so it can be reviewed. This information is used solely to
+                evaluate and follow up on contributor submissions. We do not sell your information
+                or share it with unrelated third parties. Submitting the contribute form is entirely
+                optional and is not required to use any feature of the app.
               </p>
             </section>
 

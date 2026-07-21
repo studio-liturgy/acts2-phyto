@@ -1,0 +1,13 @@
+#!/bin/sh
+# Auto-fix lint/formatting on staged files so CI's `bun run lint` cannot fail
+# on prettier-only errors. Enable with: git config core.hooksPath .githooks
+set -e
+
+files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx|js|jsx|mjs)$' || true)
+[ -z "$files" ] && exit 0
+
+echo "$files" | xargs bunx eslint --fix --no-warn-ignored
+echo "$files" | xargs git add
+
+# Re-check: anything still failing is a real error, not a formatting nit.
+echo "$files" | xargs bunx eslint --no-warn-ignored

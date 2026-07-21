@@ -70,8 +70,7 @@ const ACTIVE_CHIP: Record<Category, string> = {
   "App Development": "border-[var(--brand-blue)] bg-[var(--brand-blue)] text-[var(--brand-white)]",
   "Backend Development":
     "border-[var(--brand-green)] bg-[var(--brand-green)] text-[var(--brand-white)]",
-  "UI/UX Design":
-    "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]",
+  "UI/UX Design": "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]",
   "Graphic Design": "border-[var(--brand-red)] bg-[var(--brand-red)] text-[var(--brand-white)]",
   "Social Media":
     "border-[var(--brand-orange-dark)] bg-[var(--brand-orange-dark)] text-[var(--brand-white)]",
@@ -92,7 +91,8 @@ function ContributePage() {
   const [errorMsg, setErrorMsg] = useState<string>("");
 
   const trimmedEmail = email.trim();
-  const emailValid = trimmedEmail.length > 0 && trimmedEmail.length <= 255 && EMAIL_RE.test(trimmedEmail);
+  const emailValid =
+    trimmedEmail.length > 0 && trimmedEmail.length <= 255 && EMAIL_RE.test(trimmedEmail);
   const canSubmit =
     name.trim().length > 0 &&
     emailValid &&
@@ -180,7 +180,10 @@ function ContributePage() {
 
         <form onSubmit={handleSubmit} className="mt-10 space-y-6">
           <div className="space-y-2">
-            <label htmlFor="name" className="mono block text-xs uppercase tracking-wider opacity-80">
+            <label
+              htmlFor="name"
+              className="mono block text-xs uppercase tracking-wider opacity-80"
+            >
               Your name
             </label>
             <input
@@ -196,7 +199,10 @@ function ContributePage() {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="email" className="mono block text-xs uppercase tracking-wider opacity-80">
+            <label
+              htmlFor="email"
+              className="mono block text-xs uppercase tracking-wider opacity-80"
+            >
               Your email
             </label>
             <input
