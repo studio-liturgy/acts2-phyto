@@ -28,6 +28,22 @@ export default function UpdatesMain() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-12">
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
+            <div className="text-2xl">July 21, 2026</div>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Contribute</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                New page at{" "}
+                <Link to="/contribute" className="underline hover:opacity-60">
+                  phyto.live/contribute
+                </Link>{" "}
+                for anyone who wants to help build phyto: app development, backend, UI/UX design,
+                graphic design, social media, and more
+              </FeatureItem>
+              <FeatureItem>Linked from the footer and homepage</FeatureItem>
+            </ul>
+          </li>
+          <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">July 16, 2026</div>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Sync</div>
