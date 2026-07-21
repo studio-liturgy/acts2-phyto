@@ -150,7 +150,7 @@ function FeedbackPage() {
             }
             rows={10}
             maxLength={5000}
-            className="w-full resize-y rounded-3xl border-2 border-foreground bg-background p-6 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
+            className="w-full resize-y rounded-3xl border border-foreground bg-background p-6 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
           />
 
           <div className="space-y-2">
@@ -168,7 +168,7 @@ function FeedbackPage() {
               placeholder="you@example.com"
               maxLength={255}
               autoComplete="email"
-              className="w-full rounded-full border-2 border-foreground bg-background px-6 py-3 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
+              className="w-full rounded-full border border-foreground bg-background px-6 py-3 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
             />
             {!emailValid && (
               <p className="mono text-xs uppercase tracking-wider text-[var(--brand-red)]">

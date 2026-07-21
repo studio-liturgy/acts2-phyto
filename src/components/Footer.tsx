@@ -17,9 +17,6 @@ export function Footer({ className }: { className?: string }) {
     >
       <div className="mx-auto grid max-w-6xl grid-cols-3 items-center gap-4 px-6 py-8">
         <nav className="flex items-center gap-6 text-xs">
-          <Link to="/about" className={linkCls}>
-            About
-          </Link>
           <a
             href="https://www.instagram.com/phyto.live"
             target="_blank"
@@ -34,6 +31,9 @@ export function Footer({ className }: { className?: string }) {
           <Link to="/feedback" className={linkCls}>
             Feedback
           </Link>
+          <Link to="/contribute" className={linkCls}>
+            Contribute
+          </Link>
         </nav>
         <div className="flex justify-center">
           <Link to="/">
@@ -45,6 +45,9 @@ export function Footer({ className }: { className?: string }) {
           </Link>
         </div>
         <nav className="flex items-center justify-end gap-6 text-xs flex-nowrap">
+          <Link to="/about" className={`${linkCls} whitespace-nowrap`}>
+            About
+          </Link>
           <a
             href="https://github.com/studio-liturgy"
             target="_blank"
