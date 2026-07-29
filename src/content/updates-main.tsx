@@ -28,6 +28,21 @@ export default function UpdatesMain() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-12">
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
+            <div className="text-2xl">July 29, 2026</div>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Gatherings</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Live gatherings now end automatically 24 hours after they start. You can still end a
+                session yourself at any time, or go live on another gathering
+              </FeatureItem>
+              <FeatureItem>
+                Share links for gatherings that have finished now show the ended screen instead of
+                staying open indefinitely
+              </FeatureItem>
+            </ul>
+          </li>
+          <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">July 21, 2026</div>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Contribute</div>

@@ -4,10 +4,15 @@ import { dirname, resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { PDFDocument, rgb } from "pdf-lib";
 
-// PDF import is entirely client-side (pdfjs → canvas → JPEG data URLs → Dexie),
-// so this spec runs signed OUT: nothing touches Supabase, and the only network
-// dependency — the pdf.js worker pinned to a CDN — is intercepted and served
-// from node_modules so the test runs offline.
+// PDF import rasterises client-side (pdfjs → canvas → JPEG blob), then uploads
+// each page to R2 and stores only the URL. This spec runs signed OUT, so it
+// exercises the FALLBACK path instead: with no session there is nothing to
+// upload with, and pages are inlined as data URLs in Dexie exactly as before.
+// That keeps the spec offline — nothing touches Supabase or R2, and the only
+// network dependency, the pdf.js worker pinned to a CDN, is intercepted and
+// served from node_modules.
+//
+// NOTE: the signed-in path (blob → R2 → URL) is therefore NOT covered here.
 
 const PAGE_COUNT = 60;
 const FIXTURE = resolve(import.meta.dirname, ".artifacts", "large.pdf");
@@ -66,8 +71,11 @@ test("a large PDF imports as one slide per page without freezing or blowing up s
   await expect(page.getByText("Converting…")).toBeHidden({ timeout: 240_000 });
   await expect(page.getByText(`Slides (${PAGE_COUNT})`)).toBeVisible();
 
-  // Storage canary: scale-2.0 JPEG data-URLs are heavy by design; catch them
-  // getting catastrophically heavier. Logged for trend-watching.
+  // Storage canary for the inline fallback: catch these data URLs getting
+  // catastrophically heavier. Logged for trend-watching. Treat the number as a
+  // regression tripwire, not a size estimate for real decks: these fixture
+  // pages are flat colour and text, so they compress far better than the
+  // photographic slides that made real sets weigh megabytes.
   const after = await page.evaluate(() => navigator.storage.estimate());
   const usedMb = ((after.usage ?? 0) - (before.usage ?? 0)) / 1024 / 1024;
   console.log(`[pdf-import] ${PAGE_COUNT} pages -> ~${usedMb.toFixed(1)} MB of storage`);

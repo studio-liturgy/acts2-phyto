@@ -57,6 +57,53 @@
 --   before update on gatherings
 --   for each row execute function gatherings_update_updated_at();
 --
+-- 24-HOUR LIVE-SESSION EXPIRY (REQUIRED to stop runaway viewer polling).
+-- Presenters routinely close the laptop without ending the session, leaving
+-- `is_live` true forever; every viewer tab still open on the share link then
+-- re-fetches full set `content` every 8s indefinitely. Adds the live clock,
+-- stamps it server-side, and hides sets once the window elapses:
+-- alter table gatherings add column if not exists live_started_at timestamptz;
+--
+-- create or replace function gatherings_live_clock()
+-- returns trigger language plpgsql as $$
+-- begin
+--   if not coalesce(new.is_live, false) then
+--     new.live_started_at = null;
+--   elsif new.live_started_at is null
+--         or (tg_op = 'UPDATE' and new.is_live is distinct from old.is_live) then
+--     new.live_started_at = now();
+--   end if;
+--   return new;
+-- end;
+-- $$;
+-- drop trigger if exists gatherings_live_clock on gatherings;
+-- create trigger gatherings_live_clock
+--   before insert or update on gatherings
+--   for each row execute function gatherings_live_clock();
+--
+-- drop policy if exists "gathering_sets: public select when live" on gathering_sets;
+-- create policy "gathering_sets: public select when live"
+--   on gathering_sets for select
+--   using (
+--     exists (
+--       select 1 from gatherings g
+--       where g.id = gathering_id
+--         and g.is_live = true
+--         and g.live_started_at > now() - interval '24 hours'
+--     )
+--   );
+--
+-- BACKFILL (run once, after the above). Existing live rows have no clock, so
+-- they would all read as expired. `updated_at` is the last content edit, which
+-- is the closest proxy for when the session started — sessions edited within
+-- the last 24h keep serving, genuinely stale ones expire. The second statement
+-- clears the flag on the already-expired ones so owners stop seeing a stale
+-- "live" dot (the trigger nulls their live_started_at):
+-- update gatherings set live_started_at = updated_at
+--   where is_live = true and live_started_at is null;
+-- update gatherings set is_live = false
+--   where is_live = true and live_started_at <= now() - interval '24 hours';
+--
 -- Deletion tombstones (REQUIRED for cross-device deletion propagation).
 -- Without this table the client logs a warning and falls back to the old
 -- behavior, where a device still holding a copy of a deleted item pushes it
@@ -145,6 +192,9 @@ create table if not exists gatherings (
   title               text        not null,
   share_token         text        unique not null,
   is_live             boolean     default false,
+  -- When the current live session started. Stamped/cleared server-side by
+  -- gatherings_live_clock below; a session auto-ends 24h after this.
+  live_started_at     timestamptz,
   current_set_index   int         default 0,
   current_slide_index int         default 0,
   created_at          timestamptz default now(),
@@ -171,6 +221,31 @@ $$;
 create trigger gatherings_updated_at
   before update on gatherings
   for each row execute function gatherings_update_updated_at();
+
+-- The live clock is server-authoritative, exactly like is_live: stamped when a
+-- gathering becomes live, cleared when it stops. Doing this in a trigger rather
+-- than in the client means the 24h expiry also holds for clients running an
+-- older bundle that only knows how to flip `is_live`.
+--
+-- Note the middle branch deliberately does NOT re-stamp a row that is already
+-- live, so an ordinary content push (which leaves is_live untouched) cannot
+-- extend a running session indefinitely.
+create or replace function gatherings_live_clock()
+returns trigger language plpgsql as $$
+begin
+  if not coalesce(new.is_live, false) then
+    new.live_started_at = null;
+  elsif new.live_started_at is null
+        or (tg_op = 'UPDATE' and new.is_live is distinct from old.is_live) then
+    new.live_started_at = now();
+  end if;
+  return new;
+end;
+$$;
+
+create trigger gatherings_live_clock
+  before insert or update on gatherings
+  for each row execute function gatherings_live_clock();
 
 alter table gatherings enable row level security;
 
@@ -254,7 +329,12 @@ create policy "gathering_sets: owner delete"
     )
   );
 
--- Public viewers can see gathering_sets when the gathering is live.
+-- Public viewers can see gathering_sets while the gathering is live AND within
+-- its 24h window. This is the enforcement point for live-session expiry: an
+-- abandoned session serves no sets, so a viewer tab left open on the share link
+-- can no longer pull set `content` forever. The client mirrors this rule in
+-- src/lib/live-session.ts (LIVE_SESSION_MS) so it stops polling too — keep the
+-- interval below and that constant in step.
 create policy "gathering_sets: public select when live"
   on gathering_sets for select
   using (
@@ -262,6 +342,7 @@ create policy "gathering_sets: public select when live"
       select 1 from gatherings g
       where g.id = gathering_id
         and g.is_live = true
+        and g.live_started_at > now() - interval '24 hours'
     )
   );
 

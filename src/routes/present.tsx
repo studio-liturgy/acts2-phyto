@@ -9,6 +9,7 @@ import {
 } from "@/lib/store";
 import { useIsSignedIn } from "@/lib/authStore";
 import { APP_NAME } from "@/lib/appConfig";
+import { isLiveNow } from "@/lib/live-session";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
@@ -448,8 +449,8 @@ function Presenter() {
             {activeGathering && (
               <>
                 <span
-                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${activeGathering.is_live ? "bg-[var(--brand-red)] animate-pulse" : "bg-foreground"}`}
-                  title={activeGathering.is_live ? "Live" : undefined}
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${isLiveNow(activeGathering) ? "bg-[var(--brand-red)] animate-pulse" : "bg-foreground"}`}
+                  title={isLiveNow(activeGathering) ? "Live" : undefined}
                 />
                 {editingGatheringName ? (
                   <input
@@ -590,7 +591,7 @@ function Presenter() {
                           }`}
                         >
                           <span className="truncate">{p.name}</span>
-                          {p.is_live && pid !== gatheringFromUrl && (
+                          {isLiveNow(p) && pid !== gatheringFromUrl && (
                             <span
                               className="h-2 w-2 shrink-0 rounded-full bg-[var(--brand-red)]"
                               title="Live"
@@ -1092,7 +1093,11 @@ function Presenter() {
         onOpenChange={setShowShareDialog}
         shareUrl={shareUrl}
         gatheringName={activeGathering?.name ?? "gathering"}
-        isLive={activeGathering?.is_live ?? null}
+        isLive={
+          activeGathering == null || activeGathering.is_live === null
+            ? null
+            : isLiveNow(activeGathering)
+        }
       />
     </div>
   );

@@ -1,5 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { MEDIA_MAX_BYTES, MEDIA_USER_QUOTA_BYTES, VIDEO_EXT_BY_TYPE } from "@/lib/media";
+import {
+  IMAGE_MAX_BYTES,
+  IMAGE_EXT_BY_TYPE,
+  MEDIA_MAX_BYTES,
+  MEDIA_USER_QUOTA_BYTES,
+  UPLOAD_EXT_BY_TYPE,
+} from "@/lib/media";
 
 // Minimal R2 binding surface we rely on — avoids pulling in @cloudflare/workers-types.
 interface R2ListResult {
@@ -53,8 +59,11 @@ function readString(env: Record<string, unknown>, key: string): string | undefin
   return p && p.length > 0 ? p : undefined;
 }
 
-// Naive in-memory rate limit: 20 uploads / 5 min / user. Mirrors welcome.ts.
-const RATE_LIMIT = 20;
+// Naive in-memory rate limit, per user. Sized for images rather than videos:
+// importing a single multi-page PDF fans out into one upload per page, so the
+// old video-shaped limit of 20 would reject an ordinary sermon deck. The
+// per-user storage quota below is the real backstop.
+const RATE_LIMIT = 300;
 const WINDOW_MS = 5 * 60_000;
 const hits = new Map<string, number[]>();
 
@@ -128,13 +137,16 @@ export const Route = createFileRoute("/api/media/upload")({
           .split(";")[0]
           .trim()
           .toLowerCase();
-        const ext = VIDEO_EXT_BY_TYPE[contentType];
+        const ext = UPLOAD_EXT_BY_TYPE[contentType];
         if (!ext) {
           return Response.json({ ok: false, error: "Unsupported file type." }, { status: 415 });
         }
 
+        // Images are downscaled client-side, so they get a much tighter cap
+        // than video.
+        const maxBytes = contentType in IMAGE_EXT_BY_TYPE ? IMAGE_MAX_BYTES : MEDIA_MAX_BYTES;
         const declaredLength = Number(request.headers.get("content-length") ?? "0");
-        if (!declaredLength || declaredLength > MEDIA_MAX_BYTES) {
+        if (!declaredLength || declaredLength > maxBytes) {
           return Response.json({ ok: false, error: "File too large." }, { status: 413 });
         }
         if (!request.body) {
@@ -155,7 +167,7 @@ export const Route = createFileRoute("/api/media/upload")({
             {
               ok: false,
               code: "quota",
-              error: `Storage limit reached. Each account can store up to ${limitMb} MB of video.`,
+              error: `Storage limit reached. Each account can store up to ${limitMb} MB of media.`,
             },
             { status: 413 },
           );

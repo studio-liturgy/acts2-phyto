@@ -73,6 +73,7 @@ export async function migrateLegacyLocalStorage(): Promise<number> {
       // Backfill fields the phase-0 shape lacked.
       share_token: nanoid(10),
       is_live: false,
+      live_started_at: null,
       createdAt: g.createdAt ?? now,
       updatedAt: g.updatedAt ?? now,
     }));

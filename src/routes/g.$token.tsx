@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { isLiveNow } from "@/lib/live-session";
 
 // Per-gathering share view — private, ephemeral links. Keep out of search.
 
@@ -13,6 +14,8 @@ interface GatheringRow {
   title: string;
   share_token: string;
   is_live: boolean;
+  /** Epoch ms, or null. Paired with `is_live` to give the 24h auto-expiry. */
+  live_started_at: number | null;
 }
 
 interface GatheringSetRow {
@@ -104,10 +107,14 @@ export const Route = createFileRoute("/g/$token")({
 async function fetchGathering(token: string): Promise<GatheringRow | null> {
   const { data } = await supabase
     .from("gatherings")
-    .select("id, title, share_token, is_live")
+    .select("id, title, share_token, is_live, live_started_at")
     .eq("share_token", token)
     .maybeSingle();
-  return data ?? null;
+  if (!data) return null;
+  return {
+    ...(data as Omit<GatheringRow, "live_started_at">),
+    live_started_at: data.live_started_at ? new Date(data.live_started_at).getTime() : null,
+  };
 }
 
 async function fetchViewerSets(gatheringId: string): Promise<ViewerSet[]> {
@@ -217,17 +224,24 @@ function GatheringViewer() {
 
       setGatheringName(g.title);
 
+      // A session auto-ends 24h after it started, so an abandoned gathering
+      // stops being live even though the presenter never flipped the flag.
+      // Checking here is what stops this poll loop: otherwise a tab left open
+      // on the share link re-fetches every set's full content, forever.
+      const live = isLiveNow(g);
       const wasLive = prevLiveRef.current;
-      prevLiveRef.current = g.is_live;
+      prevLiveRef.current = live;
 
-      // Gathering ended — was live, now not
-      if (!g.is_live && wasLive === true) {
+      // Gathering ended — was live, now not. A gathering still flagged live but
+      // past its window is treated the same way on first poll, so opening a
+      // stale link lands on "ended" instead of polling indefinitely.
+      if (!live && (wasLive === true || g.is_live)) {
         setStatus("ended");
         stoppedRef.current = true;
         return;
       }
 
-      if (g.is_live) {
+      if (live) {
         const viewerSets = await fetchViewerSets(g.id);
         if (stoppedRef.current) return;
         setSets(viewerSets);

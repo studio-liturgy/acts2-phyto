@@ -100,6 +100,7 @@ export async function importCatalogue(file: File, mode: "merge" | "replace"): Pr
     setIds: g.setIds ?? [],
     share_token: g.share_token || nanoid(10),
     is_live: g.is_live ?? false,
+    live_started_at: g.live_started_at ?? null,
   }));
 
   if (mode === "replace") {

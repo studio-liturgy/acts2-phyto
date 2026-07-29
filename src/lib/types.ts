@@ -69,8 +69,14 @@ export interface Gathering {
   setIds: string[];
   share_token: string;
   /** Live status. Server-authoritative: `true`/`false` reflect Supabase;
-   *  `null` means logged-out/unknown (no local truth). */
+   *  `null` means logged-out/unknown (no local truth).
+   *  Read this through `isLiveNow()` — a session that was never manually ended
+   *  keeps `is_live` true past its 24h window. See lib/live-session.ts. */
   is_live: boolean | null;
+  /** Epoch ms when the current live session started, or `null` when not live.
+   *  Server-authoritative (stamped by a trigger); pairs with `is_live` to give
+   *  the 24h auto-expiry. */
+  live_started_at: number | null;
   createdAt: number;
   updatedAt: number;
 }

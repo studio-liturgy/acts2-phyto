@@ -33,6 +33,7 @@ export function makeGathering(overrides: Partial<Gathering> = {}): Gathering {
     setIds: [],
     share_token: `token-${seq}`,
     is_live: false,
+    live_started_at: null,
     createdAt: 1700000000000,
     updatedAt: 1700000000000,
     ...overrides,
@@ -66,6 +67,7 @@ export function gatheringRow(p: Gathering, userId = USER_ID): Row {
     title: p.name,
     share_token: p.share_token,
     is_live: p.is_live,
+    live_started_at: p.live_started_at ? new Date(p.live_started_at).toISOString() : null,
     created_at: new Date(p.createdAt).toISOString(),
     updated_at: new Date(p.updatedAt).toISOString(),
   };

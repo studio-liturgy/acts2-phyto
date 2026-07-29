@@ -5,6 +5,7 @@ import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useAccountPull, useSyncStatus } from "@/hooks/use-sync-status";
 import { exportCatalogue, importCatalogue } from "@/lib/catalogue-io";
 import { APP_NAME } from "@/lib/appConfig";
+import { isLiveNow } from "@/lib/live-session";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -320,7 +321,7 @@ function Library() {
   const gatheringDisplayOrder = useMemo(
     () =>
       [...gatheringOrder].sort(
-        (a, b) => Number(!!gatherings[b]?.is_live) - Number(!!gatherings[a]?.is_live),
+        (a, b) => Number(isLiveNow(gatherings[b])) - Number(isLiveNow(gatherings[a])),
       ),
     [gatheringOrder, gatherings],
   );
@@ -502,7 +503,7 @@ function Library() {
                       gatheringId={pid}
                       name={p.name}
                       setIds={p.setIds}
-                      isLive={p.is_live}
+                      isLive={p.is_live === null ? null : isLiveNow(p)}
                       shareToken={p.share_token}
                       allSets={Object.values(sets)}
                       onRename={(name) => renameGathering(pid, name)}
@@ -1438,7 +1439,8 @@ function GatheringCard({
           <DialogTitle className="text-2xl font-normal leading-tight">Go live!</DialogTitle>
 
           <p className="mt-4 text-base">
-            This gathering will stay live until you end it or start a new one.
+            This gathering will stay live for 24 hours, unless you end it or go live on another one
+            first.
           </p>
 
           <div className="mt-8">

@@ -6,6 +6,9 @@ import { liveQuery } from "dexie";
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
 import { pushToSupabase, recordDeletions, withSyncLock } from "./sync";
+import { isLiveNow, type LiveWindow } from "./live-session";
+import { isInlineImage } from "./image-upload";
+import { hasInlineImages, migrateSetImagesToR2 } from "./migrate-images";
 
 function uid() {
   return crypto.randomUUID();
@@ -95,14 +98,19 @@ function schedulePush(opts?: { set?: string; gathering?: string }) {
 }
 
 // Best-effort cleanup of R2-hosted uploads when their slides go away. Only
-// `videoSource === "file"` slides own an R2 object (youtube/url slides just
-// reference external URLs). Fired and forgotten: a failed delete leaves an
-// orphan but never blocks or breaks the local edit. The server re-validates
-// that the object belongs to the caller before deleting.
-function purgeUploadedVideos(slides: Slide[]): void {
-  const urls = slides
+// `videoSource === "file"` videos and non-inline images own an R2 object
+// (youtube/url videos and `data:` images just reference something else).
+// Fired and forgotten: a failed delete leaves an orphan but never blocks or
+// breaks the local edit. The server re-validates that the object belongs to
+// the caller before deleting, and ignores anything outside its own bucket.
+function purgeUploadedMedia(slides: Slide[]): void {
+  const videoUrls = slides
     .filter((sl) => sl.kind === "video" && sl.videoSource === "file" && sl.videoUrl)
     .map((sl) => sl.videoUrl as string);
+  const imageUrls = slides
+    .filter((sl) => sl.imageUrl && !isInlineImage(sl.imageUrl))
+    .map((sl) => sl.imageUrl as string);
+  const urls = [...videoUrls, ...imageUrls];
   if (urls.length === 0) return;
   const token = useAuthStore.getState().session?.access_token;
   if (!token) return;
@@ -185,7 +193,14 @@ interface LibraryState {
   nullLocalLiveState: () => Promise<void>;
   /** Populate store from Dexie — call once on app mount. */
   loadFromDb: () => Promise<void>;
+  /** Hoist legacy inline base64 slide images into R2, one set at a time.
+   *  Idempotent, resumable, and a no-op when signed out or already clean. */
+  migrateInlineImages: () => Promise<void>;
 }
+
+// Guards against a second migration pass starting while one is in flight (the
+// effect that calls it re-runs whenever the session or sync dialog changes).
+let imageMigrationRunning = false;
 
 export const useLibrary = create<LibraryState>()((set, get) => ({
   sets: {},
@@ -203,6 +218,34 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       db.gatherings.toArray(),
     ]);
     set(buildLibraryState(allSets, allGatherings));
+  },
+
+  migrateInlineImages: async () => {
+    if (imageMigrationRunning) return;
+    if (!useAuthStore.getState().session) return;
+    imageMigrationRunning = true;
+    try {
+      // Snapshot the ids up front — updateSet below rewrites the store as we go.
+      const pending = Object.values(get().sets)
+        .filter((s) => hasInlineImages(s.slides))
+        .map((s) => s.id);
+
+      for (const id of pending) {
+        // Signing out mid-pass drops the upload token; stop rather than churn
+        // through sets that can only fail.
+        if (!useAuthStore.getState().session) break;
+        // Re-read: a merge may have replaced or removed this set since the snapshot.
+        const current = get().sets[id];
+        if (!current || !hasInlineImages(current.slides)) continue;
+
+        const { slides, moved } = await migrateSetImagesToR2(current.slides);
+        // Any slide that failed to upload keeps its data URL and is picked up
+        // by the next pass, so a partial result is still worth persisting.
+        if (moved > 0) get().updateSet(id, { slides });
+      }
+    } finally {
+      imageMigrationRunning = false;
+    }
   },
 
   setSongTemplate: (patch) =>
@@ -282,7 +325,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         await recordDeletions("set", [id]);
       }
       await db.sets.delete(id);
-      purgeUploadedVideos(removedSlides);
+      purgeUploadedMedia(removedSlides);
       set((s) => {
         const { [id]: _gone, ...rest } = s.sets;
         return { sets: rest, order: s.order.filter((x) => x !== id) };
@@ -324,7 +367,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         await recordDeletions("set", [...idSet]);
       }
       await db.sets.bulkDelete([...idSet]);
-      purgeUploadedVideos(removedSlides);
+      purgeUploadedMedia(removedSlides);
       set((s) => {
         const rest = { ...s.sets };
         for (const id of idSet) delete rest[id];
@@ -388,7 +431,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         updatedAt: Date.now(),
       };
       db.sets.put(updated).then(() => schedulePush({ set: setId }));
-      if (removed) purgeUploadedVideos([removed]);
+      if (removed) purgeUploadedMedia([removed]);
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
@@ -412,6 +455,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       setIds: [],
       share_token: nanoid(10),
       is_live: false,
+      live_started_at: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -529,6 +573,11 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
 
     // 2. Upsert the target with is_live: true in a single call — this both
     //    ensures a never-pushed gathering exists and flips it live atomically.
+    //    `live_started_at` starts the 24h expiry clock. The DB trigger stamps it
+    //    too, but sending it explicitly is what restarts an EXPIRED session:
+    //    that row is still is_live=true, so the trigger sees no flip and would
+    //    leave the old, already-elapsed timestamp in place.
+    const liveStartedAt = Date.now();
     const { error: liveErr } = await supabase.from("gatherings").upsert(
       {
         id: target.id,
@@ -536,6 +585,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         title: target.name,
         share_token: target.share_token,
         is_live: true,
+        live_started_at: new Date(liveStartedAt).toISOString(),
         current_set_index: 0,
         current_slide_index: 0,
         created_at: new Date(target.createdAt).toISOString(),
@@ -553,17 +603,22 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     const allGatherings = await db.gatherings.toArray();
     await db.transaction("rw", db.gatherings, async () => {
       for (const p of allGatherings) {
-        if (p.id === gatheringId && p.is_live !== true) {
-          await db.gatherings.put({ ...p, is_live: true });
-        } else if (p.id !== gatheringId && p.is_live) {
-          await db.gatherings.put({ ...p, is_live: false });
+        if (p.id === gatheringId) {
+          await db.gatherings.put({ ...p, is_live: true, live_started_at: liveStartedAt });
+        } else if (p.is_live) {
+          await db.gatherings.put({ ...p, is_live: false, live_started_at: null });
         }
       }
     });
     set((s) => {
       const updated = { ...s.gatherings };
       for (const id of Object.keys(updated)) {
-        updated[id] = { ...updated[id], is_live: id === gatheringId };
+        const live = id === gatheringId;
+        updated[id] = {
+          ...updated[id],
+          is_live: live,
+          live_started_at: live ? liveStartedAt : null,
+        };
       }
       return { gatherings: updated };
     });
@@ -591,7 +646,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }
 
     // ── Reflect locally without bumping updatedAt ─────────────────────────────
-    const updated = { ...target, is_live: false };
+    const updated = { ...target, is_live: false, live_started_at: null };
     set((s) => ({ gatherings: { ...s.gatherings, [gatheringId]: updated } }));
     await db.gatherings.put(updated);
   },
@@ -601,30 +656,42 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     if (!session) return;
     const { data, error } = await supabase
       .from("gatherings")
-      .select("id, is_live")
+      .select("id, is_live, live_started_at")
       .eq("user_id", session.user.id);
     if (error) {
       console.error("[refreshLiveState] error:", error);
       return;
     }
+    // A row past its 24h window is reported as not live, so the presenter's UI
+    // agrees with what viewers actually get (see lib/live-session.ts).
     const liveById = new Map(
-      (data ?? []).map((r) => [r.id as string, (r.is_live as boolean) ?? false]),
+      (data ?? []).map((r) => {
+        const live: LiveWindow = {
+          is_live: (r.is_live as boolean) ?? false,
+          live_started_at: r.live_started_at
+            ? new Date(r.live_started_at as string).getTime()
+            : null,
+        };
+        return [r.id as string, isLiveNow(live) ? live : { is_live: false, live_started_at: null }];
+      }),
     );
 
     // Update only gatherings that exist on the server; leave local-only ones.
     const localGatherings = await db.gatherings.toArray();
     await db.transaction("rw", db.gatherings, async () => {
       for (const p of localGatherings) {
-        if (liveById.has(p.id)) {
-          const isLive = liveById.get(p.id)!;
-          if (p.is_live !== isLive) await db.gatherings.put({ ...p, is_live: isLive });
+        const live = liveById.get(p.id);
+        if (!live) continue;
+        if (p.is_live !== live.is_live || p.live_started_at !== live.live_started_at) {
+          await db.gatherings.put({ ...p, ...live });
         }
       }
     });
     set((s) => {
       const updated = { ...s.gatherings };
       for (const id of Object.keys(updated)) {
-        if (liveById.has(id)) updated[id] = { ...updated[id], is_live: liveById.get(id)! };
+        const live = liveById.get(id);
+        if (live) updated[id] = { ...updated[id], ...live };
       }
       return { gatherings: updated };
     });
@@ -632,11 +699,13 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
 
   nullLocalLiveState: async () => {
     const localGatherings = await db.gatherings.toArray();
-    await db.gatherings.bulkPut(localGatherings.map((p) => ({ ...p, is_live: null })));
+    await db.gatherings.bulkPut(
+      localGatherings.map((p) => ({ ...p, is_live: null, live_started_at: null })),
+    );
     set((s) => {
       const updated = { ...s.gatherings };
       for (const id of Object.keys(updated)) {
-        updated[id] = { ...updated[id], is_live: null };
+        updated[id] = { ...updated[id], is_live: null, live_started_at: null };
       }
       return { gatherings: updated };
     });

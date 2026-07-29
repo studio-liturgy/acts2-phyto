@@ -56,11 +56,13 @@ export function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
 }
 
 export function toSupabaseGathering(p: Gathering, userId: string, deviceId: string) {
-  // NOTE: `is_live` is intentionally omitted. It is server-authoritative and
-  // managed exclusively by goLive/endSession. Including it here would let an
-  // unrelated content push clobber the server's true live flag with stale
-  // local data. PostgREST upsert leaves omitted columns untouched on conflict,
-  // and a brand-new inserted row gets the schema default (false).
+  // NOTE: `is_live` and `live_started_at` are intentionally omitted. They are
+  // server-authoritative and managed exclusively by goLive/endSession (and the
+  // gatherings_live_clock trigger). Including them here would let an unrelated
+  // content push clobber the server's true live flag with stale local data, or
+  // silently extend a running session's 24h window. PostgREST upsert leaves
+  // omitted columns untouched on conflict, and a brand-new inserted row gets
+  // the schema default (false / null).
   return {
     id: p.id,
     user_id: userId,
@@ -96,6 +98,7 @@ export function fromSupabaseGathering(row: Record<string, unknown>, setIds: stri
     name: row.title as string,
     share_token: (row.share_token as string) || nanoid(10),
     is_live: (row.is_live as boolean) ?? false,
+    live_started_at: row.live_started_at ? new Date(row.live_started_at as string).getTime() : null,
     setIds,
     createdAt: new Date(row.created_at as string).getTime(),
     updatedAt: new Date(row.updated_at as string).getTime(),
@@ -119,12 +122,12 @@ export function fromSupabaseGathering(row: Record<string, unknown>, setIds: stri
  *  max-rows cap (default 1000) on un-ranged selects. */
 const LIST_PAGE_SIZE = 500;
 
-/** How many full `sets` rows to move per request. `content` JSONB carries
- *  slides with INLINE base64 images (fileToDataUrl /
- *  fileToCompressedImageDataUrl), so a single set can weigh megabytes — a
- *  whole-library `select("*")` or batched upsert can exceed statement
- *  timeouts / request limits and fail wholesale. Small batches keep every
- *  request bounded by a handful of sets. */
+/** How many full `sets` rows to move per request. New slide images go to R2 and
+ *  `content` JSONB carries only their URL, but sets created before that change
+ *  can still hold INLINE base64 images until `migrateSetImagesToR2` hoists them,
+ *  so a single set can still weigh megabytes — a whole-library `select("*")` or
+ *  batched upsert can exceed statement timeouts / request limits and fail
+ *  wholesale. Small batches keep every request bounded by a handful of sets. */
 const SET_BATCH_SIZE = 5;
 
 /** How many content batches to keep in flight at once. A first login on a

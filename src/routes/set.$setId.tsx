@@ -2,9 +2,16 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
-import { fileToCompressedImageDataUrl, parseYouTubeId } from "@/lib/parsers";
+import { parseYouTubeId } from "@/lib/parsers";
 import { supabase } from "@/lib/supabase";
-import { MEDIA_MAX_BYTES, isUploadableVideo } from "@/lib/media";
+import {
+  IMAGE_MAX_DIM,
+  IMAGE_QUALITY,
+  MEDIA_MAX_BYTES,
+  isUploadableImage,
+  isUploadableVideo,
+} from "@/lib/media";
+import { prepareImageFile, prepareRenderedImage } from "@/lib/image-upload";
 import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
 import { searchSongs, preloadSongs, parseQuery, songPreview, type SongResult } from "@/lib/songs";
 import {
@@ -543,20 +550,22 @@ function SetEditor() {
     const pdfFiles = nonVideo.filter((f) => f.type === "application/pdf");
 
     if (imageFiles.length > 0) {
-      const urls = await Promise.all(
-        imageFiles.map((f) => fileToCompressedImageDataUrl(f).catch(() => null)),
-      );
-      urls.forEach((url) => {
-        if (url) addSlide(phytoSet.id, { kind: "image", imageUrl: url, lines: [] });
-      });
+      setUploading(true);
+      for (const file of imageFiles) {
+        const img = await prepareImageFile(file, () => setShowStorageLimitDialog(true));
+        if (img) addSlide(phytoSet.id, { kind: "image", imageUrl: img.url, lines: [] });
+      }
+      setUploading(false);
     }
 
     if (pdfFiles.length > 0) {
       setConverting(true);
       for (const pdf of pdfFiles) {
         try {
-          const urls = await pdfToImageUrls(pdf);
-          urls.forEach((url) => addSlide(phytoSet.id, { kind: "image", imageUrl: url, lines: [] }));
+          for (const blob of await pdfToImageBlobs(pdf)) {
+            const img = await prepareRenderedImage(blob, () => setShowStorageLimitDialog(true));
+            if (img) addSlide(phytoSet.id, { kind: "image", imageUrl: img.url, lines: [] });
+          }
         } catch {
           // skip failed files silently
         }
@@ -1089,15 +1098,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
 
   const importImages = async (files: FileList | null) => {
     if (!files) return;
-    const ACCEPTED = /^image\/(png|jpe?g|webp|gif|bmp)$/i;
-    const list = Array.from(files).filter((f) => ACCEPTED.test(f.type));
+    const list = Array.from(files).filter((f) => isUploadableImage(f.type));
     if (list.length === 0) return;
-    const urls = await Promise.all(
-      list.map((f) => fileToCompressedImageDataUrl(f).catch(() => null)),
-    );
-    urls.forEach((url) => {
-      if (url) addSlide(setId, { kind: "image", imageUrl: url, lines: [] });
-    });
+    // Sequential: each image is uploaded to R2 before its slide is added, and a
+    // burst of parallel uploads gains little on files this small.
+    for (const file of list) {
+      const img = await prepareImageFile(file);
+      if (img) addSlide(setId, { kind: "image", imageUrl: img.url, lines: [] });
+    }
   };
 
   if (kind === "song") {
@@ -1382,31 +1390,43 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   return <MediaImporter setId={setId} onImport={importImages} />;
 }
 
-async function pdfToImageUrls(file: File): Promise<string[]> {
+/** Rasterise each page of a PDF to a JPEG blob.
+ *
+ *  Pages are scaled so the longest edge lands near IMAGE_MAX_DIM instead of the
+ *  old fixed 2.0, and encoded at IMAGE_QUALITY instead of the browser default
+ *  (0.92). A fixed 2.0 scale on a large page produced ~4000px JPEGs, which is
+ *  how a single imported deck reached 7.7MB inside `sets.content`. */
+async function pdfToImageBlobs(file: File): Promise<Blob[]> {
   const pdfjsLib = await import("pdfjs-dist");
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const urls: string[] = [];
+  const blobs: Blob[] = [];
 
   for (let i = 1; i <= pdf.numPages; i++) {
     try {
       const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 2.0 });
+      const unscaled = page.getViewport({ scale: 1 });
+      const longest = Math.max(unscaled.width, unscaled.height);
+      const scale = Math.min(2.0, IMAGE_MAX_DIM / longest);
+      const viewport = page.getViewport({ scale });
       const canvas = document.createElement("canvas");
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       const ctx = canvas.getContext("2d")!;
       await page.render({ canvasContext: ctx, viewport }).promise;
-      urls.push(canvas.toDataURL("image/jpeg"));
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/jpeg", IMAGE_QUALITY),
+      );
+      if (blob) blobs.push(blob);
     } catch {
       // skip failed pages silently
     }
   }
 
-  return urls;
+  return blobs;
 }
 
 function MediaImporter({
@@ -1422,9 +1442,7 @@ function MediaImporter({
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || converting) return;
-    const imageFiles = Array.from(files).filter((f) =>
-      /^image\/(png|jpe?g|webp|gif|bmp)$/i.test(f.type),
-    );
+    const imageFiles = Array.from(files).filter((f) => isUploadableImage(f.type));
     const pdfFiles = Array.from(files).filter((f) => f.type === "application/pdf");
 
     if (imageFiles.length > 0) {
@@ -1437,8 +1455,10 @@ function MediaImporter({
       setConverting(true);
       for (const pdf of pdfFiles) {
         try {
-          const urls = await pdfToImageUrls(pdf);
-          urls.forEach((url) => addSlide(setId, { kind: "image", imageUrl: url, lines: [] }));
+          for (const blob of await pdfToImageBlobs(pdf)) {
+            const img = await prepareRenderedImage(blob);
+            if (img) addSlide(setId, { kind: "image", imageUrl: img.url, lines: [] });
+          }
         } catch {
           // skip failed files silently
         }

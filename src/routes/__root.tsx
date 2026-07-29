@@ -316,6 +316,7 @@ function RootComponent() {
   const loadFromDb = useLibrary((s) => s.loadFromDb);
   const refreshLiveState = useLibrary((s) => s.refreshLiveState);
   const nullLocalLiveState = useLibrary((s) => s.nullLocalLiveState);
+  const migrateInlineImages = useLibrary((s) => s.migrateInlineImages);
   const [syncDiff, setSyncDiff] = useState<SyncDiff | null>(null);
   const [pendingAction, setPendingAction] = useState<SyncAction | null>(null);
   const [applying, setApplying] = useState(false);
@@ -473,6 +474,19 @@ function RootComponent() {
       navigate({ to: "/" });
     }
   }, [session, pathname, navigate]);
+
+  // Hoist legacy inline base64 slide images into R2 once things have settled.
+  //
+  // Gated on there being no unresolved sync dialog: the migration rewrites sets
+  // and pushes them, and doing that while the user still has a Merge/Replace
+  // choice pending would commit edits they have not agreed to yet. The delay
+  // keeps it clear of the initial merge, and the store guards re-entry, so the
+  // repeat calls this effect makes on every session/dialog change are no-ops.
+  useEffect(() => {
+    if (!session || syncDiff || pathname.startsWith("/g/")) return;
+    const timer = setTimeout(() => migrateInlineImages(), 5000);
+    return () => clearTimeout(timer);
+  }, [session, syncDiff, pathname, migrateInlineImages]);
 
   const closeSyncDialog = () => {
     setSyncDiff(null);
