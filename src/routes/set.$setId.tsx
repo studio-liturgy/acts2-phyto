@@ -37,9 +37,9 @@ import {
   diatonicChords,
   stripChords,
   hideChords,
-  lyricsToNumbers,
+  inlineToChordRows,
   normaliseKeyTag,
-  numbersToLyrics,
+  readChordRows,
   reapplyChords,
   guessKey,
   hasChords,
@@ -1306,11 +1306,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const chordsHidden = !!chordCfg?.hidden;
   const numbersMode = !!chordCfg && !chordCfg.hidden && chordCfg.display === "numbers";
   const chordKey = chordCfg?.key ?? "C";
-  const boxText = chordsHidden
-    ? hideChords(lyrics)
-    : numbersMode
-      ? lyricsToNumbers(lyrics, chordKey)
-      : lyrics;
+  // Chords show as a row above the words they sit over, the way every chord
+  // sheet is written — inline brackets are hard to read mid-lyric. The row
+  // carries numbers instead of letters when that's the chosen display.
+  const chordLabel = numbersMode ? (c: string) => chordToNumber(c, chordKey) : (c: string) => c;
+  const boxText = chordsHidden ? hideChords(lyrics) : inlineToChordRows(lyrics, chordLabel);
   // Last caret position in the lyrics box. Null until it has been focused, so
   // a palette click before that appends rather than landing at position 0.
   const caretRef = useRef<number | null>(null);
@@ -1456,9 +1456,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     handleLyricsChange(
       chordsHidden
         ? reapplyChords(lyrics, val)
-        : numbersMode
-          ? numbersToLyrics(val, chordKey)
-          : val,
+        : readChordRows(val, lyrics, {
+            snap: false,
+            numbers: numbersMode,
+            render: chordLabel,
+          }),
     );
 
   const handleLyricsChange = (val: string) => {
@@ -1502,13 +1504,15 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       const current = useLibrary.getState().sets[setId]?.chords;
       if (current) updateSet(setId, { chords: { ...current, hidden: false } });
     }
-    commitFromBox(boxText.slice(0, selectionStart) + folded + boxText.slice(selectionEnd));
+    const asShown = chordsHidden ? folded : inlineToChordRows(folded, chordLabel);
+    commitFromBox(boxText.slice(0, selectionStart) + asShown + boxText.slice(selectionEnd));
   };
 
   /** Drop a chord in at the caret, from the palette of the key's seven chords. */
   const insertChord = (chord: string) => {
     const at = caretRef.current ?? boxText.length;
-    const token = `(${numbersMode ? chordToNumber(chord, chordKey) : chord})`;
+    // Bare label, no brackets: in the sheet view a chord is just text on a row.
+    const token = chordsHidden ? `(${chord})` : chordLabel(chord);
     commitFromBox(boxText.slice(0, at) + token + boxText.slice(at));
     const next = at + token.length;
     caretRef.current = next;
@@ -1707,7 +1711,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 redoLyrics();
               }
             }}
-            placeholder={`Paste lyrics here, or select a song above.\nUse --- to split slides. Label sections with [Verse 1], [Chorus], etc.\nChord sheets paste in as-is — chords above the lyrics are picked up.`}
+            placeholder={`Paste lyrics here, or select a song above.\nUse --- to split slides. Label sections with [Verse 1], [Chorus], etc.\nChord sheets paste in as-is — chords sit on their own row above the words.`}
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
         </div>

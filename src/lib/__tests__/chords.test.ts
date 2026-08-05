@@ -5,6 +5,8 @@ import {
   chordToNumber,
   diatonicChords,
   hideChords,
+  inlineToChordRows,
+  readChordRows,
   isNumberToken,
   lyricsToNumbers,
   numbersToLyrics,
@@ -326,6 +328,77 @@ describe("chordStreamToInline (WorshipTogether layout)", () => {
     expect(chordStreamToInline("Chorus\n  \nThe \nG \nword")).toBe("[Chorus]\nThe (G)word");
     // Not a section name, so it stays a lyric.
     expect(chordStreamToInline("Hello there\n  \nThe \nG \nword")).toBe("Hello there\nThe (G)word");
+  });
+});
+
+describe("inlineToChordRows / readChordRows (the editor's chord-sheet view)", () => {
+  const roundTrip = (stored: string) => readChordRows(inlineToChordRows(stored), stored);
+
+  it("lays chords out over the words they sit on", () => {
+    expect(inlineToChordRows("Bless the (C)Lord, O my (G)soul,")).toBe(
+      ["          C          G", "Bless the Lord, O my soul,"].join("\n"),
+    );
+  });
+
+  it("leaves a line without chords alone", () => {
+    expect(inlineToChordRows("[Verse 1]\nno chords here")).toBe("[Verse 1]\nno chords here");
+  });
+
+  it("stands an instrumental row on its own", () => {
+    expect(inlineToChordRows("(G) (C) (D)")).toBe("G C D");
+    expect(roundTrip("(G) (C) (D)")).toBe("(G) (C) (D)");
+  });
+
+  it("separates an instrumental row from the lyric under it", () => {
+    // Without the blank line the reader would fold these chords into the lyric.
+    expect(inlineToChordRows("(G) (C)\nAmazing grace")).toBe("G C\n\nAmazing grace");
+  });
+
+  it("returns unedited text byte for byte", () => {
+    for (const stored of [
+      "Amazing (G)grace how (C)sweet the sound",
+      "[Verse 1]\n(G)Holy is the (C)Lord\nplain line\n(Am)another",
+      "trailing chord here (D)",
+      "Ama(G)zing",
+      "no chords at all",
+      "",
+    ]) {
+      expect(roundTrip(stored), stored).toBe(stored);
+    }
+  });
+
+  // The row can't always state the true column: "Dsus4" is five wide but the
+  // next chord sits four characters later, so the label has to be nudged right.
+  // Reading columns alone would shift those chords on the first keystroke.
+  it("holds chords that are too close to lay out exactly", () => {
+    const stored = "the (Dsus4)even(D)ing (G)come(Gsus4)s";
+    const box = inlineToChordRows(stored);
+    expect(box).toBe("    Dsus4 D G   Gsus4\nthe evening comes");
+    // Columns alone drift the D from "even|ing" to "evenin|g".
+    expect(chordRowsToInline(box, { snap: false })).toBe("the (Dsus4)evenin(D)g (G)come(Gsus4)s");
+    // With the previous text to compare against, it survives untouched.
+    expect(readChordRows(box, stored)).toBe(stored);
+  });
+
+  it("re-derives only the line that changed", () => {
+    const stored = "(G)Holy is the (C)Lord\n(Am)God of (F)might";
+    const box = inlineToChordRows(stored);
+    const edited = box.replace("Holy is the Lord", "Holy is the King");
+    expect(readChordRows(edited, stored)).toBe("(G)Holy is the (C)King\n(Am)God of (F)might");
+  });
+
+  it("round-trips a numbered sheet", () => {
+    const stored = "(G)one (C)two";
+    const toNumber = (c: string) => chordToNumber(c, "G");
+    const box = inlineToChordRows(stored, toNumber);
+    expect(box).toBe("1   4\none two");
+    expect(readChordRows(box, stored, { numbers: true, render: toNumber })).toBe(stored);
+  });
+
+  it("still snaps by default, for sheets pasted from elsewhere", () => {
+    // Column 5 lands inside "Amazing", so snapping pulls it to the word start.
+    expect(chordRowsToInline("     G\nAmazing grace")).toBe("(G)Amazing grace");
+    expect(chordRowsToInline("     G\nAmazing grace", { snap: false })).toBe("Amazi(G)ng grace");
   });
 });
 

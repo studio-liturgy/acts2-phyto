@@ -451,9 +451,26 @@ export function guessKey(text: string): string | null {
  * True when every token on a line is a chord: an Ultimate Guitar style chord
  * row sitting above its lyric, or a standalone instrumental line.
  */
-export function isChordRow(line: string): boolean {
+export function isChordRow(line: string, opts: { numbers?: boolean } = {}): boolean {
   const tokens = line.trim().split(/\s+/).filter(Boolean);
-  return tokens.length > 0 && tokens.every(isChordToken);
+  if (tokens.length === 0) return false;
+  const ok = (t: string) => isChordToken(t) || (opts.numbers === true && isNumberToken(t));
+  return tokens.every(ok);
+}
+
+/** How a chord row is read back. */
+export interface ChordRowOpts {
+  /** How a chord label is written in the row, e.g. as a Nashville number. */
+  render?: (chord: string) => string;
+  /**
+   * Nudge a chord onto the word it lands over. Right for sheets pasted from
+   * elsewhere, where column alignment is approximate. Must be off when reading
+   * back our own editor output, or a deliberate mid-word chord would jump to
+   * the start of its word on the first keystroke.
+   */
+  snap?: boolean;
+  /** Treat Nashville numbers as chords, for reading back a numbered sheet. */
+  numbers?: boolean;
 }
 
 const SECTION_RE =
@@ -467,6 +484,90 @@ function bracketSectionLabel(line: string): string {
   const t = line.trim();
   if (!t || /^\[.+\]$/.test(t)) return line;
   return SECTION_RE.test(t) ? `[${t}]` : line;
+}
+
+/**
+ * Render inline-chord lyrics as a chord sheet — each lyric line preceded by a
+ * row carrying its chords at the columns they sit over. This is what the editor
+ * box shows; `chordRowsToInline(…, { snap: false })` reads it back, and the two
+ * round-trip so the box is never rewritten under the caret.
+ *
+ * No "." marker on the row: it would occupy a column and push every chord one
+ * character right of the word it belongs to.
+ */
+function renderOneLine(line: string, render: (chord: string) => string): string[] {
+  const { text: lyric, chords } = parseRawChordLine(line);
+  if (chords.length === 0) return [lyric];
+
+  let row = "";
+  for (const c of chords) {
+    // A label must never overrun the one before it; one space is the smallest
+    // gap that still reads as two chords rather than one. When that nudges a
+    // label off its true column the row can no longer state the exact anchor,
+    // which is what readChordRows' memory exists to cover.
+    const at = Math.max(c.index, row.length === 0 ? 0 : row.length + 1);
+    row = row.padEnd(at) + render(c.chord);
+  }
+  // An instrumental break has no lyric to sit above; the row stands alone.
+  return lyric.trim() === "" ? [row] : [row, lyric];
+}
+
+export function inlineToChordRows(
+  text: string,
+  render: (chord: string) => string = (c) => c,
+): string {
+  const lines = text.split("\n");
+  const out: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const rendered = renderOneLine(lines[i], render);
+    out.push(...rendered);
+    // A lone row followed by a lyric would be read back as that lyric's chords,
+    // so a blank line keeps the instrumental break separate.
+    if (rendered.length === 1 && rendered[0].trim() !== "" && isChordRow(rendered[0])) {
+      const next = lines[i + 1];
+      if (next !== undefined && next.trim() !== "") out.push("");
+    }
+  }
+  return out.join("\n");
+}
+
+/**
+ * Read the editor's chord-sheet view back into inline chords.
+ *
+ * Columns alone are not enough to recover the anchors: a wide label followed by
+ * a close one gets nudged right to keep the two readable, so re-deriving from
+ * the row would shift those chords a character or two on the very first
+ * keystroke. `previous` is the stored text the box was rendered from — any
+ * (row, lyric) pair still matching what that text produced is passed straight
+ * through, so only lines actually edited are re-derived.
+ */
+export function readChordRows(box: string, previous: string, opts: ChordRowOpts = {}): string {
+  const render = opts.render ?? ((c: string) => c);
+  const memory = new Map<string, string>();
+  for (const line of previous.split("\n")) {
+    memory.set(renderOneLine(line, render).join("\n"), line);
+  }
+
+  const rowOpts = { numbers: opts.numbers === true };
+  const lines = box.split("\n");
+  const out: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const isRow = isChordRow(lines[i], rowOpts);
+    const next = lines[i + 1];
+    const pairs = isRow && next !== undefined && next.trim() !== "" && !isChordRow(next, rowOpts);
+    const chunk = pairs ? `${lines[i]}\n${next}` : lines[i];
+
+    const remembered = memory.get(chunk);
+    if (remembered !== undefined) {
+      out.push(remembered);
+    } else {
+      out.push(chordRowsToInline(chunk, opts));
+    }
+    if (pairs) i++;
+  }
+  return out.join("\n");
 }
 
 /**
@@ -546,11 +647,13 @@ export function normaliseChordSheet(text: string): string {
  * as "A", and one stray match shouldn't rewrite someone's lyrics.
  */
 export function looksLikeChordSheet(text: string): boolean {
-  return text.split("\n").filter(isChordRow).length >= 2;
+  // Wrapped rather than passed by reference: filter would hand the index in as
+  // the options argument.
+  return text.split("\n").filter((line) => isChordRow(line)).length >= 2;
 }
 
 /** Merge one column-positioned chord row onto the lyric line beneath it. */
-function mergeChordRow(row: string, lyric: string): string {
+function mergeChordRow(row: string, lyric: string, snap: boolean): string {
   const anchors: { col: number; chord: string }[] = [];
   for (const m of row.matchAll(/\S+/g)) anchors.push({ col: m.index, chord: m[0] });
 
@@ -559,6 +662,11 @@ function mergeChordRow(row: string, lyric: string): string {
 
   for (const a of anchors) {
     let col = Math.min(a.col, lyric.length);
+    if (!snap) {
+      // Exact column, which is what makes our own output round-trip.
+      placed.push({ col, chord: a.chord });
+      continue;
+    }
     if (col < lyric.length && /\s/.test(lyric[col])) {
       // Sitting in a gap: slide forward onto the next word.
       while (col < lyric.length && /\s/.test(lyric[col])) col++;
@@ -589,18 +697,20 @@ function mergeChordRow(row: string, lyric: string): string {
  * Text with no chord rows is returned unchanged, so this is safe to run over
  * any paste.
  */
-export function chordRowsToInline(text: string): string {
+export function chordRowsToInline(text: string, opts: ChordRowOpts = {}): string {
+  const snap = opts.snap ?? true;
+  const rowOpts = { numbers: opts.numbers === true };
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const out: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const row = lines[i];
-    if (!isChordRow(row)) {
+    if (!isChordRow(row, rowOpts)) {
       out.push(bracketSectionLabel(row));
       continue;
     }
     const next = lines[i + 1];
-    if (next === undefined || next.trim() === "" || isChordRow(next)) {
+    if (next === undefined || next.trim() === "" || isChordRow(next, rowOpts)) {
       // Nothing to sit above: an instrumental break in its own right.
       out.push(
         row
@@ -611,7 +721,7 @@ export function chordRowsToInline(text: string): string {
       );
       continue;
     }
-    out.push(mergeChordRow(row, next));
+    out.push(mergeChordRow(row, next, snap));
     i++; // the lyric line has been folded in
   }
   return out.join("\n");
