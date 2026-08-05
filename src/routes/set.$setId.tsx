@@ -27,12 +27,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ChordLine } from "@/components/ChordLine";
 import {
-  chordRowsToInline,
+  diatonicChords,
   guessKey,
   hasChords,
   isChordOnlyLine,
   KEYS,
-  looksLikeChordSheet,
+  normaliseChordSheet,
+  renderChord,
+  transposeLyrics,
   type SongChords,
 } from "@/lib/chords";
 import {
@@ -968,10 +970,16 @@ const SELECT_CLASS =
 function ChordControls({
   setId,
   lyrics,
+  onLyricsChange,
+  onInsertChord,
   children,
 }: {
   setId: string;
   lyrics: string;
+  /** Used to rewrite every chord in the lyrics when the key changes. */
+  onLyricsChange: (next: string) => void;
+  /** Drop a chord in at the caret, from the palette below. */
+  onInsertChord: (chord: string) => void;
   /** Rendered to the left of the Chords switch, sharing its row. */
   children?: ReactNode;
 }) {
@@ -979,8 +987,14 @@ function ChordControls({
   const chords = useLibrary((s) => s.sets[setId]?.chords);
   const detected = hasChords(lyrics);
 
-  const patchChords = (patch: Partial<SongChords>) =>
-    updateSet(setId, { chords: { ...(chords ?? { key: "G", display: "letters" }), ...patch } });
+  // Transposing rewrites the chords in the lyrics themselves and carries `key`
+  // along with them, so the Key box always states what is actually stored.
+  // That is what lets numbers be derived without a separate "written in" key.
+  const changeKey = (next: string) => {
+    if (!chords || next === chords.key) return;
+    onLyricsChange(transposeLyrics(lyrics, chords.key, next));
+    updateSet(setId, { chords: { ...chords, key: next } });
+  };
 
   // NB: turning chords on automatically is driven from handleLyricsChange, not
   // from an effect on `lyrics`. `lyrics` starts empty and is only then filled in
@@ -991,7 +1005,7 @@ function ChordControls({
     <div className="mt-3">
       <div className="flex items-center gap-2">
         {children}
-        <span className="mono ml-auto text-[10px] uppercase tracking-wider">Chords</span>
+        <span className="mono text-[10px] uppercase tracking-wider">Chords</span>
         <Switch
           checked={!!chords}
           onCheckedChange={(on) =>
@@ -1004,37 +1018,19 @@ function ChordControls({
       </div>
 
       {chords && (
-        <div className="mt-3 space-y-2 border-t border-foreground/15 pt-3">
+        <div className="mt-3 space-y-3 border-t border-foreground/15 pt-3">
           <p className="mono text-[10px] leading-relaxed text-muted-foreground">
-            Type chords in round brackets:{" "}
-            <span className="text-foreground">Amazing (G)grace how (C)sweet</span>. They never show
-            on the projector.
+            Paste a chord sheet, or type chords in round brackets:{" "}
+            <span className="text-foreground">Amazing (G)grace</span>. They never show on the
+            projector.
           </p>
 
           <div className="flex items-center gap-2">
-            <span className="mono w-20 shrink-0 text-[10px] uppercase tracking-wider">
-              Written in
-            </span>
-            <select
-              value={chords.key}
-              onChange={(e) => patchChords({ key: e.target.value })}
-              className={SELECT_CLASS}
-            >
-              {KEYS.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="mono w-20 shrink-0 text-[10px] uppercase tracking-wider">Show as</span>
             {(["letters", "numbers"] as const).map((d) => (
               <button
                 key={d}
                 type="button"
-                onClick={() => patchChords({ display: d })}
+                onClick={() => updateSet(setId, { chords: { ...chords, display: d } })}
                 className={`pill mono h-7 border border-foreground px-3 text-xs uppercase transition ${
                   chords.display === d
                     ? "bg-foreground text-background"
@@ -1044,32 +1040,46 @@ function ChordControls({
                 {d}
               </button>
             ))}
+
+            {chords.display === "letters" && (
+              <>
+                <span className="mono ml-1 shrink-0 text-[10px] uppercase tracking-wider">Key</span>
+                <select
+                  value={chords.key}
+                  onChange={(e) => changeKey(e.target.value)}
+                  className={SELECT_CLASS}
+                >
+                  {KEYS.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
 
-          {chords.display === "letters" && (
-            <div className="flex items-center gap-2">
-              <span className="mono w-20 shrink-0 text-[10px] uppercase tracking-wider">
-                Transpose
-              </span>
-              <select
-                value={chords.showInKey || chords.key}
-                onChange={(e) => patchChords({ showInKey: e.target.value })}
-                className={SELECT_CLASS}
+          {/* The seven chords of the key. Click to drop one in at the caret;
+              mousedown is swallowed so the textarea keeps focus and the caret
+              stays where the user left it. */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {diatonicChords(chords.key).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onInsertChord(c)}
+                title={`Insert ${c}`}
+                className="mono flex h-9 w-9 items-center justify-center rounded-full border border-foreground text-[10px] tracking-tight transition hover:bg-foreground hover:text-background"
               >
-                {KEYS.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                    {k === chords.key ? " (original)" : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+                {renderChord(c, chords)}
+              </button>
+            ))}
+          </div>
 
           {!detected && (
             <p className="mono text-[10px] leading-relaxed text-muted-foreground">
-              No chords in the lyrics yet: add them in round brackets, like{" "}
-              <span className="text-foreground">(G)grace</span>.
+              No chords in the lyrics yet.
             </p>
           )}
         </div>
@@ -1099,9 +1109,7 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
       <div className="mono mb-3 flex items-baseline justify-between gap-2 text-[10px] uppercase tracking-wider">
         <span>Chord sheet</span>
         <span className="text-muted-foreground">
-          {chords.display === "numbers"
-            ? `Numbers in ${chords.key}`
-            : `Key of ${chords.showInKey || chords.key}`}
+          {chords.display === "numbers" ? `Numbers in ${chords.key}` : `Key of ${chords.key}`}
         </span>
       </div>
       <div className="max-h-72 space-y-3 overflow-y-auto pr-1 text-sm">
@@ -1120,7 +1128,7 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
                   chords={chords}
                   show
                   className="leading-relaxed"
-                  chordClassName="text-[0.8em] font-semibold text-[var(--brand-blue)]"
+                  chordClassName="text-[0.8em] font-semibold"
                 />
               ))}
             </div>
@@ -1156,6 +1164,10 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [songErr, setSongErr] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ text: string; x: number; y: number } | null>(null);
   const searchSeq = useRef(0);
+  const lyricsRef = useRef<HTMLTextAreaElement>(null);
+  // Last caret position in the lyrics box. Null until it has been focused, so
+  // a palette click before that appends rather than landing at position 0.
+  const caretRef = useRef<number | null>(null);
 
   const [pendingLinesPerConfirm, setPendingLinesPerConfirm] = useState<number | null>(null);
   const [versionOpen, setVersionOpen] = useState(false);
@@ -1270,19 +1282,32 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   };
 
   /**
-   * Paste from Ultimate Guitar and friends, where chords sit on their own line
-   * above the lyric. Folded into the inline bracket format on the way in so the
-   * rest of the app only ever deals with one representation. Anything that
-   * isn't chord-shaped falls through to the browser's own paste.
+   * Paste a chord sheet in any of the layouts these sites produce — Ultimate
+   * Guitar's column-aligned chord rows, or WorshipTogether's one-chord-per-line
+   * stream. Folded into the inline bracket format on the way in so the rest of
+   * the app only ever deals with one representation. Anything that isn't
+   * chord-shaped falls through to the browser's own paste.
    */
   const handleLyricsPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const pasted = e.clipboardData.getData("text");
-    if (!looksLikeChordSheet(pasted)) return;
+    const folded = normaliseChordSheet(pasted);
+    if (folded === pasted) return; // nothing chord-shaped — let the browser paste
     const { selectionStart, selectionEnd } = e.currentTarget;
     e.preventDefault();
-    handleLyricsChange(
-      lyrics.slice(0, selectionStart) + chordRowsToInline(pasted) + lyrics.slice(selectionEnd),
-    );
+    handleLyricsChange(lyrics.slice(0, selectionStart) + folded + lyrics.slice(selectionEnd));
+  };
+
+  /** Drop a chord in at the caret, from the palette of the key's seven chords. */
+  const insertChord = (chord: string) => {
+    const at = caretRef.current ?? lyrics.length;
+    const token = `(${chord})`;
+    handleLyricsChange(lyrics.slice(0, at) + token + lyrics.slice(at));
+    const next = at + token.length;
+    caretRef.current = next;
+    requestAnimationFrame(() => {
+      lyricsRef.current?.focus();
+      lyricsRef.current?.setSelectionRange(next, next);
+    });
   };
 
   const importScriptureWith = async (vPer: number) => {
@@ -1367,6 +1392,13 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                     {showDivider && <div className="mx-2 my-1 h-px bg-[var(--brand-blue)]" />}
                     <button
                       onClick={() => {
+                        // Bumping the sequence retires the online half of the
+                        // search that is still in flight. Without it, results
+                        // arriving after the click paint back over the song
+                        // the user already picked.
+                        searchSeq.current++;
+                        setSongSearching(false);
+                        setSongErr(null);
                         setLyrics(applyDividers(s.lyrics, linesPer));
                         setSongResults([]);
                         setPreview(null);
@@ -1401,7 +1433,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           )}
 
           {/* Lines per slide, sharing a row with the chords switch */}
-          <ChordControls setId={setId} lyrics={lyrics}>
+          <ChordControls
+            setId={setId}
+            lyrics={lyrics}
+            onLyricsChange={setLyrics}
+            onInsertChord={insertChord}
+          >
             <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
             <input
               type="number"
@@ -1426,8 +1463,10 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         <div className="min-h-0 flex-1 overflow-hidden">
           <Textarea
             value={lyrics}
+            ref={lyricsRef}
             onChange={(e) => handleLyricsChange(e.target.value)}
             onPaste={handleLyricsPaste}
+            onSelect={(e) => (caretRef.current = e.currentTarget.selectionStart)}
             placeholder={`Paste lyrics here, or select a song above.\nUse --- to split slides. Label sections with [Verse 1], [Chorus], etc.\nChord sheets paste in as-is — chords above the lyrics are picked up.`}
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />

@@ -18,12 +18,12 @@
 export type ChordDisplay = "letters" | "numbers";
 
 export interface SongChords {
-  /** Key the chords were written in. Required to render numbers or transpose. */
+  /** The key the chord text is currently written in. Transposing rewrites every
+   *  chord in the lyrics and moves this with them, so it is always the truth
+   *  about what is stored — which is what lets numbers be derived from it. */
   key: string;
   /** How chords render wherever they're visible. */
   display: ChordDisplay;
-  /** `display: "letters"` only — render transposed into this key. Defaults to `key`. */
-  showInKey?: string;
 }
 
 /** The twelve keys offered in the editor, indexed by semitone from C. */
@@ -116,10 +116,33 @@ export function chordToNumber(token: string, key: string): string {
   return out;
 }
 
-/** Render a chord token the way the song is configured to display it. */
+/** Render a chord token the way the song is configured to display it. The text
+ *  is already stored in `cfg.key`, so letters need no work. */
 export function renderChord(token: string, cfg: SongChords): string {
-  if (cfg.display === "numbers") return chordToNumber(token, cfg.key);
-  return transposeChord(token, cfg.key, cfg.showInKey || cfg.key);
+  return cfg.display === "numbers" ? chordToNumber(token, cfg.key) : token;
+}
+
+/**
+ * Rewrite every inline chord in a block of lyrics into a new key. Parentheses
+ * that aren't chords — "(x2)", "(repeat)" — are left exactly as they are.
+ */
+export function transposeLyrics(text: string, fromKey: string, toKey: string): string {
+  if (fromKey === toKey) return text;
+  return text.replace(/\(([^()\s]+)\)/g, (whole, token: string) =>
+    isChordToken(token) ? `(${transposeChord(token, fromKey, toKey)})` : whole,
+  );
+}
+
+/**
+ * The seven diatonic triads of a major key, in scale order — in G that is
+ * G Am Bm C D Em F#dim. This is the chord palette for the key.
+ */
+export function diatonicChords(key: string): string[] {
+  const tonic = pitchOf(key);
+  if (tonic === null) return [];
+  const STEPS = [0, 2, 4, 5, 7, 9, 11];
+  const QUALITIES = ["", "m", "m", "", "", "m", "dim"];
+  return STEPS.map((step, i) => spell(tonic + step, key) + QUALITIES[i]);
 }
 
 export interface ChordAnchor {
@@ -219,6 +242,89 @@ export function isChordRow(line: string): boolean {
   return tokens.length > 0 && tokens.every(isChordToken);
 }
 
+const SECTION_RE =
+  /^(intro|verse|chorus|pre[-\s]?chorus|bridge|outro|tag|interlude|refrain|instrumental|ending|vamp|turnaround)\s*\d*$/i;
+
+/**
+ * Bare section labels like "Verse 1" become `[Verse 1]`, so they group slides
+ * instead of being projected as a lyric. Already-bracketed labels pass through.
+ */
+function bracketSectionLabel(line: string): string {
+  const t = line.trim();
+  if (!t || /^\[.+\]$/.test(t)) return line;
+  return SECTION_RE.test(t) ? `[${t}]` : line;
+}
+
+/**
+ * Whether the text uses the one-chord-per-line layout that WorshipTogether,
+ * SongSelect and similar sites produce when copied: each chord on its own line
+ * with the lyric split into runs around it.
+ *
+ * The tell is a lyric run left hanging on a trailing space. That space is the
+ * gap before the next word, so it means the chord that follows sits *inside*
+ * that line rather than starting the next one.
+ */
+export function looksLikeChordStream(text: string): boolean {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  let hits = 0;
+  for (let i = 1; i < lines.length; i++) {
+    const prev = lines[i - 1];
+    if (!isChordRow(lines[i])) continue;
+    if (prev.trim() !== "" && !isChordRow(prev) && /\s$/.test(prev)) hits++;
+  }
+  return hits >= 2;
+}
+
+/** Fold the one-chord-per-line layout into the inline bracket format. */
+export function chordStreamToInline(text: string): string {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const out: string[] = [];
+  let buf = "";
+
+  const flush = () => {
+    const line = buf.replace(/\s+$/, "");
+    if (line) out.push(line);
+    buf = "";
+  };
+
+  for (const raw of lines) {
+    if (raw.trim() === "") {
+      flush();
+      continue;
+    }
+    if (isChordRow(raw)) {
+      // The run before this one ended cleanly, so the chord opens a new line.
+      if (buf !== "" && !/\s$/.test(buf)) flush();
+      buf += raw
+        .trim()
+        .split(/\s+/)
+        .map((c) => `(${c})`)
+        .join("");
+      continue;
+    }
+    const labelled = bracketSectionLabel(raw);
+    if (labelled !== raw) {
+      flush();
+      out.push(labelled);
+      continue;
+    }
+    buf += raw;
+  }
+  flush();
+  return out.join("\n");
+}
+
+/**
+ * Fold any recognised chord-sheet layout into the inline bracket format, so the
+ * rest of the app only ever deals with one representation. Text that isn't
+ * chord-shaped comes back untouched, making this safe to run over any paste.
+ */
+export function normaliseChordSheet(text: string): string {
+  if (looksLikeChordStream(text)) return chordStreamToInline(text);
+  if (looksLikeChordSheet(text)) return chordRowsToInline(text);
+  return text;
+}
+
 /**
  * Whether a block of text is worth running `chordRowsToInline` over. Requires
  * two or more chord rows: a real chord sheet always has several, whereas a
@@ -276,7 +382,7 @@ export function chordRowsToInline(text: string): string {
   for (let i = 0; i < lines.length; i++) {
     const row = lines[i];
     if (!isChordRow(row)) {
-      out.push(row);
+      out.push(bracketSectionLabel(row));
       continue;
     }
     const next = lines[i + 1];

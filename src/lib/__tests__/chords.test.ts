@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   chordRowsToInline,
+  chordStreamToInline,
   chordToNumber,
+  diatonicChords,
+  looksLikeChordStream,
+  normaliseChordSheet,
+  transposeLyrics,
   guessKey,
   isChordRow,
   looksLikeChordSheet,
@@ -197,7 +202,6 @@ describe("renderChord", () => {
   it("follows the song's display setting", () => {
     expect(renderChord("Am", { key: "G", display: "numbers" })).toBe("2m");
     expect(renderChord("Am", { key: "G", display: "letters" })).toBe("Am");
-    expect(renderChord("Am", { key: "G", display: "letters", showInKey: "A" })).toBe("Bm");
   });
 });
 
@@ -262,6 +266,102 @@ describe("chordRowsToInline", () => {
     expect(text).toBe("The lifting of my hands");
     expect(chords).toEqual([{ chord: "Am", index: 4 }]);
     expect(text.slice(4, 11)).toBe("lifting");
+  });
+});
+
+describe("chordStreamToInline (WorshipTogether layout)", () => {
+  // One chord per line, lyric split into runs around it. The trailing space on
+  // a run is what says "the next chord is inside this line".
+  const WT = [
+    "Verse 1",
+    "  ",
+    "The ",
+    "G ",
+    "splendor of the ",
+    "D/F# ",
+    "King",
+    " Em7 ",
+    "Clothed in majesty",
+    "  ",
+    "Let all the earth ",
+    "Cmaj7 ",
+    "rejoice",
+    "  ",
+    "All the earth rejoice",
+  ].join("\n");
+
+  it("is recognised as a stream, not a column sheet", () => {
+    expect(looksLikeChordStream(WT)).toBe(true);
+    expect(looksLikeChordStream("C\nfirst line\nAm\nsecond line")).toBe(false);
+  });
+
+  it("rebuilds the original lines", () => {
+    expect(normaliseChordSheet(WT)).toBe(
+      [
+        "[Verse 1]",
+        "The (G)splendor of the (D/F#)King",
+        "(Em7)Clothed in majesty",
+        "Let all the earth (Cmaj7)rejoice",
+        "All the earth rejoice",
+      ].join("\n"),
+    );
+  });
+
+  it("breaks the line when a run ends without a trailing space", () => {
+    // "King" is complete, so Em7 belongs to the next line, not to "King".
+    expect(chordStreamToInline("King\n Em7 \nClothed")).toBe("King\n(Em7)Clothed");
+    // "The " is mid-phrase, so G stays inside the line.
+    expect(chordStreamToInline("The \nG \nsplendor")).toBe("The (G)splendor");
+  });
+
+  it("brackets bare section labels so they aren't projected", () => {
+    expect(chordStreamToInline("Verse 1\n  \nThe \nG \nword")).toBe("[Verse 1]\nThe (G)word");
+    expect(chordStreamToInline("Chorus\n  \nThe \nG \nword")).toBe("[Chorus]\nThe (G)word");
+    // Not a section name, so it stays a lyric.
+    expect(chordStreamToInline("Hello there\n  \nThe \nG \nword")).toBe("Hello there\nThe (G)word");
+  });
+});
+
+describe("transposeLyrics", () => {
+  it("moves every chord and leaves other brackets alone", () => {
+    expect(transposeLyrics("Amazing (G)grace how (Am)sweet (x2)", "G", "A")).toBe(
+      "Amazing (A)grace how (Bm)sweet (x2)",
+    );
+  });
+
+  it("round-trips back to the original spelling", () => {
+    const original = "(G)one (Em)two (C)three (D/F#)four";
+    const there = transposeLyrics(original, "G", "Bb");
+    expect(there).toBe("(Bb)one (Gm)two (Eb)three (F/A)four");
+    expect(transposeLyrics(there, "Bb", "G")).toBe(original);
+  });
+
+  it("is a no-op when the key doesn't change", () => {
+    expect(transposeLyrics("(G)x", "G", "G")).toBe("(G)x");
+  });
+});
+
+describe("diatonicChords", () => {
+  it("gives the chord palette for a key", () => {
+    expect(diatonicChords("G")).toEqual(["G", "Am", "Bm", "C", "D", "Em", "F#dim"]);
+    expect(diatonicChords("C")).toEqual(["C", "Dm", "Em", "F", "G", "Am", "Bdim"]);
+  });
+
+  it("spells a flat key with flats", () => {
+    expect(diatonicChords("F")).toEqual(["F", "Gm", "Am", "Bb", "C", "Dm", "Edim"]);
+    expect(diatonicChords("Eb")).toEqual(["Eb", "Fm", "Gm", "Ab", "Bb", "Cm", "Ddim"]);
+  });
+
+  it("numbers the palette consistently", () => {
+    expect(diatonicChords("G").map((c) => chordToNumber(c, "G"))).toEqual([
+      "1",
+      "2m",
+      "3m",
+      "4",
+      "5",
+      "6m",
+      "7dim",
+    ]);
   });
 });
 
