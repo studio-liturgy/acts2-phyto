@@ -25,6 +25,12 @@ import { SlideView } from "@/components/SlideView";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ChordLine } from "@/components/ChordLine";
 import {
   diatonicChords,
@@ -961,9 +967,6 @@ function applyDividers(text: string, linesPer: number): string {
   return out.join("\n");
 }
 
-const SELECT_CLASS =
-  "pill mono h-7 border border-foreground bg-background px-3 text-xs uppercase outline-none";
-
 /**
  * Chord settings for a song. Chords are typed inline in the lyrics as `(G)`;
  * this panel records the key they were written in and picks how they render on
@@ -1051,17 +1054,27 @@ function ChordControls({
             {chords.display === "letters" && (
               <>
                 <span className="mono ml-1 shrink-0 text-[10px] uppercase tracking-wider">Key</span>
-                <select
-                  value={chords.key}
-                  onChange={(e) => changeKey(e.target.value)}
-                  className={SELECT_CLASS}
-                >
-                  {KEYS.map((k) => (
-                    <option key={k} value={k}>
-                      {k}
-                    </option>
-                  ))}
-                </select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    {/* pr sits wider than pl so the chevron tucks in from the
+                        pill's right edge rather than hugging it. */}
+                    <button className="pill mono uppercase flex h-7 items-center gap-1.5 border border-foreground bg-background pl-3 pr-2.5 text-xs tracking-wider transition hover:bg-muted">
+                      {chords.key}
+                      <ChevronDown className="h-3 w-3 shrink-0" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="min-w-0">
+                    {KEYS.map((k) => (
+                      <DropdownMenuItem
+                        key={k}
+                        onClick={() => changeKey(k)}
+                        className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
+                      >
+                        {k}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )}
           </div>
