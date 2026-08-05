@@ -376,36 +376,6 @@ function GatheringViewer() {
               </div>
 
               <div className="space-y-4 text-sm">
-                {/* Chords — only for gatherings that actually have any */}
-                {sets.some((vs) => setHasChords(vs.set)) && (
-                  <div>
-                    <div className="mb-2 text-[10px] uppercase tracking-wider">Chords</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {([false, true] as const).map((on) => {
-                        const active = prefs.showChords === on;
-                        return (
-                          <button
-                            key={String(on)}
-                            onClick={() => setPrefs((p) => ({ ...p, showChords: on }))}
-                            style={{ fontFamily: "Arial, sans-serif" }}
-                            className={`rounded-lg border px-3 py-2 text-xs transition ${
-                              active
-                                ? prefs.isDark
-                                  ? "border-white bg-white text-black"
-                                  : "border-black bg-black text-white"
-                                : prefs.isDark
-                                  ? "border-white/20 hover:border-white"
-                                  : "border-black/20 hover:border-black"
-                            }`}
-                          >
-                            {on ? "Show" : "Hide"}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
                 {/* Font size */}
                 <div>
                   <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
@@ -475,6 +445,36 @@ function GatheringViewer() {
                     </button>
                   </div>
                 </div>
+
+                {/* Chords — only for gatherings that actually have any */}
+                {sets.some((vs) => setHasChords(vs.set)) && (
+                  <div>
+                    <div className="mb-2 text-[10px] uppercase tracking-wider">Chords</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([false, true] as const).map((on) => {
+                        const active = prefs.showChords === on;
+                        return (
+                          <button
+                            key={String(on)}
+                            onClick={() => setPrefs((p) => ({ ...p, showChords: on }))}
+                            style={{ fontFamily: "Arial, sans-serif" }}
+                            className={`rounded-lg border px-3 py-2 text-xs transition ${
+                              active
+                                ? prefs.isDark
+                                  ? "border-white bg-white text-black"
+                                  : "border-black bg-black text-white"
+                                : prefs.isDark
+                                  ? "border-white/20 hover:border-white"
+                                  : "border-black/20 hover:border-black"
+                            }`}
+                          >
+                            {on ? "Show" : "Hide"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -681,13 +681,12 @@ function SlideBlock({
           chords={chords}
           show={showChords}
           className="leading-relaxed"
-          // 0.7em so chords track the viewer's own font-size slider. The blues
-          // are set per background rather than via --brand-blue: this route
-          // themes itself off `prefs.isDark` and never carries the `.dark`
-          // class, so it would always get the light value (3.9:1 on black).
-          chordClassName={`text-[0.7em] font-semibold ${
-            isDark ? "text-[#7FB9DA]" : "text-[#2E7299]"
-          }`}
+          // 0.7em so chords track the viewer's own font-size slider. Colour is
+          // inherited rather than set: white on the dark theme, black on light.
+          // Space Mono has to be inline — the viewer's font picker sets a
+          // font-family on an ancestor that a class would lose to.
+          chordClassName="text-[0.7em] font-semibold"
+          chordStyle={{ fontFamily: "'Space Mono', monospace" }}
         />
       ))}
     </div>

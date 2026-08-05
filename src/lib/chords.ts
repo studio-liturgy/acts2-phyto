@@ -210,6 +210,93 @@ export function guessKey(text: string): string | null {
   return null;
 }
 
+/**
+ * True when every token on a line is a chord: an Ultimate Guitar style chord
+ * row sitting above its lyric, or a standalone instrumental line.
+ */
+export function isChordRow(line: string): boolean {
+  const tokens = line.trim().split(/\s+/).filter(Boolean);
+  return tokens.length > 0 && tokens.every(isChordToken);
+}
+
+/**
+ * Whether a block of text is worth running `chordRowsToInline` over. Requires
+ * two or more chord rows: a real chord sheet always has several, whereas a
+ * plain lyric only ever trips `isChordRow` by accident on a one-word line such
+ * as "A", and one stray match shouldn't rewrite someone's lyrics.
+ */
+export function looksLikeChordSheet(text: string): boolean {
+  return text.split("\n").filter(isChordRow).length >= 2;
+}
+
+/** Merge one column-positioned chord row onto the lyric line beneath it. */
+function mergeChordRow(row: string, lyric: string): string {
+  const anchors: { col: number; chord: string }[] = [];
+  for (const m of row.matchAll(/\S+/g)) anchors.push({ col: m.index, chord: m[0] });
+
+  const taken = new Set<number>();
+  const placed: { col: number; chord: string }[] = [];
+
+  for (const a of anchors) {
+    let col = Math.min(a.col, lyric.length);
+    if (col < lyric.length && /\s/.test(lyric[col])) {
+      // Sitting in a gap: slide forward onto the next word.
+      while (col < lyric.length && /\s/.test(lyric[col])) col++;
+    } else {
+      // Sitting inside a word: snap back to its first letter, since chord-sheet
+      // alignment is approximate and a chord over "You|r" means "Your".
+      let start = col;
+      while (start > 0 && !/\s/.test(lyric[start - 1])) start--;
+      // Unless an earlier chord already claimed that word, in which case a real
+      // mid-word change was intended and the exact column is kept.
+      if (!taken.has(start)) col = start;
+    }
+    taken.add(col);
+    placed.push({ col, chord: a.chord });
+  }
+
+  let out = lyric;
+  // Insert right-to-left so the earlier offsets stay valid.
+  for (const p of [...placed].sort((x, y) => y.col - x.col)) {
+    out = out.slice(0, p.col) + `(${p.chord})` + out.slice(p.col);
+  }
+  return out;
+}
+
+/**
+ * Convert an Ultimate Guitar style chord sheet, where chords sit on their own
+ * line positioned by column above the lyric, into the inline bracket format.
+ * Text with no chord rows is returned unchanged, so this is safe to run over
+ * any paste.
+ */
+export function chordRowsToInline(text: string): string {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const out: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const row = lines[i];
+    if (!isChordRow(row)) {
+      out.push(row);
+      continue;
+    }
+    const next = lines[i + 1];
+    if (next === undefined || next.trim() === "" || isChordRow(next)) {
+      // Nothing to sit above: an instrumental break in its own right.
+      out.push(
+        row
+          .trim()
+          .split(/\s+/)
+          .map((c) => `(${c})`)
+          .join(" "),
+      );
+      continue;
+    }
+    out.push(mergeChordRow(row, next));
+    i++; // the lyric line has been folded in
+  }
+  return out.join("\n");
+}
+
 export interface ChordSegment {
   /** Chord sitting above this segment, already rendered for display. */
   chord?: string;

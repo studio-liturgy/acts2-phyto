@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, type CSSProperties } from "react";
 import { parseChordLine, renderChord, toChordSegments, type SongChords } from "@/lib/chords";
 
 interface Props {
@@ -11,6 +11,9 @@ interface Props {
   className?: string;
   /** Styling for the chord row — callers set colour/weight to suit their surface. */
   chordClassName?: string;
+  /** Inline chord-row style, for what a class can't override (e.g. a font-family
+   *  set on an ancestor by the viewer's own font picker). */
+  chordStyle?: CSSProperties;
 }
 
 /**
@@ -28,6 +31,7 @@ export function ChordLine({
   show = false,
   className = "",
   chordClassName = "",
+  chordStyle,
 }: Props) {
   const parsed = parseChordLine(line);
   const visible = show && !!chords && parsed.chords.length > 0;
@@ -57,7 +61,9 @@ export function ChordLine({
           <span className="inline-block align-bottom">
             {/* Explicit NBSP: keeps the empty chord row at full height so
                 every word in the line shares one baseline. */}
-            <span className={`block leading-tight ${chordClassName}`}>{seg.chord ?? "\u00A0"}</span>
+            <span className={`block leading-tight ${chordClassName}`} style={chordStyle}>
+              {seg.chord ?? "\u00A0"}
+            </span>
             <span className="block">{seg.text || "\u00A0"}</span>
           </span>
           {seg.space ? " " : null}

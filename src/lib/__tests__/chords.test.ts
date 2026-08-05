@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  chordRowsToInline,
   chordToNumber,
   guessKey,
+  isChordRow,
+  looksLikeChordSheet,
   hasChords,
   isChordOnlyLine,
   isChordToken,
@@ -208,6 +211,74 @@ describe("guessKey / hasChords", () => {
   it("detects chords anywhere in the lyrics", () => {
     expect(hasChords("line one\nAmazing (G)grace")).toBe(true);
     expect(hasChords("line one (x2)\nline two")).toBe(false);
+  });
+});
+
+describe("chordRowsToInline", () => {
+  it("folds an Ultimate Guitar sheet onto its lyrics", () => {
+    const ug = [
+      "C",
+      "May my prayer like incense rise before You",
+      "    Am",
+      "The lifting of my hands a sacrifice",
+    ].join("\n");
+    expect(chordRowsToInline(ug)).toBe(
+      [
+        "(C)May my prayer like incense rise before You",
+        "The (Am)lifting of my hands a sacrifice",
+      ].join("\n"),
+    );
+  });
+
+  it("snaps a chord landing mid-word back onto that word", () => {
+    // The G sits at column 32, inside "You|r" — chord-sheet alignment is
+    // approximate, so it belongs to "Your".
+    const ug = [
+      "   Dm                           G",
+      "For I know there is mercy in Your sight",
+    ].join("\n");
+    expect(chordRowsToInline(ug)).toBe("For (Dm)I know there is mercy in (G)Your sight");
+  });
+
+  it("keeps the exact column when two chords share one word", () => {
+    // Both land inside "Amazing"; the second is a real mid-word change.
+    expect(chordRowsToInline("C    G\nAmazing")).toBe("(C)Amazi(G)ng");
+  });
+
+  it("turns a chord row with no lyric under it into an instrumental line", () => {
+    expect(chordRowsToInline("G  C  D\n\nnext bit")).toBe("(G) (C) (D)\n\nnext bit");
+    // "Am" is followed by another chord row, so only "F" gets a lyric.
+    expect(chordRowsToInline("Am\nF\nlyric")).toBe("(Am)\n(F)lyric");
+  });
+
+  it("leaves text with no chord rows untouched", () => {
+    const plain = "Amazing grace how sweet the sound\nThat saved a wretch like me";
+    expect(chordRowsToInline(plain)).toBe(plain);
+  });
+
+  it("round-trips back to the same anchors", () => {
+    const inline = chordRowsToInline("    Am\nThe lifting of my hands");
+    const { text, chords } = parseChordLine(inline);
+    expect(text).toBe("The lifting of my hands");
+    expect(chords).toEqual([{ chord: "Am", index: 4 }]);
+    expect(text.slice(4, 11)).toBe("lifting");
+  });
+});
+
+describe("isChordRow / looksLikeChordSheet", () => {
+  it("spots chord rows", () => {
+    expect(isChordRow("C")).toBe(true);
+    expect(isChordRow("   Dm                           G")).toBe(true);
+    expect(isChordRow("G/B  Am7  Cmaj7")).toBe(true);
+    expect(isChordRow("")).toBe(false);
+    expect(isChordRow("The lifting of my hands")).toBe(false);
+    expect(isChordRow("Am I the one")).toBe(false);
+  });
+
+  it("needs two chord rows before it will rewrite anything", () => {
+    // A lyric with one accidental single-letter line must not be converted.
+    expect(looksLikeChordSheet("A\nlong time ago\nsomething else")).toBe(false);
+    expect(looksLikeChordSheet("C\nfirst line\nAm\nsecond line")).toBe(true);
   });
 });
 

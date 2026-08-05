@@ -26,7 +26,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ChordLine } from "@/components/ChordLine";
-import { guessKey, hasChords, isChordOnlyLine, KEYS, type SongChords } from "@/lib/chords";
+import {
+  chordRowsToInline,
+  guessKey,
+  hasChords,
+  isChordOnlyLine,
+  KEYS,
+  looksLikeChordSheet,
+  type SongChords,
+} from "@/lib/chords";
 import {
   ArrowUpLeft,
   ArrowUpRight,
@@ -43,7 +51,7 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Slide, SetKind } from "@/lib/types";
 import { z } from "zod";
 import { APP_NAME } from "@/lib/appConfig";
@@ -957,7 +965,16 @@ const SELECT_CLASS =
  * people's phones — as letters (optionally transposed) or Nashville numbers.
  * Nothing here rewrites the lyrics, so every choice is reversible.
  */
-function ChordControls({ setId, lyrics }: { setId: string; lyrics: string }) {
+function ChordControls({
+  setId,
+  lyrics,
+  children,
+}: {
+  setId: string;
+  lyrics: string;
+  /** Rendered to the left of the Chords switch, sharing its row. */
+  children?: ReactNode;
+}) {
   const updateSet = useLibrary((s) => s.updateSet);
   const chords = useLibrary((s) => s.sets[setId]?.chords);
   const detected = hasChords(lyrics);
@@ -971,9 +988,10 @@ function ChordControls({ setId, lyrics }: { setId: string; lyrics: string }) {
   // set just for opening the editor — the phantom-conflict bug fixed in 01dff4e.
 
   return (
-    <div className="mt-3 border-t border-foreground/15 pt-3">
-      <div className="flex items-center justify-between">
-        <span className="mono text-[10px] uppercase tracking-wider">Chords</span>
+    <div className="mt-3">
+      <div className="flex items-center gap-2">
+        {children}
+        <span className="mono ml-auto text-[10px] uppercase tracking-wider">Chords</span>
         <Switch
           checked={!!chords}
           onCheckedChange={(on) =>
@@ -985,14 +1003,14 @@ function ChordControls({ setId, lyrics }: { setId: string; lyrics: string }) {
         />
       </div>
 
-      {!chords ? (
-        <p className="mono mt-2 text-[10px] leading-relaxed text-muted-foreground">
-          Type chords in round brackets:{" "}
-          <span className="text-foreground">Amazing (G)grace how (C)sweet</span>. They never show on
-          the projector.
-        </p>
-      ) : (
-        <div className="mt-3 space-y-2">
+      {chords && (
+        <div className="mt-3 space-y-2 border-t border-foreground/15 pt-3">
+          <p className="mono text-[10px] leading-relaxed text-muted-foreground">
+            Type chords in round brackets:{" "}
+            <span className="text-foreground">Amazing (G)grace how (C)sweet</span>. They never show
+            on the projector.
+          </p>
+
           <div className="flex items-center gap-2">
             <span className="mono w-20 shrink-0 text-[10px] uppercase tracking-wider">
               Written in
@@ -1251,6 +1269,22 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     }
   };
 
+  /**
+   * Paste from Ultimate Guitar and friends, where chords sit on their own line
+   * above the lyric. Folded into the inline bracket format on the way in so the
+   * rest of the app only ever deals with one representation. Anything that
+   * isn't chord-shaped falls through to the browser's own paste.
+   */
+  const handleLyricsPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pasted = e.clipboardData.getData("text");
+    if (!looksLikeChordSheet(pasted)) return;
+    const { selectionStart, selectionEnd } = e.currentTarget;
+    e.preventDefault();
+    handleLyricsChange(
+      lyrics.slice(0, selectionStart) + chordRowsToInline(pasted) + lyrics.slice(selectionEnd),
+    );
+  };
+
   const importScriptureWith = async (vPer: number) => {
     if (!ref.trim()) return;
     setBusy(true);
@@ -1366,8 +1400,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             </div>
           )}
 
-          {/* Lines per slide */}
-          <div className="mt-3 flex items-center gap-2">
+          {/* Lines per slide, sharing a row with the chords switch */}
+          <ChordControls setId={setId} lyrics={lyrics}>
             <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
             <input
               type="number"
@@ -1385,9 +1419,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               }}
               className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
             />
-          </div>
-
-          <ChordControls setId={setId} lyrics={lyrics} />
+          </ChordControls>
         </div>
 
         {/* Lyrics textarea — fills remaining height */}
@@ -1395,7 +1427,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           <Textarea
             value={lyrics}
             onChange={(e) => handleLyricsChange(e.target.value)}
-            placeholder={`Paste lyrics here, or select a song above.\nUse --- to split slides. Label sections with [Verse 1], [Chorus], etc.`}
+            onPaste={handleLyricsPaste}
+            placeholder={`Paste lyrics here, or select a song above.\nUse --- to split slides. Label sections with [Verse 1], [Chorus], etc.\nChord sheets paste in as-is — chords above the lyrics are picked up.`}
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
         </div>
