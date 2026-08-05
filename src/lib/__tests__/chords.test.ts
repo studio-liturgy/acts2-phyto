@@ -4,6 +4,8 @@ import {
   chordStreamToInline,
   chordToNumber,
   diatonicChords,
+  hideChords,
+  reapplyChords,
   looksLikeChordStream,
   normaliseChordSheet,
   transposeLyrics,
@@ -338,6 +340,87 @@ describe("transposeLyrics", () => {
 
   it("is a no-op when the key doesn't change", () => {
     expect(transposeLyrics("(G)x", "G", "G")).toBe("(G)x");
+  });
+});
+
+describe("reapplyChords (editing with chords hidden)", () => {
+  const FULL = [
+    "Amazing (G)grace how (C)sweet the sound",
+    "That (G)saved a wretch like (D)me",
+  ].join("\n");
+
+  it("hides chords without disturbing anything else", () => {
+    expect(hideChords(FULL)).toBe("Amazing grace how sweet the sound\nThat saved a wretch like me");
+    // Whitespace the user typed must survive, unlike the render-time strip.
+    expect(hideChords("Amazing  (G)grace  ")).toBe("Amazing  grace  ");
+  });
+
+  it("is a no-op when nothing was edited", () => {
+    expect(reapplyChords(FULL, hideChords(FULL))).toBe(FULL);
+  });
+
+  it("keeps chords on their word when a word is inserted before them", () => {
+    const edited = "Oh amazing grace how sweet the sound\nThat saved a wretch like me";
+    expect(reapplyChords(FULL, edited)).toBe(
+      "Oh amazing (G)grace how (C)sweet the sound\nThat (G)saved a wretch like (D)me",
+    );
+  });
+
+  it("keeps chords when a word is deleted elsewhere in the line", () => {
+    const edited = "Amazing grace how sweet sound\nThat saved a wretch like me";
+    expect(reapplyChords(FULL, edited)).toBe(
+      "Amazing (G)grace how (C)sweet sound\nThat (G)saved a wretch like (D)me",
+    );
+  });
+
+  it("drops only the chord whose own word was deleted", () => {
+    const edited = "Amazing grace how the sound\nThat saved a wretch like me";
+    // "sweet" is gone, so its (C) goes; (G) on "grace" stays.
+    expect(reapplyChords(FULL, edited)).toBe(
+      "Amazing (G)grace how the sound\nThat (G)saved a wretch like (D)me",
+    );
+  });
+
+  it("keeps other lines intact when one line is rewritten", () => {
+    const edited = "completely different words\nThat saved a wretch like me";
+    expect(reapplyChords(FULL, edited)).toBe(
+      "completely different words\nThat (G)saved a wretch like (D)me",
+    );
+  });
+
+  it("carries chords along when a line is inserted above", () => {
+    const edited = "[Verse 1]\nAmazing grace how sweet the sound\nThat saved a wretch like me";
+    expect(reapplyChords(FULL, edited)).toBe(
+      "[Verse 1]\nAmazing (G)grace how (C)sweet the sound\nThat (G)saved a wretch like (D)me",
+    );
+  });
+
+  it("takes the chords with a deleted line", () => {
+    expect(reapplyChords(FULL, "Amazing grace how sweet the sound")).toBe(
+      "Amazing (G)grace how (C)sweet the sound",
+    );
+  });
+
+  it("preserves an instrumental line while its blank line survives", () => {
+    const full = "Amazing (G)grace\n(G) (C) (D)\nnext line";
+    // The gaps between the chords are left alone, so the line stays blank-looking
+    // but keeps its place in the box.
+    expect(hideChords(full)).toBe("Amazing grace\n  \nnext line");
+    expect(reapplyChords(full, hideChords(full))).toBe(full);
+  });
+
+  // The invariant that keeps the caret from jumping: what the box shows after a
+  // keystroke is exactly what the user typed.
+  it("round-trips so the visible text is never rewritten", () => {
+    for (const edited of [
+      "Amazing grace how sweet the sound\nThat saved a wretch like me",
+      "Oh amazing grace\nThat saved a wretch like me",
+      "Amazing grace how sweet the sound\n\nThat saved a wretch like me",
+      "totally new\nlines here",
+      "",
+    ]) {
+      expect(hideChords(reapplyChords(FULL, edited)), edited).toBe(edited);
+    }
   });
 });
 

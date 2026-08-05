@@ -28,6 +28,9 @@ import { Switch } from "@/components/ui/switch";
 import { ChordLine } from "@/components/ChordLine";
 import {
   diatonicChords,
+  fullOffsetOf,
+  hideChords,
+  reapplyChords,
   guessKey,
   hasChords,
   isChordOnlyLine,
@@ -331,7 +334,7 @@ function SetEditor() {
             <div className="mb-4">
               <SongTemplateEditor />
             </div>
-            {phytoSet.chords && phytoSet.slides.length > 0 && (
+            {phytoSet.chords && !phytoSet.chords.hidden && phytoSet.slides.length > 0 && (
               <ChordSheet slides={phytoSet.slides} chords={phytoSet.chords} />
             )}
             {phytoSet.slides.length === 0 ? (
@@ -985,6 +988,7 @@ function ChordControls({
 }) {
   const updateSet = useLibrary((s) => s.updateSet);
   const chords = useLibrary((s) => s.sets[setId]?.chords);
+  const shown = !!chords && !chords.hidden;
   const detected = hasChords(lyrics);
 
   // Transposing rewrites the chords in the lyrics themselves and carries `key`
@@ -1007,17 +1011,20 @@ function ChordControls({
         {children}
         <span className="mono text-[10px] uppercase tracking-wider">Chords</span>
         <Switch
-          checked={!!chords}
+          checked={shown}
           onCheckedChange={(on) =>
             updateSet(setId, {
-              chords: on ? { key: guessKey(lyrics) ?? "G", display: "letters" } : undefined,
+              chords: {
+                ...(chords ?? { key: guessKey(lyrics) ?? "G", display: "letters" as const }),
+                hidden: !on,
+              },
             })
           }
           aria-label="Show chords"
         />
       </div>
 
-      {chords && (
+      {shown && chords && (
         <div className="mt-3 space-y-3 border-t border-foreground/15 pt-3">
           <p className="mono text-[10px] leading-relaxed text-muted-foreground">
             Paste a chord sheet, or type chords in round brackets:{" "}
@@ -1165,6 +1172,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [preview, setPreview] = useState<{ text: string; x: number; y: number } | null>(null);
   const searchSeq = useRef(0);
   const lyricsRef = useRef<HTMLTextAreaElement>(null);
+  // With chords switched off the box shows the lyrics alone. `lyrics` stays the
+  // truth; every edit is merged back onto it, so nothing is erased.
+  const chordsHidden = useLibrary((s) => !!s.sets[setId]?.chords?.hidden);
   // Last caret position in the lyrics box. Null until it has been focused, so
   // a palette click before that appends rather than landing at position 0.
   const caretRef = useRef<number | null>(null);
@@ -1261,6 +1271,10 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   // When lyrics are pasted into an empty box after a search, name the still-
   // default set from what was typed (e.g. "Inhabit by Bethel" -> "Inhabit").
   // Don't override a name the user set or one taken from a selected result.
+  /** Commit what the box now contains, folding it back onto the hidden chords. */
+  const commitFromBox = (val: string) =>
+    handleLyricsChange(chordsHidden ? reapplyChords(lyrics, val) : val);
+
   const handleLyricsChange = (val: string) => {
     const wasEmpty = !lyrics.trim();
     const hadChords = hasChords(lyrics);
@@ -1294,7 +1308,17 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     if (folded === pasted) return; // nothing chord-shaped — let the browser paste
     const { selectionStart, selectionEnd } = e.currentTarget;
     e.preventDefault();
-    handleLyricsChange(lyrics.slice(0, selectionStart) + folded + lyrics.slice(selectionEnd));
+    // The caret is against the visible text, which is missing the chord tokens
+    // while they're hidden, so map it back before splicing into the real thing.
+    const from = chordsHidden ? fullOffsetOf(lyrics, selectionStart) : selectionStart;
+    const to = chordsHidden ? fullOffsetOf(lyrics, selectionEnd) : selectionEnd;
+    // Pasting chords while they're hidden would drop them straight out of sight,
+    // so switch them back on.
+    if (chordsHidden) {
+      const current = useLibrary.getState().sets[setId]?.chords;
+      if (current) updateSet(setId, { chords: { ...current, hidden: false } });
+    }
+    handleLyricsChange(lyrics.slice(0, from) + folded + lyrics.slice(to));
   };
 
   /** Drop a chord in at the caret, from the palette of the key's seven chords. */
@@ -1462,9 +1486,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         {/* Lyrics textarea — fills remaining height */}
         <div className="min-h-0 flex-1 overflow-hidden">
           <Textarea
-            value={lyrics}
             ref={lyricsRef}
-            onChange={(e) => handleLyricsChange(e.target.value)}
+            value={chordsHidden ? hideChords(lyrics) : lyrics}
+            onChange={(e) => commitFromBox(e.target.value)}
             onPaste={handleLyricsPaste}
             onSelect={(e) => (caretRef.current = e.currentTarget.selectionStart)}
             placeholder={`Paste lyrics here, or select a song above.\nUse --- to split slides. Label sections with [Verse 1], [Chorus], etc.\nChord sheets paste in as-is — chords above the lyrics are picked up.`}

@@ -157,7 +157,8 @@ async function fetchViewerSets(gatheringId: string): Promise<ViewerSet[]> {
  * dead switch.
  */
 function setHasChords(set: SetRow): boolean {
-  if (set.type !== "song" || !set.content?.chords) return false;
+  const cfg = set.content?.chords;
+  if (set.type !== "song" || !cfg || cfg.hidden) return false;
   return (set.content.slides ?? []).some((s) =>
     s.lines?.some((l) => parseChordLine(l).chords.length > 0),
   );
@@ -595,7 +596,7 @@ function SetContent({
             key={slide.id ?? i}
             slide={slide}
             isDark={isDark}
-            chords={set.content?.chords}
+            chords={set.content?.chords?.hidden ? undefined : set.content?.chords}
             showChords={showChords}
             showSection={slide.section !== slides[i - 1]?.section}
           />

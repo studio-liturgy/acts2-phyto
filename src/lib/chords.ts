@@ -24,6 +24,11 @@ export interface SongChords {
   key: string;
   /** How chords render wherever they're visible. */
   display: ChordDisplay;
+  /** Switched off. The chords stay in the lyrics untouched, but nothing shows
+   *  them: not the editor's own box, the preview, or the phone view. Kept as a
+   *  flag rather than dropping the object so `key` and `display` survive being
+   *  toggled off and back on. */
+  hidden?: boolean;
 }
 
 /** The twelve keys offered in the editor, indexed by semitone from C. */
@@ -205,6 +210,163 @@ export function parseChordLine(line: string): ParsedChordLine {
 /** The lyric line with every chord removed — what the projector shows. */
 export function stripChords(line: string): string {
   return parseChordLine(line).text;
+}
+
+/**
+ * Like `parseChordLine`, but leaves every other character exactly where it is —
+ * no whitespace collapsing, no trimming. This is what the editor shows when
+ * chords are hidden, so what the user types has to survive untouched.
+ */
+function parseRawChordLine(line: string): ParsedChordLine {
+  const chords: ChordAnchor[] = [];
+  let text = "";
+  let i = 0;
+  while (i < line.length) {
+    if (line[i] === "(") {
+      const close = line.indexOf(")", i + 1);
+      if (close > i && isChordToken(line.slice(i + 1, close))) {
+        chords.push({ chord: line.slice(i + 1, close), index: text.length });
+        i = close + 1;
+        continue;
+      }
+    }
+    text += line[i];
+    i++;
+  }
+  return { text, chords };
+}
+
+/** One lyric line with its chord tokens removed and nothing else changed. */
+export function stripChordsRaw(line: string): string {
+  return parseRawChordLine(line).text;
+}
+
+/** A whole block of lyrics with the chord tokens removed and nothing else changed. */
+export function hideChords(text: string): string {
+  return text.split("\n").map(stripChordsRaw).join("\n");
+}
+
+/**
+ * Translate a caret offset in the chord-hidden view back to the matching offset
+ * in the full text, so an edit made against the visible text lands in the right
+ * place in what is actually stored.
+ */
+export function fullOffsetOf(full: string, visibleOffset: number): number {
+  let seen = 0;
+  let i = 0;
+  while (i < full.length && seen < visibleOffset) {
+    if (full[i] === "(") {
+      const close = full.indexOf(")", i + 1);
+      if (close > i && isChordToken(full.slice(i + 1, close))) {
+        i = close + 1;
+        continue;
+      }
+    }
+    i++;
+    seen++;
+  }
+  return i;
+}
+
+/** For each element of `a`, the index in `b` it pairs with, or -1. */
+function lcsMap<T>(a: T[], b: T[]): number[] {
+  const n = a.length;
+  const m = b.length;
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const map: number[] = new Array(n).fill(-1);
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      map[i] = j;
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+    else j++;
+  }
+  return map;
+}
+
+function wordSpans(text: string): { text: string; start: number }[] {
+  return [...text.matchAll(/\S+/g)].map((m) => ({ text: m[0], start: m.index }));
+}
+
+/** Move one line's chords onto an edited version of that line, by word. */
+function reanchorLine(oldFull: string, newText: string): string {
+  const { text: oldText, chords } = parseRawChordLine(oldFull);
+  if (chords.length === 0) return newText;
+  if (oldText === newText) return oldFull; // untouched — keep it verbatim
+  // An instrumental line only survives while its (blank) line does.
+  if (oldText.trim() === "") return newText.trim() === "" ? oldFull : newText;
+
+  const oldWords = wordSpans(oldText);
+  const newWords = wordSpans(newText);
+  const wordMap = lcsMap(
+    oldWords.map((w) => w.text),
+    newWords.map((w) => w.text),
+  );
+
+  const inserts: { at: number; chord: string }[] = [];
+  for (const c of chords) {
+    let wi = oldWords.findIndex((w) => c.index >= w.start && c.index < w.start + w.text.length);
+    if (wi < 0) wi = oldWords.findIndex((w) => w.start >= c.index);
+    if (wi < 0) {
+      inserts.push({ at: newText.length, chord: c.chord }); // trailing chord
+      continue;
+    }
+    const nj = wordMap[wi];
+    if (nj < 0) continue; // the word it sat on is gone, so the chord goes too
+    const offset = Math.min(c.index - oldWords[wi].start, newWords[nj].text.length);
+    inserts.push({ at: newWords[nj].start + offset, chord: c.chord });
+  }
+
+  let out = newText;
+  for (const ins of [...inserts].sort((x, y) => y.at - x.at)) {
+    out = out.slice(0, ins.at) + `(${ins.chord})` + out.slice(ins.at);
+  }
+  return out;
+}
+
+/**
+ * Put the chords from `full` back onto `edited` — the same lyrics with the
+ * chords stripped out and then hand-edited in the box.
+ *
+ * Chords are anchored to the word they sit on and follow it wherever it moves,
+ * so inserting, removing or reordering words keeps them in place. A chord whose
+ * word was deleted goes with it. Guarantees `hideChords(result) === edited`, so
+ * the visible text is never rewritten under the user's caret.
+ */
+export function reapplyChords(full: string, edited: string): string {
+  const oldLines = full.split("\n");
+  const oldStripped = oldLines.map(stripChordsRaw);
+  const newLines = edited.split("\n");
+
+  // Pair lines that survived verbatim, then fill the gaps between those anchors
+  // positionally so an edited line still inherits from the line it came from.
+  const lineMap = lcsMap(oldStripped, newLines);
+  const inheritsFrom: number[] = new Array(newLines.length).fill(-1);
+  let oi = 0;
+  let nj = 0;
+  const fillGap = (oEnd: number, nEnd: number) => {
+    for (let k = 0; oi + k < oEnd && nj + k < nEnd; k++) inheritsFrom[nj + k] = oi + k;
+  };
+  lineMap.forEach((j, i) => {
+    if (j < 0) return;
+    fillGap(i, j);
+    inheritsFrom[j] = i;
+    oi = i + 1;
+    nj = j + 1;
+  });
+  fillGap(oldStripped.length, newLines.length);
+
+  return newLines
+    .map((line, j) => (inheritsFrom[j] < 0 ? line : reanchorLine(oldLines[inheritsFrom[j]], line)))
+    .join("\n");
 }
 
 /** True when a line is nothing but chords, e.g. an instrumental `(G) (C) (D)`. */
