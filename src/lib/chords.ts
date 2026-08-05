@@ -127,6 +127,19 @@ export function renderChord(token: string, cfg: SongChords): string {
   return cfg.display === "numbers" ? chordToNumber(token, cfg.key) : token;
 }
 
+/**
+ * Map a key tag from an imported song onto one of the twelve keys used here.
+ * Minor tags fold to their relative major ("Am" → "C", "Em" → "G"), since
+ * numbers are reckoned from the major scale. Unrecognised tags return null.
+ */
+export function normaliseKeyTag(tag: string): string | null {
+  const m = /^([A-G][#b]?)\s*(m|min|minor)?$/i.exec(tag.trim());
+  if (!m) return null;
+  const pitch = pitchOf(m[1].charAt(0).toUpperCase() + m[1].slice(1));
+  if (pitch === null) return null;
+  return KEYS[m[2] ? (pitch + 3) % 12 : pitch];
+}
+
 /** Semitones above the tonic for each written scale degree. */
 const SEMITONE_BY_DEGREE: Record<string, number> = {
   "1": 0,

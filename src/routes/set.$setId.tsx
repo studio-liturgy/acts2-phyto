@@ -38,6 +38,7 @@ import {
   stripChords,
   hideChords,
   lyricsToNumbers,
+  normaliseKeyTag,
   numbersToLyrics,
   reapplyChords,
   guessKey,
@@ -1606,10 +1607,27 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                         searchSeq.current++;
                         setSongSearching(false);
                         setSongErr(null);
-                        setLyrics(applyDividers(s.lyrics, linesPer));
+                        const imported = applyDividers(s.lyrics, linesPer);
+                        setLyrics(imported);
                         setSongResults([]);
                         setPreview(null);
-                        updateSet(setId, { name: s.title });
+                        // Over half the local database carries chords. Switch
+                        // them on with the key the source tagged, falling back
+                        // to the first chord when there's no usable tag.
+                        updateSet(setId, {
+                          name: s.title,
+                          ...(hasChords(imported)
+                            ? {
+                                chords: {
+                                  key:
+                                    (s.key ? normaliseKeyTag(s.key) : null) ??
+                                    guessKey(imported) ??
+                                    "G",
+                                  display: "letters" as const,
+                                },
+                              }
+                            : {}),
+                        });
                       }}
                       onMouseEnter={(e) =>
                         setPreview({ text: songPreview(s.lyrics), x: e.clientX, y: e.clientY })

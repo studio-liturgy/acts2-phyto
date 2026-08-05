@@ -11,6 +11,7 @@
 
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { chordRowsToInline, isChordRow, stripChords } from "../src/lib/chords.ts";
 
 // Maps lowercase OpenSong section prefixes → display labels.
 // Numbered variants (V1, V2) get the number appended only for Verse/Pre-Chorus.
@@ -59,8 +60,51 @@ function convertMarker(raw) {
 const LABEL_RE =
   /^(\d+\s+)?(verse|chorus|bridge|pre-?chorus|intro|outro|outtro|ending|tag|interlude|refrain|bridge)\s*(\d+)?\s*:?\s*(x\d+)?$/i;
 
+/**
+ * OpenSong marks a chord row with a leading "." (some exports also wrap each
+ * chord in its own parens, e.g. ".(B)  (G#m)"). Both the dot and any parens are
+ * replaced with a single space each — never removed — so every other character
+ * keeps its column, which is what lets chordRowsToInline's word-anchoring land
+ * a chord over the right syllable in the lyric line beneath it.
+ */
+function normaliseChordRows(raw) {
+  return raw
+    .split("\n")
+    .map((line) => {
+      if (!/^\s*\./.test(line)) return line;
+      const dotIdx = line.indexOf(".");
+      const cleaned = (line.slice(0, dotIdx) + " " + line.slice(dotIdx + 1)).replace(/[()]/g, " ");
+      // A dot row that won't parse as chords is chart furniture: bar lines,
+      // repeat counts, sequences like "Bsus4-A" or "Em - G". Drop it outright.
+      // Left in, it survives as a lyric line and ends up on the projector.
+      return isChordRow(cleaned) ? cleaned : null;
+    })
+    .filter((line) => line !== null)
+    .join("\n");
+}
+
+/**
+ * Chord charts split a word across a chord change with a dash — "hallelu -
+ * (G)jah", "even (D)- ing". The dash is a typesetting artefact of the chord
+ * landing mid-word, so once that chord is inline the dash has done its job:
+ * dropping it restores "hallelu(G)jah". Only dashes touching a chord go; a
+ * dash between two whole words is real punctuation and is left alone.
+ */
+function joinMelismaDashes(line) {
+  return (
+    line
+      // "hallelu - (G)jah" and "even (D)- ing" — the chord may sit either side
+      // of the dash. Whitespace around it goes too: the word was only broken up
+      // to make room for the chord in a column-aligned chart.
+      .replace(/(\w)\s*-\s*(\([^()\s]+\))\s*(\w)/g, "$1$2$3")
+      .replace(/(\w)\s*(\([^()\s]+\))\s*-\s*(\w)/g, "$1$2$3")
+      // Column padding leaves runs of spaces behind once the chords are inline.
+      .replace(/ {2,}/g, " ")
+  );
+}
+
 function cleanLyrics(raw) {
-  const lines = raw.replace(/\r\n/g, "\n").split("\n");
+  const lines = chordRowsToInline(normaliseChordRows(raw)).split("\n");
   const out = [];
 
   for (const rawLine of lines) {
@@ -69,7 +113,8 @@ function cleanLyrics(raw) {
     // Skip blank lines — they were chord-group separators and are meaningless after stripping
     if (!trimmed) continue;
 
-    // Skip chord lines (start with a dot)
+    // A stray chord row chordRowsToInline couldn't merge (e.g. an oddity like
+    // "N.C." mixed with real chords) — drop it rather than leak a raw dot line.
     if (trimmed.startsWith(".")) continue;
 
     // Section markers like [V1], [C2], [Chorus]
@@ -87,7 +132,7 @@ function cleanLyrics(raw) {
     if (LABEL_RE.test(trimmed)) continue;
 
     // Lyric line — append directly with no blank lines within the section
-    out.push(trimmed);
+    out.push(joinMelismaDashes(trimmed));
   }
 
   return out.join("\n").trim();
@@ -105,6 +150,49 @@ function extractField(xml, tag) {
   return m ? decodeXmlEntities(m[1].trim()) : "";
 }
 
+// Collapse anything but letters/digits, for matching titles that differ only
+// in punctuation or case ("You're Worthy" vs "Youre worthy").
+const norm = (s) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/**
+ * The source database has always had duplicate exports of the same song —
+ * distinct files, same title and author.
+ *
+ * Matching on title and author alone is not enough: unrelated songs share
+ * titles ("Rescue" appears three times, "Amazing Grace" is both the hymn and a
+ * modern song), and collapsing those would silently lose one. So entries only
+ * merge when their *lyrics* agree too, compared with chords stripped and
+ * punctuation flattened — which is exactly what makes a chorded export and a
+ * plain one of the same song collapse into the chorded one.
+ *
+ * Within a matched group the winner is whichever has the most going for it:
+ * chords, then a tagged key, then longer lyrics. Ties fall back to filename
+ * order, so rebuilding from the same source is deterministic.
+ */
+function dedupe(songs) {
+  const best = new Map();
+  for (const s of songs) {
+    const key = `${norm(s.title)}|${norm(s.artist)}|${norm(stripChords(s.lyrics))}`;
+    const prev = best.get(key);
+    if (!prev) {
+      best.set(key, s);
+      continue;
+    }
+    const score = (x) => (x.hasChords ? 2 : 0) + (x.key ? 1 : 0);
+    if (
+      score(s) > score(prev) ||
+      (score(s) === score(prev) && s.lyrics.length > prev.lyrics.length)
+    ) {
+      best.set(key, s);
+    }
+  }
+  return [...best.values()];
+}
+
 async function main() {
   const srcDir = process.argv[2] ?? "/Users/valiantchan/Downloads/en";
   const outPath = join(process.cwd(), "public", "songs-en.json");
@@ -112,7 +200,7 @@ async function main() {
   console.log(`Reading from: ${srcDir}`);
   const files = await readdir(srcDir);
 
-  const songs = [];
+  const parsed = [];
   let errors = 0;
 
   for (const filename of files) {
@@ -125,23 +213,36 @@ async function main() {
         filename.replace(/ i\d+$/, "").replace(/\b\w/g, (c) => c.toUpperCase());
       const artist = extractField(content, "author");
       const aka = extractField(content, "aka");
+      const key = extractField(content, "key");
       const rawLyrics = extractField(content, "lyrics");
 
       const lyrics = rawLyrics ? cleanLyrics(rawLyrics) : "";
+      const hasChords = /\([^()\s]+\)/.test(lyrics);
 
-      const entry = { title, artist, lyrics };
-      if (aka) entry.aka = aka;
-      songs.push(entry);
+      parsed.push({ title, artist, aka, key, lyrics, hasChords });
     } catch {
       errors++;
     }
   }
 
-  await writeFile(outPath, JSON.stringify(songs));
+  const deduped = dedupe(parsed);
+  const withChords = deduped.filter((s) => s.hasChords).length;
+
+  const songs = deduped.map(({ title, artist, aka, key, lyrics }) => {
+    const entry = { title, artist, lyrics };
+    if (aka) entry.aka = aka;
+    if (key) entry.key = key;
+    return entry;
+  });
+
+  // Pretty-printed to match how the file is committed, so a rebuild produces a
+  // reviewable diff rather than one 3 MB line. Costs ~3 KB gzipped over the wire.
+  await writeFile(outPath, JSON.stringify(songs, null, 2));
 
   const kb = Math.round(Buffer.byteLength(JSON.stringify(songs), "utf-8") / 1024);
   console.log(
-    `✓ ${songs.length} songs written to public/songs-en.json (${kb} KB uncompressed, ${errors} errors)`,
+    `✓ ${songs.length} songs written to public/songs-en.json (${kb} KB uncompressed, ` +
+      `${parsed.length - deduped.length} duplicates dropped, ${withChords} with chords, ${errors} errors)`,
   );
 }
 

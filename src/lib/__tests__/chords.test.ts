@@ -9,6 +9,7 @@ import {
   lyricsToNumbers,
   numbersToLyrics,
   numberToChord,
+  normaliseKeyTag,
   reapplyChords,
   looksLikeChordStream,
   normaliseChordSheet,
@@ -467,6 +468,27 @@ describe("reapplyChords (editing with chords hidden)", () => {
     ]) {
       expect(hideChords(reapplyChords(FULL, edited)), edited).toBe(edited);
     }
+  });
+});
+
+describe("normaliseKeyTag", () => {
+  it("passes major tags through", () => {
+    expect(normaliseKeyTag("G")).toBe("G");
+    expect(normaliseKeyTag("Bb")).toBe("Bb");
+    expect(normaliseKeyTag("F#")).toBe("F#");
+  });
+
+  it("folds a minor tag to its relative major", () => {
+    expect(normaliseKeyTag("Am")).toBe("C");
+    expect(normaliseKeyTag("Em")).toBe("G");
+    expect(normaliseKeyTag("Bm")).toBe("D");
+    expect(normaliseKeyTag("C#m")).toBe("E");
+  });
+
+  it("rejects anything it can't place", () => {
+    expect(normaliseKeyTag("")).toBe(null);
+    expect(normaliseKeyTag("H")).toBe(null);
+    expect(normaliseKeyTag("nonsense")).toBe(null);
   });
 });
 

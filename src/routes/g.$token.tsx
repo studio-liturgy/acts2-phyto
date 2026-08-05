@@ -364,17 +364,8 @@ function GatheringViewer() {
               }`}
               style={{ fontFamily: "'Space Mono', monospace", fontSize: "1rem" }}
             >
-              {/* Header */}
-              <div className="mb-3 flex items-center justify-between">
-                <div className="text-[10px] uppercase tracking-wider">Display</div>
-                <button
-                  onClick={() => setMenuOpen(false)}
-                  style={{ fontFamily: "Arial, sans-serif" }}
-                  className={`text-xs transition-colors ${mutedClass} hover:text-inherit`}
-                >
-                  Cancel
-                </button>
-              </div>
+              {/* Header. No close button: tapping outside already dismisses. */}
+              <div className="mb-3 text-[10px] uppercase tracking-wider">Display</div>
 
               <div className="space-y-4 text-sm">
                 {/* Font size */}

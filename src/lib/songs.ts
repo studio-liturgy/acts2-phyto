@@ -1,7 +1,8 @@
 // Song search + lyrics. Christian/worship-focused.
 //
 // Search order:
-//   1. Local OpenSong worship database (public/songs-en.json, 3 060 curated songs).
+//   1. Local OpenSong worship database (public/songs-en.json, ~3 100 curated
+//      songs, over half of them carrying inline chords and a tagged key).
 //      Matches title, artist, alternate titles, and the lyrics body; content
 //      duplicates (same song under different titles) are collapsed to one.
 //   2. lrclib.net fallback. Kept results are either by a known worship artist OR
@@ -14,6 +15,9 @@ export interface SongResult {
   artist: string;
   album?: string;
   lyrics: string;
+  /** Key the local database tags this song with, when it has one. Only set for
+   *  local results, and only useful when the lyrics carry chords. */
+  key?: string;
   source: "local" | "online";
 }
 
@@ -232,6 +236,7 @@ interface LocalSong {
   artist: string;
   aka?: string;
   lyrics: string;
+  key?: string;
 }
 
 let localDb: LocalSong[] | null = null;
@@ -311,6 +316,7 @@ function searchLocal(db: LocalSong[], parse: ParsedQuery): ScoredLocal[] {
       title: song.title,
       artist: song.artist,
       lyrics: segmentAndDedupe(song.lyrics),
+      key: song.key,
       source: "local",
       _strong: score >= 1,
     });
