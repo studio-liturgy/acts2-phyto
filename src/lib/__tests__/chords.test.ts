@@ -5,6 +5,10 @@ import {
   chordToNumber,
   diatonicChords,
   hideChords,
+  isNumberToken,
+  lyricsToNumbers,
+  numbersToLyrics,
+  numberToChord,
   reapplyChords,
   looksLikeChordStream,
   normaliseChordSheet,
@@ -321,6 +325,48 @@ describe("chordStreamToInline (WorshipTogether layout)", () => {
     expect(chordStreamToInline("Chorus\n  \nThe \nG \nword")).toBe("[Chorus]\nThe (G)word");
     // Not a section name, so it stays a lyric.
     expect(chordStreamToInline("Hello there\n  \nThe \nG \nword")).toBe("Hello there\nThe (G)word");
+  });
+});
+
+describe("numbers in the editor box", () => {
+  it("shows chords as numbers and reads them back as letters", () => {
+    const letters = "Amazing (G)grace how (Am)sweet (Cmaj7)the (G/B)sound (x2)";
+    const numbers = "Amazing (1)grace how (2m)sweet (4maj7)the (1/3)sound (x2)";
+    expect(lyricsToNumbers(letters, "G")).toBe(numbers);
+    expect(numbersToLyrics(numbers, "G")).toBe(letters);
+  });
+
+  it("round-trips so the box isn't rewritten under the caret", () => {
+    const key = "G";
+    for (const shown of [
+      "(1)one (2m)two (5)three",
+      "(b3)flat three (b7)flat seven",
+      "(4maj7)ext (17)seventh",
+      "plain lyrics with (x2) and no chords",
+    ]) {
+      expect(lyricsToNumbers(numbersToLyrics(shown, key), key), shown).toBe(shown);
+    }
+  });
+
+  it("tells numbers apart from letter chords", () => {
+    expect(isNumberToken("1")).toBe(true);
+    expect(isNumberToken("2m")).toBe(true);
+    expect(isNumberToken("b3")).toBe(true);
+    expect(isNumberToken("1/3")).toBe(true);
+    expect(isNumberToken("G")).toBe(false);
+    expect(isNumberToken("Am")).toBe(false);
+    expect(isNumberToken("x2")).toBe(false);
+  });
+
+  it("names the right chord for a degree in a flat key", () => {
+    expect(numberToChord("1", "Eb")).toBe("Eb");
+    expect(numberToChord("6m", "Eb")).toBe("Cm");
+    expect(numberToChord("4", "F")).toBe("Bb");
+  });
+
+  it("leaves lyric parentheses alone in both directions", () => {
+    expect(lyricsToNumbers("sing (x2) now", "G")).toBe("sing (x2) now");
+    expect(numbersToLyrics("sing (x2) now", "G")).toBe("sing (x2) now");
   });
 });
 

@@ -127,6 +127,67 @@ export function renderChord(token: string, cfg: SongChords): string {
   return cfg.display === "numbers" ? chordToNumber(token, cfg.key) : token;
 }
 
+/** Semitones above the tonic for each written scale degree. */
+const SEMITONE_BY_DEGREE: Record<string, number> = {
+  "1": 0,
+  "#1": 1,
+  b2: 1,
+  "2": 2,
+  "#2": 3,
+  b3: 3,
+  "3": 4,
+  b4: 4,
+  "4": 5,
+  "#4": 6,
+  b5: 6,
+  "5": 7,
+  "#5": 8,
+  b6: 8,
+  "6": 9,
+  "#6": 10,
+  b7: 10,
+  "7": 11,
+};
+
+const DEGREE = "[#b]?[1-7]";
+const NUMBER_CHORD_RE = new RegExp(`^(${DEGREE})(${QUALITY})(?:/(${DEGREE}))?$`);
+
+/** True when a bracketed token is a Nashville number rather than a letter chord. */
+export function isNumberToken(token: string): boolean {
+  return !!token && !/\s/.test(token) && NUMBER_CHORD_RE.test(token);
+}
+
+/** Turn a Nashville number back into the letter chord it names in `key`. */
+export function numberToChord(token: string, key: string): string {
+  const tonic = pitchOf(key);
+  if (tonic === null) return token;
+  const m = NUMBER_CHORD_RE.exec(token);
+  if (!m) return token;
+  const [, degree, quality, bass] = m;
+  const semi = SEMITONE_BY_DEGREE[degree];
+  if (semi === undefined) return token;
+  let out = spell(tonic + semi, key) + quality;
+  if (bass) {
+    const bassSemi = SEMITONE_BY_DEGREE[bass];
+    out += "/" + (bassSemi === undefined ? bass : spell(tonic + bassSemi, key));
+  }
+  return out;
+}
+
+/** Show every chord in a block of lyrics as its Nashville number. */
+export function lyricsToNumbers(text: string, key: string): string {
+  return text.replace(/\(([^()\s]+)\)/g, (whole, token: string) =>
+    isChordToken(token) ? `(${chordToNumber(token, key)})` : whole,
+  );
+}
+
+/** Turn numbered chords in a block of lyrics back into letters. */
+export function numbersToLyrics(text: string, key: string): string {
+  return text.replace(/\(([^()\s]+)\)/g, (whole, token: string) =>
+    isNumberToken(token) ? `(${numberToChord(token, key)})` : whole,
+  );
+}
+
 /**
  * Rewrite every inline chord in a block of lyrics into a new key. Parentheses
  * that aren't chords — "(x2)", "(repeat)" — are left exactly as they are.
@@ -244,28 +305,6 @@ export function stripChordsRaw(line: string): string {
 /** A whole block of lyrics with the chord tokens removed and nothing else changed. */
 export function hideChords(text: string): string {
   return text.split("\n").map(stripChordsRaw).join("\n");
-}
-
-/**
- * Translate a caret offset in the chord-hidden view back to the matching offset
- * in the full text, so an edit made against the visible text lands in the right
- * place in what is actually stored.
- */
-export function fullOffsetOf(full: string, visibleOffset: number): number {
-  let seen = 0;
-  let i = 0;
-  while (i < full.length && seen < visibleOffset) {
-    if (full[i] === "(") {
-      const close = full.indexOf(")", i + 1);
-      if (close > i && isChordToken(full.slice(i + 1, close))) {
-        i = close + 1;
-        continue;
-      }
-    }
-    i++;
-    seen++;
-  }
-  return i;
 }
 
 /** For each element of `a`, the index in `b` it pairs with, or -1. */

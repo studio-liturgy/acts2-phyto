@@ -33,9 +33,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChordLine } from "@/components/ChordLine";
 import {
+  chordToNumber,
   diatonicChords,
-  fullOffsetOf,
+  stripChords,
   hideChords,
+  lyricsToNumbers,
+  numbersToLyrics,
   reapplyChords,
   guessKey,
   hasChords,
@@ -105,6 +108,99 @@ function PanelCard({
       {label && <h3 className="mono mb-4 text-xs uppercase tracking-wider">{label}</h3>}
       {children}
     </section>
+  );
+}
+
+/**
+ * Search the catalogue's songs from inside the editor and jump straight to one,
+ * so working through a set list doesn't mean going home between every song.
+ * Songs only: scripture and media have different editors.
+ */
+function SongJump({
+  currentId,
+  navigate,
+}: {
+  currentId: string;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const sets = useLibrary((s) => s.sets);
+  const order = useLibrary((s) => s.order);
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const needle = query.trim().toLowerCase();
+  const results = useMemo(() => {
+    if (!needle) return [];
+    const out: { id: string; name: string }[] = [];
+    for (const id of order) {
+      const d = sets[id];
+      if (!d || d.kind !== "song" || d.id === currentId) continue;
+      const inName = d.name.toLowerCase().includes(needle);
+      const inLyrics =
+        !inName &&
+        d.slides.some((sl) => sl.lines?.some((l) => stripChords(l).toLowerCase().includes(needle)));
+      if (inName || inLyrics) out.push({ id: d.id, name: d.name });
+      if (out.length >= 8) break;
+    }
+    return out;
+  }, [needle, order, sets, currentId]);
+
+  const go = (id: string) => {
+    setQuery("");
+    setOpen(false);
+    navigate({ to: "/set/$setId", params: { setId: id } });
+  };
+
+  return (
+    <div ref={boxRef} className="relative shrink-0">
+      <div className="pill flex h-9 w-52 items-center gap-2 border border-foreground bg-background px-3">
+        <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setOpen(false);
+            if (e.key === "Enter" && results[0]) go(results[0].id);
+          }}
+          placeholder="Go to song"
+          className="mono uppercase w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+
+      {open && needle !== "" && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden rounded-2xl border border-foreground bg-background shadow-lg">
+          {results.length === 0 ? (
+            <p className="mono px-3 py-2.5 text-[11px] text-muted-foreground">No songs match.</p>
+          ) : (
+            <div className="max-h-64 overflow-y-auto p-1">
+              {results.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => go(r.id)}
+                  className="block w-full truncate rounded-xl px-2.5 py-2 text-left text-sm transition hover:bg-muted"
+                >
+                  {r.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -182,6 +278,8 @@ function SetHeader({
           {phytoSet.kind}
         </span>
       </div>
+
+      {phytoSet.kind === "song" && <SongJump currentId={phytoSet.id} navigate={navigate} />}
 
       <div className="flex-1" />
 
@@ -333,7 +431,10 @@ function SetEditor() {
         <div className="flex min-h-0 flex-1 divide-x divide-foreground">
           {/* Left: song editor */}
           <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
-            <Importers setId={phytoSet.id} kind={phytoSet.kind} />
+            {/* Keyed so navigating straight to another song remounts the editor.
+                Without it the box would keep the previous song's lyrics and the
+                live-sync effect would write them over the new song's slides. */}
+            <Importers key={phytoSet.id} setId={phytoSet.id} kind={phytoSet.kind} />
           </div>
           {/* Right: template editor + live slide grid */}
           <div className="w-1/2 overflow-y-auto p-6">
@@ -402,7 +503,10 @@ function SetEditor() {
         <div className="flex min-h-0 flex-1 divide-x divide-foreground">
           {/* Left: import controls */}
           <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
-            <Importers setId={phytoSet.id} kind={phytoSet.kind} />
+            {/* Keyed so navigating straight to another song remounts the editor.
+                Without it the box would keep the previous song's lyrics and the
+                live-sync effect would write them over the new song's slides. */}
+            <Importers key={phytoSet.id} setId={phytoSet.id} kind={phytoSet.kind} />
           </div>
           {/* Right: template editor + live slide grid */}
           <div className="w-1/2 overflow-y-auto p-6">
@@ -1185,9 +1289,27 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [preview, setPreview] = useState<{ text: string; x: number; y: number } | null>(null);
   const searchSeq = useRef(0);
   const lyricsRef = useRef<HTMLTextAreaElement>(null);
-  // With chords switched off the box shows the lyrics alone. `lyrics` stays the
-  // truth; every edit is merged back onto it, so nothing is erased.
-  const chordsHidden = useLibrary((s) => !!s.sets[setId]?.chords?.hidden);
+  // Undo/redo for the lyrics box. The browser's own undo can't be used here:
+  // the box is controlled and often shows a transformed view (numbers, or
+  // chords hidden), so its value doesn't track the native edit history. Each
+  // entry carries the chord config too, so undoing a transpose puts the key
+  // back with the text rather than leaving the two disagreeing.
+  const undoStack = useRef<{ lyrics: string; chords?: SongChords; caret: number | null }[]>([]);
+  const redoStack = useRef<typeof undoStack.current>([]);
+  const lastPush = useRef(0);
+  // `lyrics` is always stored as letter chords. The box may show something else
+  // — nothing at all when chords are switched off, or Nashville numbers when
+  // that's the chosen display — and every edit is translated back on the way in,
+  // so nothing is lost either way.
+  const chordCfg = useLibrary((s) => s.sets[setId]?.chords);
+  const chordsHidden = !!chordCfg?.hidden;
+  const numbersMode = !!chordCfg && !chordCfg.hidden && chordCfg.display === "numbers";
+  const chordKey = chordCfg?.key ?? "C";
+  const boxText = chordsHidden
+    ? hideChords(lyrics)
+    : numbersMode
+      ? lyricsToNumbers(lyrics, chordKey)
+      : lyrics;
   // Last caret position in the lyrics box. Null until it has been focused, so
   // a palette click before that appends rather than landing at position 0.
   const caretRef = useRef<number | null>(null);
@@ -1284,11 +1406,62 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   // When lyrics are pasted into an empty box after a search, name the still-
   // default set from what was typed (e.g. "Inhabit by Bethel" -> "Inhabit").
   // Don't override a name the user set or one taken from a selected result.
-  /** Commit what the box now contains, folding it back onto the hidden chords. */
+  const snapshot = () => ({
+    lyrics,
+    chords: useLibrary.getState().sets[setId]?.chords,
+    caret: caretRef.current,
+  });
+
+  /** Remember the current state before changing it, coalescing a burst of
+   *  typing into a single undo step. */
+  const pushHistory = () => {
+    const now = Date.now();
+    if (now - lastPush.current < 500 && undoStack.current.length > 0) return;
+    lastPush.current = now;
+    undoStack.current.push(snapshot());
+    if (undoStack.current.length > 200) undoStack.current.shift();
+    redoStack.current = [];
+  };
+
+  const restore = (entry: { lyrics: string; chords?: SongChords; caret: number | null }) => {
+    setLyrics(entry.lyrics);
+    const now = useLibrary.getState().sets[setId]?.chords;
+    if (JSON.stringify(now) !== JSON.stringify(entry.chords)) {
+      updateSet(setId, { chords: entry.chords });
+    }
+    lastPush.current = 0; // the next edit starts a fresh step
+    if (entry.caret !== null) {
+      caretRef.current = entry.caret;
+      requestAnimationFrame(() => lyricsRef.current?.setSelectionRange(entry.caret!, entry.caret!));
+    }
+  };
+
+  const undoLyrics = () => {
+    const entry = undoStack.current.pop();
+    if (!entry) return;
+    redoStack.current.push(snapshot());
+    restore(entry);
+  };
+
+  const redoLyrics = () => {
+    const entry = redoStack.current.pop();
+    if (!entry) return;
+    undoStack.current.push(snapshot());
+    restore(entry);
+  };
+
+  /** Translate what the box now contains back into stored form. */
   const commitFromBox = (val: string) =>
-    handleLyricsChange(chordsHidden ? reapplyChords(lyrics, val) : val);
+    handleLyricsChange(
+      chordsHidden
+        ? reapplyChords(lyrics, val)
+        : numbersMode
+          ? numbersToLyrics(val, chordKey)
+          : val,
+    );
 
   const handleLyricsChange = (val: string) => {
+    pushHistory();
     const wasEmpty = !lyrics.trim();
     const hadChords = hasChords(lyrics);
     setLyrics(val);
@@ -1321,24 +1494,21 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     if (folded === pasted) return; // nothing chord-shaped — let the browser paste
     const { selectionStart, selectionEnd } = e.currentTarget;
     e.preventDefault();
-    // The caret is against the visible text, which is missing the chord tokens
-    // while they're hidden, so map it back before splicing into the real thing.
-    const from = chordsHidden ? fullOffsetOf(lyrics, selectionStart) : selectionStart;
-    const to = chordsHidden ? fullOffsetOf(lyrics, selectionEnd) : selectionEnd;
-    // Pasting chords while they're hidden would drop them straight out of sight,
-    // so switch them back on.
+    // Splice in the box's own coordinates, then let commitFromBox translate the
+    // result back. `folded` carries letter chords, which survive that in any mode.
     if (chordsHidden) {
+      // They would land straight out of sight otherwise.
       const current = useLibrary.getState().sets[setId]?.chords;
       if (current) updateSet(setId, { chords: { ...current, hidden: false } });
     }
-    handleLyricsChange(lyrics.slice(0, from) + folded + lyrics.slice(to));
+    commitFromBox(boxText.slice(0, selectionStart) + folded + boxText.slice(selectionEnd));
   };
 
   /** Drop a chord in at the caret, from the palette of the key's seven chords. */
   const insertChord = (chord: string) => {
-    const at = caretRef.current ?? lyrics.length;
-    const token = `(${chord})`;
-    handleLyricsChange(lyrics.slice(0, at) + token + lyrics.slice(at));
+    const at = caretRef.current ?? boxText.length;
+    const token = `(${numbersMode ? chordToNumber(chord, chordKey) : chord})`;
+    commitFromBox(boxText.slice(0, at) + token + boxText.slice(at));
     const next = at + token.length;
     caretRef.current = next;
     requestAnimationFrame(() => {
@@ -1473,7 +1643,10 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           <ChordControls
             setId={setId}
             lyrics={lyrics}
-            onLyricsChange={setLyrics}
+            onLyricsChange={(next) => {
+              pushHistory();
+              setLyrics(next);
+            }}
             onInsertChord={insertChord}
           >
             <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
@@ -1500,10 +1673,22 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         <div className="min-h-0 flex-1 overflow-hidden">
           <Textarea
             ref={lyricsRef}
-            value={chordsHidden ? hideChords(lyrics) : lyrics}
+            value={boxText}
             onChange={(e) => commitFromBox(e.target.value)}
             onPaste={handleLyricsPaste}
             onSelect={(e) => (caretRef.current = e.currentTarget.selectionStart)}
+            onKeyDown={(e) => {
+              if (!e.metaKey && !e.ctrlKey) return;
+              const k = e.key.toLowerCase();
+              if (k === "z") {
+                e.preventDefault();
+                if (e.shiftKey) redoLyrics();
+                else undoLyrics();
+              } else if (k === "y") {
+                e.preventDefault();
+                redoLyrics();
+              }
+            }}
             placeholder={`Paste lyrics here, or select a song above.\nUse --- to split slides. Label sections with [Verse 1], [Chorus], etc.\nChord sheets paste in as-is — chords above the lyrics are picked up.`}
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
