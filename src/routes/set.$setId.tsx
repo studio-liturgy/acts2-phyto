@@ -24,6 +24,9 @@ import {
 import { SlideView } from "@/components/SlideView";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { ChordLine } from "@/components/ChordLine";
+import { guessKey, hasChords, isChordOnlyLine, KEYS, type SongChords } from "@/lib/chords";
 import {
   ArrowUpLeft,
   ArrowUpRight,
@@ -318,6 +321,9 @@ function SetEditor() {
             <div className="mb-4">
               <SongTemplateEditor />
             </div>
+            {phytoSet.chords && phytoSet.slides.length > 0 && (
+              <ChordSheet slides={phytoSet.slides} chords={phytoSet.chords} />
+            )}
             {phytoSet.slides.length === 0 ? (
               <p className="py-16 text-center text-sm text-muted-foreground">
                 Slides will appear here as you type
@@ -925,6 +931,12 @@ function applyDividers(text: string, linesPer: number): string {
       out.push(line);
       continue;
     }
+    if (isChordOnlyLine(line)) {
+      // An instrumental line projects nothing, so it isn't a lyric line —
+      // it rides along with the current slide without using up its quota.
+      out.push(line);
+      continue;
+    }
     if (countInGroup > 0 && countInGroup % linesPer === 0) {
       out.push("---");
     }
@@ -934,6 +946,171 @@ function applyDividers(text: string, linesPer: number): string {
 
   while (out.length > 0 && out[out.length - 1] === "---") out.pop();
   return out.join("\n");
+}
+
+const SELECT_CLASS =
+  "pill mono h-7 border border-foreground bg-background px-3 text-xs uppercase outline-none";
+
+/**
+ * Chord settings for a song. Chords are typed inline in the lyrics as `(G)`;
+ * this panel records the key they were written in and picks how they render on
+ * people's phones — as letters (optionally transposed) or Nashville numbers.
+ * Nothing here rewrites the lyrics, so every choice is reversible.
+ */
+function ChordControls({ setId, lyrics }: { setId: string; lyrics: string }) {
+  const updateSet = useLibrary((s) => s.updateSet);
+  const chords = useLibrary((s) => s.sets[setId]?.chords);
+  const detected = hasChords(lyrics);
+
+  const patchChords = (patch: Partial<SongChords>) =>
+    updateSet(setId, { chords: { ...(chords ?? { key: "G", display: "letters" }), ...patch } });
+
+  // NB: turning chords on automatically is driven from handleLyricsChange, not
+  // from an effect on `lyrics`. `lyrics` starts empty and is only then filled in
+  // from the stored slides, so an effect would fire on mount and write to the
+  // set just for opening the editor — the phantom-conflict bug fixed in 01dff4e.
+
+  return (
+    <div className="mt-3 border-t border-foreground/15 pt-3">
+      <div className="flex items-center justify-between">
+        <span className="mono text-[10px] uppercase tracking-wider">Chords</span>
+        <Switch
+          checked={!!chords}
+          onCheckedChange={(on) =>
+            updateSet(setId, {
+              chords: on ? { key: guessKey(lyrics) ?? "G", display: "letters" } : undefined,
+            })
+          }
+          aria-label="Show chords"
+        />
+      </div>
+
+      {!chords ? (
+        <p className="mono mt-2 text-[10px] leading-relaxed text-muted-foreground">
+          Type chords in round brackets:{" "}
+          <span className="text-foreground">Amazing (G)grace how (C)sweet</span>. They never show on
+          the projector.
+        </p>
+      ) : (
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="mono w-20 shrink-0 text-[10px] uppercase tracking-wider">
+              Written in
+            </span>
+            <select
+              value={chords.key}
+              onChange={(e) => patchChords({ key: e.target.value })}
+              className={SELECT_CLASS}
+            >
+              {KEYS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="mono w-20 shrink-0 text-[10px] uppercase tracking-wider">Show as</span>
+            {(["letters", "numbers"] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => patchChords({ display: d })}
+                className={`pill mono h-7 border border-foreground px-3 text-xs uppercase transition ${
+                  chords.display === d
+                    ? "bg-foreground text-background"
+                    : "bg-background hover:bg-muted"
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+
+          {chords.display === "letters" && (
+            <div className="flex items-center gap-2">
+              <span className="mono w-20 shrink-0 text-[10px] uppercase tracking-wider">
+                Transpose
+              </span>
+              <select
+                value={chords.showInKey || chords.key}
+                onChange={(e) => patchChords({ showInKey: e.target.value })}
+                className={SELECT_CLASS}
+              >
+                {KEYS.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                    {k === chords.key ? " (original)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {!detected && (
+            <p className="mono text-[10px] leading-relaxed text-muted-foreground">
+              No chords in the lyrics yet: add them in round brackets, like{" "}
+              <span className="text-foreground">(G)grace</span>.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Mirrors what the phone view shows once someone turns chords on, so the leader
+ * can check placement and the chosen key without leaving the editor. The slide
+ * thumbnails below deliberately never show chords — the projector doesn't.
+ */
+function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords }) {
+  const groups: { label: string | undefined; lines: string[] }[] = [];
+  for (const s of slides) {
+    const last = groups[groups.length - 1];
+    if (!last || s.section !== last.label) {
+      groups.push({ label: s.section, lines: [...(s.lines ?? [])] });
+    } else {
+      last.lines.push(...(s.lines ?? []));
+    }
+  }
+
+  return (
+    <div className="mb-4 rounded-2xl border border-foreground p-4">
+      <div className="mono mb-3 flex items-baseline justify-between gap-2 text-[10px] uppercase tracking-wider">
+        <span>Chord sheet</span>
+        <span className="text-muted-foreground">
+          {chords.display === "numbers"
+            ? `Numbers in ${chords.key}`
+            : `Key of ${chords.showInKey || chords.key}`}
+        </span>
+      </div>
+      <div className="max-h-72 space-y-3 overflow-y-auto pr-1 text-sm">
+        {groups.map((g, i) => (
+          <div key={i}>
+            {g.label && (
+              <div className="mono mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                {g.label}
+              </div>
+            )}
+            <div className="space-y-1.5">
+              {g.lines.map((line, j) => (
+                <ChordLine
+                  key={j}
+                  line={line}
+                  chords={chords}
+                  show
+                  className="leading-relaxed"
+                  chordClassName="text-[0.8em] font-semibold text-[var(--brand-blue)]"
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
@@ -1056,7 +1233,15 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   // Don't override a name the user set or one taken from a selected result.
   const handleLyricsChange = (val: string) => {
     const wasEmpty = !lyrics.trim();
+    const hadChords = hasChords(lyrics);
     setLyrics(val);
+    // Turn chords on the first time the leader actually types or pastes some.
+    // Driven from here rather than an effect so opening the editor never writes.
+    // A deliberate switch-off sticks: the text still has chords, so `hadChords`
+    // is already true and this can't fire again.
+    if (!hadChords && hasChords(val) && !useLibrary.getState().sets[setId]?.chords) {
+      updateSet(setId, { chords: { key: guessKey(val) ?? "G", display: "letters" } });
+    }
     if (wasEmpty && val.trim() && songQuery.trim()) {
       const current = useLibrary.getState().sets[setId];
       if (current && (current.name.trim() === "New Song" || !current.name.trim())) {
@@ -1201,6 +1386,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
             />
           </div>
+
+          <ChordControls setId={setId} lyrics={lyrics} />
         </div>
 
         {/* Lyrics textarea — fills remaining height */}

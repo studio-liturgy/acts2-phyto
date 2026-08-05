@@ -1,5 +1,6 @@
 import type { Slide, SetTemplate } from "@/lib/types";
-import { useEffect, useRef, useState } from "react";
+import { stripChords } from "@/lib/chords";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
   slide?: Slide | null;
@@ -275,7 +276,16 @@ export function SlideView({
     return () => ro.disconnect();
   }, []);
 
-  const hasText = !!(slide?.lines?.some((l) => l.trim()) || slide?.title);
+  // Chords are typed inline in the lyrics as `(G)` so the phone view can show
+  // them. Nothing projected ever renders one, and a chord-only line (an
+  // instrumental break) strips to nothing and drops out entirely.
+  const displayLines = useMemo(() => {
+    const lines = slide?.lines ?? [];
+    if (slide?.kind !== "lyric") return lines;
+    return lines.map(stripChords).filter((l) => l.trim());
+  }, [slide?.lines, slide?.kind]);
+
+  const hasText = !!(displayLines.some((l) => l.trim()) || slide?.title);
   const bg = slide?.imageUrl
     ? {
         backgroundImage: `url(${slide.imageUrl})`,
@@ -344,7 +354,7 @@ export function SlideView({
               {slide.reference}
             </div>
           )}
-          {slide?.lines?.map((l, i) => (
+          {displayLines.map((l, i) => (
             <div
               key={i}
               className="font-medium leading-snug"

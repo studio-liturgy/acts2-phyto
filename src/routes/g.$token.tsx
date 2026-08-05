@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { isLiveNow } from "@/lib/live-session";
+import { ChordLine } from "@/components/ChordLine";
+import { parseChordLine, type SongChords } from "@/lib/chords";
 
 // Per-gathering share view — private, ephemeral links. Keep out of search.
 
@@ -40,7 +42,9 @@ interface SetRow {
   id: string;
   title: string;
   type: string;
-  content: { slides: SlideRow[] };
+  /** `chords` is set by the leader in the song editor. Absent = this song has
+   *  no chords configured, so the chord toggle stays hidden for it. */
+  content: { slides: SlideRow[]; chords?: SongChords };
 }
 
 interface ViewerSet {
@@ -56,6 +60,8 @@ interface ViewerPrefs {
   isDark: boolean;
   fontSize: number;
   fontFamily: FontFamily;
+  /** Chords are hidden by default — most people here are singing, not playing. */
+  showChords: boolean;
 }
 
 const FONT_FAMILY_CSS: Record<FontFamily, string> = {
@@ -73,9 +79,10 @@ function loadPrefs(): ViewerPrefs {
       isDark: localStorage.getItem("phyto-viewer-dark") !== "false",
       fontSize: Number(localStorage.getItem("phyto-viewer-fontsize") ?? 1),
       fontFamily: (localStorage.getItem("phyto-viewer-fontfamily") as FontFamily) ?? "sans",
+      showChords: localStorage.getItem("phyto-viewer-chords") === "true",
     };
   } catch {
-    return { isDark: true, fontSize: 1, fontFamily: "sans" };
+    return { isDark: true, fontSize: 1, fontFamily: "sans", showChords: false };
   }
 }
 
@@ -84,6 +91,7 @@ function savePrefs(prefs: ViewerPrefs) {
     localStorage.setItem("phyto-viewer-dark", String(prefs.isDark));
     localStorage.setItem("phyto-viewer-fontsize", String(prefs.fontSize));
     localStorage.setItem("phyto-viewer-fontfamily", prefs.fontFamily);
+    localStorage.setItem("phyto-viewer-chords", String(prefs.showChords));
   } catch {
     // ignore
   }
@@ -141,6 +149,18 @@ async function fetchViewerSets(gatheringId: string): Promise<ViewerSet[]> {
       return set ? { position: gs.position, set } : null;
     })
     .filter((x): x is ViewerSet => x !== null);
+}
+
+/**
+ * A song offers the chord toggle only when the leader turned chords on in the
+ * editor AND the lyrics actually carry some, so the control never appears as a
+ * dead switch.
+ */
+function setHasChords(set: SetRow): boolean {
+  if (set.type !== "song" || !set.content?.chords) return false;
+  return (set.content.slides ?? []).some((s) =>
+    s.lines?.some((l) => parseChordLine(l).chords.length > 0),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -356,6 +376,36 @@ function GatheringViewer() {
               </div>
 
               <div className="space-y-4 text-sm">
+                {/* Chords — only for gatherings that actually have any */}
+                {sets.some((vs) => setHasChords(vs.set)) && (
+                  <div>
+                    <div className="mb-2 text-[10px] uppercase tracking-wider">Chords</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([false, true] as const).map((on) => {
+                        const active = prefs.showChords === on;
+                        return (
+                          <button
+                            key={String(on)}
+                            onClick={() => setPrefs((p) => ({ ...p, showChords: on }))}
+                            style={{ fontFamily: "Arial, sans-serif" }}
+                            className={`rounded-lg border px-3 py-2 text-xs transition ${
+                              active
+                                ? prefs.isDark
+                                  ? "border-white bg-white text-black"
+                                  : "border-black bg-black text-white"
+                                : prefs.isDark
+                                  ? "border-white/20 hover:border-white"
+                                  : "border-black/20 hover:border-black"
+                            }`}
+                          >
+                            {on ? "Show" : "Hide"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Font size */}
                 <div>
                   <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
@@ -484,7 +534,9 @@ function GatheringViewer() {
           }
         }}
       >
-        {activeSet && <SetContent set={activeSet} isDark={prefs.isDark} />}
+        {activeSet && (
+          <SetContent set={activeSet} isDark={prefs.isDark} showChords={prefs.showChords} />
+        )}
       </div>
     </div>
   );
@@ -494,7 +546,15 @@ function GatheringViewer() {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function SetContent({ set, isDark }: { set: SetRow; isDark: boolean }) {
+function SetContent({
+  set,
+  isDark,
+  showChords,
+}: {
+  set: SetRow;
+  isDark: boolean;
+  showChords: boolean;
+}) {
   const slides = set.content?.slides ?? [];
 
   if (set.type === "scripture") {
@@ -535,6 +595,8 @@ function SetContent({ set, isDark }: { set: SetRow; isDark: boolean }) {
             key={slide.id ?? i}
             slide={slide}
             isDark={isDark}
+            chords={set.content?.chords}
+            showChords={showChords}
             showSection={slide.section !== slides[i - 1]?.section}
           />
         ))}
@@ -595,23 +657,38 @@ function MediaSlide({ slide }: { slide: SlideRow }) {
 function SlideBlock({
   slide,
   isDark,
+  chords,
+  showChords,
   showSection = true,
 }: {
   slide: SlideRow;
   isDark: boolean;
+  chords?: SongChords;
+  showChords: boolean;
   showSection?: boolean;
 }) {
   const mutedClass = isDark ? "opacity-40" : "opacity-50";
   return (
-    <div className="space-y-1">
+    <div className={showChords ? "space-y-2" : "space-y-1"}>
       {showSection && slide.section && (
         <p className={`text-xs uppercase tracking-widest ${mutedClass}`}>{slide.section}</p>
       )}
       {slide.title && <p className="font-semibold">{slide.title}</p>}
       {slide.lines?.map((line, j) => (
-        <p key={j} className="leading-relaxed">
-          {line || " "}
-        </p>
+        <ChordLine
+          key={j}
+          line={line}
+          chords={chords}
+          show={showChords}
+          className="leading-relaxed"
+          // 0.7em so chords track the viewer's own font-size slider. The blues
+          // are set per background rather than via --brand-blue: this route
+          // themes itself off `prefs.isDark` and never carries the `.dark`
+          // class, so it would always get the light value (3.9:1 on black).
+          chordClassName={`text-[0.7em] font-semibold ${
+            isDark ? "text-[#7FB9DA]" : "text-[#2E7299]"
+          }`}
+        />
       ))}
     </div>
   );

@@ -44,6 +44,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { stripChords } from "@/lib/chords";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
 
@@ -91,6 +92,14 @@ function KindBadge({ kind, abbrev = false }: { kind: SetKind; abbrev?: boolean }
     >
       {abbrev ? KIND_ABBREV[kind] : kind === "mixed" ? "Mixed" : kind}
     </span>
+  );
+}
+
+/** Lyric search, matched against the text as projected — inline chords like
+ *  `(G)` are stripped first so they can't break a phrase mid-search. */
+function setMatchesLyric(s: PhytoSet, q: string): boolean {
+  return s.slides.some((slide) =>
+    slide.lines?.some((line) => stripChords(line).toLowerCase().includes(q)),
   );
 }
 
@@ -253,7 +262,7 @@ function Presenter() {
       const s = sets[id];
       if (!s) return false;
       if (s.name.toLowerCase().includes(q)) return true;
-      return s.slides.some((slide) => slide.lines?.some((line) => line.toLowerCase().includes(q)));
+      return setMatchesLyric(s, q);
     })
     // Only the catalogue list is sorted; inside a gathering the order is
     // manual (drag-reorderable) and must be left untouched.
@@ -276,9 +285,7 @@ function Presenter() {
           const s = sets[id];
           if (!s) return false;
           if (s.name.toLowerCase().includes(q)) return true;
-          return s.slides.some((slide) =>
-            slide.lines?.some((line) => line.toLowerCase().includes(q)),
-          );
+          return setMatchesLyric(s, q);
         })
       : [];
 

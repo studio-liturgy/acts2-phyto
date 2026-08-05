@@ -1,3 +1,5 @@
+import type { SongChords } from "./chords";
+
 export type SlideKind = "lyric" | "scripture" | "image" | "video" | "blank";
 
 /** Where a video slide's media comes from.
@@ -53,6 +55,10 @@ export interface Set {
   slides: Slide[];
   /** Visual template applied to all slides in this set. */
   template?: SetTemplate;
+  /** Song-only: how the chords typed inline in the lyrics are displayed.
+   *  Absent = the song has no chords configured. Chords are never projected;
+   *  this only governs the phone view. */
+  chords?: SongChords;
   /** Media-only: auto-advance to next slide after N ms. 0 = off. */
   autoAdvanceMs?: number;
   /** Media-only: when auto-advancing, loop from end back to start. */

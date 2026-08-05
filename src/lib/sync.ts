@@ -44,6 +44,7 @@ export function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
     content: {
       slides: s.slides,
       template: s.template,
+      chords: s.chords,
       autoAdvanceMs: s.autoAdvanceMs,
       loop: s.loop,
       dissolveMs: s.dissolveMs,
@@ -84,6 +85,7 @@ export function fromSupabaseSet(row: Record<string, unknown>): PhytoSet {
     kind: row.type as PhytoSet["kind"],
     slides: (content.slides as PhytoSet["slides"]) ?? [],
     template: content.template as PhytoSet["template"],
+    chords: content.chords as PhytoSet["chords"],
     autoAdvanceMs: content.autoAdvanceMs as number | undefined,
     loop: content.loop as boolean | undefined,
     dissolveMs: content.dissolveMs as number | undefined,
@@ -492,6 +494,7 @@ export function setFingerprint(s: PhytoSet): string {
     kind: s.kind,
     slides: s.slides,
     template: s.template ?? null,
+    chords: s.chords ?? null,
     autoAdvanceMs: s.autoAdvanceMs ?? null,
     loop: s.loop ?? null,
     dissolveMs: s.dissolveMs ?? null,

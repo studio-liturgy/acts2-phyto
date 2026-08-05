@@ -6,6 +6,7 @@ import { useAccountPull, useSyncStatus } from "@/hooks/use-sync-status";
 import { exportCatalogue, importCatalogue } from "@/lib/catalogue-io";
 import { APP_NAME } from "@/lib/appConfig";
 import { isLiveNow } from "@/lib/live-session";
+import { stripChords } from "@/lib/chords";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -153,7 +154,7 @@ function kindChip(kind: KindFilter, active: boolean): string {
 function previewText(d: PhytoSet): string {
   if (d.slides.length === 0) return "Empty — no slides.";
   const lines = d.slides.slice(0, 10).map((s) => {
-    if (s.lines?.length) return s.lines.join(" / ");
+    if (s.lines?.length) return s.lines.map(stripChords).filter(Boolean).join(" / ");
     if (s.reference) return s.reference;
     if (s.title) return s.title;
     if (s.imageUrl) return "[image]";
@@ -339,7 +340,9 @@ function Library() {
         (d) =>
           !q ||
           d.name.toLowerCase().includes(q) ||
-          d.slides.some((slide) => slide.lines?.some((line) => line.toLowerCase().includes(q))),
+          d.slides.some((slide) =>
+            slide.lines?.some((line) => stripChords(line).toLowerCase().includes(q)),
+          ),
       );
     rows = [...rows].sort((a, b) => {
       switch (sortMode) {
