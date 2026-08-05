@@ -1233,7 +1233,7 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
       <div className="mono mb-3 flex items-baseline justify-between gap-2 text-[10px] uppercase tracking-wider">
         <span>Chord sheet</span>
         <span className="text-muted-foreground">
-          {chords.display === "numbers" ? `Numbers in ${chords.key}` : `Key of ${chords.key}`}
+          {chords.display === "numbers" ? "Numbers" : `Key of ${chords.key}`}
         </span>
       </div>
       <div className="max-h-72 space-y-3 overflow-y-auto pr-1 text-sm">
