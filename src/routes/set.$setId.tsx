@@ -171,7 +171,7 @@ function SongJump({
   return (
     <div ref={boxRef} className="relative shrink-0">
       <div className="pill flex h-9 w-52 items-center gap-2 border border-foreground bg-background px-3">
-        <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <Search className="h-3.5 w-3.5 shrink-0" />
         <input
           value={query}
           onChange={(e) => {
