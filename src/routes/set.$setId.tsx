@@ -1142,16 +1142,6 @@ function ChordControls({
 
       {shown && chords && (
         <div className="mt-3 space-y-3 border-t border-foreground/15 pt-3">
-          <div className="space-y-1.5">
-            <p className="mono text-[10px] leading-relaxed text-muted-foreground">
-              Paste a chord sheet, or type a chord on the row above the word it belongs to. They
-              never show on the projector.
-            </p>
-            <p className="mono text-[10px] leading-relaxed text-muted-foreground">
-              Pasting doesn&apos;t always guess the right key — double-check it below.
-            </p>
-          </div>
-
           <div className="flex items-center gap-2">
             {(["letters", "numbers"] as const).map((d) => (
               <button
@@ -1793,7 +1783,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               `Paste lyrics here, or select a song above.\n` +
               `Use --- to split slides. Label sections with [Verse 1], [Chorus], etc.` +
               (chordCfg && !chordsHidden
-                ? `\nPaste a chord sheet, or type a chord on the row above the word it belongs to. They never show on the projector.`
+                ? `\nPaste a chord sheet, or type a chord on the row above the word it belongs to. They never show on the projector. Pasting doesn't always guess the right key, double-check it below.`
                 : "")
             }
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
