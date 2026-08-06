@@ -2150,7 +2150,7 @@ function AddToGathering({
   return (
     <div className="relative">
       <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
-        <Search className="h-4 w-4" />
+        <Plus className="h-4 w-4" />
         <input
           value={query}
           onChange={(e) => {
@@ -2160,7 +2160,7 @@ function AddToGathering({
           }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder={added ? `Added to ${added}` : "Add to a gathering…"}
+          placeholder={added ? `Added to ${added}` : "Add to a gathering"}
           className="mono uppercase w-44 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
         />
       </div>
