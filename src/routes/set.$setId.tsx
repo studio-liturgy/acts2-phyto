@@ -1137,11 +1137,18 @@ function ChordControls({
 
       {shown && chords && (
         <div className="mt-3 space-y-3 border-t border-foreground/15 pt-3">
-          <p className="mono text-[10px] leading-relaxed text-muted-foreground">
-            Paste a chord sheet, or type chords in round brackets:{" "}
-            <span className="text-foreground">Amazing (G)grace</span>. They never show on the
-            projector.
-          </p>
+          <div className="space-y-1.5">
+            <p className="mono text-[10px] leading-relaxed text-muted-foreground">
+              Paste a chord sheet, or type a chord on the row above the word it belongs to. They
+              never show on the projector.
+            </p>
+            <pre className="mono whitespace-pre text-[10px] leading-relaxed text-foreground">
+              {"     G\nAmazing grace"}
+            </pre>
+            <p className="mono text-[10px] leading-relaxed text-muted-foreground">
+              Pasting doesn&apos;t always guess the right key — double-check it below.
+            </p>
+          </div>
 
           <div className="flex items-center gap-2">
             {(["letters", "numbers"] as const).map((d) => (
