@@ -63,6 +63,7 @@ import {
   Search,
   Loader2,
   ChevronDown,
+  Minus,
   X,
 } from "lucide-react";
 import {
@@ -1036,8 +1037,16 @@ function SlideGrid({
 
 // Strips existing --- lines, then re-inserts --- every linesPer non-empty lines,
 // preserving empty lines in their original positions.
-function applyDividers(text: string, linesPer: number): string {
-  const lines = text.replace(/^---\s*$/gm, "").split("\n");
+//
+// The strip has to remove those lines outright, not blank them: replacing
+// "---" with "" left an empty array entry that the loop below then treats as
+// a genuine stanza break, forcing a group boundary right back at the OLD
+// divider's position regardless of the new linesPer. That made every divide
+// after the first a no-op — re-running this on already-divided text (which
+// picking a search result already produces once) never actually moved
+// anything.
+export function applyDividers(text: string, linesPer: number): string {
+  const lines = text.split("\n").filter((l) => l.trim() !== "---");
   const out: string[] = [];
   let countInGroup = 0;
 
@@ -1301,6 +1310,17 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     return slidesToLyricsText(useLibrary.getState().sets[setId]?.slides ?? []);
   });
   const prevLinesPer = useRef(linesPer);
+  /** Shared by the stepper buttons and typing directly into the box. */
+  const requestLinesPerChange = (raw: number) => {
+    const next = Math.min(8, Math.max(1, raw || 1));
+    if (next === linesPer) return;
+    if (lyrics.trim()) {
+      setPendingLinesPerConfirm(next);
+    } else {
+      prevLinesPer.current = next;
+      setLinesPer(next);
+    }
+  };
 
   const [songQuery, setSongQuery] = useState("");
   // The search box has no single natural placeholder — cycle between what it's
@@ -1775,22 +1795,36 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             onClearLine={clearLineChords}
           >
             <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
-            <input
-              type="number"
-              min={1}
-              max={8}
-              value={linesPer}
-              onChange={(e) => {
-                const next = Math.max(1, Number(e.target.value) || 1);
-                if (lyrics.trim()) {
-                  setPendingLinesPerConfirm(next);
-                } else {
-                  prevLinesPer.current = next;
-                  setLinesPer(next);
-                }
-              }}
-              className="pill h-7 w-16 border border-foreground bg-background px-3 text-xs outline-none"
-            />
+            {/* A native number input's spinner can't be restyled beyond hiding
+                it, so it's replaced outright with buttons matching the rest of
+                the app's pill controls. */}
+            <div className="pill flex h-7 items-stretch overflow-hidden border border-foreground bg-background">
+              <button
+                type="button"
+                onClick={() => requestLinesPerChange(linesPer - 1)}
+                disabled={linesPer <= 1}
+                aria-label="Fewer lines per slide"
+                className="flex w-6 items-center justify-center transition hover:bg-foreground hover:text-background disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-inherit"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={linesPer}
+                onChange={(e) => requestLinesPerChange(Number(e.target.value.replace(/\D/g, "")))}
+                className="mono w-6 border-x border-foreground bg-transparent text-center text-xs outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => requestLinesPerChange(linesPer + 1)}
+                disabled={linesPer >= 8}
+                aria-label="More lines per slide"
+                className="flex w-6 items-center justify-center transition hover:bg-foreground hover:text-background disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-inherit"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
           </ChordControls>
         </div>
 
