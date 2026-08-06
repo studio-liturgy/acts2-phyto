@@ -444,12 +444,12 @@ function SetEditor() {
           </div>
           {/* Right: template editor + live slide grid */}
           <div className="w-1/2 overflow-y-auto p-6">
-            <div className="mb-4">
-              <SongTemplateEditor />
-            </div>
             {phytoSet.chords && !phytoSet.chords.hidden && phytoSet.slides.length > 0 && (
               <ChordSheet slides={phytoSet.slides} chords={phytoSet.chords} />
             )}
+            <div className="mb-4">
+              <SongTemplateEditor />
+            </div>
             {phytoSet.slides.length === 0 ? (
               <p className="py-16 text-center text-sm text-muted-foreground">
                 Slides will appear here as you type

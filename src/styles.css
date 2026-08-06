@@ -64,6 +64,11 @@
 }
 
 :root {
+  /* Without this, the browser renders native chrome — scrollbars, form
+     controls — in its light default regardless of the app's own theme, which
+     is why dark mode's scrollbars showed up black instead of white. */
+  color-scheme: light;
+
   --radius: 1.25rem;
 
   /* Brand palette */
@@ -97,6 +102,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   --background: #1a1a1a;
   --foreground: #f5efef;
   --card: #1a1a1a;
