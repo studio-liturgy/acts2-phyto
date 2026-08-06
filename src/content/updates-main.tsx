@@ -69,7 +69,12 @@ export default function UpdatesMain() {
                 Merged hundreds of songs that were listed twice under different titles
               </FeatureItem>
               <FeatureItem>
-                Cleared out stray underscores and punctuation that showed up in some imported lyrics
+                Cleared out stray underscores, dashes, and punctuation that showed up in some
+                imported lyrics. A word broken across a chord change now reads as one word again
+              </FeatureItem>
+              <FeatureItem>
+                Chord charts and bar lines that were sitting in a few songs as if they were lyrics
+                no longer show up on the projector
               </FeatureItem>
             </ul>
 

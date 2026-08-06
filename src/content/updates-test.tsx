@@ -32,13 +32,6 @@ export default function UpdatesTest() {
             <ul className="mt-3 space-y-1">
               <li className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
-                <div className="flex-1">
-                  Stray dashes still appear in a few imported songs, where a word was split across a
-                  chord change. Underscores are fixed
-                </div>
-              </li>
-              <li className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
                 <div className="flex-1">Welcome email not sending on first login</div>
               </li>
               <li className="flex items-start gap-2">
