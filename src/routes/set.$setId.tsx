@@ -1747,25 +1747,32 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                         setLyrics(imported);
                         setSongResults([]);
                         setPreview(null);
-                        // The chords toggle's current state is left exactly as
-                        // it was: picking a search result isn't the same as
-                        // pasting a chord sheet, so it shouldn't switch chords
-                        // on for a song that had them off. If they're already
-                        // on, the key updates to whatever this song is tagged
-                        // with (or a guess), so switching songs mid-set still
-                        // shows the right key rather than the previous song's.
+                        // The toggle's own state is preserved exactly — picking
+                        // a search result isn't the same as pasting a chord
+                        // sheet, so it never switches chords on by itself.
+                        //
+                        // The KEY is recorded either way, though. The library
+                        // ships the key the song was actually published in for
+                        // all but a handful of its chorded songs, and that tag
+                        // is the real answer: throwing it away because the
+                        // toggle happened to be off meant turning chords on
+                        // later had nothing left to go on and fell back to
+                        // guessing from the chords. On a song that doesn't open
+                        // on its tonic that guess is simply wrong — 10,000
+                        // Reasons opens "Bless the (C)Lord" but is published in
+                        // G, so it came out a fourth off.
                         const currentChords = useLibrary.getState().sets[setId]?.chords;
                         const chordsCurrentlyOn = !!currentChords && !currentChords.hidden;
+                        const importedKey =
+                          (s.key ? normaliseKeyTag(s.key) : null) ?? guessKey(imported);
                         updateSet(setId, {
                           name: s.title,
-                          ...(chordsCurrentlyOn
+                          ...(hasChords(imported) && importedKey
                             ? {
                                 chords: {
-                                  ...currentChords,
-                                  key:
-                                    (s.key ? normaliseKeyTag(s.key) : null) ??
-                                    guessKey(imported) ??
-                                    currentChords.key,
+                                  key: importedKey,
+                                  display: currentChords?.display ?? "letters",
+                                  hidden: !chordsCurrentlyOn,
                                 },
                               }
                             : {}),
