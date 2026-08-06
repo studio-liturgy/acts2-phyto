@@ -1277,6 +1277,12 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
 
 const SEARCH_PLACEHOLDERS = ["Search to import a new song", "e.g. How Great is Our God"];
 
+/** The search-result hover preview — chords never show anywhere but the
+ *  editor, and a bracket-laden chorus is harder to skim than a plain one. */
+function chordFreePreview(lyrics: string): string {
+  return songPreview(lyrics.split("\n").map(stripChords).join("\n"));
+}
+
 function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const { addSlide, updateSet } = useLibrary();
 
@@ -1730,13 +1736,13 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                         });
                       }}
                       onMouseEnter={(e) =>
-                        setPreview({ text: songPreview(s.lyrics), x: e.clientX, y: e.clientY })
+                        setPreview({ text: chordFreePreview(s.lyrics), x: e.clientX, y: e.clientY })
                       }
                       onMouseMove={(e) =>
                         setPreview((p) =>
                           p
                             ? { ...p, x: e.clientX, y: e.clientY }
-                            : { text: songPreview(s.lyrics), x: e.clientX, y: e.clientY },
+                            : { text: chordFreePreview(s.lyrics), x: e.clientX, y: e.clientY },
                         )
                       }
                       onMouseLeave={() => setPreview(null)}
