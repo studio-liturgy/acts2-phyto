@@ -1256,7 +1256,7 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
                   chords={chords}
                   show
                   className="leading-relaxed"
-                  chordClassName="text-[0.8em] font-semibold"
+                  chordClassName="mono text-[0.8em]"
                 />
               ))}
             </div>
