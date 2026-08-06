@@ -1686,19 +1686,25 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                         setLyrics(imported);
                         setSongResults([]);
                         setPreview(null);
-                        // Over half the local database carries chords. Switch
-                        // them on with the key the source tagged, falling back
-                        // to the first chord when there's no usable tag.
+                        // The chords toggle's current state is left exactly as
+                        // it was: picking a search result isn't the same as
+                        // pasting a chord sheet, so it shouldn't switch chords
+                        // on for a song that had them off. If they're already
+                        // on, the key updates to whatever this song is tagged
+                        // with (or a guess), so switching songs mid-set still
+                        // shows the right key rather than the previous song's.
+                        const currentChords = useLibrary.getState().sets[setId]?.chords;
+                        const chordsCurrentlyOn = !!currentChords && !currentChords.hidden;
                         updateSet(setId, {
                           name: s.title,
-                          ...(hasChords(imported)
+                          ...(chordsCurrentlyOn
                             ? {
                                 chords: {
+                                  ...currentChords,
                                   key:
                                     (s.key ? normaliseKeyTag(s.key) : null) ??
                                     guessKey(imported) ??
-                                    "G",
-                                  display: "letters" as const,
+                                    currentChords.key,
                                 },
                               }
                             : {}),
