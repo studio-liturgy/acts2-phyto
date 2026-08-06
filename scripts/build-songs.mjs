@@ -114,11 +114,53 @@ function joinMelismaDashes(line) {
  * chord token, so there's nothing here that could land inside one.
  */
 function stripNoise(line) {
-  return line
-    .replace(/_/g, "")
-    .replace(/[,;:.!?]/g, "")
-    .replace(/ {2,}/g, " ")
+  return (
+    line
+      .replace(/_/g, "")
+      .replace(/[,;:.!?]/g, "")
+      // A bar line never belongs in a lyric. Whole bar-line rows are dropped as
+      // furniture; this catches the stray one left on the end of a real line
+      // ("I'm goin home |"), where the rest of the line is genuinely sung.
+      .replace(/\|/g, " ")
+      .replace(/ {2,}/g, " ")
+      .trim()
+  );
+}
+
+// German/Nordic charts write B as H, and "NC" marks a no-chord beat. Neither is
+// a chord this codebase recognises, but both appear in bar-line notation, so
+// furniture detection has to tolerate them or it misses whole charts.
+const FURNITURE_EXTRAS = /^(h|hm|h7|hm7|nc|n\.c\.)$/i;
+
+/**
+ * Bar-line chord charts ("| F# | G# A#m | C#/F |", "E /// H | C#m7 /// A") and
+ * bare chord sequences ("Intro B - F# - C#", "A - F#m - D - A (2x)") are
+ * notation for the band, not words anyone sings. They survive into the lyrics
+ * because they aren't dot-prefixed in the source, so normaliseChordRows never
+ * sees them, and end up projected on screen.
+ *
+ * Detected by stripping the notation scaffolding — bars, beat slashes, repeat
+ * counts, a leading section label — and asking whether what's left is nothing
+ * but chords. A real lyric that happens to carry a stray bar ("I'm goin home |")
+ * keeps words behind after the strip, so it survives.
+ */
+function isChartFurniture(line) {
+  const t = line.trim();
+  if (!t) return false;
+  const bare = t
+    .replace(/\|/g, " ")
+    .replace(/\//g, " ")
+    .replace(/\(\s*(?:play\s*)?\d+\s*(?:x|times)?\s*\)/gi, " ")
+    // The trailing colon matters: sources write "Intro: B - F# - C#", and the
+    // colon only gets stripped later by stripNoise, long after this runs.
+    .replace(/^\s*(intro|outro|instrumental|instr|solo|turnaround|vamp|ending)\s*\d*\s*:?/i, " ")
+    .replace(/\s*-\s*/g, " ")
     .trim();
+  // Nothing but scaffolding: only furniture if it actually had bars in it, so a
+  // bare section label ("Bridge") isn't swallowed here.
+  if (!bare) return t.includes("|");
+  const tokens = bare.split(/\s+/).filter(Boolean);
+  return tokens.every((w) => isChordRow(w) || FURNITURE_EXTRAS.test(w));
 }
 
 function cleanLyrics(raw) {
@@ -148,6 +190,9 @@ function cleanLyrics(raw) {
 
     // Redundant label lines ("Verse 1:", "Chorus:", "Bridge: x3")
     if (LABEL_RE.test(trimmed)) continue;
+
+    // Bar-line charts and bare chord sequences — notation, not lyrics.
+    if (isChartFurniture(trimmed)) continue;
 
     // Lyric line — append directly with no blank lines within the section
     const cleaned = stripNoise(joinMelismaDashes(trimmed));
@@ -339,6 +384,82 @@ function dedupeByContent(songs) {
   return { winners, merged: songs.length - winners.length, pairs };
 }
 
+/**
+ * Every word in the database that appears on a line with no dash on it. Used to
+ * settle what a dash means, so it must be built only from dash-free lines: a
+ * vocabulary that included the artifacts would happily vouch for them.
+ */
+function buildVocabulary(songs) {
+  const vocab = new Set();
+  for (const s of songs) {
+    for (const line of s.lyrics.split("\n")) {
+      if (line.includes("-")) continue;
+      const plain = line.replace(/\([^()]*\)/g, "");
+      for (const w of plain.match(/[A-Za-z']+/g) ?? []) vocab.add(w.toLowerCase());
+    }
+  }
+  return vocab;
+}
+
+// A word fragment, then any chords hugging it, then a dash with whitespace on
+// at least one side, then more chords, then the next fragment. Requiring that
+// whitespace is what protects a genuine hyphenated word: "whirl-wind's" has
+// none, so it is never touched.
+const SPLIT_DASH_RE =
+  /([A-Za-z']+)((?:\s*\([^()\s]*\))*)(?:\s+-\s*|\s*-\s+)((?:\([^()\s]*\)\s*)*)([A-Za-z']+)/g;
+
+// A hyphen welded between two letters, with no space either side.
+const WELDED_DASH_RE = /\b([A-Za-z]+)-([A-Za-z]+)\b/g;
+
+/**
+ * Resolve the dashes chord charts leave behind.
+ *
+ * A word split across a chord change ("victo - ry", "o - ver", "con - fessed")
+ * has to be rejoined; a real dash between two whole words ("Oh God - there was
+ * no peace") has to become a plain space. Telling them apart needs to know
+ * whether the two fragments form a word, and the corpus itself answers that:
+ * "victory" occurs 244 times elsewhere in the database, "godthere" never.
+ *
+ * Chords sitting either side of the dash are carried through untouched, so
+ * "hallelu (G)- (Gsus)jah" closes up to "hallelu(G)(Gsus)jah" rather than
+ * losing its chord placement.
+ */
+function resolveDashes(text, vocab) {
+  return text
+    .split("\n")
+    .map((line) => {
+      // "1- Each cooing dove" — a verse number welded to the first word.
+      let out = line.replace(/^\s*\d+\s*-\s*/, "");
+      // Some sources escape the dash; normalise before matching.
+      out = out.replace(/\\-/g, "-");
+      out = out.replace(SPLIT_DASH_RE, (whole, left, lc, rc, right) => {
+        const joined = (left + right).toLowerCase().replace(/'/g, "");
+        return vocab.has(joined)
+          ? `${left}${lc}${rc}${right}`.replace(/\s+/g, "")
+          : `${left}${lc} ${rc}${right}`;
+      });
+      // The same split can also reach us with its spaces already collapsed
+      // ("Re-demption", "jour-ney", "Sa-vior"), which looks exactly like a real
+      // compound word. The corpus test alone isn't enough here, so it gets one
+      // extra guard: a genuine compound has both halves as words in their own
+      // right ("ever-living", "first-born", "nail-scarred"), a split word does
+      // not. Only joining when that guard fails leaves real compounds intact.
+      out = out.replace(WELDED_DASH_RE, (whole, a, b) => {
+        const bothWords = vocab.has(a.toLowerCase()) && vocab.has(b.toLowerCase());
+        return vocab.has((a + b).toLowerCase()) && !bothWords ? a + b : whole;
+      });
+      // Whatever the join pass didn't claim is a leftover: a dash dangling off
+      // the end of a line, opening one, trailing a chord ("(A)- (E)cean"), or
+      // part of an arrow ("->chorus"). None of them are sung, so they all
+      // become a space. The rule is simply that a dash survives only when it is
+      // welded between two letters, which is exactly a real hyphenated word
+      // ("whirl-wind's", "self-control") and nothing else.
+      out = out.replace(/(?<![A-Za-z])-+|-+(?![A-Za-z])/g, " ");
+      return out.replace(/ {2,}/g, " ").trim();
+    })
+    .join("\n");
+}
+
 async function main() {
   const srcDir = process.argv[2] ?? "/Users/valiantchan/Downloads/en";
   const outPath = join(process.cwd(), "public", "songs-en.json");
@@ -371,6 +492,13 @@ async function main() {
     }
   }
 
+  // Dashes are settled across the whole corpus at once, so this runs after
+  // every song is parsed rather than inside cleanLyrics.
+  const vocab = buildVocabulary(parsed);
+  const dashesBefore = parsed.filter((s) => /\s-|-\s/.test(s.lyrics)).length;
+  for (const s of parsed) s.lyrics = resolveDashes(s.lyrics, vocab);
+  const dashesAfter = parsed.filter((s) => /\s-|-\s/.test(s.lyrics)).length;
+
   const deduped = dedupe(parsed);
   const { winners, merged, pairs } = dedupeByContent(deduped);
   const withChords = winners.filter((s) => s.hasChords).length;
@@ -389,6 +517,7 @@ async function main() {
   const kb = Math.round(Buffer.byteLength(JSON.stringify(songs), "utf-8") / 1024);
   console.log(
     `✓ ${songs.length} songs written to public/songs-en.json (${kb} KB uncompressed, ` +
+      `dashes resolved in ${dashesBefore - dashesAfter} songs, ` +
       `${parsed.length - deduped.length} same-title duplicates dropped, ` +
       `${merged} cross-title duplicates merged (${pairs} pairs matched >= ${SIMILARITY_THRESHOLD}), ` +
       `${withChords} with chords, ${errors} errors)`,
