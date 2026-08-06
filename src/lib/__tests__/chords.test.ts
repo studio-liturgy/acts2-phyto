@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   chordRowsToInline,
+  clearChordsAtBoxOffset,
   chordStreamToInline,
   chordToNumber,
   diatonicChords,
@@ -521,6 +522,42 @@ describe("insertChordAtBoxOffset (the chord palette)", () => {
     const { lyrics: out } = insertChordAtBoxOffset(lyrics, at, "C");
     const box = inlineToChordRows(out);
     expect(readChordRows(box, out, { snap: false })).toBe(out);
+  });
+});
+
+describe("clearChordsAtBoxOffset (the palette's clear-line button)", () => {
+  const lyrics = "Amazing (G)grace how (C)sweet\nThat (G)saved a wretch like (D)me";
+
+  it("clears only the line the caret sits in, from its row", () => {
+    const box = inlineToChordRows(lyrics);
+    const caret = box.split("\n")[0].indexOf("C");
+    const { lyrics: out } = clearChordsAtBoxOffset(lyrics, caret);
+    expect(out).toBe("Amazing grace how sweet\nThat (G)saved a wretch like (D)me");
+  });
+
+  it("clears the same line when the caret is on its lyric instead", () => {
+    const box = inlineToChordRows(lyrics);
+    const caret = box.indexOf("sweet");
+    const { lyrics: out } = clearChordsAtBoxOffset(lyrics, caret);
+    expect(out).toBe("Amazing grace how sweet\nThat (G)saved a wretch like (D)me");
+  });
+
+  it("is a no-op on a line with no chords", () => {
+    const two = "no chords here\n(G)has chords";
+    expect(clearChordsAtBoxOffset(two, 3).lyrics).toBe(two);
+  });
+
+  it("works against a numbered row and still stores letters", () => {
+    const render = (c: string) => chordToNumber(c, "G");
+    const box = inlineToChordRows(lyrics, render);
+    const caret = box.indexOf("4");
+    const { lyrics: out } = clearChordsAtBoxOffset(lyrics, caret, render);
+    expect(out).toBe("Amazing grace how sweet\nThat (G)saved a wretch like (D)me");
+  });
+
+  it("clears an instrumental-only line", () => {
+    const out = clearChordsAtBoxOffset("(G) (C) (D)", 3).lyrics;
+    expect(out.replace(/\([^)]*\)/g, "").trim()).toBe("");
   });
 });
 

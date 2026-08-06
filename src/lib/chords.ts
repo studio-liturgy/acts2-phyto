@@ -673,6 +673,45 @@ export function insertChordAtBoxOffset(
 }
 
 /**
+ * Remove every chord from the stored line the caret sits in — the palette's
+ * "clear this line" button. Leaves the lyric text and every other line
+ * untouched, and is a no-op both on a line with no chords to begin with and
+ * on the synthetic blank line that separates an instrumental break from the
+ * lyric after it (there is no stored line to attribute that blank to).
+ */
+export function clearChordsAtBoxOffset(
+  lyrics: string,
+  boxOffset: number,
+  render: (chord: string) => string = (c) => c,
+): { lyrics: string; caret: number } {
+  const layout = buildChordRowLayout(lyrics, render);
+
+  let cursor = 0;
+  let li: number | null = null;
+  for (const line of layout) {
+    const end = cursor + line.text.length;
+    if (boxOffset <= end) {
+      li = line.storedLine;
+      break;
+    }
+    cursor = end + 1;
+  }
+  if (li === null) return { lyrics, caret: boxOffset };
+
+  const storedLines = lyrics.split("\n");
+  storedLines[li] = stripChordsRaw(storedLines[li]);
+  const newLyrics = storedLines.join("\n");
+
+  // Caret goes to the start of that line's now chord-less lyric text.
+  let boxCursor = 0;
+  for (const line of buildChordRowLayout(newLyrics, render)) {
+    if (line.storedLine === li) return { lyrics: newLyrics, caret: boxCursor };
+    boxCursor += line.text.length + 1;
+  }
+  return { lyrics: newLyrics, caret: newLyrics.length };
+}
+
+/**
  * Read the editor's chord-sheet view back into inline chords.
  *
  * Columns alone are not enough to recover the anchors: a wide label followed by

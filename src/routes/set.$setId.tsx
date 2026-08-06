@@ -34,6 +34,7 @@ import {
 import { ChordLine } from "@/components/ChordLine";
 import {
   chordToNumber,
+  clearChordsAtBoxOffset,
   diatonicChords,
   stripChords,
   hideChords,
@@ -62,6 +63,7 @@ import {
   Search,
   Loader2,
   ChevronDown,
+  X,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -1086,6 +1088,7 @@ function ChordControls({
   lyrics,
   onLyricsChange,
   onInsertChord,
+  onClearLine,
   children,
 }: {
   setId: string;
@@ -1094,6 +1097,8 @@ function ChordControls({
   onLyricsChange: (next: string) => void;
   /** Drop a chord in at the caret, from the palette below. */
   onInsertChord: (chord: string) => void;
+  /** Remove every chord from the line the caret is on. */
+  onClearLine: () => void;
   /** Rendered to the left of the Chords switch, sharing its row. */
   children?: ReactNode;
 }) {
@@ -1210,6 +1215,16 @@ function ChordControls({
                 {renderChord(c, chords)}
               </button>
             ))}
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={onClearLine}
+              title="Clear chords on this line"
+              aria-label="Clear chords on this line"
+              className="ml-auto flex h-9 w-9 items-center justify-center rounded-full border border-[var(--brand-red)] text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
 
           {!detected && (
@@ -1548,6 +1563,18 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     });
   };
 
+  /** Remove every chord from the line the caret is on — the palette's clear button. */
+  const clearLineChords = () => {
+    const at = caretRef.current ?? boxText.length;
+    const { lyrics: next, caret } = clearChordsAtBoxOffset(lyrics, at, chordLabel);
+    handleLyricsChange(next);
+    caretRef.current = caret;
+    requestAnimationFrame(() => {
+      lyricsRef.current?.focus();
+      lyricsRef.current?.setSelectionRange(caret, caret);
+    });
+  };
+
   const importScriptureWith = async (vPer: number) => {
     if (!ref.trim()) return;
     setBusy(true);
@@ -1696,6 +1723,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               setLyrics(next);
             }}
             onInsertChord={insertChord}
+            onClearLine={clearLineChords}
           >
             <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
             <input

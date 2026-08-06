@@ -1,3 +1,5 @@
+import { isChordToken } from "./chords";
+
 // Song search + lyrics. Christian/worship-focused.
 //
 // Search order:
@@ -126,6 +128,11 @@ function isWorshipArtist(name?: string): boolean {
  * clutter imported lyrics. A line that is only an annotation is dropped;
  * genuine blank lines (stanza breaks) and square-bracket section headers
  * ("[Verse 1]") are preserved.
+ *
+ * Written before inline chords existed — a chord is also `(...)`, so this has
+ * to check each one's contents rather than stripping every parenthetical, or
+ * every chord in the local database gets erased on the way into a search
+ * result, whether or not the song's chords toggle is ever touched.
  */
 function stripAnnotations(text: string): string {
   const out: string[] = [];
@@ -135,7 +142,7 @@ function stripAnnotations(text: string): string {
       continue;
     }
     const cleaned = raw
-      .replace(/\([^)\n]*\)/g, "")
+      .replace(/\(([^)\n]*)\)/g, (whole, inner: string) => (isChordToken(inner) ? whole : ""))
       .replace(/\s+/g, " ")
       .trim();
     if (cleaned === "") continue; // annotation-only line → drop it entirely
