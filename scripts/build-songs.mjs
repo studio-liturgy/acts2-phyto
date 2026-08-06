@@ -212,6 +212,133 @@ function dedupe(songs) {
   return [...best.values()];
 }
 
+// Normalised for CONTENT matching, deliberately looser than `norm()`: every
+// parenthetical is stripped (not just chords — a stray "(Intro)" or "(x2)"
+// would otherwise make two exports of the same song look different), and
+// section markers go too, since one export labelling "[Chorus]" and another
+// not shouldn't be the reason two copies of the same song don't match.
+function normaliseForContentMatch(text) {
+  return text
+    .replace(/\([^()]*\)/g, "")
+    .replace(/^\s*\[[^\]]+\]\s*$/gm, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Levenshtein distance, single-row DP — O(n·m) time, O(min(n,m)) space.
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  let prev = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    const cur = new Array(n + 1);
+    cur[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+
+// 1 = identical, 0 = nothing in common — same shape as Python's
+// difflib.SequenceMatcher.ratio(), used to validate this threshold.
+function similarity(a, b) {
+  const maxLen = Math.max(a.length, b.length);
+  return maxLen === 0 ? 1 : 1 - levenshtein(a, b) / maxLen;
+}
+
+const SIMILARITY_THRESHOLD = 0.85;
+
+/**
+ * The OpenSong source catalogues the same song under multiple titles far more
+ * often than under the same one: a source church's prefix ("Bergsig: How
+ * Great is our God" next to "How Great Is Our God"), a nickname or first-line
+ * title ("Refiner's Fire" / "Purify My Heart"), a mangled filename-derived
+ * title, a spelling variant. None of that is caught by `dedupe()`, which
+ * requires the title to already match.
+ *
+ * Songs are bucketed by the first 40 characters of their content-normalised
+ * lyrics — cheap, and enough to keep genuinely different songs from ever being
+ * compared — then compared pairwise within a bucket. Chains (A matches B, B
+ * matches C, but A and C fall in different buckets and are never compared
+ * directly) are grouped with union-find rather than merged pairwise, so a
+ * three-way duplicate collapses to one winner instead of two.
+ *
+ * The winner is whichever copy has an artist credited — the un-credited copy
+ * is, in every case checked, the source-prefixed one — then the same
+ * chords/key/length scoring `dedupe()` already uses.
+ */
+function dedupeByContent(songs) {
+  const keys = songs.map((s) => normaliseForContentMatch(s.lyrics));
+  const parent = songs.map((_, i) => i);
+  const find = (i) => {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]];
+      i = parent[i];
+    }
+    return i;
+  };
+  const union = (i, j) => {
+    const ri = find(i);
+    const rj = find(j);
+    if (ri !== rj) parent[ri] = rj;
+  };
+
+  const buckets = new Map();
+  for (let i = 0; i < songs.length; i++) {
+    if (keys[i].length < 40) continue; // too short to fingerprint reliably
+    const k = keys[i].slice(0, 40);
+    (buckets.get(k) ?? buckets.set(k, []).get(k)).push(i);
+  }
+
+  let pairs = 0;
+  for (const bucket of buckets.values()) {
+    for (let a = 0; a < bucket.length; a++) {
+      for (let b = a + 1; b < bucket.length; b++) {
+        const i = bucket[a];
+        const j = bucket[b];
+        if (norm(songs[i].title) === norm(songs[j].title)) continue; // dedupe()'s job
+        if (similarity(keys[i], keys[j]) >= SIMILARITY_THRESHOLD) {
+          union(i, j);
+          pairs++;
+        }
+      }
+    }
+  }
+
+  const groups = new Map();
+  for (let i = 0; i < songs.length; i++) {
+    const r = find(i);
+    (groups.get(r) ?? groups.set(r, []).get(r)).push(i);
+  }
+
+  const score = (x) => (x.artist.trim() ? 4 : 0) + (x.hasChords ? 2 : 0) + (x.key ? 1 : 0);
+  const winners = [];
+  for (const idxs of groups.values()) {
+    let best = idxs[0];
+    for (const i of idxs.slice(1)) {
+      if (
+        score(songs[i]) > score(songs[best]) ||
+        (score(songs[i]) === score(songs[best]) &&
+          songs[i].lyrics.length > songs[best].lyrics.length)
+      ) {
+        best = i;
+      }
+    }
+    winners.push(songs[best]);
+  }
+
+  return { winners, merged: songs.length - winners.length, pairs };
+}
+
 async function main() {
   const srcDir = process.argv[2] ?? "/Users/valiantchan/Downloads/en";
   const outPath = join(process.cwd(), "public", "songs-en.json");
@@ -245,9 +372,10 @@ async function main() {
   }
 
   const deduped = dedupe(parsed);
-  const withChords = deduped.filter((s) => s.hasChords).length;
+  const { winners, merged, pairs } = dedupeByContent(deduped);
+  const withChords = winners.filter((s) => s.hasChords).length;
 
-  const songs = deduped.map(({ title, artist, aka, key, lyrics }) => {
+  const songs = winners.map(({ title, artist, aka, key, lyrics }) => {
     const entry = { title, artist, lyrics };
     if (aka) entry.aka = aka;
     if (key) entry.key = key;
@@ -261,7 +389,9 @@ async function main() {
   const kb = Math.round(Buffer.byteLength(JSON.stringify(songs), "utf-8") / 1024);
   console.log(
     `✓ ${songs.length} songs written to public/songs-en.json (${kb} KB uncompressed, ` +
-      `${parsed.length - deduped.length} duplicates dropped, ${withChords} with chords, ${errors} errors)`,
+      `${parsed.length - deduped.length} same-title duplicates dropped, ` +
+      `${merged} cross-title duplicates merged (${pairs} pairs matched >= ${SIMILARITY_THRESHOLD}), ` +
+      `${withChords} with chords, ${errors} errors)`,
   );
 }
 
