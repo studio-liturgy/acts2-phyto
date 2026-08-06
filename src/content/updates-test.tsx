@@ -33,7 +33,8 @@ export default function UpdatesTest() {
               <li className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
                 <div className="flex-1">
-                  Artifacts when importing some song lyrics: multiple dashes or underscores
+                  Stray dashes still appear in a few imported songs, where a word was split across a
+                  chord change. Underscores are fixed
                 </div>
               </li>
               <li className="flex items-start gap-2">
@@ -51,6 +52,17 @@ export default function UpdatesTest() {
               Features Being Tested
             </div>
             <ul className="mt-3 space-y-1">
+              <FeatureItem>
+                Chords on songs
+                <ul className="mt-1 space-y-1 pl-2">
+                  <FeatureItem>Chords on a row above the words, never on the projector</FeatureItem>
+                  <FeatureItem>Showing chords on phones from the gathering menu</FeatureItem>
+                  <FeatureItem>Chord letters, Nashville numbers, and transposing</FeatureItem>
+                  <FeatureItem>
+                    Pasting chord sheets from Ultimate Guitar and WorshipTogether
+                  </FeatureItem>
+                </ul>
+              </FeatureItem>
               <FeatureItem>
                 Scripture template adjustments on presenter view and set editor
               </FeatureItem>

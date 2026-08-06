@@ -28,6 +28,66 @@ export default function UpdatesMain() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-12">
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
+            <div className="text-2xl">August 6, 2026</div>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Chords</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Songs can now carry chords. They sit on their own row above the words they belong
+                to, the way a chord sheet is normally written
+              </FeatureItem>
+              <FeatureItem>
+                Chords never appear on the projector. They are only ever for you and your musicians
+              </FeatureItem>
+              <FeatureItem>
+                Anyone following a gathering on their phone can turn chords on from the menu. They
+                stay hidden unless someone asks for them
+              </FeatureItem>
+              <FeatureItem>
+                Switch between chord letters and Nashville numbers, and change the key to transpose
+                a whole song at once
+              </FeatureItem>
+              <FeatureItem>
+                A row of buttons for the seven chords in your key, ready to drop in wherever your
+                cursor is, plus a button to clear the chords off a line
+              </FeatureItem>
+              <FeatureItem>
+                Paste a chord sheet straight from Ultimate Guitar or WorshipTogether. The chords
+                land on the right words on their own
+              </FeatureItem>
+            </ul>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">
+              Song library
+            </div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Around 1,500 songs in the built-in library now come with their chords, and 1,850
+                come with a key already set
+              </FeatureItem>
+              <FeatureItem>
+                Merged hundreds of songs that were listed twice under different titles
+              </FeatureItem>
+              <FeatureItem>
+                Cleared out stray underscores and punctuation that showed up in some imported lyrics
+              </FeatureItem>
+            </ul>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Song editor</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Search for another song from inside the editor and go straight to it, without
+                heading back to the catalogue first
+              </FeatureItem>
+              <FeatureItem>Undo and redo in the lyrics box with cmd or ctrl and Z</FeatureItem>
+              <FeatureItem>
+                Fixed the lines per slide arrows. Changing them after importing a song now actually
+                moves the slide dividers
+              </FeatureItem>
+              <FeatureItem>Fixed scrollbars showing up dark against a dark background</FeatureItem>
+            </ul>
+          </li>
+          <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">July 29, 2026</div>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Gatherings</div>
