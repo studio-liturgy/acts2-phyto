@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyDividers } from "../../routes/set.$setId";
+import { normaliseChordSheet } from "../chords";
 
 // Regression test for a bug where re-running applyDividers on already-divided
 // text (which every search-result import produces once) was a no-op: the
@@ -44,5 +45,31 @@ describe("applyDividers", () => {
   it("keeps a real stanza break as an early group boundary", () => {
     const withBreak = "one\ntwo\n\nthree";
     expect(applyDividers(withBreak, 3)).toBe("one\ntwo\n---\nthree");
+  });
+
+  // A pasted Ultimate Guitar / WorshipTogether sheet arrived as one
+  // continuous, undivided block — linesPer was silently ignored for paste
+  // even though a search-imported song already respected it.
+  it("divides a pasted Ultimate Guitar sheet by linesPer", () => {
+    const ug = [
+      "C",
+      "May my prayer like incense rise before You",
+      "    Am",
+      "The lifting of my hands a sacrifice",
+      "F",
+      "Oh Lord Jesus turn Your eyes upon me",
+      "   Dm                           G",
+      "For I know there is mercy in Your sight",
+    ].join("\n");
+    const folded = applyDividers(normaliseChordSheet(ug), 2);
+    expect(folded).toBe(
+      "(C)May my prayer like incense rise before You\nThe (Am)lifting of my hands a sacrifice\n---\n(F)Oh Lord Jesus turn Your eyes upon me\nFor (Dm)I know there is mercy in (G)Your sight",
+    );
+  });
+
+  it("divides a pasted WorshipTogether stream by linesPer", () => {
+    const wt = ["Verse 1", "  ", "The ", "G ", "splendor of the ", "D ", "King"].join("\n");
+    const folded = applyDividers(normaliseChordSheet(wt), 1);
+    expect(folded).toBe("[Verse 1]\nThe (G)splendor of the (D)King");
   });
 });

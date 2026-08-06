@@ -1570,8 +1570,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
    */
   const handleLyricsPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const pasted = e.clipboardData.getData("text");
-    const folded = normaliseChordSheet(pasted);
-    if (folded === pasted) return; // nothing chord-shaped — let the browser paste
+    const normalised = normaliseChordSheet(pasted);
+    if (normalised === pasted) return; // nothing chord-shaped — let the browser paste
+    // Divided the same way a search-imported song is: --- every linesPer real
+    // lyric lines, so a pasted chord sheet lands pre-split into slides instead
+    // of arriving as one continuous, undivided block.
+    const folded = applyDividers(normalised, linesPer);
     const { selectionStart, selectionEnd } = e.currentTarget;
     e.preventDefault();
     // Splice in the box's own coordinates, then let commitFromBox translate the
