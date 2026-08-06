@@ -6,6 +6,7 @@ import {
   diatonicChords,
   hideChords,
   inlineToChordRows,
+  insertChordAtBoxOffset,
   readChordRows,
   isNumberToken,
   lyricsToNumbers,
@@ -399,6 +400,127 @@ describe("inlineToChordRows / readChordRows (the editor's chord-sheet view)", ()
     // Column 5 lands inside "Amazing", so snapping pulls it to the word start.
     expect(chordRowsToInline("     G\nAmazing grace")).toBe("(G)Amazing grace");
     expect(chordRowsToInline("     G\nAmazing grace", { snap: false })).toBe("Amazi(G)ng grace");
+  });
+});
+
+describe("readChordRows: number tokens must convert back to letters", () => {
+  // Reported bug: clicking the numbers-mode palette, or editing a numbered
+  // row so it misses the exact-match cache, spliced the bare number in as
+  // "(4)" — not a valid letter chord, so it was never recognised as a chord
+  // again and leaked into the rendered lyric as literal text.
+  const render = (c: string) => chordToNumber(c, "G");
+  const read = (t: string) => (isNumberToken(t) ? numberToChord(t, "G") : t);
+
+  it("converts a re-derived number token back to its letter chord", () => {
+    const stored = "(G)Bless the (C)Lord";
+    const box = inlineToChordRows(stored, render);
+    // Widen a gap so the chunk misses the exact-match cache but keeps the same
+    // chords, forcing the read-back path (not just the whitespace-only path).
+    const edited = box.replace("1        4", "1         4");
+    const out = readChordRows(edited, stored, { snap: false, numbers: true, render, read });
+    expect(out).toBe("(G)Bless the (C)Lord");
+    expect(out).not.toMatch(/\(\d/);
+  });
+
+  it("converts every chord on a fully rewritten numbered line", () => {
+    const stored = "(G)one (C)two";
+    const box = inlineToChordRows(stored, render);
+    const edited = box.replace("one two", "one three");
+    const out = readChordRows(edited, stored, { snap: false, numbers: true, render, read });
+    expect(out).toBe("(G)one (C)three");
+  });
+});
+
+describe("readChordRows: whitespace-only row edits are no-ops", () => {
+  // Reported bug: clicking into the row right after a chord and hitting space
+  // shifted that chord to a different, unrelated column — it "jumped".
+  it("leaves the chord exactly where it was", () => {
+    const stored = "Bless the (C)Lord, O my (G)soul,";
+    const box = inlineToChordRows(stored);
+    const [row, lyric] = box.split("\n");
+    const idx = row.indexOf("C") + 1;
+    const edited = `${row.slice(0, idx)} ${row.slice(idx)}\n${lyric}`;
+    expect(readChordRows(edited, stored, { snap: false })).toBe(stored);
+  });
+
+  it("holds under the same edit in numbers mode too", () => {
+    const render = (c: string) => chordToNumber(c, "G");
+    const read = (t: string) => (isNumberToken(t) ? numberToChord(t, "G") : t);
+    const stored = "(G)Bless the (C)Lord, O my (Am)soul,";
+    const box = inlineToChordRows(stored, render);
+    const [row, lyric] = box.split("\n");
+    const idx = row.indexOf("4") + 1;
+    const edited = `${row.slice(0, idx)}  ${row.slice(idx)}\n${lyric}`;
+    expect(readChordRows(edited, stored, { snap: false, numbers: true, render, read })).toBe(
+      stored,
+    );
+  });
+
+  it("still re-derives when the chords themselves actually changed", () => {
+    const stored = "Bless the (C)Lord, O my (G)soul,";
+    const box = inlineToChordRows(stored);
+    const edited = box.replace(/\bC\b/, "D");
+    expect(readChordRows(edited, stored, { snap: false })).toBe("Bless the (D)Lord, O my (G)soul,");
+  });
+});
+
+describe("insertChordAtBoxOffset (the chord palette)", () => {
+  it("lands the chord on the word the caret sits in, not as raw text", () => {
+    const lyrics = "Bless the Lord, O my soul,";
+    const at = inlineToChordRows(lyrics).indexOf("Lord");
+    const { lyrics: out } = insertChordAtBoxOffset(lyrics, at, "C");
+    expect(out).toBe("Bless the (C)Lord, O my soul,");
+  });
+
+  it("never types the label into the middle of a word", () => {
+    const lyrics = "Amazing grace";
+    const at = inlineToChordRows(lyrics).indexOf("grace") + 2; // inside "gr|ace"
+    const { lyrics: out } = insertChordAtBoxOffset(lyrics, at, "G");
+    // The word must still read "grace" somewhere in the result — not "gr4ace".
+    expect(out.replace(/\([^)]*\)/g, "")).toBe("Amazing grace");
+  });
+
+  it("stores the letter chord even when the box is showing numbers", () => {
+    const lyrics = "Bless the Lord, O my soul,";
+    const render = (c: string) => chordToNumber(c, "G");
+    const at = inlineToChordRows(lyrics, render).indexOf("soul");
+    const { lyrics: out } = insertChordAtBoxOffset(lyrics, at, "C", render);
+    expect(out).toBe("Bless the Lord, O my (C)soul,");
+  });
+
+  it("chains: a second insert at the returned caret lands after the first", () => {
+    const lyrics = "Bless the Lord, O my soul,";
+    const r1 = insertChordAtBoxOffset(lyrics, inlineToChordRows(lyrics).indexOf("Lord"), "C");
+    const r2 = insertChordAtBoxOffset(r1.lyrics, r1.caret, "G");
+    // Both chords present, in the order they were placed, and no corruption.
+    expect(r2.lyrics.replace(/\([^)]*\)/g, "")).toBe(lyrics);
+    expect(r2.lyrics.indexOf("(C)")).toBeLessThan(r2.lyrics.indexOf("(G)"));
+  });
+
+  it("appends onto an existing instrumental line instead of colliding", () => {
+    const lyrics = "(G) (C)";
+    const { lyrics: out } = insertChordAtBoxOffset(lyrics, inlineToChordRows(lyrics).length, "D");
+    expect(out).toBe("(G) (C) (D)");
+  });
+
+  it("never splices into a [Section] label", () => {
+    const lyrics = "[Verse 1]\nno chords yet";
+    const { lyrics: out } = insertChordAtBoxOffset(lyrics, 3, "G");
+    expect(out.split("\n")[0]).toBe("[Verse 1]");
+    expect(out).toBe("[Verse 1]\n(G)no chords yet");
+  });
+
+  it("falls back to appending when there is nothing to anchor to", () => {
+    expect(insertChordAtBoxOffset("", 0, "G").lyrics).toBe("(G)");
+    expect(insertChordAtBoxOffset("[Verse 1]", 3, "G").lyrics).toBe("[Verse 1]\n(G)");
+  });
+
+  it("round-trips through the box unchanged after insertion", () => {
+    const lyrics = "Amazing (G)grace how sweet the sound";
+    const at = inlineToChordRows(lyrics).lastIndexOf("sound");
+    const { lyrics: out } = insertChordAtBoxOffset(lyrics, at, "C");
+    const box = inlineToChordRows(out);
+    expect(readChordRows(box, out, { snap: false })).toBe(out);
   });
 });
 

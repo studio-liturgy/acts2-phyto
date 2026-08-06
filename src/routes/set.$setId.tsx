@@ -38,7 +38,10 @@ import {
   stripChords,
   hideChords,
   inlineToChordRows,
+  insertChordAtBoxOffset,
+  isNumberToken,
   normaliseKeyTag,
+  numberToChord,
   readChordRows,
   reapplyChords,
   guessKey,
@@ -1310,6 +1313,13 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   // sheet is written — inline brackets are hard to read mid-lyric. The row
   // carries numbers instead of letters when that's the chosen display.
   const chordLabel = numbersMode ? (c: string) => chordToNumber(c, chordKey) : (c: string) => c;
+  // The inverse of chordLabel: what a re-derived row token converts back to
+  // before it's spliced into storage, which always holds letter chords. Without
+  // this a numbered row that misses the exact-match cache would splice the bare
+  // number in as "(4)" — not a valid chord, so it leaks into the lyric as text.
+  const chordRead = numbersMode
+    ? (t: string) => (isNumberToken(t) ? numberToChord(t, chordKey) : t)
+    : (t: string) => t;
   const boxText = chordsHidden ? hideChords(lyrics) : inlineToChordRows(lyrics, chordLabel);
   // Last caret position in the lyrics box. Null until it has been focused, so
   // a palette click before that appends rather than landing at position 0.
@@ -1460,6 +1470,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             snap: false,
             numbers: numbersMode,
             render: chordLabel,
+            read: chordRead,
           }),
     );
 
@@ -1508,17 +1519,25 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     commitFromBox(boxText.slice(0, selectionStart) + asShown + boxText.slice(selectionEnd));
   };
 
-  /** Drop a chord in at the caret, from the palette of the key's seven chords. */
+  /**
+   * Drop a chord in at the caret, from the palette of the key's seven chords.
+   *
+   * This writes to the STORED lyrics directly rather than splicing text into
+   * the box: the caret can land in the middle of a lyric word — a completely
+   * normal place to click before choosing a chord — and splicing raw text
+   * there would type the label straight into the word instead of placing a
+   * chord over it. insertChordAtBoxOffset maps the caret back to the right
+   * word first. The palette only renders once chords are shown, so this never
+   * runs while they're hidden.
+   */
   const insertChord = (chord: string) => {
     const at = caretRef.current ?? boxText.length;
-    // Bare label, no brackets: in the sheet view a chord is just text on a row.
-    const token = chordsHidden ? `(${chord})` : chordLabel(chord);
-    commitFromBox(boxText.slice(0, at) + token + boxText.slice(at));
-    const next = at + token.length;
-    caretRef.current = next;
+    const { lyrics: next, caret } = insertChordAtBoxOffset(lyrics, at, chord, chordLabel);
+    handleLyricsChange(next);
+    caretRef.current = caret;
     requestAnimationFrame(() => {
       lyricsRef.current?.focus();
-      lyricsRef.current?.setSelectionRange(next, next);
+      lyricsRef.current?.setSelectionRange(caret, caret);
     });
   };
 

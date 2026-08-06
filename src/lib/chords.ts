@@ -463,6 +463,14 @@ export interface ChordRowOpts {
   /** How a chord label is written in the row, e.g. as a Nashville number. */
   render?: (chord: string) => string;
   /**
+   * The inverse of `render`: turns a row token back into the letter chord that
+   * belongs in storage. Required whenever a row can carry numbers — without it,
+   * a re-derived line would splice the bare number in as `(4)`, which isn't a
+   * valid chord token and so is never recognised again; it just leaks into the
+   * lyric as literal text.
+   */
+  read?: (token: string) => string;
+  /**
    * Nudge a chord onto the word it lands over. Right for sheets pasted from
    * elsewhere, where column alignment is approximate. Must be off when reading
    * back our own editor output, or a deliberate mid-word chord would jump to
@@ -512,24 +520,156 @@ function renderOneLine(line: string, render: (chord: string) => string): string[
   return lyric.trim() === "" ? [row] : [row, lyric];
 }
 
+interface RowLayoutLine {
+  text: string;
+  /** Which stored lyric line this box line came from, or null for the
+   *  synthetic blank line that separates a lone instrumental row from the
+   *  lyric after it — there is no lyric line to attribute that blank to. */
+  storedLine: number | null;
+  kind: "row" | "lyric" | "plain" | "blank";
+}
+
+/**
+ * The one place that walks stored lyrics into box lines. `inlineToChordRows`
+ * is a thin wrapper over this; `insertChordAtBoxOffset` needs the same walk to
+ * map a caret position in the box back to a (stored line, column) — building
+ * it twice would drift the moment either changed.
+ */
+function buildChordRowLayout(lyrics: string, render: (chord: string) => string): RowLayoutLine[] {
+  const storedLines = lyrics.split("\n");
+  const out: RowLayoutLine[] = [];
+
+  for (let i = 0; i < storedLines.length; i++) {
+    const rendered = renderOneLine(storedLines[i], render);
+    if (rendered.length === 1) {
+      out.push({ text: rendered[0], storedLine: i, kind: "plain" });
+    } else {
+      out.push({ text: rendered[0], storedLine: i, kind: "row" });
+      out.push({ text: rendered[1], storedLine: i, kind: "lyric" });
+    }
+    // A lone row followed by a lyric would be read back as that lyric's chords,
+    // so a blank line keeps the instrumental break separate.
+    if (rendered.length === 1 && rendered[0].trim() !== "" && isChordRow(rendered[0])) {
+      const next = storedLines[i + 1];
+      if (next !== undefined && next.trim() !== "")
+        out.push({ text: "", storedLine: null, kind: "blank" });
+    }
+  }
+  return out;
+}
+
 export function inlineToChordRows(
   text: string,
   render: (chord: string) => string = (c) => c,
 ): string {
-  const lines = text.split("\n");
-  const out: string[] = [];
+  return buildChordRowLayout(text, render)
+    .map((l) => l.text)
+    .join("\n");
+}
 
-  for (let i = 0; i < lines.length; i++) {
-    const rendered = renderOneLine(lines[i], render);
-    out.push(...rendered);
-    // A lone row followed by a lyric would be read back as that lyric's chords,
-    // so a blank line keeps the instrumental break separate.
-    if (rendered.length === 1 && rendered[0].trim() !== "" && isChordRow(rendered[0])) {
-      const next = lines[i + 1];
-      if (next !== undefined && next.trim() !== "") out.push("");
+/**
+ * Drop a chord into the box at a caret position, the way the palette does.
+ *
+ * The box text is never spliced directly: the caret might land in the middle
+ * of a LYRIC word (a completely reasonable place to click before choosing a
+ * chord), and inserting raw text there would type the chord label straight
+ * into the word. Instead the caret is mapped back to (stored line, column in
+ * that line's stripped lyric) via the same layout `inlineToChordRows` builds,
+ * a proper bracketed chord is spliced into the STORED line at that column, and
+ * the box is re-rendered from the result — so this can never leave a lyric or
+ * a chord label corrupted, whichever line the caret happens to be on.
+ *
+ * Returns the caret position in the newly rendered box, right after the label
+ * that was just placed, so clicking further palette chords continues in place.
+ */
+export function insertChordAtBoxOffset(
+  lyrics: string,
+  boxOffset: number,
+  chord: string,
+  render: (chord: string) => string = (c) => c,
+): { lyrics: string; caret: number } {
+  const layout = buildChordRowLayout(lyrics, render);
+
+  const storedLines = lyrics.split("\n");
+  const isSection = (i: number) => /^\[.+\]$/.test(storedLines[i].trim());
+
+  let cursor = 0;
+  let hit: { line: RowLayoutLine; offset: number } | null = null;
+  for (const line of layout) {
+    const end = cursor + line.text.length;
+    // A section marker only ever gets here via kind "plain" (it carries no
+    // chords), which is also the one kind whose coordinate space is the raw
+    // stored line — skip it so a click that lands on "[Verse 1]" can't splice
+    // a chord into the label instead of a lyric.
+    if (
+      boxOffset <= end &&
+      !(line.kind === "plain" && line.storedLine !== null && isSection(line.storedLine))
+    ) {
+      hit = { line, offset: Math.max(0, boxOffset - cursor) };
+      break;
+    }
+    cursor = end + 1; // +1 for the newline the join() will have put here
+  }
+
+  // Nowhere recognisable to anchor to (an empty box, the synthetic blank
+  // separator, or every remaining line was a section marker) — append a fresh
+  // instrumental line instead of guessing at a position.
+  if (!hit || hit.line.storedLine === null) {
+    const newLyrics = lyrics + (lyrics.length && !lyrics.endsWith("\n") ? "\n" : "") + `(${chord})`;
+    return { lyrics: newLyrics, caret: inlineToChordRows(newLyrics, render).length };
+  }
+
+  const li = hit.line.storedLine;
+  const rawLine = storedLines[li];
+  const before = renderOneLine(rawLine, render);
+  const { text: stripped, chords: existing } = parseRawChordLine(rawLine);
+
+  let newLine: string;
+  if (stripped.trim() === "") {
+    // An instrumental line — nothing but chords, no word to anchor a column
+    // to, and its near-empty stripped text puts every existing chord at
+    // almost the same index, which the sparse per-index splice below can't
+    // order correctly on a tie. Simplest correct move: append.
+    newLine = [...existing.map((c) => c.chord), chord].map((c) => `(${c})`).join(" ");
+  } else {
+    // A row's columns are meant to line up with the lyric beneath it, so both
+    // kinds map onto the same stripped-text coordinate.
+    const strippedOffset = Math.min(hit.offset, stripped.length);
+    newLine = stripped;
+    for (const c of [...existing, { chord, index: strippedOffset }].sort(
+      (a, b) => b.index - a.index,
+    )) {
+      newLine = newLine.slice(0, c.index) + `(${c.chord})` + newLine.slice(c.index);
     }
   }
-  return out.join("\n");
+  storedLines[li] = newLine;
+  const newLyrics = storedLines.join("\n");
+
+  // Where the new label landed: everything before it renders identically to
+  // before the insert, so the first point the old and new rows diverge is
+  // exactly where the inserted label begins. When this line had no chords at
+  // all before now, there was no old row to diverge from — the whole new row
+  // is the label, so its end is simply the row's length.
+  const after = renderOneLine(newLine, render);
+  const newRow = after[0];
+  const labelEnd =
+    before.length === 2
+      ? (() => {
+          const oldRow = before[0];
+          let d = 0;
+          while (d < oldRow.length && d < newRow.length && oldRow[d] === newRow[d]) d++;
+          return d + render(chord).length;
+        })()
+      : newRow.length;
+
+  let boxCursor = 0;
+  for (const line of buildChordRowLayout(newLyrics, render)) {
+    if (line.storedLine === li && line.kind === "row") {
+      return { lyrics: newLyrics, caret: boxCursor + labelEnd };
+    }
+    boxCursor += line.text.length + 1;
+  }
+  return { lyrics: newLyrics, caret: inlineToChordRows(newLyrics, render).length };
 }
 
 /**
@@ -538,18 +678,31 @@ export function inlineToChordRows(
  * Columns alone are not enough to recover the anchors: a wide label followed by
  * a close one gets nudged right to keep the two readable, so re-deriving from
  * the row would shift those chords a character or two on the very first
- * keystroke. `previous` is the stored text the box was rendered from — any
- * (row, lyric) pair still matching what that text produced is passed straight
- * through, so only lines actually edited are re-derived.
+ * keystroke — typing a single space next to a chord, without touching the lyric
+ * or which chords are on the row, would otherwise visibly move it. `previous` is
+ * the stored text the box was rendered from, matched two ways: first an exact
+ * (row, lyric) pair, which covers every untouched line; then, for a row whose
+ * spacing changed but whose lyric and chord sequence didn't, the line that
+ * produced that same lyric + sequence — a whitespace-only edit is a no-op.
+ * Only a line where the lyric or the chords themselves actually changed is
+ * re-derived from raw columns.
  */
 export function readChordRows(box: string, previous: string, opts: ChordRowOpts = {}): string {
   const render = opts.render ?? ((c: string) => c);
-  const memory = new Map<string, string>();
+  const read = opts.read ?? ((t: string) => t);
+  const rowOpts = { numbers: opts.numbers === true };
+
+  const exact = new Map<string, string>();
+  const bySequence = new Map<string, string>();
   for (const line of previous.split("\n")) {
-    memory.set(renderOneLine(line, render).join("\n"), line);
+    const rendered = renderOneLine(line, render);
+    exact.set(rendered.join("\n"), line);
+    if (rendered.length === 2) {
+      const tokens = rendered[0].trim().split(/\s+/).filter(Boolean);
+      bySequence.set(`${rendered[1]}\n${tokens.join(" ")}`, line);
+    }
   }
 
-  const rowOpts = { numbers: opts.numbers === true };
   const lines = box.split("\n");
   const out: string[] = [];
 
@@ -559,11 +712,19 @@ export function readChordRows(box: string, previous: string, opts: ChordRowOpts 
     const pairs = isRow && next !== undefined && next.trim() !== "" && !isChordRow(next, rowOpts);
     const chunk = pairs ? `${lines[i]}\n${next}` : lines[i];
 
-    const remembered = memory.get(chunk);
-    if (remembered !== undefined) {
-      out.push(remembered);
+    const rememberedExact = exact.get(chunk);
+    const bySequenceKey = pairs
+      ? `${next}\n${lines[i].trim().split(/\s+/).filter(Boolean).join(" ")}`
+      : undefined;
+    const rememberedSequence =
+      bySequenceKey !== undefined ? bySequence.get(bySequenceKey) : undefined;
+
+    if (rememberedExact !== undefined) {
+      out.push(rememberedExact);
+    } else if (rememberedSequence !== undefined) {
+      out.push(rememberedSequence);
     } else {
-      out.push(chordRowsToInline(chunk, opts));
+      out.push(chordRowsToInline(chunk, { ...opts, read }));
     }
     if (pairs) i++;
   }
@@ -653,7 +814,12 @@ export function looksLikeChordSheet(text: string): boolean {
 }
 
 /** Merge one column-positioned chord row onto the lyric line beneath it. */
-function mergeChordRow(row: string, lyric: string, snap: boolean): string {
+function mergeChordRow(
+  row: string,
+  lyric: string,
+  snap: boolean,
+  read: (token: string) => string,
+): string {
   const anchors: { col: number; chord: string }[] = [];
   for (const m of row.matchAll(/\S+/g)) anchors.push({ col: m.index, chord: m[0] });
 
@@ -661,10 +827,11 @@ function mergeChordRow(row: string, lyric: string, snap: boolean): string {
   const placed: { col: number; chord: string }[] = [];
 
   for (const a of anchors) {
+    const chord = read(a.chord);
     let col = Math.min(a.col, lyric.length);
     if (!snap) {
       // Exact column, which is what makes our own output round-trip.
-      placed.push({ col, chord: a.chord });
+      placed.push({ col, chord });
       continue;
     }
     if (col < lyric.length && /\s/.test(lyric[col])) {
@@ -680,7 +847,7 @@ function mergeChordRow(row: string, lyric: string, snap: boolean): string {
       if (!taken.has(start)) col = start;
     }
     taken.add(col);
-    placed.push({ col, chord: a.chord });
+    placed.push({ col, chord });
   }
 
   let out = lyric;
@@ -699,6 +866,7 @@ function mergeChordRow(row: string, lyric: string, snap: boolean): string {
  */
 export function chordRowsToInline(text: string, opts: ChordRowOpts = {}): string {
   const snap = opts.snap ?? true;
+  const read = opts.read ?? ((t: string) => t);
   const rowOpts = { numbers: opts.numbers === true };
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const out: string[] = [];
@@ -716,12 +884,12 @@ export function chordRowsToInline(text: string, opts: ChordRowOpts = {}): string
         row
           .trim()
           .split(/\s+/)
-          .map((c) => `(${c})`)
+          .map((c) => `(${read(c)})`)
           .join(" "),
       );
       continue;
     }
-    out.push(mergeChordRow(row, next, snap));
+    out.push(mergeChordRow(row, next, snap, read));
     i++; // the lyric line has been folded in
   }
   return out.join("\n");
