@@ -103,6 +103,24 @@ function joinMelismaDashes(line) {
   );
 }
 
+/**
+ * OpenSong marks a syllable stretched across notes with underscores
+ * ("forever__mor__e") — meaningless once the words are only sung, not read —
+ * and sentence punctuation is the same kind of noise on a slide. Both are
+ * dropped outright rather than turned into a space: neither ever separates
+ * words that need to stay apart, so removing them reconstructs the plain word
+ * ("forever__mor__e!____" → "forevermore"). Never touches a chord's own "()"
+ * or a section marker's "[]" — none of these characters appear in a valid
+ * chord token, so there's nothing here that could land inside one.
+ */
+function stripNoise(line) {
+  return line
+    .replace(/_/g, "")
+    .replace(/[,;:.!?]/g, "")
+    .replace(/ {2,}/g, " ")
+    .trim();
+}
+
 function cleanLyrics(raw) {
   const lines = chordRowsToInline(normaliseChordRows(raw)).split("\n");
   const out = [];
@@ -132,7 +150,8 @@ function cleanLyrics(raw) {
     if (LABEL_RE.test(trimmed)) continue;
 
     // Lyric line — append directly with no blank lines within the section
-    out.push(joinMelismaDashes(trimmed));
+    const cleaned = stripNoise(joinMelismaDashes(trimmed));
+    if (cleaned) out.push(cleaned);
   }
 
   return out.join("\n").trim();
