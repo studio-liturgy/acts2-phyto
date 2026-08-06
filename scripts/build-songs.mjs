@@ -11,7 +11,13 @@
 
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { chordRowsToInline, isChordRow, stripChords } from "../src/lib/chords.ts";
+import {
+  chordRowsToInline,
+  guessKey,
+  isChordRow,
+  normaliseKeyTag,
+  stripChords,
+} from "../src/lib/chords.ts";
 
 // Maps lowercase OpenSong section prefixes → display labels.
 // Numbered variants (V1, V2) get the number appended only for Verse/Pre-Chorus.
@@ -499,6 +505,22 @@ async function main() {
   for (const s of parsed) s.lyrics = resolveDashes(s.lyrics, vocab);
   const dashesAfter = parsed.filter((s) => /\s-|-\s/.test(s.lyrics)).length;
 
+  // A handful of chorded songs carry no <key> tag at all. Working the key out
+  // here rather than in the app means every song that ships with chords also
+  // ships with a key, so the editor never has to infer one for a library song
+  // — and the result lands in the committed JSON where it can be reviewed,
+  // instead of being recomputed differently on someone's machine.
+  let keysFilled = 0;
+  for (const s of parsed) {
+    if (!s.hasChords) continue;
+    if (s.key && normaliseKeyTag(s.key)) continue;
+    const inferred = guessKey(s.lyrics);
+    if (inferred) {
+      s.key = inferred;
+      keysFilled++;
+    }
+  }
+
   const deduped = dedupe(parsed);
   const { winners, merged, pairs } = dedupeByContent(deduped);
   const withChords = winners.filter((s) => s.hasChords).length;
@@ -518,6 +540,7 @@ async function main() {
   console.log(
     `✓ ${songs.length} songs written to public/songs-en.json (${kb} KB uncompressed, ` +
       `dashes resolved in ${dashesBefore - dashesAfter} songs, ` +
+      `${keysFilled} missing keys filled, ` +
       `${parsed.length - deduped.length} same-title duplicates dropped, ` +
       `${merged} cross-title duplicates merged (${pairs} pairs matched >= ${SIMILARITY_THRESHOLD}), ` +
       `${withChords} with chords, ${errors} errors)`,

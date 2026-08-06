@@ -11,6 +11,9 @@ import { guessKey, normaliseKeyTag } from "../chords";
  * inference it could get right, though, because importing with the toggle off
  * threw away the library's own key tag — and that tag, not any inference, is
  * the part that is actually exact.
+ *
+ * Every chorded song the library ships now carries a key, so this inference is
+ * only ever reached for a pasted sheet or hand-typed chords.
  */
 describe("key on import", () => {
   it("takes the library's published key tag verbatim", () => {
@@ -47,17 +50,23 @@ describe("key on import", () => {
     expect(guessKey("no chords in this line at all")).toBe(null);
   });
 
-  // Worth stating rather than hiding: inference needs enough of a song to see
-  // where the harmony settles. The chorus of 10,000 Reasons on its own is
-  // C-heavy and reads as C. This is why a pasted chord sheet, which carries no
-  // key tag, prompts the leader to check the key, while a library song never
-  // has to be inferred at all.
-  it("is not reliable on a short excerpt, which is why the tag is preferred", () => {
+  // Chord quality is what carries this. The chorus alone is C-heavy and opens
+  // on C, so counting roots reads it as C — but a D major rules C out, because
+  // the second degree of C is a D MINOR. Only G accommodates every chord with
+  // the quality it actually has.
+  it("uses chord quality to reject a key the roots alone would allow", () => {
     const chorusOnly = [
       "Bless the (C)Lord O my (G)soul",
       "(D/F#)O my (Em)soul",
       "(C)Worship His (G)holy (D)name",
     ].join("\n");
-    expect(guessKey(chorusOnly)).toBe("C");
+    expect(guessKey(chorusOnly)).toBe("G");
+  });
+
+  it("hears the difference a single chord's quality makes", () => {
+    // Same roots both times. A major second degree means the key is a fourth
+    // down; a minor one leaves it where it looks.
+    expect(guessKey("(C)one (D)two (G)three")).toBe("G");
+    expect(guessKey("(C)one (Dm)two (G)three")).toBe("C");
   });
 });
