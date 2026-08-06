@@ -1366,7 +1366,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   // that's the chosen display — and every edit is translated back on the way in,
   // so nothing is lost either way.
   const chordCfg = useLibrary((s) => s.sets[setId]?.chords);
-  const chordsHidden = !!chordCfg?.hidden;
+  // True whenever chords aren't actively being shown — either explicitly
+  // hidden, or never configured at all (a fresh song, or one where the last
+  // search-select left the toggle off). Both must hide the box the same way:
+  // `!!chordCfg?.hidden` alone treated "never configured" as "not hidden", so
+  // the box rendered chord rows for a song whose switch plainly reads off.
+  const chordsHidden = !chordCfg || chordCfg.hidden === true;
   const numbersMode = !!chordCfg && !chordCfg.hidden && chordCfg.display === "numbers";
   const chordKey = chordCfg?.key ?? "C";
   // Chords show as a row above the words they sit over, the way every chord
@@ -1572,9 +1577,16 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     // Splice in the box's own coordinates, then let commitFromBox translate the
     // result back. `folded` carries letter chords, which survive that in any mode.
     if (chordsHidden) {
-      // They would land straight out of sight otherwise.
+      // They would land straight out of sight otherwise. `current` may be
+      // undefined — a song that's never had chords configured is also
+      // "hidden" by the check above — so this has to build a fresh config
+      // rather than assume one to flip `hidden` off on.
       const current = useLibrary.getState().sets[setId]?.chords;
-      if (current) updateSet(setId, { chords: { ...current, hidden: false } });
+      updateSet(setId, {
+        chords: current
+          ? { ...current, hidden: false }
+          : { key: guessKey(folded) ?? "G", display: "letters" },
+      });
     }
     const asShown = chordsHidden ? folded : inlineToChordRows(folded, chordLabel);
     commitFromBox(boxText.slice(0, selectionStart) + asShown + boxText.slice(selectionEnd));
