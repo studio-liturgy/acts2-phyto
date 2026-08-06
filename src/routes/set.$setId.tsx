@@ -1147,9 +1147,6 @@ function ChordControls({
               Paste a chord sheet, or type a chord on the row above the word it belongs to. They
               never show on the projector.
             </p>
-            <pre className="mono whitespace-pre text-[10px] leading-relaxed text-foreground">
-              {"     G\nAmazing grace"}
-            </pre>
             <p className="mono text-[10px] leading-relaxed text-muted-foreground">
               Pasting doesn&apos;t always guess the right key — double-check it below.
             </p>
@@ -1221,7 +1218,7 @@ function ChordControls({
               onClick={onClearLine}
               title="Clear chords on this line"
               aria-label="Clear chords on this line"
-              className="ml-auto flex h-9 w-9 items-center justify-center rounded-full border border-[var(--brand-red)] text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--brand-red)] text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
             >
               <X className="h-4 w-4" />
             </button>
@@ -1314,6 +1311,20 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [songErr, setSongErr] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ text: string; x: number; y: number } | null>(null);
   const searchSeq = useRef(0);
+  // Results/error stay in state across a blur so refocusing the input shows
+  // the same search again without a re-fetch — only their VISIBILITY toggles.
+  const [resultsOpen, setResultsOpen] = useState(false);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!resultsOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) {
+        setResultsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [resultsOpen]);
   const lyricsRef = useRef<HTMLTextAreaElement>(null);
   // Undo/redo for the lyrics box. The browser's own undo can't be used here:
   // the box is controlled and often shows a transformed view (numbers, or
@@ -1419,6 +1430,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     const seq = ++searchSeq.current; // ignore results from superseded searches
     setSongSearching(true);
     setSongErr(null);
+    setResultsOpen(true);
     try {
       // Paint instant local matches, then slot online results in as they load.
       const { local, online } = await searchSongs(songQuery);
@@ -1621,12 +1633,16 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     return (
       <div className="flex h-full flex-col gap-0 overflow-hidden">
         {/* Search bar */}
-        <div className="shrink-0 border-b border-foreground/20 p-4">
+        <div ref={searchBoxRef} className="shrink-0 border-b border-foreground/20 p-4">
           <form onSubmit={runSongSearch} className="flex gap-2">
             <div className="pill flex flex-1 items-center gap-2 border border-foreground bg-background px-4 py-2">
               <input
                 value={songQuery}
                 onChange={(e) => setSongQuery(e.target.value)}
+                onFocus={() => {
+                  // Refocusing shows the same results again without re-searching.
+                  if (songResults.length > 0 || songErr) setResultsOpen(true);
+                }}
                 placeholder="e.g. How Great is Our God"
                 className="mono uppercase w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
@@ -1644,8 +1660,10 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               )}
             </button>
           </form>
-          {songErr && <p className="mt-2 text-xs text-destructive">{songErr}</p>}
-          {songResults.length > 0 && (
+          {songErr && resultsOpen && (
+            <p className="mono mt-2 text-xs uppercase text-destructive">{songErr}</p>
+          )}
+          {songResults.length > 0 && resultsOpen && (
             <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-2xl border border-foreground bg-background p-1">
               {songResults.map((s, idx) => {
                 // Thin blue line at the boundary between local DB results and
@@ -1765,7 +1783,13 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 redoLyrics();
               }
             }}
-            placeholder={`Paste lyrics here, or select a song above.\nUse --- to split slides. Label sections with [Verse 1], [Chorus], etc.\nChord sheets paste in as-is — chords sit on their own row above the words.`}
+            placeholder={
+              `Paste lyrics here, or select a song above.\n` +
+              `Use --- to split slides. Label sections with [Verse 1], [Chorus], etc.` +
+              (chordCfg && !chordsHidden
+                ? `\nPaste a chord sheet, or type a chord on the row above the word it belongs to. They never show on the projector.`
+                : "")
+            }
             className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
           />
         </div>
