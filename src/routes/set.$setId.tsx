@@ -285,8 +285,6 @@ function SetHeader({
         </span>
       </div>
 
-      {phytoSet.kind === "song" && <SongJump currentId={phytoSet.id} navigate={navigate} />}
-
       <div className="flex-1" />
 
       {/* Right actions */}
@@ -325,6 +323,7 @@ function SetHeader({
           </div>
         </AlertDialogContent>
       </AlertDialog>
+      {phytoSet.kind === "song" && <SongJump currentId={phytoSet.id} navigate={navigate} />}
       <AddToGathering setId={phytoSet.id} onAdded={setPresentGatheringId} />
       {!fromPresenter && (
         <button
@@ -1215,7 +1214,7 @@ function ChordControls({
           </div>
 
           {!detected && (
-            <p className="mono text-[10px] leading-relaxed text-muted-foreground">
+            <p className="mono uppercase text-[10px] leading-relaxed text-muted-foreground">
               No chords in the lyrics yet.
             </p>
           )}
@@ -1276,6 +1275,8 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
   );
 }
 
+const SEARCH_PLACEHOLDERS = ["Search to import a new song", "e.g. How Great is Our God"];
+
 function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const { addSlide, updateSet } = useLibrary();
 
@@ -1296,6 +1297,16 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const prevLinesPer = useRef(linesPer);
 
   const [songQuery, setSongQuery] = useState("");
+  // The search box has no single natural placeholder — cycle between what it's
+  // for and an example, crossfading rather than snapping so both are readable.
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  useEffect(() => {
+    const t = setInterval(
+      () => setPlaceholderIdx((i) => (i + 1) % SEARCH_PLACEHOLDERS.length),
+      3000,
+    );
+    return () => clearInterval(t);
+  }, []);
   const [songResults, setSongResults] = useState<SongResult[]>([]);
   const [songSearching, setSongSearching] = useState(false);
   const [songErr, setSongErr] = useState<string | null>(null);
@@ -1625,7 +1636,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         {/* Search bar */}
         <div ref={searchBoxRef} className="shrink-0 border-b border-foreground/20 p-4">
           <form onSubmit={runSongSearch} className="flex gap-2">
-            <div className="pill flex flex-1 items-center gap-2 border border-foreground bg-background px-4 py-2">
+            <div className="pill relative flex flex-1 items-center gap-2 border border-foreground bg-background px-4 py-2">
               <input
                 value={songQuery}
                 onChange={(e) => setSongQuery(e.target.value)}
@@ -1633,9 +1644,27 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                   // Refocusing shows the same results again without re-searching.
                   if (songResults.length > 0 || songErr) setResultsOpen(true);
                 }}
-                placeholder="e.g. How Great is Our God"
-                className="mono uppercase w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                aria-label="Search for a song"
+                className="mono uppercase w-full bg-transparent text-sm outline-none"
               />
+              {/* A single native placeholder can't crossfade between two strings,
+                  so it's faked: two stacked labels trading opacity, hidden the
+                  moment there's real input. pointer-events-none keeps clicks
+                  landing on the input underneath. */}
+              {!songQuery && (
+                <div className="pointer-events-none absolute inset-y-0 left-4 right-4 flex items-center overflow-hidden">
+                  {SEARCH_PLACEHOLDERS.map((text, i) => (
+                    <span
+                      key={text}
+                      className={`mono uppercase absolute truncate text-sm text-muted-foreground transition-opacity duration-700 ${
+                        i === placeholderIdx ? "opacity-100" : "opacity-0"
+                      }`}
+                    >
+                      {text}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <button
               type="submit"
