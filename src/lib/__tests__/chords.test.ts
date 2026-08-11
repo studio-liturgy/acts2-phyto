@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  breakLineAtBoxOffset,
+  chordProKey,
+  chordProToInline,
+  looksLikeChordPro,
   chordRowsToInline,
   clearChordsAtBoxOffset,
   chordStreamToInline,
@@ -699,6 +703,191 @@ describe("reapplyChords (editing with chords hidden)", () => {
       "",
     ]) {
       expect(hideChords(reapplyChords(FULL, edited)), edited).toBe(edited);
+    }
+  });
+
+  describe("breaking a line", () => {
+    it("sends the chords past the break down with their words", () => {
+      const edited = "Amazing grace\nhow sweet the sound\nThat saved a wretch like me";
+      expect(reapplyChords(FULL, edited)).toBe(
+        "Amazing (G)grace\nhow (C)sweet the sound\nThat (G)saved a wretch like (D)me",
+      );
+    });
+
+    it("leaves the chords behind when the break is at the end of a line", () => {
+      const edited = "Amazing grace how sweet the sound\n\nThat saved a wretch like me";
+      expect(reapplyChords(FULL, edited)).toBe(
+        "Amazing (G)grace how (C)sweet the sound\n\nThat (G)saved a wretch like (D)me",
+      );
+    });
+
+    it("splits a line three ways", () => {
+      const edited = "Amazing grace\nhow sweet\nthe sound\nThat saved a wretch like me";
+      expect(reapplyChords(FULL, edited)).toBe(
+        "Amazing (G)grace\nhow (C)sweet\nthe sound\nThat (G)saved a wretch like (D)me",
+      );
+    });
+
+    it("brings the chords back together when the lines are joined again", () => {
+      const split = "Amazing (G)grace\nhow (C)sweet the sound";
+      expect(reapplyChords(split, "Amazing grace how sweet the sound")).toBe(
+        "Amazing (G)grace how (C)sweet the sound",
+      );
+    });
+
+    it("still round-trips the visible text", () => {
+      for (const edited of [
+        "Amazing grace\nhow sweet the sound\nThat saved a wretch like me",
+        "Amazing\ngrace\nhow\nsweet\nthe\nsound\nThat saved a wretch like me",
+        "Amazing grace how sweet the sound\nThat saved a wretch\nlike me",
+      ]) {
+        expect(hideChords(reapplyChords(FULL, edited)), edited).toBe(edited);
+      }
+    });
+  });
+});
+
+describe("ChordPro", () => {
+  const SONG = [
+    "{title: Amazing Grace}",
+    "{key: G}",
+    "# a comment nobody needs",
+    "{start_of_verse: Verse 1}",
+    "A[G]mazing grace how [C]sweet the [G]sound",
+    "That [G]saved a wretch like [D]me",
+    "{end_of_verse}",
+    "{soc}",
+    "[G]Praise Him",
+    "{eoc}",
+  ].join("\n");
+
+  it("recognises it", () => {
+    expect(looksLikeChordPro(SONG)).toBe(true);
+  });
+
+  it("converts chords, keeps sections, drops the metadata", () => {
+    expect(chordProToInline(SONG)).toBe(
+      [
+        "[Verse 1]",
+        "A(G)mazing grace how (C)sweet the (G)sound",
+        "That (G)saved a wretch like (D)me",
+        "[Chorus]",
+        "(G)Praise Him",
+      ].join("\n"),
+    );
+  });
+
+  it("uses a comment as the section label when that is all there is", () => {
+    const text = "{c: Bridge}\n[G]One day [C]soon\n[D]We will [G]see";
+    expect(chordProToInline(text)).toBe("[Bridge]\n(G)One day (C)soon\n(D)We will (G)see");
+  });
+
+  it("runs through normaliseChordSheet, so a paste just works", () => {
+    expect(normaliseChordSheet(SONG)).toBe(chordProToInline(SONG));
+  });
+
+  describe("chordProKey", () => {
+    it("reads and normalises the declared key", () => {
+      expect(chordProKey(SONG)).toBe("G");
+      expect(chordProKey("{key: Am}\n[G]words")).toBe("C"); // minor folds to its relative major
+    });
+
+    it("returns null when there is no key directive", () => {
+      expect(chordProKey("{title: Untitled}\n[G]words")).toBeNull();
+    });
+
+    it("returns null rather than a key it can't make sense of", () => {
+      expect(chordProKey("{key: nonsense}\n[G]words")).toBeNull();
+    });
+  });
+
+  it("leaves this app's own format alone", () => {
+    const ours = "[Verse 1]\nAmazing (G)grace how (C)sweet\n[Chorus]\nPraise (G)Him";
+    expect(looksLikeChordPro(ours)).toBe(false);
+    expect(normaliseChordSheet(ours)).toBe(ours);
+  });
+
+  it("does not mistake section labels for chords", () => {
+    // "[A]" and "[C]" are both real chord tokens, but on a line of their own
+    // they're headings, not chords over a word.
+    const labelled = "[A]\nsome words here\n[C]\nmore words here";
+    expect(looksLikeChordPro(labelled)).toBe(false);
+    expect(normaliseChordSheet(labelled)).toBe(labelled);
+  });
+
+  it("needs more than one inline bracket to fire", () => {
+    const stray = "Take the [A] train\nand nothing else here";
+    expect(looksLikeChordPro(stray)).toBe(false);
+    expect(normaliseChordSheet(stray)).toBe(stray);
+  });
+
+  it("leaves a non-chord bracket as the label it is", () => {
+    const mixed = "{soc}\n[G]Praise [C]Him\n[Instrumental]\n[D]Sing [G]out";
+    expect(chordProToInline(mixed)).toBe(
+      "[Chorus]\n(G)Praise (C)Him\n[Instrumental]\n(D)Sing (G)out",
+    );
+  });
+
+  it("produces lyrics the rest of the app can read back", () => {
+    const folded = chordProToInline(SONG);
+    expect(hasChords(folded)).toBe(true);
+    expect(stripChords(folded.split("\n")[1])).toBe("Amazing grace how sweet the sound");
+    expect(guessKey(folded)).toBe("G");
+  });
+});
+
+describe("breakLineAtBoxOffset (Enter with chords on show)", () => {
+  // The box puts chords on their own row above the lyric, so a caret offset has
+  // to count through both.
+  const LYRICS = "Amazing (G)grace how (C)sweet the (G)sound";
+
+  const boxCaretAfter = (word: string) => {
+    const box = inlineToChordRows(LYRICS);
+    return box.indexOf(`${word} `, box.indexOf("\n")) + word.length;
+  };
+
+  it("takes the chords past the caret down to the new line", () => {
+    const result = breakLineAtBoxOffset(LYRICS, boxCaretAfter("grace"));
+    expect(result?.lyrics).toBe("Amazing (G)grace\n how (C)sweet the (G)sound");
+  });
+
+  it("leaves the line alone when the break is at its end", () => {
+    const box = inlineToChordRows(LYRICS);
+    const result = breakLineAtBoxOffset(LYRICS, box.length);
+    expect(result?.lyrics).toBe("Amazing (G)grace how (C)sweet the (G)sound\n");
+  });
+
+  it("moves every chord down when the break is at the start", () => {
+    const box = inlineToChordRows(LYRICS);
+    const result = breakLineAtBoxOffset(LYRICS, box.indexOf("\n") + 1);
+    expect(result?.lyrics).toBe("\nAmazing (G)grace how (C)sweet the (G)sound");
+  });
+
+  it("puts the caret on the new lyric line, below its chord row", () => {
+    const result = breakLineAtBoxOffset(LYRICS, boxCaretAfter("grace"));
+    const box = inlineToChordRows(result!.lyrics);
+    // Everything before the caret is the first line's row and lyric, plus the
+    // new line's own chord row — the caret sits at the start of its lyric.
+    expect(box.slice(result!.caret)).toBe(" how sweet the sound");
+  });
+
+  it("splits a chordless line without inventing chords", () => {
+    const plain = "Amazing (G)grace\nplain second line";
+    const box = inlineToChordRows(plain);
+    // Breaking on the space carries it down, exactly as a plain Enter would.
+    const result = breakLineAtBoxOffset(plain, box.indexOf("second") - 1);
+    expect(result?.lyrics).toBe("Amazing (G)grace\nplain\n second line");
+  });
+
+  it("only ever moves chords, never the words", () => {
+    const box = inlineToChordRows(LYRICS);
+    for (let at = 0; at <= box.length; at++) {
+      const result = breakLineAtBoxOffset(LYRICS, at);
+      if (!result) continue;
+      // A break inserts a newline and nothing else, so taking the newlines back
+      // out has to return the lyric character for character — including a break
+      // made in the middle of a word.
+      expect(hideChords(result.lyrics).replace(/\n/g, ""), `caret ${at}`).toBe(hideChords(LYRICS));
     }
   });
 });

@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChordLine } from "@/components/ChordLine";
 import {
+  breakLineAtBoxOffset,
+  chordProKey,
   chordToNumber,
   clearChordsAtBoxOffset,
   diatonicChords,
@@ -63,9 +65,9 @@ import {
   Search,
   Loader2,
   ChevronDown,
-  Minus,
   X,
 } from "lucide-react";
+import { NumberStepper } from "@/components/NumberStepper";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -451,7 +453,7 @@ function SetEditor() {
               <SongTemplateEditor />
             </div>
             {phytoSet.slides.length === 0 ? (
-              <p className="py-16 text-center text-sm text-muted-foreground">
+              <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
                 Slides will appear here as you type
               </p>
             ) : (
@@ -520,7 +522,7 @@ function SetEditor() {
               <ScriptureTemplateEditor />
             </div>
             {phytoSet.slides.length === 0 ? (
-              <p className="py-16 text-center text-sm text-muted-foreground">
+              <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
                 Slides will appear here as you type
               </p>
             ) : (
@@ -1586,10 +1588,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       // "hidden" by the check above — so this has to build a fresh config
       // rather than assume one to flip `hidden` off on.
       const current = useLibrary.getState().sets[setId]?.chords;
+      // A ChordPro file that states its own key is trusted over a guess from
+      // the chords it happens to use — it's what the chart was actually
+      // written in, not a frequency count's best approximation of it.
+      const key = chordProKey(pasted) ?? guessKey(folded) ?? "G";
       updateSet(setId, {
-        chords: current
-          ? { ...current, hidden: false }
-          : { key: guessKey(folded) ?? "G", display: "letters" },
+        chords: current ? { ...current, hidden: false } : { key, display: "letters" },
       });
     }
     const asShown = chordsHidden ? folded : inlineToChordRows(folded, chordLabel);
@@ -1818,36 +1822,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             onClearLine={clearLineChords}
           >
             <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
-            {/* A native number input's spinner can't be restyled beyond hiding
-                it, so it's replaced outright with buttons matching the rest of
-                the app's pill controls. */}
-            <div className="pill flex h-7 items-stretch overflow-hidden border border-foreground bg-background">
-              <button
-                type="button"
-                onClick={() => requestLinesPerChange(linesPer - 1)}
-                disabled={linesPer <= 1}
-                aria-label="Fewer lines per slide"
-                className="flex w-6 items-center justify-center transition hover:bg-foreground hover:text-background disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-inherit"
-              >
-                <Minus className="h-3 w-3" />
-              </button>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={linesPer}
-                onChange={(e) => requestLinesPerChange(Number(e.target.value.replace(/\D/g, "")))}
-                className="mono w-6 border-x border-foreground bg-transparent text-center text-xs outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => requestLinesPerChange(linesPer + 1)}
-                disabled={linesPer >= 8}
-                aria-label="More lines per slide"
-                className="flex w-6 items-center justify-center transition hover:bg-foreground hover:text-background disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-inherit"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            </div>
+            <NumberStepper
+              value={linesPer}
+              onChange={requestLinesPerChange}
+              min={1}
+              max={8}
+              decrementLabel="Fewer lines per slide"
+              incrementLabel="More lines per slide"
+            />
           </ChordControls>
         </div>
 
@@ -1860,6 +1842,29 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             onPaste={handleLyricsPaste}
             onSelect={(e) => (caretRef.current = e.currentTarget.selectionStart)}
             onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+                // Break the line on the stored lyrics rather than in the box, so
+                // the chords past the caret come down with their words instead of
+                // being left behind on the row above. Only with a plain caret and
+                // chords on show — a selection is a replace, and while chords are
+                // hidden the box has no rows and reapplyChords handles it.
+                if (e.currentTarget.selectionStart !== e.currentTarget.selectionEnd) return;
+                if (chordsHidden || !hasChords(lyrics)) return;
+                const broken = breakLineAtBoxOffset(
+                  lyrics,
+                  e.currentTarget.selectionStart,
+                  chordLabel,
+                );
+                if (!broken) return;
+                e.preventDefault();
+                handleLyricsChange(broken.lyrics);
+                caretRef.current = broken.caret;
+                requestAnimationFrame(() => {
+                  lyricsRef.current?.focus();
+                  lyricsRef.current?.setSelectionRange(broken.caret, broken.caret);
+                });
+                return;
+              }
               if (!e.metaKey && !e.ctrlKey) return;
               const k = e.key.toLowerCase();
               if (k === "z") {

@@ -385,6 +385,100 @@ function reanchorLine(oldFull: string, newText: string): string {
 }
 
 /**
+ * Move a run of chorded lines onto a run of edited lines whose line count no
+ * longer matches — the shape an edit takes when a line was split with Enter or
+ * two were joined with Backspace.
+ *
+ * The single-line version can't express that: it asks where each chord's word
+ * went *within one line*, and a word that moved to the next line reads as a
+ * word that was deleted, so the chord is dropped. Here the words of the whole
+ * run are matched as one sequence, and a chord is placed on whichever new line
+ * its word ended up on.
+ */
+function reanchorBlock(oldLines: string[], newLines: string[]): string[] {
+  const parsed = oldLines.map(parseRawChordLine);
+  if (parsed.every((p) => p.chords.length === 0)) return newLines;
+
+  const out = [...newLines];
+
+  // An instrumental line — chords with no lyric under them — has no word to
+  // follow, so it can only be paired with a blank line. Those are matched off
+  // in order and kept out of the word matching entirely.
+  const blanks = newLines.reduce<number[]>(
+    (acc, l, i) => (l.trim() === "" ? [...acc, i] : acc),
+    [],
+  );
+  const lyricLines: number[] = [];
+  let nextBlank = 0;
+  parsed.forEach((p, li) => {
+    if (p.text.trim() !== "") {
+      lyricLines.push(li);
+      return;
+    }
+    if (p.chords.length === 0) return;
+    const target = blanks[nextBlank++];
+    if (target !== undefined) out[target] = oldLines[li];
+  });
+
+  // Both sides flattened to a single word sequence, each word remembering the
+  // line it came from so a chord can be put back on the right one.
+  type Located = { text: string; line: number; start: number };
+  const oldWords: Located[] = [];
+  const rangeOf = new Map<number, [number, number]>();
+  for (const li of lyricLines) {
+    const from = oldWords.length;
+    for (const w of wordSpans(parsed[li].text)) {
+      oldWords.push({ text: w.text, line: li, start: w.start });
+    }
+    rangeOf.set(li, [from, oldWords.length]);
+  }
+  const newWords: Located[] = [];
+  newLines.forEach((line, li) => {
+    for (const w of wordSpans(line)) newWords.push({ text: w.text, line: li, start: w.start });
+  });
+
+  const wordMap = lcsMap(
+    oldWords.map((w) => w.text),
+    newWords.map((w) => w.text),
+  );
+
+  const inserts: { line: number; at: number; chord: string }[] = [];
+  for (const li of lyricLines) {
+    const [from, to] = rangeOf.get(li)!;
+    const lineWords = oldWords.slice(from, to);
+    for (const c of parsed[li].chords) {
+      let k = lineWords.findIndex((w) => c.index >= w.start && c.index < w.start + w.text.length);
+      if (k < 0) k = lineWords.findIndex((w) => w.start >= c.index);
+      if (k < 0) {
+        // A chord parked past the last word of its line trails whatever that
+        // word became.
+        const last = wordMap[to - 1];
+        if (to === from || last < 0) continue;
+        const w = newWords[last];
+        inserts.push({ line: w.line, at: w.start + w.text.length, chord: c.chord });
+        continue;
+      }
+      const nj = wordMap[from + k];
+      if (nj < 0) continue; // the word it sat on is gone, so the chord goes too
+      const w = newWords[nj];
+      inserts.push({
+        line: w.line,
+        at: w.start + Math.min(c.index - lineWords[k].start, w.text.length),
+        chord: c.chord,
+      });
+    }
+  }
+
+  for (let li = 0; li < out.length; li++) {
+    const mine = inserts.filter((x) => x.line === li);
+    out[li] = [...mine]
+      .sort((a, b) => b.at - a.at)
+      .reduce((s, ins) => s.slice(0, ins.at) + `(${ins.chord})` + s.slice(ins.at), out[li]);
+  }
+  return out;
+}
+
+/**
  * Put the chords from `full` back onto `edited` — the same lyrics with the
  * chords stripped out and then hand-edited in the box.
  *
@@ -397,28 +491,36 @@ export function reapplyChords(full: string, edited: string): string {
   const oldLines = full.split("\n");
   const oldStripped = oldLines.map(stripChordsRaw);
   const newLines = edited.split("\n");
+  const out = [...newLines];
 
-  // Pair lines that survived verbatim, then fill the gaps between those anchors
-  // positionally so an edited line still inherits from the line it came from.
+  // Lines that survived verbatim are the strong anchors — they're what keeps a
+  // repeated chorus from matching against the wrong copy of itself. The runs
+  // between them are then reconciled on their own.
   const lineMap = lcsMap(oldStripped, newLines);
-  const inheritsFrom: number[] = new Array(newLines.length).fill(-1);
   let oi = 0;
   let nj = 0;
   const fillGap = (oEnd: number, nEnd: number) => {
-    for (let k = 0; oi + k < oEnd && nj + k < nEnd; k++) inheritsFrom[nj + k] = oi + k;
+    const oldBlock = oldLines.slice(oi, oEnd);
+    const newBlock = newLines.slice(nj, nEnd);
+    if (oldBlock.length === 0 || newBlock.length === 0) return;
+    if (oldBlock.length === newBlock.length) {
+      // Same shape: each line is still recognisably the line it came from.
+      oldBlock.forEach((line, k) => (out[nj + k] = reanchorLine(line, newBlock[k])));
+    } else {
+      // The line count changed, so words have crossed line boundaries.
+      reanchorBlock(oldBlock, newBlock).forEach((line, k) => (out[nj + k] = line));
+    }
   };
   lineMap.forEach((j, i) => {
     if (j < 0) return;
     fillGap(i, j);
-    inheritsFrom[j] = i;
+    out[j] = oldLines[i]; // identical stripped text — keep the original verbatim
     oi = i + 1;
     nj = j + 1;
   });
-  fillGap(oldStripped.length, newLines.length);
+  fillGap(oldLines.length, newLines.length);
 
-  return newLines
-    .map((line, j) => (inheritsFrom[j] < 0 ? line : reanchorLine(oldLines[inheritsFrom[j]], line)))
-    .join("\n");
+  return out.join("\n");
 }
 
 /** True when a line is nothing but chords, e.g. an instrumental `(G) (C) (D)`. */
@@ -756,6 +858,89 @@ export function insertChordAtBoxOffset(
 }
 
 /**
+ * Split the line the caret is on, the way Enter does — but on the STORED
+ * lyrics, so the chords go with the words.
+ *
+ * Left to the browser, Enter only ever splits the box line the caret is in.
+ * That line is the lyric row; the chord row above it is a separate line and
+ * stays whole, still attached to the first half. Every chord past the break
+ * then reads back onto the wrong words — which is the bug this exists to fix.
+ *
+ * Instead the caret is mapped back to a column in the stored line, the line is
+ * split there, and each chord goes with the half its word went to. Returns null
+ * when the caret isn't somewhere this can act on, meaning the caller should let
+ * the browser insert the newline itself.
+ */
+export function breakLineAtBoxOffset(
+  lyrics: string,
+  boxOffset: number,
+  render: (chord: string) => string = (c) => c,
+): { lyrics: string; caret: number } | null {
+  let cursor = 0;
+  let hit: { line: RowLayoutLine; offset: number } | null = null;
+  for (const line of buildChordRowLayout(lyrics, render)) {
+    const end = cursor + line.text.length;
+    if (boxOffset <= end) {
+      hit = { line, offset: Math.max(0, boxOffset - cursor) };
+      break;
+    }
+    cursor = end + 1; // +1 for the newline the join() will have put here
+  }
+  // The synthetic blank separating an instrumental break from the lyric after
+  // it belongs to no stored line, so there is nothing here to split.
+  if (!hit || hit.line.storedLine === null) return null;
+
+  const li = hit.line.storedLine;
+  const storedLines = lyrics.split("\n");
+  const { text: stripped, chords } = parseRawChordLine(storedLines[li]);
+
+  if (chords.length === 0) {
+    // No chords means the box line is the stored line verbatim, so the offset
+    // is already a position in it.
+    const col = Math.min(hit.offset, storedLines[li].length);
+    storedLines.splice(li, 1, storedLines[li].slice(0, col), storedLines[li].slice(col));
+  } else {
+    // A chord row's columns line up with the lyric beneath it, so the caret
+    // maps onto the stripped text from either row.
+    const col = Math.min(hit.offset, stripped.length);
+    const splice = (text: string, cs: ChordAnchor[]) =>
+      [...cs]
+        .sort((a, b) => b.index - a.index)
+        .reduce((out, c) => out.slice(0, c.index) + `(${c.chord})` + out.slice(c.index), text);
+    // A chord sitting exactly on the break is anchored to the character that
+    // moved down, so it moves too. Breaking at the very end of a line is the
+    // exception: nothing moved, so no chord does either — including a trailing
+    // chord parked past the last character.
+    const movesDown = (c: ChordAnchor) => col < stripped.length && c.index >= col;
+    storedLines.splice(
+      li,
+      1,
+      splice(
+        stripped.slice(0, col),
+        chords.filter((c) => !movesDown(c)),
+      ),
+      splice(
+        stripped.slice(col),
+        chords.filter(movesDown).map((c) => ({ ...c, index: c.index - col })),
+      ),
+    );
+  }
+
+  const newLyrics = storedLines.join("\n");
+
+  // Caret lands where typing continues: the start of the new line's lyric,
+  // below its chord row rather than on it.
+  let boxCursor = 0;
+  for (const line of buildChordRowLayout(newLyrics, render)) {
+    if (line.storedLine === li + 1 && line.kind !== "row") {
+      return { lyrics: newLyrics, caret: boxCursor };
+    }
+    boxCursor += line.text.length + 1;
+  }
+  return { lyrics: newLyrics, caret: newLyrics.length };
+}
+
+/**
  * Remove every chord from the stored line the caret sits in — the palette's
  * "clear this line" button. Leaves the lyric text and every other line
  * untouched, and is a no-op both on a line with no chords to begin with and
@@ -912,12 +1097,101 @@ export function chordStreamToInline(text: string): string {
   return out.join("\n");
 }
 
+/** A ChordPro directive line: `{title: ...}`, `{soc}`, `{comment: ...}`. */
+const CHORDPRO_DIRECTIVE = /^\s*\{\s*([a-z_0-9]+)\s*(?::\s*([^}]*))?\}\s*$/i;
+
+/** ChordPro's section directives, and the label each one opens. */
+const CHORDPRO_SECTIONS: Record<string, string> = {
+  soc: "Chorus",
+  start_of_chorus: "Chorus",
+  sov: "Verse",
+  start_of_verse: "Verse",
+  sob: "Bridge",
+  start_of_bridge: "Bridge",
+  sop: "Pre-Chorus",
+  start_of_part: "Part",
+};
+
+/**
+ * Whether the text is ChordPro — chords in square brackets, anchored to the
+ * syllable that follows, usually with `{directive}` lines around them.
+ *
+ * The tell has to be a bracket *inside* a line, because a bracket alone on its
+ * own line is how this app writes a section label, and "[C]" is both a
+ * plausible shorthand for a chorus and a perfectly good chord. Two of them, so
+ * one stray "[A]" in a lyric can't rewrite somebody's song.
+ */
+export function looksLikeChordPro(text: string): boolean {
+  let inline = 0;
+  for (const line of text.split("\n")) {
+    if (CHORDPRO_DIRECTIVE.test(line)) continue;
+    for (const m of line.matchAll(/\[([^\][]*)\]/g)) {
+      if (isChordToken(m[1]) && m[0].trim() !== line.trim()) inline++;
+    }
+  }
+  return inline >= 2;
+}
+
+/**
+ * Fold ChordPro into the inline bracket format.
+ *
+ * The chords themselves are a straight bracket swap — both formats anchor a
+ * chord to the character that follows it. The directives are the awkward part:
+ * they carry a song's structure, so the section ones become the app's own
+ * labels, and the rest (title, key, tempo, chord definitions) are metadata the
+ * lyric box has no place for and are dropped.
+ */
+export function chordProToInline(text: string): string {
+  const out: string[] = [];
+  for (const raw of text.replace(/\r\n/g, "\n").split("\n")) {
+    if (/^\s*#/.test(raw)) continue; // ChordPro's own comment syntax
+    const directive = CHORDPRO_DIRECTIVE.exec(raw);
+    if (directive) {
+      const name = directive[1].toLowerCase();
+      const arg = (directive[2] ?? "").trim();
+      const section = CHORDPRO_SECTIONS[name];
+      if (section) out.push(`[${arg || section}]`);
+      // Files that carry no section directives at all tend to use a comment as
+      // the section heading instead, so it reads back as one.
+      else if ((name === "c" || name === "comment") && arg) out.push(`[${arg}]`);
+      continue;
+    }
+    out.push(
+      raw.replace(/\[([^\][]*)\]/g, (whole, token) => (isChordToken(token) ? `(${token})` : whole)),
+    );
+  }
+  return out.join("\n").trim();
+}
+
+/**
+ * The key a ChordPro file declares in its `{key: ...}` directive, or `null` if
+ * it doesn't carry one.
+ *
+ * A file that states its key should be trusted rather than re-derived: it's
+ * what the person who wrote the chart actually played it in, which
+ * `guessKey`'s frequency count over the chords in the lyrics can only ever
+ * approximate. Kept separate from `chordProToInline` because that function
+ * returns lyric text, and a key isn't lyric text — the paste handler asks for
+ * this only when it's about to build a fresh `SongChords` config.
+ */
+export function chordProKey(text: string): string | null {
+  for (const line of text.split("\n")) {
+    const directive = CHORDPRO_DIRECTIVE.exec(line);
+    if (directive && directive[1].toLowerCase() === "key" && directive[2]) {
+      const key = normaliseKeyTag(directive[2].trim());
+      if (key) return key;
+    }
+  }
+  return null;
+}
+
 /**
  * Fold any recognised chord-sheet layout into the inline bracket format, so the
  * rest of the app only ever deals with one representation. Text that isn't
  * chord-shaped comes back untouched, making this safe to run over any paste.
  */
 export function normaliseChordSheet(text: string): string {
+  if (looksLikeChordPro(text)) return chordProToInline(text);
   if (looksLikeChordStream(text)) return chordStreamToInline(text);
   if (looksLikeChordSheet(text)) return chordRowsToInline(text);
   return text;
