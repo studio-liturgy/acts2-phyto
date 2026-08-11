@@ -28,6 +28,57 @@ export default function UpdatesMain() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-12">
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
+            <div className="text-2xl">August 11, 2026</div>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Chords</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Breaking a line in the middle now takes the chords with it. Everything after your
+                cursor moves down to the new line and stays on the words it belonged to, whether
+                chords are showing or hidden
+              </FeatureItem>
+              <FeatureItem>
+                Paste a song written in ChordPro and it converts on the way in, chords and section
+                headings included
+              </FeatureItem>
+            </ul>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">
+              Song library
+            </div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Fixed the songs in the built-in library that wrote the word I in lowercase
+              </FeatureItem>
+            </ul>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Presenting</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Fixed the output screen going stale. Casting to a Chromecast or an Apple TV could
+                leave it holding the previous slide after sitting on one for a while, and take a
+                long time to catch up
+              </FeatureItem>
+              <FeatureItem>
+                Cross dissolve and auto advance now use the same plus and minus buttons as lines per
+                slide
+              </FeatureItem>
+            </ul>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Home</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>New gatherings are named for the day without the year</FeatureItem>
+              <FeatureItem>
+                Importing and exporting your catalogue has moved into the catalogue&rsquo;s edit
+                mode, out of the way of everyday use
+              </FeatureItem>
+              <FeatureItem>
+                Tidied the highlight on a gathering while you drag a set onto it, which could clip
+                against the row above
+              </FeatureItem>
+            </ul>
+          </li>
+          <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">August 6, 2026</div>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Chords</div>

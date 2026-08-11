@@ -54,6 +54,8 @@ export default function UpdatesTest() {
                   <FeatureItem>
                     Pasting chord sheets from Ultimate Guitar and WorshipTogether
                   </FeatureItem>
+                  <FeatureItem>Pasting songs written in ChordPro</FeatureItem>
+                  <FeatureItem>Chords following their words when you break a line</FeatureItem>
                 </ul>
               </FeatureItem>
               <FeatureItem>
@@ -80,6 +82,9 @@ export default function UpdatesTest() {
                   <FeatureItem>Universal cross-fading</FeatureItem>
                   <FeatureItem>Simplified blackout function</FeatureItem>
                   <FeatureItem>Adjust preview slide size</FeatureItem>
+                  <FeatureItem>
+                    Output screen keeping up while cast to a Chromecast or Apple TV
+                  </FeatureItem>
                 </ul>
               </FeatureItem>
               <FeatureItem>Cross-device sync</FeatureItem>
