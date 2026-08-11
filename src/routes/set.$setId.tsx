@@ -2036,7 +2036,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               onChange={(e) => setKeepLineBreaks(e.target.checked)}
             />
           </label>
-          {err && <p className="mt-2 text-xs text-destructive">{err}</p>}
+          {err && (
+            <p className="mono uppercase mt-2 text-xs tracking-wider text-destructive">{err}</p>
+          )}
           <button
             onClick={importScripture}
             disabled={!ref.trim() || busy}

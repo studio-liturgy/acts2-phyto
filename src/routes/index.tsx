@@ -533,7 +533,7 @@ function Library() {
               {/* Left: heading + import/export/edit icons */}
               <div className="flex items-center gap-2">
                 <h2 className="text-4xl md:text-5xl leading-none">Catalogue</h2>
-                <div className="ml-8 flex items-center gap-2">
+                <div className="ml-3 flex items-center gap-2">
                   {editMode ? (
                     <>
                       <button
