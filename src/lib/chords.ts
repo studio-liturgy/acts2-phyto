@@ -348,6 +348,25 @@ function wordSpans(text: string): { text: string; start: number }[] {
   return [...text.matchAll(/\S+/g)].map((m) => ({ text: m[0], start: m.index }));
 }
 
+/**
+ * A word-matching key that sees through punctuation glued onto either end of
+ * a word, so typing a divider or a dash directly against a chorded word —
+ * "God" becoming "---God" with no space between them — reads as "the same
+ * word, with something stuck to it" rather than "that word is gone, this is a
+ * new one." Left at exact-text matching, that reads as a deletion, which is
+ * exactly what drops the chord the moment someone types a `---` slide divider
+ * right up against the next word.
+ *
+ * A token that's nothing but punctuation (the divider itself, a lone dash)
+ * keeps a key unique to its exact text and position, so two of them never
+ * match each other by accident — this only widens matching for words that
+ * still have letters or digits in them.
+ */
+function wordMatchKey(token: string, index: number): string {
+  const core = token.replace(/^[^A-Za-z0-9]+/, "").replace(/[^A-Za-z0-9]+$/, "");
+  return core || ` ${token} ${index}`;
+}
+
 /** Move one line's chords onto an edited version of that line, by word. */
 function reanchorLine(oldFull: string, newText: string): string {
   const { text: oldText, chords } = parseRawChordLine(oldFull);
@@ -359,8 +378,8 @@ function reanchorLine(oldFull: string, newText: string): string {
   const oldWords = wordSpans(oldText);
   const newWords = wordSpans(newText);
   const wordMap = lcsMap(
-    oldWords.map((w) => w.text),
-    newWords.map((w) => w.text),
+    oldWords.map((w, i) => wordMatchKey(w.text, i)),
+    newWords.map((w, i) => wordMatchKey(w.text, i)),
   );
 
   const inserts: { at: number; chord: string }[] = [];
@@ -438,8 +457,8 @@ function reanchorBlock(oldLines: string[], newLines: string[]): string[] {
   });
 
   const wordMap = lcsMap(
-    oldWords.map((w) => w.text),
-    newWords.map((w) => w.text),
+    oldWords.map((w, i) => wordMatchKey(w.text, i)),
+    newWords.map((w, i) => wordMatchKey(w.text, i)),
   );
 
   const inserts: { line: number; at: number; chord: string }[] = [];

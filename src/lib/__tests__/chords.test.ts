@@ -744,6 +744,17 @@ describe("reapplyChords (editing with chords hidden)", () => {
         expect(hideChords(reapplyChords(FULL, edited)), edited).toBe(edited);
       }
     });
+
+    it("keeps the chord when a divider is typed flush against the next word", () => {
+      // Typing --- immediately before a chorded word with no space merges them
+      // into one token ("me" -> "---me"). A same-count edit like this goes
+      // through reanchorLine, not reanchorBlock, so it needs its own case.
+      let lyrics = "That (G)saved a wretch like (D)me";
+      lyrics = reapplyChords(lyrics, "That saved a wretch like ---me");
+      expect(lyrics).toBe("That (G)saved a wretch like (D)---me");
+      lyrics = reapplyChords(lyrics, "That saved a wretch like ---\nme");
+      expect(lyrics).toBe("That (G)saved a wretch like ---\n(D)me");
+    });
   });
 });
 
