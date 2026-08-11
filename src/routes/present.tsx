@@ -6,6 +6,7 @@ import {
   useScriptureTemplateDraft,
   useHiddenSections,
   isVideoPlaying,
+  startLiveHeartbeat,
 } from "@/lib/store";
 import { useIsSignedIn } from "@/lib/authStore";
 import { APP_NAME } from "@/lib/appConfig";
@@ -14,6 +15,7 @@ import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
+import { NumberStepper } from "@/components/NumberStepper";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -138,6 +140,11 @@ function Presenter() {
   const effectiveScriptureTemplate = scriptureDraft ?? scriptureTemplate;
   const fadeMs = useLibrary((s) => s.fadeMs);
   const setFadeMs = useLibrary((s) => s.setFadeMs);
+
+  // The presenter is the sender: it keeps re-stating what's live so an /output
+  // window that was throttled or frozen in the background — the normal state of
+  // a tab being cast — can't sit on a stale slide indefinitely.
+  useEffect(() => startLiveHeartbeat(), []);
 
   const activeGathering = gatheringFromUrl ? gatherings[gatheringFromUrl] : null;
 
@@ -796,7 +803,7 @@ function Presenter() {
               Select a set to begin.
             </div>
           ) : activeSet.slides.length === 0 ? (
-            <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div className="mono uppercase flex h-full items-center justify-center gap-2 text-xs tracking-wider text-muted-foreground">
               This set has no slides.
               <Link
                 to="/set/$setId"
@@ -958,20 +965,16 @@ function Presenter() {
             )}
             <div className="mt-2 flex items-center justify-between">
               <div className="flex items-center gap-1">
-                <input
-                  type="number"
+                <NumberStepper
+                  value={fadeMs / 1000}
+                  onChange={(s) => setFadeMs(Math.round(s * 1000))}
                   min={0}
                   max={5}
                   step={0.1}
-                  value={fadeMs ? (fadeMs / 1000).toFixed(1) : ""}
-                  placeholder="0"
-                  onChange={(e) => {
-                    const n = Math.min(5, Math.max(0, Number(e.target.value) || 0));
-                    setFadeMs(Math.round(n * 1000));
-                  }}
-                  className="pill h-7 w-14 border border-foreground bg-background px-2 text-xs outline-none"
-                  title="Slide fade duration"
-                  aria-label="Slide fade duration"
+                  format={(n) => n.toFixed(1)}
+                  boxClassName="w-9"
+                  decrementLabel="Shorter slide fade"
+                  incrementLabel="Longer slide fade"
                 />
                 <span className="text-xs text-muted-foreground">s</span>
               </div>
@@ -1148,15 +1151,10 @@ function MediaPlaybackControls({ setId }: { setId: string }) {
       <div className="flex items-center justify-between gap-2">
         <span className="mono text-[10px] uppercase tracking-wider">Auto advance</span>
         <div className="flex items-center gap-1">
-          <input
-            type="number"
-            min={0}
-            step={0.5}
-            value={auto ? (auto / 1000).toString() : ""}
-            placeholder="off"
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              const ms = n > 0 ? Math.round(n * 1000) : 0;
+          <NumberStepper
+            value={auto / 1000}
+            onChange={(seconds) => {
+              const ms = seconds > 0 ? Math.round(seconds * 1000) : 0;
               const patch: Partial<PhytoSet> = { autoAdvanceMs: ms };
               // Auto advance relies on videos playing on their own, so turning it
               // on flips every video slide to autoplay. Tell the operator.
@@ -1168,7 +1166,14 @@ function MediaPlaybackControls({ setId }: { setId: string }) {
               }
               updateSet(setId, patch);
             }}
-            className="pill mono h-7 w-16 border border-foreground bg-background px-3 text-[10px] uppercase outline-none"
+            min={0}
+            step={0.5}
+            // Zero is "no auto advance" rather than a zero-second wait, so it
+            // reads as OFF instead of a number the operator might trust.
+            format={(n) => (n === 0 ? "OFF" : String(n))}
+            boxClassName="w-10"
+            decrementLabel="Shorter auto advance"
+            incrementLabel="Longer auto advance"
           />
           <span className="text-xs text-muted-foreground">s</span>
         </div>

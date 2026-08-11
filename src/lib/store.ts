@@ -851,16 +851,7 @@ export const useLive = create<LiveStore>((set, get) => ({
   ...readInitial(),
   setLive: (patch) => {
     set(patch);
-    const s = get();
-    const snapshot: LiveState = {
-      setId: s.setId,
-      slideId: s.slideId,
-      blackout: s.blackout,
-      clear: s.clear,
-      blackoutFadeMs: s.blackoutFadeMs,
-      videoCmd: s.videoCmd,
-      videoEnded: s.videoEnded,
-    };
+    const snapshot = liveSnapshot(get());
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
       try {
@@ -932,17 +923,81 @@ export const useLive = create<LiveStore>((set, get) => ({
     }),
 }));
 
+/** The live snapshot as it currently stands in this window. */
+function liveSnapshot(s: LiveState): LiveState {
+  return {
+    setId: s.setId,
+    slideId: s.slideId,
+    blackout: s.blackout,
+    clear: s.clear,
+    blackoutFadeMs: s.blackoutFadeMs,
+    videoCmd: s.videoCmd,
+    videoEnded: s.videoEnded,
+  };
+}
+
+/** Adopt an incoming snapshot, ignoring one that says nothing new. The heartbeat
+ *  below re-sends the same state on a timer, and without this every tick would
+ *  re-render the output window for no reason. */
+function adoptLive(next: LiveState) {
+  if (JSON.stringify(liveSnapshot(useLive.getState())) === JSON.stringify(next)) return;
+  useLive.setState(next);
+}
+
+/** Re-read live state from storage. `localStorage` is the durable copy, so this
+ *  is how a window that missed a broadcast — because it was frozen, throttled,
+ *  or opened late — catches up without waiting for the operator's next click. */
+export function resyncLive() {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) adoptLive({ ...defaultLive(), ...JSON.parse(raw) });
+  } catch {}
+}
+
+/**
+ * Re-broadcast the live state on a timer, from whichever window is driving the
+ * presentation.
+ *
+ * `setLive` already broadcasts on every change, so in a healthy pair of windows
+ * this changes nothing. It exists for the output window that has stopped being
+ * healthy: cast to a Chromecast, /output sits in a background tab, and Chrome
+ * throttles then freezes tabs that have been backgrounded for a few minutes. A
+ * broadcast that lands in that window may be delivered late or not at all, and
+ * until the next one it holds the wrong slide. The heartbeat bounds that to one
+ * interval instead of "until the operator changes something again".
+ */
+export function startLiveHeartbeat(intervalMs = 10000): () => void {
+  if (typeof window === "undefined") return () => {};
+  const timer = setInterval(() => {
+    const snapshot = liveSnapshot(useLive.getState());
+    // Nothing is live — no one is watching, so don't keep a timer's worth of
+    // work going for it.
+    if (!snapshot.setId && !snapshot.slideId) return;
+    try {
+      getChannel()?.postMessage(snapshot);
+    } catch {}
+  }, intervalMs);
+  return () => clearInterval(timer);
+}
+
 // Subscribe to broadcast updates
 if (typeof window !== "undefined") {
   const ch = getChannel();
   ch?.addEventListener("message", (e) => {
-    const data = e.data as LiveState;
-    useLive.setState(data);
+    adoptLive(e.data as LiveState);
   });
+  // Coming back from hidden is the other half of the heartbeat: a tab that was
+  // frozen wakes with whatever it last saw, and this corrects it immediately
+  // rather than on the next tick.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) resyncLive();
+  });
+  window.addEventListener("pageshow", () => resyncLive());
   window.addEventListener("storage", (e) => {
     if (e.key === STORAGE_KEY && e.newValue) {
       try {
-        useLive.setState(JSON.parse(e.newValue));
+        adoptLive(JSON.parse(e.newValue));
       } catch {}
     }
     if (e.key === TEMPLATE_KEY && e.newValue) {

@@ -405,7 +405,19 @@ export function DissolveSlide({
     if (key === lastKey.current) return;
     lastKey.current = key;
 
-    if (durationMs <= 0) {
+    // A dissolve is only worth staging for when there are frames to draw it
+    // with. A hidden tab gets no animation frames at all, and Chrome throttles
+    // then freezes one that has been backgrounded for a few minutes — which is
+    // exactly the state a cast /output window sits in. The staged swap below
+    // used to be the only path: the incoming slide was painted into the back
+    // layer and the layers were swapped from inside a nested rAF that never
+    // ran, so the output held the previous slide until someone focused the
+    // window and the queued frames finally flushed. Cutting straight to the new
+    // slide is the right trade there — an instant change beats a dissolve the
+    // audience is watching arrive thirty seconds late.
+    const staged = durationMs > 0 && typeof document !== "undefined" && !document.hidden;
+
+    if (!staged) {
       if (front === "a") {
         setA(slide);
         setTemplateA(templateRef.current);
@@ -416,15 +428,36 @@ export function DissolveSlide({
       return;
     }
 
+    const next = front === "a" ? "b" : "a";
     if (front === "a") {
       setB(slide);
       setTemplateB(templateRef.current);
-      requestAnimationFrame(() => requestAnimationFrame(() => setFront("b")));
     } else {
       setA(slide);
       setTemplateA(templateRef.current);
-      requestAnimationFrame(() => requestAnimationFrame(() => setFront("a")));
     }
+
+    // Two frames so the incoming layer is committed at opacity 0 before the
+    // outgoing one starts fading off it. The timer is a backstop for the case
+    // the visibility check above can't see: a tab that is nominally visible but
+    // whose frames have been throttled to a crawl. Whichever fires first wins,
+    // so a healthy tab still gets the frame-accurate version.
+    let swapped = false;
+    const swap = () => {
+      if (swapped) return;
+      swapped = true;
+      setFront(next);
+    };
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(swap);
+    });
+    const fallback = setTimeout(swap, 200);
+    return () => {
+      cancelAnimationFrame(outer);
+      if (inner) cancelAnimationFrame(inner);
+      clearTimeout(fallback);
+    };
   }, [slide, durationMs, front]);
 
   // Outgoing layer fades out on top (zIndex 2); incoming layer snaps to full
