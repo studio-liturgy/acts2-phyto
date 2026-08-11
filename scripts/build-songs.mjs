@@ -17,6 +17,7 @@ import {
   isChordRow,
   normaliseKeyTag,
   stripChords,
+  stripChordsRaw,
 } from "../src/lib/chords.ts";
 
 // Maps lowercase OpenSong section prefixes → display labels.
@@ -169,6 +170,37 @@ function isChartFurniture(line) {
   return tokens.every((w) => isChordRow(w) || FURNITURE_EXTRAS.test(w));
 }
 
+// Section-scaffolding words a source chart uses as an aside — "(Chorus)"
+// meaning "repeat the chorus here", "(Intro)" meaning "play the intro" — never
+// as a lyric on its own. Shared with isSpliceScaffold below.
+const SCAFFOLD_WORD =
+  "intro+|outro+|turn\\s*around|turn|bridge|instrumental|interlude|vamp|ending|verse\\s*\\d*|chorus\\s*\\d*|solo|tag|reprise";
+const SCAFFOLD_ONLY_RE = new RegExp(`^(\\s*(${SCAFFOLD_WORD})\\s*)+$`, "i");
+
+/**
+ * A second kind of chart furniture `isChartFurniture` can't see, because by
+ * this point the line is already in this app's own inline `(chord)word`
+ * format, not the source's.
+ *
+ * Two source layouts collapse into the same wreckage once a chord row is
+ * merged onto a scaffolding label instead of a real lyric: a chord landing
+ * mid-word splices letters apart ("Int(G)ro", "Bri(Am)dge (Em)Instru
+ * (Dsus)menta(G/B)l"), and a chord-shaped aside in parens is never recognised
+ * as a chord at all, since "(Chorus)" fails the chord grammar and survives
+ * untouched ("(Em)(Chorus)(G)"). Both leave a scaffolding word sitting where a
+ * lyric should be — never sung, but with nothing to stop it being projected.
+ *
+ * Caught the same way `isChartFurniture` catches bar-line charts: strip every
+ * chord token the line actually contains — including ones glued inside a
+ * word — and ask whether only scaffolding is left standing.
+ */
+function isSpliceScaffold(line) {
+  const t = line.trim();
+  if (!t || !t.includes("(")) return false;
+  const stripped = stripChordsRaw(t).replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+  return stripped !== "" && SCAFFOLD_ONLY_RE.test(stripped);
+}
+
 function cleanLyrics(raw) {
   const lines = chordRowsToInline(normaliseChordRows(raw)).split("\n");
   const out = [];
@@ -200,12 +232,57 @@ function cleanLyrics(raw) {
     // Bar-line charts and bare chord sequences — notation, not lyrics.
     if (isChartFurniture(trimmed)) continue;
 
+    // A section-scaffolding word left over after a chord row merged onto it
+    // instead of onto a real lyric.
+    if (isSpliceScaffold(trimmed)) continue;
+
     // Lyric line — append directly with no blank lines within the section
     const cleaned = stripNoise(joinMelismaDashes(trimmed));
     if (cleaned) out.push(cleaned);
   }
 
   return out.join("\n").trim();
+}
+
+/**
+ * The source database is community-typed, and a scattering of entries write the
+ * pronoun in lowercase ("because of you i can dance"). It only ever looks like
+ * a mistake once it's ten feet tall on a wall, so it's fixed here rather than in
+ * the app: the correction lands in the committed JSON where it can be reviewed,
+ * and nothing rewrites what a leader types in the editor.
+ *
+ * Only a standalone "i" and its contractions are touched — and "standalone" has
+ * to be judged through the chords, because by this point a chord is spliced into
+ * the middle of the word it lands on. "fa(F)i(Bb)ling", "Adona(B7)i" and
+ * "Glor(D)i(Em)fy" all present a lowercase i flanked by brackets, and every one
+ * of them is a syllable rather than a pronoun. So the boundary tests skip over
+ * any run of bracketed chords before deciding whether a letter is adjacent.
+ *
+ * A hyphen counts as adjacency for the same reason: a few songs spell a word
+ * out ("Close by his side (s-i-d-e)") or stretch one across a melisma ("i-f"),
+ * and those letters are no more standalone than a syllable is.
+ */
+// A run of inline chords, which renders as nothing and so breaks no word.
+const CHORDS = String.raw`(?:\([^()]*\))*`;
+// What counts as "a word continues here": letters, and the punctuation that
+// binds them to one.
+const BOUND = String.raw`[A-Za-z'’-]`;
+const LOWER_I_RE = new RegExp(
+  String.raw`(?<!${BOUND}${CHORDS})i(?:` +
+    // A contraction: i'm, i'll, i've, i'd.
+    String.raw`(?=${CHORDS}['’](?:m|ll|ve|d)(?![A-Za-z]))` +
+    // Or the bare pronoun: nothing binding it to a word on the right either.
+    String.raw`|(?!${CHORDS}['’-]?[A-Za-z])` +
+    `)`,
+  "g",
+);
+// "i'ts" is a transposed "it's" — the letters of the apostrophe swapped, not
+// the pronoun "I" — so the fix is a respelling to "it's", not a capitalisation.
+// Left to the rule above it would read as "I'ts", which is neither.
+const TYPO_ITS_RE = new RegExp(String.raw`(?<!${BOUND}${CHORDS})i(['’])ts\b`, "g");
+
+function capitaliseStandaloneI(text) {
+  return text.replace(TYPO_ITS_RE, (_, apos) => `it${apos}s`).replace(LOWER_I_RE, "I");
 }
 
 const XML_ENTITIES = { amp: "&", lt: "<", gt: ">", apos: "'", quot: '"' };
@@ -492,7 +569,14 @@ async function main() {
       const lyrics = rawLyrics ? cleanLyrics(rawLyrics) : "";
       const hasChords = /\([^()\s]+\)/.test(lyrics);
 
-      parsed.push({ title, artist, aka, key, lyrics, hasChords });
+      parsed.push({
+        title: capitaliseStandaloneI(title),
+        artist,
+        aka: capitaliseStandaloneI(aka),
+        key,
+        lyrics: capitaliseStandaloneI(lyrics),
+        hasChords,
+      });
     } catch {
       errors++;
     }
