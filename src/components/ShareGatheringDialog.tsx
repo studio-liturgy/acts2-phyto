@@ -233,7 +233,7 @@ export function ShareGatheringDialog({
         )}
 
         {!isLive && (
-          <p className="mt-6 text-sm text-muted-foreground">
+          <p className="mono uppercase mt-6 text-xs tracking-wider text-muted-foreground">
             Once live, this gathering will be accessible via this link.
           </p>
         )}

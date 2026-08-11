@@ -307,7 +307,6 @@ function Library() {
     const today = new Date().toLocaleDateString(undefined, {
       month: "long",
       day: "numeric",
-      year: "numeric",
     });
     createGathering(today);
   };
@@ -573,27 +572,10 @@ function Library() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={exitEditMode}
-                        className="pill mono uppercase flex items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-                        title="Done editing"
-                        aria-label="Done editing"
-                      >
-                        Done
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setEditMode(true)}
-                        className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                        title="Edit catalogue"
-                        aria-label="Edit catalogue"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
+                      {/* Import and export live in edit mode only: they're rare,
+                          destructive-adjacent operations, and having them on the
+                          resting toolbar put a whole-catalogue replace one stray
+                          click away. */}
                       <button
                         type="button"
                         onClick={() => setShowExportConfirm(true)}
@@ -612,7 +594,26 @@ function Library() {
                       >
                         <Download className="h-4 w-4" />
                       </button>
+                      <button
+                        type="button"
+                        onClick={exitEditMode}
+                        className="pill mono uppercase flex items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                        title="Done editing"
+                        aria-label="Done editing"
+                      >
+                        Done
+                      </button>
                     </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEditMode(true)}
+                      className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                      title="Edit catalogue"
+                      aria-label="Edit catalogue"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
                   )}
                   <input
                     ref={importFileRef}
@@ -1175,6 +1176,9 @@ function GatheringCard({
     return allSets.filter((d) => !q || d.name.toLowerCase().includes(q)).slice(0, 8);
   }, [allSets, addQuery]);
 
+  // A ring would sit outside the card and clip against whatever is above it, so
+  // the drop state thickens the card's own border instead. Padding drops by the
+  // extra pixel so nothing inside the card shifts as the border grows.
   return (
     <div
       onDragOver={(e) => {
@@ -1207,8 +1211,8 @@ function GatheringCard({
           e.dataTransfer.getData(SET_DRAG_TYPE) || e.dataTransfer.getData("text/plain");
         if (incoming && allSets.some((d) => d.id === incoming)) onAdd(incoming);
       }}
-      className={`rounded-3xl border border-foreground bg-background p-5 transition ${
-        dropActive ? "ring-2 ring-foreground ring-offset-2 ring-offset-background" : ""
+      className={`rounded-3xl border-foreground bg-background transition ${
+        dropActive ? "border-2 p-[19px]" : "border p-5"
       } ${className}`}
     >
       <div className="mb-4 flex items-center gap-2">
