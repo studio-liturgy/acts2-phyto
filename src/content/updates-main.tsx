@@ -38,6 +38,10 @@ export default function UpdatesMain() {
                 chords are showing or hidden
               </FeatureItem>
               <FeatureItem>
+                Fixed a chord disappearing when a --- divider was typed right up against the next
+                word with no space
+              </FeatureItem>
+              <FeatureItem>
                 Paste a song written in ChordPro and it converts on the way in, chords and section
                 headings included
               </FeatureItem>
