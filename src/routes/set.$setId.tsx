@@ -1175,7 +1175,11 @@ function ChordControls({
                   <DropdownMenuTrigger asChild>
                     {/* pr sits wider than pl so the chevron tucks in from the
                         pill's right edge rather than hugging it. */}
-                    <button className="pill mono uppercase flex h-7 items-center gap-1.5 border border-foreground bg-background pl-3 pr-2.5 text-xs tracking-wider transition hover:bg-muted">
+                    {/* No `uppercase` here: it's a CSS transform, and it would
+                        render the lowercase b in Db/Eb/Ab/Bb as a capital B —
+                        indistinguishable from the note B. KEYS is already
+                        correctly cased. */}
+                    <button className="pill mono flex h-7 items-center gap-1.5 border border-foreground bg-background pl-3 pr-2.5 text-xs tracking-wider transition hover:bg-muted">
                       {chords.key}
                       <ChevronDown className="h-3 w-3 shrink-0" />
                     </button>
@@ -1185,7 +1189,7 @@ function ChordControls({
                       <DropdownMenuItem
                         key={k}
                         onClick={() => changeKey(k)}
-                        className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
+                        className="mono text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
                       >
                         {k}
                       </DropdownMenuItem>
@@ -1255,8 +1259,16 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
     <div className="mb-4 rounded-2xl border border-foreground p-4">
       <div className="mono mb-3 flex items-baseline justify-between gap-2 text-[10px] uppercase tracking-wider">
         <span>Chord sheet</span>
+        {/* The key letter itself is excluded from the uppercase transform: it
+            would render the lowercase b in Db/Eb/Ab/Bb as a capital B. */}
         <span className="text-muted-foreground">
-          {chords.display === "numbers" ? "Numbers" : `Key of ${chords.key}`}
+          {chords.display === "numbers" ? (
+            "Numbers"
+          ) : (
+            <>
+              Key of <span className="normal-case">{chords.key}</span>
+            </>
+          )}
         </span>
       </div>
       <div className="max-h-72 space-y-3 overflow-y-auto pr-1 text-sm">

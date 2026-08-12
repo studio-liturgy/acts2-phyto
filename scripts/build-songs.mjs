@@ -201,6 +201,26 @@ function isSpliceScaffold(line) {
   return stripped !== "" && SCAFFOLD_ONLY_RE.test(stripped);
 }
 
+/**
+ * A line that, once every repeat-count and performance-note decoration is
+ * stripped away, is nothing but the word "instrumental" — "INSTRUMENTAL
+ * (x2)", "REPEAT Instrumental", "Instrumental adlib", "(to Instrumental
+ * second time)", a bare "[Instrumental" that never got a closing bracket.
+ * This app doesn't stage instrumental breaks, so the label has nothing left
+ * to describe once the chords under it are already gone.
+ */
+function isInstrumentalOnlyLine(line) {
+  const cleaned = line
+    .toLowerCase()
+    .replace(/[[\]()]/g, " ")
+    .replace(/x\s*\d+|\d+\s*x/gi, " ")
+    .replace(/\b(repeat|short|to|second|first|third|time|adlib|break|down|x)\b/g, " ")
+    .replace(/\d+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned === "instrumental";
+}
+
 function cleanLyrics(raw) {
   const lines = chordRowsToInline(normaliseChordRows(raw)).split("\n");
   const out = [];
@@ -236,12 +256,69 @@ function cleanLyrics(raw) {
     // instead of onto a real lyric.
     if (isSpliceScaffold(trimmed)) continue;
 
+    // A whole line dedicated to noting an instrumental break — never sung, and
+    // this app doesn't stage instrumental sections at all, so there's nothing
+    // for the label to describe. "INSTRUMENTAL (x2)", "REPEAT Instrumental",
+    // "Instrumental adlib", and a bare "[Instrumental" with no closing bracket
+    // (so it never registered as a real section marker above) all collapse to
+    // the same thing once repeat counts, performance notes, and punctuation
+    // are stripped away.
+    if (isInstrumentalOnlyLine(trimmed)) continue;
+
     // Lyric line — append directly with no blank lines within the section
     const cleaned = stripNoise(joinMelismaDashes(trimmed));
     if (cleaned) out.push(cleaned);
   }
 
-  return out.join("\n").trim();
+  return dropEmptyBlocksAndRenumber(out.join("\n").trim());
+}
+
+/**
+ * A section label with nothing under it — every line inside it dropped as
+ * furniture, or the source never had lyrics for it — never produces a slide
+ * (parseLyricsFromText's flushSlide skips empty content), so it's dead weight
+ * in the editor. Left in place, it also inflates the verse count: a song
+ * whose real verses are numbered 1, 2, 4, 7, 9 reads as though verses were
+ * skipped, when what actually happened is 3, 5, 6 and 8 came up empty. This
+ * drops every such label and renumbers what's left so Verse/Pre-Chorus run
+ * sequentially again.
+ */
+function dropEmptyBlocksAndRenumber(lyrics) {
+  const lines = lyrics.split("\n");
+  const blocks = [];
+  let current = { label: null, lines: [] };
+  for (const line of lines) {
+    const m = /^\[([^\]]+)\]$/.exec(line.trim());
+    if (m) {
+      if (current.lines.some((l) => l.trim() !== "") || current.label) blocks.push(current);
+      current = { label: m[1], lines: [] };
+    } else {
+      current.lines.push(line);
+    }
+  }
+  if (current.lines.some((l) => l.trim() !== "") || current.label) blocks.push(current);
+
+  const kept = blocks.filter((b) => b.label === null || b.lines.some((l) => l.trim() !== ""));
+
+  const counters = {};
+  const out = [];
+  for (const b of kept) {
+    if (b.label === null) {
+      out.push(...b.lines);
+      continue;
+    }
+    const m = /^(Verse|Pre-Chorus)\s+\d+$/.exec(b.label);
+    let label = b.label;
+    if (m) {
+      counters[m[1]] = (counters[m[1]] ?? 0) + 1;
+      label = `${m[1]} ${counters[m[1]]}`;
+    }
+    out.push(`[${label}]`, ...b.lines);
+  }
+  return out
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^\n+|\n+$/g, "");
 }
 
 /**
