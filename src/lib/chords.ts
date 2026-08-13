@@ -772,6 +772,67 @@ export function inlineToChordRows(
 }
 
 /**
+ * Which stored line a box offset falls on, and whether that's the chord row
+ * or the lyric under it.
+ *
+ * Editing a chord — typing into its label, or backspacing it — always
+ * reflows that row: the column padding that keeps every label lined up over
+ * its word is recomputed from scratch. The browser has no way to know the
+ * user's place survived that reflow, so a controlled textarea whose value
+ * changes out from under it resets the caret to the end. Knowing which
+ * stored line the edit happened on is what lets the caller put it back.
+ */
+export function boxOffsetLine(
+  lyrics: string,
+  boxOffset: number,
+  render: (chord: string) => string = (c) => c,
+): { storedLine: number; kind: RowLayoutLine["kind"]; column: number } | null {
+  let cursor = 0;
+  for (const line of buildChordRowLayout(lyrics, render)) {
+    const end = cursor + line.text.length;
+    if (boxOffset <= end) {
+      return line.storedLine === null
+        ? null
+        : { storedLine: line.storedLine, kind: line.kind, column: boxOffset - cursor };
+    }
+    cursor = end + 1;
+  }
+  return null;
+}
+
+/**
+ * Box offset on a stored line's lyric — not its chord row — in whatever the
+ * box currently looks like. Pairs with `boxOffsetLine`: land the caret here
+ * after an edit that reflowed the chord row the caret was on, so it ends up
+ * on the word the chord sits over rather than wherever the browser's own
+ * caret-reset left it.
+ *
+ * `column` carries over the caret's position *within* the old row line. The
+ * row is padded so every label's column lines up with the character of the
+ * word it anchors to, so the same column on the lyric line underneath lands
+ * on that word — not just somewhere on the right line.
+ */
+export function lyricCaretForStoredLine(
+  lyrics: string,
+  storedLine: number,
+  column: number,
+  render: (chord: string) => string = (c) => c,
+): number {
+  let cursor = 0;
+  for (const line of buildChordRowLayout(lyrics, render)) {
+    if (line.storedLine === storedLine && line.kind !== "row") {
+      return cursor + Math.min(column, line.text.length);
+    }
+    cursor += line.text.length + 1;
+  }
+  // The stored line is gone — its last chord and lyric were both deleted
+  // together — so there's nothing left to land on but the end of the box.
+  // -1 undoes the trailing "+ 1" from the loop's last line, which counted a
+  // newline that was never actually written after the final line.
+  return Math.max(0, cursor - 1);
+}
+
+/**
  * Drop a chord into the box at a caret position, the way the palette does.
  *
  * The box text is never spliced directly: the caret might land in the middle
@@ -1065,20 +1126,37 @@ export function readChordRows(box: string, previous: string, opts: ChordRowOpts 
  * The tell is a lyric run left hanging on a trailing space. That space is the
  * gap before the next word, so it means the chord that follows sits *inside*
  * that line rather than starting the next one.
+ *
+ * `numbers: true` reads a Nashville-number stream the same way — some sites
+ * copy chords as scale degrees ("5", "2m") rather than letters, with no key
+ * anywhere in the paste to say what they're relative to.
  */
-export function looksLikeChordStream(text: string): boolean {
+export function looksLikeChordStream(text: string, opts: { numbers?: boolean } = {}): boolean {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   let hits = 0;
   for (let i = 1; i < lines.length; i++) {
     const prev = lines[i - 1];
-    if (!isChordRow(lines[i])) continue;
-    if (prev.trim() !== "" && !isChordRow(prev) && /\s$/.test(prev)) hits++;
+    if (!isChordRow(lines[i], opts)) continue;
+    if (prev.trim() !== "" && !isChordRow(prev, opts) && /\s$/.test(prev)) hits++;
   }
   return hits >= 2;
 }
 
-/** Fold the one-chord-per-line layout into the inline bracket format. */
-export function chordStreamToInline(text: string): string {
+/**
+ * Fold the one-chord-per-line layout into the inline bracket format.
+ *
+ * A number stream carries no key of its own, so `key` picks what the pasted
+ * degrees are interpreted relative to — every stored chord is always a
+ * letter, never a bare number (see `SongChords.key`'s own doc comment). C is
+ * a reasonable default when nothing better is known: the *shape* of the
+ * chords is right regardless, and changing the key afterward in the editor
+ * transposes them to the real one.
+ */
+export function chordStreamToInline(
+  text: string,
+  opts: { numbers?: boolean; key?: string } = {},
+): string {
+  const toChord = (token: string) => (opts.numbers ? numberToChord(token, opts.key ?? "C") : token);
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const out: string[] = [];
   let buf = "";
@@ -1094,13 +1172,13 @@ export function chordStreamToInline(text: string): string {
       flush();
       continue;
     }
-    if (isChordRow(raw)) {
+    if (isChordRow(raw, opts)) {
       // The run before this one ended cleanly, so the chord opens a new line.
       if (buf !== "" && !/\s$/.test(buf)) flush();
       buf += raw
         .trim()
         .split(/\s+/)
-        .map((c) => `(${c})`)
+        .map((c) => `(${toChord(c)})`)
         .join("");
       continue;
     }
@@ -1205,6 +1283,22 @@ export function chordProKey(text: string): string | null {
 }
 
 /**
+ * Whether the text is a Nashville-number chord stream — the same one-chord-
+ * per-line shape `looksLikeChordStream` reads, but in scale degrees rather
+ * than letters. Checked only once the letter reading has already failed: a
+ * stream of bare "1"s and "5"s is also what a sparse, mostly-lyric paste
+ * looks like, so numbers are the fallback reading, not the first one tried.
+ *
+ * Kept separate from `chordStreamToInline` because the paste handler needs
+ * to know this before it decides how to build a fresh `SongChords` — a
+ * number stream carries no key of its own, so it should land showing
+ * numbers, not letters guessed at an arbitrary key.
+ */
+export function looksLikeNumberChordStream(text: string): boolean {
+  return !looksLikeChordStream(text) && looksLikeChordStream(text, { numbers: true });
+}
+
+/**
  * Fold any recognised chord-sheet layout into the inline bracket format, so the
  * rest of the app only ever deals with one representation. Text that isn't
  * chord-shaped comes back untouched, making this safe to run over any paste.
@@ -1212,6 +1306,8 @@ export function chordProKey(text: string): string | null {
 export function normaliseChordSheet(text: string): string {
   if (looksLikeChordPro(text)) return chordProToInline(text);
   if (looksLikeChordStream(text)) return chordStreamToInline(text);
+  if (looksLikeNumberChordStream(text))
+    return chordStreamToInline(text, { numbers: true, key: "C" });
   if (looksLikeChordSheet(text)) return chordRowsToInline(text);
   return text;
 }

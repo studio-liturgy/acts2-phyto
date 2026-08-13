@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChordLine } from "@/components/ChordLine";
 import {
+  boxOffsetLine,
   breakLineAtBoxOffset,
   chordProKey,
   chordToNumber,
@@ -43,6 +44,8 @@ import {
   inlineToChordRows,
   insertChordAtBoxOffset,
   isNumberToken,
+  looksLikeNumberChordStream,
+  lyricCaretForStoredLine,
   normaliseKeyTag,
   numberToChord,
   readChordRows,
@@ -1541,18 +1544,22 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     restore(entry);
   };
 
-  /** Translate what the box now contains back into stored form. */
-  const commitFromBox = (val: string) =>
-    handleLyricsChange(
-      chordsHidden
-        ? reapplyChords(lyrics, val)
-        : readChordRows(val, lyrics, {
-            snap: false,
-            numbers: numbersMode,
-            render: chordLabel,
-            read: chordRead,
-          }),
-    );
+  /** Translate what the box now contains back into stored form. Returns the
+   *  new stored lyrics, so a caller that needs to know where something ended
+   *  up post-edit (the caret, chiefly) doesn't have to wait for the render
+   *  this triggers. */
+  const commitFromBox = (val: string) => {
+    const next = chordsHidden
+      ? reapplyChords(lyrics, val)
+      : readChordRows(val, lyrics, {
+          snap: false,
+          numbers: numbersMode,
+          render: chordLabel,
+          read: chordRead,
+        });
+    handleLyricsChange(next);
+    return next;
+  };
 
   const handleLyricsChange = (val: string) => {
     pushHistory();
@@ -1600,13 +1607,21 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       // "hidden" by the check above — so this has to build a fresh config
       // rather than assume one to flip `hidden` off on.
       const current = useLibrary.getState().sets[setId]?.chords;
-      // A ChordPro file that states its own key is trusted over a guess from
-      // the chords it happens to use — it's what the chart was actually
-      // written in, not a frequency count's best approximation of it.
-      const key = chordProKey(pasted) ?? guessKey(folded) ?? "G";
-      updateSet(setId, {
-        chords: current ? { ...current, hidden: false } : { key, display: "letters" },
-      });
+      let fresh: SongChords;
+      if (looksLikeNumberChordStream(pasted)) {
+        // A number stream carries no key of its own — normaliseChordSheet
+        // stored it relative to C — so showing it as letters would put up an
+        // arbitrary, probably wrong, set of chords. Numbers round-trip back
+        // to exactly what was pasted instead. If the leader later switches
+        // to letters themselves, C is what they'll see, matching this key.
+        fresh = { key: "C", display: "numbers" };
+      } else {
+        // A ChordPro file that states its own key is trusted over a guess
+        // from the chords it happens to use — it's what the chart was
+        // actually written in, not a frequency count's best approximation.
+        fresh = { key: chordProKey(pasted) ?? guessKey(folded) ?? "G", display: "letters" };
+      }
+      updateSet(setId, { chords: current ? { ...current, hidden: false } : fresh });
     }
     const asShown = chordsHidden ? folded : inlineToChordRows(folded, chordLabel);
     commitFromBox(boxText.slice(0, selectionStart) + asShown + boxText.slice(selectionEnd));
@@ -1850,7 +1865,30 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           <Textarea
             ref={lyricsRef}
             value={boxText}
-            onChange={(e) => commitFromBox(e.target.value)}
+            onChange={(e) => {
+              // Editing a chord-carrying line — its own row, or the lyric
+              // beneath it — always reflows that row's column padding, since
+              // it's rebuilt from scratch rather than patched in place. A
+              // controlled textarea whose value changes out from under it
+              // resets the browser's own caret to the end, so the position
+              // has to be carried across the reflow by hand, onto the word
+              // that line's chords sit over.
+              const before =
+                !chordsHidden && caretRef.current !== null
+                  ? boxOffsetLine(lyrics, caretRef.current, chordLabel)
+                  : null;
+              const next = commitFromBox(e.target.value);
+              if (before && before.kind !== "plain") {
+                const caret = lyricCaretForStoredLine(
+                  next,
+                  before.storedLine,
+                  before.column,
+                  chordLabel,
+                );
+                caretRef.current = caret;
+                requestAnimationFrame(() => lyricsRef.current?.setSelectionRange(caret, caret));
+              }
+            }}
             onPaste={handleLyricsPaste}
             onSelect={(e) => (caretRef.current = e.currentTarget.selectionStart)}
             onKeyDown={(e) => {

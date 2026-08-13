@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { isLiveNow } from "@/lib/live-session";
 import { ChordLine } from "@/components/ChordLine";
-import { parseChordLine, type SongChords } from "@/lib/chords";
+import { guessKey, KEYS, parseChordLine, transposeLyrics, type SongChords } from "@/lib/chords";
 
 // Per-gathering share view — private, ephemeral links. Keep out of search.
 
@@ -152,16 +152,29 @@ async function fetchViewerSets(gatheringId: string): Promise<ViewerSet[]> {
 }
 
 /**
- * A song offers the chord toggle only when the leader turned chords on in the
- * editor AND the lyrics actually carry some, so the control never appears as a
- * dead switch.
+ * A song offers the chord toggle whenever its lyrics actually carry chords —
+ * independent of whether the leader left chords switched on or off in the
+ * editor. That toggle only controls the editor's own box and the leader's
+ * preview; a viewer here is free to look at chords the leader isn't.
  */
 function setHasChords(set: SetRow): boolean {
-  const cfg = set.content?.chords;
-  if (set.type !== "song" || !cfg || cfg.hidden) return false;
+  if (set.type !== "song") return false;
   return (set.content.slides ?? []).some((s) =>
     s.lines?.some((l) => parseChordLine(l).chords.length > 0),
   );
+}
+
+/** Every lyric line of a set, joined — the input `guessKey` needs when a song
+ *  has chords but was never given an explicit key in the editor. */
+function allLines(set: SetRow): string {
+  return (set.content?.slides ?? []).flatMap((s) => s.lines ?? []).join("\n");
+}
+
+/** The key a set's chords are actually written in: the editor's own, or a
+ *  guess from the chords themselves when the leader never set one. This is
+ *  the baseline a viewer's own transpose choice moves away from. */
+function setWrittenKey(set: SetRow): string {
+  return set.content?.chords?.key ?? guessKey(allLines(set)) ?? "C";
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +190,14 @@ function GatheringViewer() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [prefs, setPrefs] = useState<ViewerPrefs>(loadPrefs);
+  // A viewer's own transpose/letters-numbers choice, kept per set so flipping
+  // between tabs and back doesn't lose it. Deliberately not persisted to
+  // localStorage or written back to the set — it's ordinary React state, gone
+  // the moment the page reloads, and it never changes what the leader or
+  // anyone else sees.
+  const [chordOverrides, setChordOverrides] = useState<
+    Record<string, { key: string; display: "letters" | "numbers" }>
+  >({});
   const menuRef = useRef<HTMLDivElement>(null);
   const tabBarRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
@@ -292,6 +313,38 @@ function GatheringViewer() {
 
   const activeIdx = sets.findIndex((vs) => vs.set.id === activeSetId);
   const activeSet = sets[activeIdx]?.set ?? sets[0]?.set ?? null;
+
+  // The active song's chord view: its own written key/display unless this
+  // viewer has transposed or switched it themselves this session. `writtenKey`
+  // is always the set's own — never overridden — so a line can be transposed
+  // from it to whatever `key` this viewer chose.
+  const activeChordConfig = (() => {
+    if (!activeSet || !setHasChords(activeSet)) return null;
+    const writtenKey = setWrittenKey(activeSet);
+    const override = chordOverrides[activeSet.id];
+    return {
+      writtenKey,
+      key: override?.key ?? writtenKey,
+      display: override?.display ?? activeSet.content?.chords?.display ?? "letters",
+    };
+  })();
+
+  const setActiveChordOverride = (
+    patch: Partial<{ key: string; display: "letters" | "numbers" }>,
+  ) => {
+    if (!activeSet || !activeChordConfig) return;
+    setChordOverrides((prev) => ({
+      ...prev,
+      [activeSet.id]: { key: activeChordConfig.key, display: activeChordConfig.display, ...patch },
+    }));
+  };
+
+  const stepChordKey = (semitones: number) => {
+    if (!activeChordConfig) return;
+    const idx = (KEYS as readonly string[]).indexOf(activeChordConfig.key);
+    const next = KEYS[(idx + semitones + KEYS.length) % KEYS.length];
+    setActiveChordOverride({ key: next });
+  };
 
   const themeClasses = prefs.isDark ? "bg-black text-white" : "bg-white text-black";
   const borderClass = prefs.isDark ? "border-white/10" : "border-black/10";
@@ -495,6 +548,74 @@ function GatheringViewer() {
         </div>
       </div>
 
+      {/* Chord controls — transpose and letters/numbers, for this viewer only.
+          Shown right under the tabs, only while chords are on and the active
+          song actually has any. Never touches the set: a fresh visit always
+          starts back at the song's own written key. */}
+      {prefs.showChords && activeChordConfig && (
+        <div
+          className={`flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 ${borderClass}`}
+        >
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => stepChordKey(-1)}
+              aria-label="Transpose down a half step"
+              style={{ fontFamily: "Arial, sans-serif" }}
+              className={`flex h-7 w-7 items-center justify-center rounded-full border text-sm leading-none transition ${
+                prefs.isDark
+                  ? "border-white/20 hover:border-white"
+                  : "border-black/20 hover:border-black"
+              }`}
+            >
+              −
+            </button>
+            <span
+              className="w-9 text-center text-sm font-semibold"
+              style={{ fontFamily: "'Space Mono', monospace" }}
+            >
+              {activeChordConfig.key}
+            </span>
+            <button
+              onClick={() => stepChordKey(1)}
+              aria-label="Transpose up a half step"
+              style={{ fontFamily: "Arial, sans-serif" }}
+              className={`flex h-7 w-7 items-center justify-center rounded-full border text-sm leading-none transition ${
+                prefs.isDark
+                  ? "border-white/20 hover:border-white"
+                  : "border-black/20 hover:border-black"
+              }`}
+            >
+              +
+            </button>
+          </div>
+          <div
+            className={`flex overflow-hidden rounded-full border ${
+              prefs.isDark ? "border-white/20" : "border-black/20"
+            }`}
+          >
+            {(["letters", "numbers"] as const).map((d) => {
+              const active = activeChordConfig.display === d;
+              return (
+                <button
+                  key={d}
+                  onClick={() => setActiveChordOverride({ display: d })}
+                  style={{ fontFamily: "Arial, sans-serif" }}
+                  className={`px-3 py-1 text-xs transition ${
+                    active
+                      ? prefs.isDark
+                        ? "bg-white text-black"
+                        : "bg-black text-white"
+                      : mutedClass
+                  }`}
+                >
+                  {d === "letters" ? "Letters" : "Numbers"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Set content */}
       <div
         className="flex-1 overflow-y-auto"
@@ -527,7 +648,12 @@ function GatheringViewer() {
         }}
       >
         {activeSet && (
-          <SetContent set={activeSet} isDark={prefs.isDark} showChords={prefs.showChords} />
+          <SetContent
+            set={activeSet}
+            isDark={prefs.isDark}
+            showChords={prefs.showChords}
+            chordConfig={activeChordConfig}
+          />
         )}
       </div>
     </div>
@@ -538,14 +664,20 @@ function GatheringViewer() {
 // Sub-components
 // ---------------------------------------------------------------------------
 
+/** A viewer's current chord view for the active song — always derived from
+ *  the set, never written back to it. `null` when the song has no chords. */
+type ChordViewConfig = { writtenKey: string; key: string; display: "letters" | "numbers" };
+
 function SetContent({
   set,
   isDark,
   showChords,
+  chordConfig,
 }: {
   set: SetRow;
   isDark: boolean;
   showChords: boolean;
+  chordConfig: ChordViewConfig | null;
 }) {
   const slides = set.content?.slides ?? [];
 
@@ -587,7 +719,7 @@ function SetContent({
             key={slide.id ?? i}
             slide={slide}
             isDark={isDark}
-            chords={set.content?.chords?.hidden ? undefined : set.content?.chords}
+            chordConfig={chordConfig}
             showChords={showChords}
             showSection={slide.section !== slides[i - 1]?.section}
           />
@@ -649,17 +781,24 @@ function MediaSlide({ slide }: { slide: SlideRow }) {
 function SlideBlock({
   slide,
   isDark,
-  chords,
+  chordConfig,
   showChords,
   showSection = true,
 }: {
   slide: SlideRow;
   isDark: boolean;
-  chords?: SongChords;
+  chordConfig: ChordViewConfig | null;
   showChords: boolean;
   showSection?: boolean;
 }) {
   const mutedClass = isDark ? "opacity-40" : "opacity-50";
+  // renderChord only ever converts letters<->numbers of whatever key a chord
+  // is already written in — it doesn't move the chord to a different key.
+  // Getting from the set's own written key to this viewer's chosen one is a
+  // real transpose, done here before the line ever reaches ChordLine.
+  const chords: SongChords | undefined = chordConfig
+    ? { key: chordConfig.key, display: chordConfig.display }
+    : undefined;
   return (
     <div className={showChords ? "space-y-2" : "space-y-1"}>
       {showSection && slide.section && (
@@ -669,7 +808,11 @@ function SlideBlock({
       {slide.lines?.map((line, j) => (
         <ChordLine
           key={j}
-          line={line}
+          line={
+            chordConfig && chordConfig.writtenKey !== chordConfig.key
+              ? transposeLyrics(line, chordConfig.writtenKey, chordConfig.key)
+              : line
+          }
           chords={chords}
           show={showChords}
           className="leading-relaxed"

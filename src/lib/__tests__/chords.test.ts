@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  boxOffsetLine,
   breakLineAtBoxOffset,
   chordProKey,
   chordProToInline,
   looksLikeChordPro,
+  lyricCaretForStoredLine,
   chordRowsToInline,
   clearChordsAtBoxOffset,
   chordStreamToInline,
@@ -20,6 +22,7 @@ import {
   normaliseKeyTag,
   reapplyChords,
   looksLikeChordStream,
+  looksLikeNumberChordStream,
   normaliseChordSheet,
   transposeLyrics,
   guessKey,
@@ -337,6 +340,72 @@ describe("chordStreamToInline (WorshipTogether layout)", () => {
   });
 });
 
+describe("chordStreamToInline with numbers (WorshipTogether's Nashville-number layout)", () => {
+  // Same one-chord-per-line shape, but the chords are bare scale degrees —
+  // no key anywhere in the paste, since numbers are meant to be key-agnostic.
+  const WT_NUMBERS = [
+    "Verse 1",
+    " 1 ",
+    "When the music ",
+    "5 ",
+    "fades, all is stripped ",
+    "2m ",
+    "away",
+  ].join("\n");
+
+  it("is recognised as a number stream, not a letter one", () => {
+    expect(looksLikeChordStream(WT_NUMBERS)).toBe(false);
+    expect(looksLikeChordStream(WT_NUMBERS, { numbers: true })).toBe(true);
+  });
+
+  it("looksLikeNumberChordStream: the check the paste handler uses to pick numbers display", () => {
+    expect(looksLikeNumberChordStream(WT_NUMBERS)).toBe(true);
+    // A real letter stream is a letter stream, never also a number one — "G"
+    // and "D/F#" aren't valid Nashville degrees anyway, but the priority
+    // matters more generally: letters are never reinterpreted as numbers.
+    const letterStream = ["The ", "G ", "splendor of the ", "D/F# ", "King"].join("\n");
+    expect(looksLikeNumberChordStream(letterStream)).toBe(false);
+    expect(looksLikeNumberChordStream("just some lyrics, no chords at all")).toBe(false);
+  });
+
+  it("converts degrees to letters relative to the given key", () => {
+    expect(chordStreamToInline(WT_NUMBERS, { numbers: true, key: "C" })).toBe(
+      "[Verse 1]\n(C)When the music (G)fades, all is stripped (Dm)away",
+    );
+    // Same degrees, different key — the shape survives, the letters don't.
+    expect(chordStreamToInline(WT_NUMBERS, { numbers: true, key: "G" })).toBe(
+      "[Verse 1]\n(G)When the music (D)fades, all is stripped (Am)away",
+    );
+  });
+
+  it("defaults to C with no key given", () => {
+    expect(chordStreamToInline(WT_NUMBERS, { numbers: true })).toBe(
+      "[Verse 1]\n(C)When the music (G)fades, all is stripped (Dm)away",
+    );
+  });
+
+  it("handles slash chords", () => {
+    expect(chordStreamToInline("The \n5/7 \nsong", { numbers: true, key: "C" })).toBe(
+      "The (G/B)song",
+    );
+  });
+
+  it("runs through normaliseChordSheet only after the letter reading fails", () => {
+    expect(normaliseChordSheet(WT_NUMBERS)).toBe(
+      chordStreamToInline(WT_NUMBERS, { numbers: true }),
+    );
+    // A real letter stream is never reinterpreted as numbers.
+    const letterStream = ["The ", "G ", "splendor of the ", "D/F# ", "King"].join("\n");
+    expect(normaliseChordSheet(letterStream)).toBe(chordStreamToInline(letterStream));
+  });
+
+  it("produces chords the rest of the app recognises", () => {
+    const folded = chordStreamToInline(WT_NUMBERS, { numbers: true, key: "C" });
+    expect(hasChords(folded)).toBe(true);
+    expect(stripChords(folded.split("\n")[1])).toBe("When the music fades, all is stripped away");
+  });
+});
+
 describe("inlineToChordRows / readChordRows (the editor's chord-sheet view)", () => {
   const roundTrip = (stored: string) => readChordRows(inlineToChordRows(stored), stored);
 
@@ -405,6 +474,55 @@ describe("inlineToChordRows / readChordRows (the editor's chord-sheet view)", ()
     // Column 5 lands inside "Amazing", so snapping pulls it to the word start.
     expect(chordRowsToInline("     G\nAmazing grace")).toBe("(G)Amazing grace");
     expect(chordRowsToInline("     G\nAmazing grace", { snap: false })).toBe("Amazi(G)ng grace");
+  });
+});
+
+describe("boxOffsetLine / lyricCaretForStoredLine (caret survives editing a chord)", () => {
+  // Reported bug: backspacing a chord label sent the caret to the very end of
+  // the box. Editing a chord row always reflows its column padding, and a
+  // controlled textarea whose value changes out from under it resets the
+  // caret to the end unless something puts it back explicitly.
+  const lyrics = "Amazing (G)grace how (C)sweet the sound";
+  const box = inlineToChordRows(lyrics); // "        G         C\nAmazing grace how sweet the sound"
+
+  it("identifies the chord row versus the lyric beneath it", () => {
+    expect(boxOffsetLine(lyrics, 0)).toEqual({ storedLine: 0, kind: "row", column: 0 });
+    expect(boxOffsetLine(lyrics, box.indexOf("G"))).toEqual({
+      storedLine: 0,
+      kind: "row",
+      column: box.indexOf("G"),
+    });
+    const lyricStart = box.indexOf("\n") + 1;
+    expect(boxOffsetLine(lyrics, lyricStart)).toEqual({ storedLine: 0, kind: "lyric", column: 0 });
+    expect(boxOffsetLine(lyrics, box.length)).toMatchObject({ storedLine: 0, kind: "lyric" });
+  });
+
+  it("tracks which stored line on a multi-line lyric", () => {
+    const multi = "Amazing (G)grace\nhow (C)sweet the (D)sound";
+    const mbox = inlineToChordRows(multi);
+    const secondRowStart = mbox.split("\n").slice(0, 2).join("\n").length + 1;
+    expect(boxOffsetLine(multi, secondRowStart)).toMatchObject({ storedLine: 1, kind: "row" });
+  });
+
+  it("lands the caret on the word a deleted chord was over, not just its line", () => {
+    // Caret sits right after the "G" label — as if backspacing had just
+    // erased it — and the row reflows once the chord itself is gone.
+    const hit = boxOffsetLine(lyrics, box.indexOf("G") + 1)!;
+    const afterDelete = "Amazing grace how (C)sweet the sound";
+    const caret = lyricCaretForStoredLine(afterDelete, hit.storedLine, hit.column);
+    const newBox = inlineToChordRows(afterDelete);
+    const lyricLine = newBox.split("\n")[1];
+    const caretInLine = caret - (newBox.indexOf("\n") + 1);
+    // "grace" is exactly what the deleted G chord was anchored to — the old
+    // caret's column carries over, landing inside that word rather than at
+    // the far end of the box, or even just at the start of the line.
+    const graceStart = lyricLine.indexOf("grace");
+    expect(caretInLine).toBeGreaterThanOrEqual(graceStart);
+    expect(caretInLine).toBeLessThanOrEqual(graceStart + "grace".length);
+  });
+
+  it("falls back to the end of the box when the stored line is gone entirely", () => {
+    expect(lyricCaretForStoredLine("", 0, 5)).toBe(0);
   });
 });
 
