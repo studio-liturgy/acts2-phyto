@@ -28,6 +28,22 @@ export default function UpdatesMain() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-12">
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
+            <div className="text-2xl">August 19, 2026</div>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Chords</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Anyone following a gathering on their phone can switch between chord letters and
+                Nashville numbers, and transpose a song to any key, right from their own screen (it
+                only changes what they see, never what the leader or anyone else is looking at)
+              </FeatureItem>
+              <FeatureItem>
+                Fixed an extra blank line showing up on the phone view wherever a song&rsquo;s
+                lyrics split onto a new slide
+              </FeatureItem>
+            </ul>
+          </li>
+          <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">August 11, 2026</div>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Chords</div>
