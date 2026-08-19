@@ -712,16 +712,29 @@ function SetContent({
   }
 
   if (set.type === "song") {
+    // Group consecutive slides that share a section into one flowing block —
+    // a slide break within a verse (e.g. from linesPer) is a display-only
+    // split, not a real stanza boundary, so it shouldn't get the same visual
+    // gap as an actual section change.
+    const groups: { section: string | undefined; lines: string[] }[] = [];
+    for (const slide of slides) {
+      const last = groups[groups.length - 1];
+      if (last && last.section === slide.section) {
+        last.lines.push(...(slide.lines ?? []));
+      } else {
+        groups.push({ section: slide.section, lines: [...(slide.lines ?? [])] });
+      }
+    }
     return (
       <div className="space-y-6 px-4 py-6">
-        {slides.map((slide, i) => (
+        {groups.map((group, i) => (
           <SlideBlock
-            key={slide.id ?? i}
-            slide={slide}
+            key={i}
+            section={group.section}
+            lines={group.lines}
             isDark={isDark}
             chordConfig={chordConfig}
             showChords={showChords}
-            showSection={slide.section !== slides[i - 1]?.section}
           />
         ))}
       </div>
@@ -779,17 +792,17 @@ function MediaSlide({ slide }: { slide: SlideRow }) {
 }
 
 function SlideBlock({
-  slide,
+  section,
+  lines,
   isDark,
   chordConfig,
   showChords,
-  showSection = true,
 }: {
-  slide: SlideRow;
+  section: string | undefined;
+  lines: string[];
   isDark: boolean;
   chordConfig: ChordViewConfig | null;
   showChords: boolean;
-  showSection?: boolean;
 }) {
   const mutedClass = isDark ? "opacity-40" : "opacity-50";
   // renderChord only ever converts letters<->numbers of whatever key a chord
@@ -801,11 +814,8 @@ function SlideBlock({
     : undefined;
   return (
     <div className={showChords ? "space-y-2" : "space-y-1"}>
-      {showSection && slide.section && (
-        <p className={`text-xs uppercase tracking-widest ${mutedClass}`}>{slide.section}</p>
-      )}
-      {slide.title && <p className="font-semibold">{slide.title}</p>}
-      {slide.lines?.map((line, j) => (
+      {section && <p className={`text-xs uppercase tracking-widest ${mutedClass}`}>{section}</p>}
+      {lines.map((line, j) => (
         <ChordLine
           key={j}
           line={
