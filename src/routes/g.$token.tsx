@@ -4,6 +4,13 @@ import { supabase } from "@/lib/supabase";
 import { isLiveNow } from "@/lib/live-session";
 import { ChordLine } from "@/components/ChordLine";
 import { guessKey, KEYS, parseChordLine, transposeLyrics, type SongChords } from "@/lib/chords";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 
 // Per-gathering share view — private, ephemeral links. Keep out of search.
 
@@ -339,13 +346,6 @@ function GatheringViewer() {
     }));
   };
 
-  const stepChordKey = (semitones: number) => {
-    if (!activeChordConfig) return;
-    const idx = (KEYS as readonly string[]).indexOf(activeChordConfig.key);
-    const next = KEYS[(idx + semitones + KEYS.length) % KEYS.length];
-    setActiveChordOverride({ key: next });
-  };
-
   const themeClasses = prefs.isDark ? "bg-black text-white" : "bg-white text-black";
   const borderClass = prefs.isDark ? "border-white/10" : "border-black/10";
   const mutedClass = prefs.isDark ? "text-white/40" : "text-black/40";
@@ -557,38 +557,6 @@ function GatheringViewer() {
           className={`flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 ${borderClass}`}
         >
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => stepChordKey(-1)}
-              aria-label="Transpose down a half step"
-              style={{ fontFamily: "'Space Mono', monospace" }}
-              className={`pill flex h-7 w-7 items-center justify-center border text-sm leading-none transition ${
-                prefs.isDark
-                  ? "border-white text-white hover:bg-white hover:text-black"
-                  : "border-black text-black hover:bg-black hover:text-white"
-              }`}
-            >
-              −
-            </button>
-            <span
-              className="w-9 text-center text-xs tracking-wider"
-              style={{ fontFamily: "'Space Mono', monospace" }}
-            >
-              {activeChordConfig.key}
-            </span>
-            <button
-              onClick={() => stepChordKey(1)}
-              aria-label="Transpose up a half step"
-              style={{ fontFamily: "'Space Mono', monospace" }}
-              className={`pill flex h-7 w-7 items-center justify-center border text-sm leading-none transition ${
-                prefs.isDark
-                  ? "border-white text-white hover:bg-white hover:text-black"
-                  : "border-black text-black hover:bg-black hover:text-white"
-              }`}
-            >
-              +
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
             {(["letters", "numbers"] as const).map((d) => {
               const active = activeChordConfig.display === d;
               return (
@@ -611,6 +579,57 @@ function GatheringViewer() {
               );
             })}
           </div>
+
+          {/* Key only means anything for letters — numbers are key-agnostic,
+              same as the set editor hiding this control in that mode. */}
+          {activeChordConfig.display === "letters" && (
+            <div className="flex items-center gap-2">
+              <span
+                className={`text-[10px] uppercase tracking-wider ${mutedClass}`}
+                style={{ fontFamily: "'Space Mono', monospace" }}
+              >
+                Key
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    style={{ fontFamily: "'Space Mono', monospace" }}
+                    className={`pill flex h-7 items-center gap-1.5 border pl-3 pr-2.5 text-xs tracking-wider transition ${
+                      prefs.isDark
+                        ? "border-white text-white hover:bg-white/10"
+                        : "border-black text-black hover:bg-black/10"
+                    }`}
+                  >
+                    {activeChordConfig.key}
+                    <ChevronDown className="h-3 w-3 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className={`min-w-0 ${
+                    prefs.isDark
+                      ? "border-white/20 bg-black text-white"
+                      : "border-black/20 bg-white text-black"
+                  }`}
+                >
+                  {KEYS.map((k) => (
+                    <DropdownMenuItem
+                      key={k}
+                      onClick={() => setActiveChordOverride({ key: k })}
+                      style={{ fontFamily: "'Space Mono', monospace" }}
+                      className={`text-xs tracking-wider ${
+                        prefs.isDark
+                          ? "focus:bg-white/10 focus:text-white"
+                          : "focus:bg-black/10 focus:text-black"
+                      }`}
+                    >
+                      {k}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </div>
       )}
 
