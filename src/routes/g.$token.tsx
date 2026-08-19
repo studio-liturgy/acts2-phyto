@@ -557,7 +557,7 @@ function GatheringViewer() {
           className={`flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 ${borderClass}`}
         >
           <div className="flex items-center gap-2">
-            {(["letters", "numbers"] as const).map((d) => {
+            {(["numbers", "letters"] as const).map((d) => {
               const active = activeChordConfig.display === d;
               return (
                 <button

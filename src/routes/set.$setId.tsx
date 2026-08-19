@@ -1156,7 +1156,7 @@ function ChordControls({
       {shown && chords && (
         <div className="mt-3 space-y-3 border-t border-foreground/15 pt-3">
           <div className="flex items-center gap-2">
-            {(["letters", "numbers"] as const).map((d) => (
+            {(["numbers", "letters"] as const).map((d) => (
               <button
                 key={d}
                 type="button"
