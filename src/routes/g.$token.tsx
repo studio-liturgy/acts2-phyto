@@ -560,17 +560,17 @@ function GatheringViewer() {
             <button
               onClick={() => stepChordKey(-1)}
               aria-label="Transpose down a half step"
-              style={{ fontFamily: "Arial, sans-serif" }}
-              className={`flex h-7 w-7 items-center justify-center rounded-full border text-sm leading-none transition ${
+              style={{ fontFamily: "'Space Mono', monospace" }}
+              className={`pill flex h-7 w-7 items-center justify-center border text-sm leading-none transition ${
                 prefs.isDark
-                  ? "border-white/20 hover:border-white"
-                  : "border-black/20 hover:border-black"
+                  ? "border-white text-white hover:bg-white hover:text-black"
+                  : "border-black text-black hover:bg-black hover:text-white"
               }`}
             >
               −
             </button>
             <span
-              className="w-9 text-center text-sm font-semibold"
+              className="w-9 text-center text-xs tracking-wider"
               style={{ fontFamily: "'Space Mono', monospace" }}
             >
               {activeChordConfig.key}
@@ -578,37 +578,35 @@ function GatheringViewer() {
             <button
               onClick={() => stepChordKey(1)}
               aria-label="Transpose up a half step"
-              style={{ fontFamily: "Arial, sans-serif" }}
-              className={`flex h-7 w-7 items-center justify-center rounded-full border text-sm leading-none transition ${
+              style={{ fontFamily: "'Space Mono', monospace" }}
+              className={`pill flex h-7 w-7 items-center justify-center border text-sm leading-none transition ${
                 prefs.isDark
-                  ? "border-white/20 hover:border-white"
-                  : "border-black/20 hover:border-black"
+                  ? "border-white text-white hover:bg-white hover:text-black"
+                  : "border-black text-black hover:bg-black hover:text-white"
               }`}
             >
               +
             </button>
           </div>
-          <div
-            className={`flex overflow-hidden rounded-full border ${
-              prefs.isDark ? "border-white/20" : "border-black/20"
-            }`}
-          >
+          <div className="flex items-center gap-2">
             {(["letters", "numbers"] as const).map((d) => {
               const active = activeChordConfig.display === d;
               return (
                 <button
                   key={d}
                   onClick={() => setActiveChordOverride({ display: d })}
-                  style={{ fontFamily: "Arial, sans-serif" }}
-                  className={`px-3 py-1 text-xs transition ${
+                  style={{ fontFamily: "'Space Mono', monospace" }}
+                  className={`pill h-7 border px-3 text-xs uppercase tracking-wider transition ${
                     active
                       ? prefs.isDark
-                        ? "bg-white text-black"
-                        : "bg-black text-white"
-                      : mutedClass
+                        ? "border-white bg-white text-black"
+                        : "border-black bg-black text-white"
+                      : prefs.isDark
+                        ? "border-white text-white hover:bg-white/10"
+                        : "border-black text-black hover:bg-black/10"
                   }`}
                 >
-                  {d === "letters" ? "Letters" : "Numbers"}
+                  {d}
                 </button>
               );
             })}
