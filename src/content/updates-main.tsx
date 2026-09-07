@@ -28,6 +28,18 @@ export default function UpdatesMain() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-12">
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
+            <div className="text-2xl">September 7, 2026</div>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Song editor</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Edit Song Template now has an All Caps or Mixed Case choice under Font type, in both
+                the song editor and the presenter. It only changes how the lyrics look on the slide:
+                the words you typed stay exactly as you wrote them
+              </FeatureItem>
+            </ul>
+          </li>
+          <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">August 19, 2026</div>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Chords</div>

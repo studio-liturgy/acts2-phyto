@@ -46,6 +46,8 @@ export interface SetTemplate {
   referencePosition?: "above" | "below";
   /** Vertical position of song text on the slide. Default "centre". */
   position?: "top" | "centre";
+  /** Song-only: how lyric text is cased on the slide. Default "mixed" (as typed). */
+  textCase?: "upper" | "mixed";
 }
 
 export interface Set {

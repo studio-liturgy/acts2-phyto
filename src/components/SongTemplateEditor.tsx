@@ -17,6 +17,7 @@ export function SongTemplateEditor() {
     fontFamily: songTemplate.fontFamily ?? FONT_OPTIONS[0].value,
     bg: (songTemplate.bg ?? "black") as "black" | "white",
     position: (songTemplate.position ?? "centre") as "top" | "centre",
+    textCase: (songTemplate.textCase ?? "mixed") as "upper" | "mixed",
   });
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export function SongTemplateEditor() {
         fontFamily: songTemplate.fontFamily ?? FONT_OPTIONS[0].value,
         bg: (songTemplate.bg ?? "black") as "black" | "white",
         position: (songTemplate.position ?? "centre") as "top" | "centre",
+        textCase: (songTemplate.textCase ?? "mixed") as "upper" | "mixed",
       });
     }
   }, [songTemplate, open]);
@@ -110,6 +112,28 @@ export function SongTemplateEditor() {
                 </button>
               );
             })}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setDraft((d) => ({ ...d, textCase: "upper" }))}
+              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                draft.textCase === "upper"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-foreground/20 hover:border-foreground"
+              }`}
+            >
+              All Caps
+            </button>
+            <button
+              onClick={() => setDraft((d) => ({ ...d, textCase: "mixed" }))}
+              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                draft.textCase === "mixed"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-foreground/20 hover:border-foreground"
+              }`}
+            >
+              Mixed Case
+            </button>
           </div>
         </div>
 

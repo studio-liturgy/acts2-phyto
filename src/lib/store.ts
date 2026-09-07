@@ -22,6 +22,7 @@ const DEFAULT_SONG_TEMPLATE: SetTemplate = {
   fontFamily: SLIDE_FONT_STACK,
   bg: "black",
   position: "centre",
+  textCase: "mixed",
 };
 const DEFAULT_SCRIPTURE_TEMPLATE: SetTemplate = {
   fontScale: 1,

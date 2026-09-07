@@ -306,6 +306,9 @@ export function SlideView({
     template?.align === "left" ? "items-start text-left" : "items-center text-center";
   const refAbove = template?.referencePosition === "above";
   const positionClass = template?.position === "top" ? "justify-start" : "justify-center";
+  // Lyrics only: the song template can force all caps without changing what was typed.
+  const lyricCase =
+    slide?.kind === "lyric" && template?.textCase === "upper" ? ("uppercase" as const) : undefined;
 
   if (slide?.kind === "video") {
     return (
@@ -358,7 +361,7 @@ export function SlideView({
             <div
               key={i}
               className="font-medium leading-snug"
-              style={{ fontSize: `${3.75 * fontScale}rem` }}
+              style={{ fontSize: `${3.75 * fontScale}rem`, textTransform: lyricCase }}
             >
               {l}
             </div>
