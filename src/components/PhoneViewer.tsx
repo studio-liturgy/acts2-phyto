@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Pencil } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 // The phone gathering view, as a self-contained presentational component. Two
 // surfaces render it identically:
@@ -45,7 +46,7 @@ export interface PhoneSet {
 
 type FontFamily = "sans" | "serif" | "mono";
 
-interface ViewerPrefs {
+export interface ViewerPrefs {
   isDark: boolean;
   fontSize: number;
   fontFamily: FontFamily;
@@ -62,7 +63,7 @@ const FONT_FAMILY_CSS: Record<FontFamily, string> = {
 // Baseline reading-text size (in rem) before the viewer's font-size slider is applied.
 const BASE_FONT_REM = 1.5;
 
-function loadPrefs(): ViewerPrefs {
+export function loadPrefs(): ViewerPrefs {
   try {
     return {
       isDark: localStorage.getItem("phyto-viewer-dark") !== "false",
@@ -92,10 +93,11 @@ function savePrefs(prefs: ViewerPrefs) {
  * editor. That toggle only controls the editor's own box and the leader's
  * preview; a viewer here is free to look at chords the leader isn't.
  */
-function setHasChords(set: PhoneSet): boolean {
+export function phoneSetHasChords(set: PhoneSet): boolean {
   if (set.type !== "song") return false;
   return (set.slides ?? []).some((s) => s.lines?.some((l) => parseChordLine(l).chords.length > 0));
 }
+const setHasChords = phoneSetHasChords;
 
 /** Every lyric line of a set, joined — the input `guessKey` needs when a song
  *  has chords but was never given an explicit key in the editor. */
@@ -123,6 +125,8 @@ export function PhoneViewer({
   onActiveChange,
   onChordChange,
   onEditSet,
+  prefs: controlledPrefs,
+  onPrefsChange,
 }: {
   sets: PhoneSet[];
   /** Stable section keys hidden by the leader, keyed by set id. Those sections
@@ -146,11 +150,23 @@ export function PhoneViewer({
   /** When provided, hovering the set body reveals a pencil that calls this with
    *  the active set id (the presenter preview uses it to open the editor). */
   onEditSet?: (setId: string) => void;
+  /** Controlled display prefs. When provided (with onPrefsChange), an external
+   *  panel drives the same prefs this view renders with (the presenter preview
+   *  uses this); otherwise the view keeps its own prefs. */
+  prefs?: ViewerPrefs;
+  onPrefsChange?: (prefs: ViewerPrefs) => void;
 }) {
   const [activeSetId, setActiveSetId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
   const [activeTabId, setActiveTabId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [prefs, setPrefs] = useState<ViewerPrefs>(loadPrefs);
+  // Prefs are internal by default, or driven from outside when controlled.
+  const [internalPrefs, setInternalPrefs] = useState<ViewerPrefs>(loadPrefs);
+  const prefs = controlledPrefs ?? internalPrefs;
+  const setPrefs = (updater: ViewerPrefs | ((p: ViewerPrefs) => ViewerPrefs)) => {
+    const next = typeof updater === "function" ? updater(prefs) : updater;
+    if (onPrefsChange) onPrefsChange(next);
+    else setInternalPrefs(next);
+  };
   // A viewer's own transpose/letters-numbers choice, kept per set so flipping
   // between tabs and back doesn't lose it. Deliberately not persisted.
   const [chordOverrides, setChordOverrides] = useState<
@@ -308,112 +324,11 @@ export function PhoneViewer({
                 }`}
                 style={{ fontFamily: "'Space Mono', monospace", fontSize: "1rem" }}
               >
-                {/* Header. No close button: tapping outside already dismisses. */}
-                <div className="mb-3 text-[10px] uppercase tracking-wider">Display</div>
-
-                <div className="space-y-4 text-sm">
-                  {/* Font size */}
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
-                      <span>Font size</span>
-                      <span className={mutedClass}>{prefs.fontSize.toFixed(2)}×</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0.85}
-                      max={1.8}
-                      step={0.05}
-                      value={prefs.fontSize}
-                      onChange={(e) =>
-                        setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))
-                      }
-                      className="w-full"
-                    />
-                  </div>
-
-                  {/* Font type */}
-                  <div>
-                    <div className="mb-2 text-[10px] uppercase tracking-wider">Font type</div>
-                    <div className="grid grid-cols-1 gap-1">
-                      {(["sans", "serif", "mono"] as FontFamily[]).map((f) => {
-                        const active = prefs.fontFamily === f;
-                        return (
-                          <button
-                            key={f}
-                            onClick={() => setPrefs((p) => ({ ...p, fontFamily: f }))}
-                            style={{ fontFamily: FONT_FAMILY_CSS[f] }}
-                            className={`rounded-lg border px-3 py-1.5 text-left text-sm capitalize transition ${
-                              active
-                                ? prefs.isDark
-                                  ? "border-white bg-white text-black"
-                                  : "border-black bg-black text-white"
-                                : prefs.isDark
-                                  ? "border-white/20 hover:border-white"
-                                  : "border-black/20 hover:border-black"
-                            }`}
-                          >
-                            {f}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Theme */}
-                  <div>
-                    <div className="mb-2 text-[10px] uppercase tracking-wider">Theme</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setPrefs((p) => ({ ...p, isDark: true }))}
-                        style={{ fontFamily: "Arial, sans-serif" }}
-                        className={`rounded-lg border px-3 py-2 text-xs transition bg-black text-white ${
-                          prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
-                        }`}
-                      >
-                        Dark
-                      </button>
-                      <button
-                        onClick={() => setPrefs((p) => ({ ...p, isDark: false }))}
-                        style={{ fontFamily: "Arial, sans-serif" }}
-                        className={`rounded-lg border px-3 py-2 text-xs transition bg-white text-black ${
-                          !prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
-                        }`}
-                      >
-                        Light
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Chords — only for gatherings that actually have any */}
-                  {sets.some((s) => setHasChords(s)) && (
-                    <div>
-                      <div className="mb-2 text-[10px] uppercase tracking-wider">Chords</div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {([false, true] as const).map((on) => {
-                          const active = prefs.showChords === on;
-                          return (
-                            <button
-                              key={String(on)}
-                              onClick={() => setPrefs((p) => ({ ...p, showChords: on }))}
-                              style={{ fontFamily: "Arial, sans-serif" }}
-                              className={`rounded-lg border px-3 py-2 text-xs transition ${
-                                active
-                                  ? prefs.isDark
-                                    ? "border-white bg-white text-black"
-                                    : "border-black bg-black text-white"
-                                  : prefs.isDark
-                                    ? "border-white/20 hover:border-white"
-                                    : "border-black/20 hover:border-black"
-                              }`}
-                            >
-                              {on ? "Show" : "Hide"}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <ViewerSettings
+                  prefs={prefs}
+                  setPrefs={setPrefs}
+                  hasChords={sets.some((s) => setHasChords(s))}
+                />
               </div>
             )}
           </div>
@@ -581,6 +496,109 @@ export function PhoneViewer({
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
+
+/** The display controls (font size / type / theme / chords) shown both in the
+ *  phone's hamburger menu and — for the presenter — as a panel beside the phone
+ *  preview. Styled to the phone theme it's editing (prefs.isDark). */
+export function ViewerSettings({
+  prefs,
+  setPrefs,
+  hasChords,
+}: {
+  prefs: ViewerPrefs;
+  setPrefs: (updater: (p: ViewerPrefs) => ViewerPrefs) => void;
+  hasChords: boolean;
+}) {
+  const mutedClass = prefs.isDark ? "text-white/40" : "text-black/40";
+  return (
+    <div
+      className="space-y-4 text-sm"
+      style={{ fontFamily: "'Space Mono', monospace", fontSize: "1rem" }}
+    >
+      {/* Font size */}
+      <div>
+        <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
+          <span>Font size</span>
+          <span className={mutedClass}>{prefs.fontSize.toFixed(2)}×</span>
+        </div>
+        <input
+          type="range"
+          min={0.85}
+          max={1.8}
+          step={0.05}
+          value={prefs.fontSize}
+          onChange={(e) => setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))}
+          className="w-full"
+        />
+      </div>
+
+      {/* Font type */}
+      <div>
+        <div className="mb-2 text-[10px] uppercase tracking-wider">Font type</div>
+        <div className="grid grid-cols-1 gap-1">
+          {(["sans", "serif", "mono"] as FontFamily[]).map((f) => {
+            const active = prefs.fontFamily === f;
+            return (
+              <button
+                key={f}
+                onClick={() => setPrefs((p) => ({ ...p, fontFamily: f }))}
+                style={{ fontFamily: FONT_FAMILY_CSS[f] }}
+                className={`rounded-lg border px-3 py-1.5 text-left text-sm capitalize transition ${
+                  active
+                    ? prefs.isDark
+                      ? "border-white bg-white text-black"
+                      : "border-black bg-black text-white"
+                    : prefs.isDark
+                      ? "border-white/20 hover:border-white"
+                      : "border-black/20 hover:border-black"
+                }`}
+              >
+                {f}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Theme */}
+      <div>
+        <div className="mb-2 text-[10px] uppercase tracking-wider">Theme</div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setPrefs((p) => ({ ...p, isDark: true }))}
+            style={{ fontFamily: "Arial, sans-serif" }}
+            className={`rounded-lg border px-3 py-2 text-xs transition bg-black text-white ${
+              prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
+            }`}
+          >
+            Dark
+          </button>
+          <button
+            onClick={() => setPrefs((p) => ({ ...p, isDark: false }))}
+            style={{ fontFamily: "Arial, sans-serif" }}
+            className={`rounded-lg border px-3 py-2 text-xs transition bg-white text-black ${
+              !prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
+            }`}
+          >
+            Light
+          </button>
+        </div>
+      </div>
+
+      {/* Chords — a toggle, only when a set actually has any. */}
+      {hasChords && (
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-wider">Chords</span>
+          <Switch
+            checked={prefs.showChords}
+            onCheckedChange={(on) => setPrefs((p) => ({ ...p, showChords: on }))}
+            aria-label="Show chords"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** A viewer's current chord view for the active song — always derived from
  *  the set, never written back to it. `null` when the song has no chords. */

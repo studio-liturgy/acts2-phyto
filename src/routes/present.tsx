@@ -58,7 +58,14 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { stripChords, transposeLyrics, guessKey } from "@/lib/chords";
 import { groupSlides, hiddenSlideIds } from "@/lib/sections";
-import { PhoneViewer, type PhoneSet } from "@/components/PhoneViewer";
+import {
+  PhoneViewer,
+  ViewerSettings,
+  loadPrefs,
+  phoneSetHasChords,
+  type PhoneSet,
+  type ViewerPrefs,
+} from "@/components/PhoneViewer";
 import { Switch } from "@/components/ui/switch";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
@@ -246,6 +253,9 @@ function Presenter() {
   const [viewMode, setViewMode] = useState<"slides" | "mobile">(
     viewFromUrl === "mobile" ? "mobile" : "slides",
   );
+  // Display prefs for the mobile preview, driven by the settings panel beside
+  // it (and shared with the preview so changes show live).
+  const [phonePrefs, setPhonePrefs] = useState<ViewerPrefs>(() => loadPrefs());
   const [slideW, setSlideW] = useState(() => {
     if (typeof window === "undefined") return 256;
     const saved = localStorage.getItem("presenter-slide-w");
@@ -738,7 +748,7 @@ function Presenter() {
         {/* Sidebar */}
         {sidebarOpen && (
           <aside className="flex h-[calc(100vh-73px)] flex-col border-r border-foreground bg-background p-4 md:sticky md:top-[73px]">
-            <div className="pill mb-4 flex items-center gap-2 border border-foreground bg-background px-4 py-2">
+            <div className="pill mb-2 flex items-center gap-2 border border-foreground bg-background px-4 py-2">
               <Search className="h-4 w-4 shrink-0" />
               <input
                 value={query}
@@ -765,7 +775,10 @@ function Presenter() {
                   <Plus className="h-4 w-4" /> New
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
+              <DropdownMenuContent
+                align="start"
+                className="w-[var(--radix-dropdown-menu-trigger-width)]"
+              >
                 <DropdownMenuItem
                   onClick={() => newSet("song")}
                   className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
@@ -786,7 +799,7 @@ function Presenter() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={newGathering}
-                  className="mono uppercase text-xs tracking-wider"
+                  className="mono uppercase text-xs tracking-wider focus:bg-foreground focus:text-background"
                 >
                   New Gathering
                 </DropdownMenuItem>
@@ -1089,6 +1102,8 @@ function Presenter() {
                       hiddenBySet={hiddenBySet}
                       embedded
                       showSettings={false}
+                      prefs={phonePrefs}
+                      onPrefsChange={setPhonePrefs}
                       activeId={activeSetId}
                       onActiveChange={setActiveSetId}
                       onChordChange={handlePreviewChordChange}
@@ -1101,6 +1116,28 @@ function Presenter() {
                         })
                       }
                     />
+                  </div>
+
+                  {/* Display settings — to the RIGHT of the centered phone,
+                      driving the preview's font/theme/chords live. Styled like
+                      the phone's own menu (matches the theme it edits). */}
+                  <div
+                    className="absolute top-1/2 max-h-full w-56 -translate-y-1/2 overflow-auto pl-4"
+                    style={{ left: "calc(50% + 190px)" }}
+                  >
+                    <div
+                      className={`rounded-2xl border p-4 shadow-xl ${
+                        phonePrefs.isDark
+                          ? "dark border-white/10 bg-neutral-900 text-white"
+                          : "border-black/10 bg-white text-black"
+                      }`}
+                    >
+                      <ViewerSettings
+                        prefs={phonePrefs}
+                        setPrefs={setPhonePrefs}
+                        hasChords={phonePreviewSets.some(phoneSetHasChords)}
+                      />
+                    </div>
                   </div>
                 </>
               )}
