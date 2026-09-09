@@ -539,7 +539,8 @@ export function ViewerSettings({
           step={0.05}
           value={prefs.fontSize}
           onChange={(e) => setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))}
-          className="w-full"
+          className="phone-range w-full"
+          style={{ ["--phone-fg" as string]: prefs.isDark ? "#f5efef" : "#212121" }}
         />
       </div>
 

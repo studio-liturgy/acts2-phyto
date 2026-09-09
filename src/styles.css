@@ -293,3 +293,13 @@ input[type="range"]::-moz-range-thumb {
   background-color: var(--phone-sb);
   border-radius: 9999px;
 }
+
+/* Font-size slider inside the phone display settings: track + thumb follow the
+   phone view's own theme (--phone-fg, set from prefs.isDark) — black on a light
+   phone, off-white on a dark one — rather than the app foreground. */
+.phone-range::-webkit-slider-runnable-track,
+.phone-range::-webkit-slider-thumb,
+.phone-range::-moz-range-track,
+.phone-range::-moz-range-thumb {
+  background: var(--phone-fg);
+}
