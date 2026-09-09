@@ -420,7 +420,10 @@ export function PhoneViewer({
         )}
 
         {/* Tabs */}
-        <div ref={tabBarRef} className="catalogue-scroll flex overflow-x-auto">
+        <div
+          ref={tabBarRef}
+          className={`phone-tab-scroll flex overflow-x-auto ${prefs.isDark ? "" : "phone-tab-scroll-light"}`}
+        >
           {sets.map((s) => (
             <button
               key={s.id}
