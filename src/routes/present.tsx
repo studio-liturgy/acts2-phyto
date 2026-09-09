@@ -547,43 +547,6 @@ function Presenter() {
             >
               <House className="h-5 w-5" />
             </Link>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="pill flex h-10 w-10 items-center justify-center bg-foreground text-background transition hover:opacity-90"
-                  title="New"
-                  aria-label="New"
-                >
-                  <Plus className="h-5 w-5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem
-                  onClick={() => newSet("song")}
-                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
-                >
-                  New Song
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => newSet("scripture")}
-                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
-                >
-                  New Scripture
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => newSet("media")}
-                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
-                >
-                  New Media
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={newGathering}
-                  className="mono uppercase text-xs tracking-wider"
-                >
-                  New Gathering
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
             <button
               onClick={() => setSidebarOpen((v) => !v)}
               className="rounded-full p-2 transition hover:bg-muted"
@@ -640,6 +603,16 @@ function Presenter() {
                         if (e.key === "Escape") setEditingGatheringName(false);
                       }}
                     />
+                    {/* Done — mirrors the home page's edit→Done toggle. The
+                        input's blur commits the rename; this just closes edit. */}
+                    <button
+                      onClick={() => setEditingGatheringName(false)}
+                      className="pill mono uppercase pointer-events-auto shrink-0 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                      title="Done editing"
+                      aria-label="Done editing"
+                    >
+                      Done
+                    </button>
                     {/* Reveal delete while renaming — same flow as the home page. */}
                     <button
                       // Keep the rename input focused (don't blur-commit) when
@@ -698,6 +671,7 @@ function Presenter() {
                   localStorage.setItem("presenter-slide-w", String(v));
                 }}
                 style={{ width: 96 }}
+                className="mr-3"
                 title="Slide size"
                 aria-label="Slide size"
               />
@@ -783,6 +757,41 @@ function Presenter() {
                 </button>
               )}
             </div>
+
+            {/* New — full-width pill under the search, matching the home screen. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="pill mono uppercase mb-4 flex w-full items-center justify-center gap-2 bg-foreground px-4 py-2 text-xs tracking-wider text-background transition hover:opacity-90">
+                  <Plus className="h-4 w-4" /> New
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem
+                  onClick={() => newSet("song")}
+                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
+                >
+                  New Song
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => newSet("scripture")}
+                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
+                >
+                  New Scripture
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => newSet("media")}
+                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
+                >
+                  New Media
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={newGathering}
+                  className="mono uppercase text-xs tracking-wider"
+                >
+                  New Gathering
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <div className="catalogue-scroll flex-1 overflow-auto pr-1">
               {showAll && filteredGatherings.length > 0 && (
