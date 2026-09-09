@@ -28,6 +28,40 @@ export default function UpdatesMain() {
         <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-12">
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
+            <div className="text-2xl">September 9, 2026</div>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">
+              Mobile preview in presenter
+            </div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                A new Mobile preview in the presenter. Flip between Slides and Mobile at the top to
+                see exactly what is seen on phones, without leaving the presenter
+              </FeatureItem>
+              <FeatureItem>
+                Hide a song&rsquo;s sections using the eye controls beside the phone preview. Hidden
+                sections drop out of your view and disappear for everyone following on their phones,
+                and from the presenter&rsquo;s slides too. Hidden sections are set per gathering
+              </FeatureItem>
+              <FeatureItem>
+                Preview how the phone looks from the presenter (font size, font type, light or dark
+                theme, and chords). The settings are still viewer customizable
+              </FeatureItem>
+              <FeatureItem>
+                Edit a set straight from the mobile preview: hover it and click the pencil, and you
+                land back on that same set when you&rsquo;re done
+              </FeatureItem>
+            </ul>
+
+            <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Gatherings</div>
+            <ul className="mt-2 space-y-1">
+              <FeatureItem>
+                Rename or delete a gathering from the presenter. Click the pencil by its name to
+                rename, and a delete button appears next to Done
+              </FeatureItem>
+            </ul>
+          </li>
+          <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">September 7, 2026</div>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Song editor</div>
