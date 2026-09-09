@@ -780,25 +780,25 @@ function Presenter() {
               >
                 <DropdownMenuItem
                   onClick={() => newSet("song")}
-                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
+                  className="mono uppercase justify-center text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
                 >
                   New Song
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => newSet("scripture")}
-                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
+                  className="mono uppercase justify-center text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
                 >
                   New Scripture
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => newSet("media")}
-                  className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
+                  className="mono uppercase justify-center text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
                 >
                   New Media
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={newGathering}
-                  className="mono uppercase text-xs tracking-wider focus:bg-foreground focus:text-background"
+                  className="mono uppercase justify-center text-xs tracking-wider focus:bg-foreground focus:text-background"
                 >
                   New Gathering
                 </DropdownMenuItem>
