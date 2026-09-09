@@ -120,6 +120,9 @@ function setMatchesLyric(s: PhytoSet, q: string): boolean {
 const searchSchema = z.object({
   set: z.string().optional(),
   gathering: z.string().optional(),
+  /** Which presenter view to open in. Round-trips through the set editor so
+   *  going back from an edit lands on the mobile preview, not slides. */
+  view: z.enum(["slides", "mobile"]).optional(),
 });
 
 export const Route = createFileRoute("/present")({
@@ -131,7 +134,7 @@ export const Route = createFileRoute("/present")({
 });
 
 function Presenter() {
-  const { set: setFromUrl, gathering: gatheringFromUrl } = Route.useSearch();
+  const { set: setFromUrl, gathering: gatheringFromUrl, view: viewFromUrl } = Route.useSearch();
   const sets = useLibrary((s) => s.sets);
   const order = useLibrary((s) => s.order);
   const gatherings = useLibrary((s) => s.gatherings);
@@ -178,7 +181,9 @@ function Presenter() {
   // "slides" = the operator grid + output preview (default). "mobile" = a
   // preview of what congregants see on their phones, replacing the slide grid
   // and right rail.
-  const [viewMode, setViewMode] = useState<"slides" | "mobile">("slides");
+  const [viewMode, setViewMode] = useState<"slides" | "mobile">(
+    viewFromUrl === "mobile" ? "mobile" : "slides",
+  );
   const [slideW, setSlideW] = useState(() => {
     if (typeof window === "undefined") return 256;
     const saved = localStorage.getItem("presenter-slide-w");
@@ -945,7 +950,10 @@ function Presenter() {
                       navigate({
                         to: "/set/$setId",
                         params: { setId: id },
-                        search: { redirectTo: presenterHere },
+                        // Return to the mobile preview, not slides, after editing.
+                        search: {
+                          redirectTo: `${presenterHere}${presenterHere.includes("?") ? "&" : "?"}view=mobile`,
+                        },
                       })
                     }
                   />

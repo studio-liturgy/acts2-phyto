@@ -420,7 +420,7 @@ export function PhoneViewer({
         )}
 
         {/* Tabs */}
-        <div ref={tabBarRef} className="flex overflow-x-auto">
+        <div ref={tabBarRef} className="catalogue-scroll flex overflow-x-auto">
           {sets.map((s) => (
             <button
               key={s.id}
