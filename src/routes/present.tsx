@@ -928,36 +928,75 @@ function Presenter() {
           }`}
         >
           {effectiveViewMode === "mobile" ? (
-            <div className="flex h-full items-center justify-center">
+            <div className="flex h-full items-center justify-center gap-4">
               {phonePreviewSets.length === 0 ? (
                 <div className="mono uppercase text-xs tracking-wider text-muted-foreground">
                   Gathering is empty. Add a set to preview the phone view.
                 </div>
               ) : (
-                <div
-                  className="overflow-hidden rounded-[2rem] border border-foreground/25 bg-black"
-                  style={{ width: 380, height: "100%" }}
-                >
-                  <PhoneViewer
-                    sets={phonePreviewSets}
-                    hiddenBySet={hiddenBySet}
-                    embedded
-                    showSettings={false}
-                    activeId={activeSetId}
-                    onActiveChange={setActiveSetId}
-                    onChordChange={handlePreviewChordChange}
-                    onEditSet={(id) =>
-                      navigate({
-                        to: "/set/$setId",
-                        params: { setId: id },
-                        // Return to the mobile preview, not slides, after editing.
-                        search: {
-                          redirectTo: `${presenterHere}${presenterHere.includes("?") ? "&" : "?"}view=mobile`,
-                        },
-                      })
-                    }
-                  />
-                </div>
+                <>
+                  {/* Section visibility gutter — one marker per section of the
+                      active song, in order. Toggling reuses the same hiding as
+                      slides mode, so the preview, phones and slides all agree. */}
+                  {activeSet?.kind === "song" &&
+                    (() => {
+                      const groups = groupSlides(activeSet.slides);
+                      if (groups.length === 0) return null;
+                      const hidden = new Set(hiddenBySet[activeSet.id] ?? []);
+                      return (
+                        <div className="catalogue-scroll flex max-h-full flex-col items-end gap-1.5 overflow-auto py-1">
+                          {groups.map((g) => {
+                            const isHidden = hidden.has(g.key);
+                            const label = g.section ?? "Untitled";
+                            return (
+                              <button
+                                key={g.key}
+                                onClick={(e) =>
+                                  toggleSection(activeSet.id, g.key, e.clientX, e.clientY)
+                                }
+                                className={`pill mono flex items-center gap-2 border border-foreground px-3 py-1.5 text-[10px] uppercase tracking-wider transition hover:bg-foreground hover:text-background ${
+                                  isHidden ? "opacity-50" : ""
+                                }`}
+                                title={isHidden ? `Show ${label}` : `Hide ${label}`}
+                                aria-pressed={isHidden}
+                              >
+                                {isHidden ? (
+                                  <EyeOff className="h-3.5 w-3.5 shrink-0" />
+                                ) : (
+                                  <Eye className="h-3.5 w-3.5 shrink-0" />
+                                )}
+                                <span className="max-w-[9rem] truncate">{label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  <div
+                    className="overflow-hidden rounded-[2rem] border border-foreground/25 bg-black"
+                    style={{ width: 380, height: "100%" }}
+                  >
+                    <PhoneViewer
+                      sets={phonePreviewSets}
+                      hiddenBySet={hiddenBySet}
+                      embedded
+                      showSettings={false}
+                      activeId={activeSetId}
+                      onActiveChange={setActiveSetId}
+                      onChordChange={handlePreviewChordChange}
+                      onEditSet={(id) =>
+                        navigate({
+                          to: "/set/$setId",
+                          params: { setId: id },
+                          // Return to the mobile preview, not slides, after editing.
+                          search: {
+                            redirectTo: `${presenterHere}${presenterHere.includes("?") ? "&" : "?"}view=mobile`,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                </>
               )}
             </div>
           ) : activeGathering ? (
