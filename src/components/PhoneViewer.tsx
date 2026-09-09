@@ -9,7 +9,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Pencil } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 
 // The phone gathering view, as a self-contained presentational component. Two
 // surfaces render it identically:
@@ -607,12 +606,23 @@ export function ViewerSettings({
       {hasChords && (
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-wider">Chords</span>
-          <Switch
-            checked={prefs.showChords}
-            onCheckedChange={(on) => setPrefs((p) => ({ ...p, showChords: on }))}
+          {/* Toggle themed to the phone view: light track + dark thumb on a dark
+              phone, dark track + light thumb on a light one. */}
+          <button
+            role="switch"
+            aria-checked={prefs.showChords}
             aria-label="Show chords"
-            className={dark ? "border-white/40" : "border-black/40"}
-          />
+            onClick={() => setPrefs((p) => ({ ...p, showChords: !p.showChords }))}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
+              dark ? "bg-white" : "bg-black"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 rounded-full transition-transform ${
+                dark ? "bg-black" : "bg-white"
+              } ${prefs.showChords ? "translate-x-[18px]" : "translate-x-0.5"}`}
+            />
+          </button>
         </div>
       )}
     </div>
