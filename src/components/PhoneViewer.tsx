@@ -266,10 +266,9 @@ export function PhoneViewer({
     };
   })();
 
-  // The embedded preview has no hamburger, so chords can't be toggled there —
-  // show them whenever the active set actually has any, so the leader can see
-  // and change the key. Otherwise honour the viewer's own Show/Hide choice.
-  const showChords = showSettings ? prefs.showChords : !!activeSet && setHasChords(activeSet);
+  // Chords follow the viewer's Show/Hide choice in every context — the g view's
+  // hamburger and the presenter's settings panel both drive prefs.showChords.
+  const showChords = prefs.showChords;
 
   const setActiveChordOverride = (
     patch: Partial<{ key: string; display: "letters" | "numbers" }>,
@@ -335,10 +334,7 @@ export function PhoneViewer({
         )}
 
         {/* Tabs */}
-        <div
-          ref={tabBarRef}
-          className={`phone-tab-scroll flex overflow-x-auto ${prefs.isDark ? "" : "phone-tab-scroll-light"}`}
-        >
+        <div ref={tabBarRef} className="catalogue-scroll flex overflow-x-auto">
           {sets.map((s) => (
             <button
               key={s.id}
@@ -509,7 +505,9 @@ export function ViewerSettings({
   setPrefs: (updater: (p: ViewerPrefs) => ViewerPrefs) => void;
   hasChords: boolean;
 }) {
-  const mutedClass = prefs.isDark ? "text-white/40" : "text-black/40";
+  // Chrome (borders/muted text/active fills) follows the surrounding theme via
+  // Tailwind `dark:` variants — the phone theme inside the g hamburger (which
+  // forces a `.dark` wrapper) and the editor theme in the presenter panel.
   return (
     <div
       className="space-y-4 text-sm"
@@ -519,7 +517,7 @@ export function ViewerSettings({
       <div>
         <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
           <span>Font size</span>
-          <span className={mutedClass}>{prefs.fontSize.toFixed(2)}×</span>
+          <span className="text-black/40 dark:text-white/40">{prefs.fontSize.toFixed(2)}×</span>
         </div>
         <input
           type="range"
@@ -545,12 +543,8 @@ export function ViewerSettings({
                 style={{ fontFamily: FONT_FAMILY_CSS[f] }}
                 className={`rounded-lg border px-3 py-1.5 text-left text-sm capitalize transition ${
                   active
-                    ? prefs.isDark
-                      ? "border-white bg-white text-black"
-                      : "border-black bg-black text-white"
-                    : prefs.isDark
-                      ? "border-white/20 hover:border-white"
-                      : "border-black/20 hover:border-black"
+                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                    : "border-black/20 hover:border-black dark:border-white/20 dark:hover:border-white"
                 }`}
               >
                 {f}
@@ -560,7 +554,8 @@ export function ViewerSettings({
         </div>
       </div>
 
-      {/* Theme */}
+      {/* Theme (of the phone view) — swatches keep their fixed colours; the
+          selected one is ringed in the surrounding chrome colour. */}
       <div>
         <div className="mb-2 text-[10px] uppercase tracking-wider">Theme</div>
         <div className="grid grid-cols-2 gap-2">
@@ -568,7 +563,7 @@ export function ViewerSettings({
             onClick={() => setPrefs((p) => ({ ...p, isDark: true }))}
             style={{ fontFamily: "Arial, sans-serif" }}
             className={`rounded-lg border px-3 py-2 text-xs transition bg-black text-white ${
-              prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
+              prefs.isDark ? "border-white" : "border-white/30 hover:border-white"
             }`}
           >
             Dark
@@ -577,7 +572,7 @@ export function ViewerSettings({
             onClick={() => setPrefs((p) => ({ ...p, isDark: false }))}
             style={{ fontFamily: "Arial, sans-serif" }}
             className={`rounded-lg border px-3 py-2 text-xs transition bg-white text-black ${
-              !prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
+              !prefs.isDark ? "border-black" : "border-black/30 hover:border-black"
             }`}
           >
             Light

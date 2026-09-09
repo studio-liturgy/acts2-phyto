@@ -1115,26 +1115,18 @@ function Presenter() {
                     />
                   </div>
 
-                  {/* Display settings — to the RIGHT of the centered phone,
-                      driving the preview's font/theme/chords live. Styled like
-                      the phone's own menu (matches the theme it edits). */}
+                  {/* Display settings — floating to the RIGHT of the centered
+                      phone, driving the preview's font/theme/chords live. Chrome
+                      follows the editor's own light/dark theme. */}
                   <div
-                    className="absolute top-1/2 max-h-full w-56 -translate-y-1/2 overflow-auto pl-4"
+                    className="absolute top-1/2 max-h-full w-52 -translate-y-1/2 overflow-auto pl-6"
                     style={{ left: "calc(50% + 190px)" }}
                   >
-                    <div
-                      className={`rounded-2xl border p-4 shadow-xl ${
-                        phonePrefs.isDark
-                          ? "dark border-white/10 bg-neutral-900 text-white"
-                          : "border-black/10 bg-white text-black"
-                      }`}
-                    >
-                      <ViewerSettings
-                        prefs={phonePrefs}
-                        setPrefs={setPhonePrefs}
-                        hasChords={phonePreviewSets.some(phoneSetHasChords)}
-                      />
-                    </div>
+                    <ViewerSettings
+                      prefs={phonePrefs}
+                      setPrefs={setPhonePrefs}
+                      hasChords={phonePreviewSets.some(phoneSetHasChords)}
+                    />
                   </div>
                 </>
               )}
