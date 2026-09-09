@@ -41,8 +41,6 @@ import {
   PanelLeftOpen,
   Pencil,
   Plus,
-  ChevronDown,
-  ChevronUp,
   House,
   Check,
   Eye,
@@ -268,7 +266,6 @@ function Presenter() {
   const reorderDragIndex = useRef<number | null>(null);
   const [editingGatheringName, setEditingGatheringName] = useState(false);
   const gatheringNameInputRef = useRef<HTMLInputElement>(null);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [mediaFunctionsOpen, setMediaFunctionsOpen] = useState(false);
 
   // Per-tab section hiding, used while running a gathering. Keyed by set id;
@@ -921,7 +918,7 @@ function Presenter() {
                 </div>
                 <div className="space-y-1">
                   {filteredSets.length === 0 && (
-                    <p className="px-2 text-xs text-muted-foreground">
+                    <p className="mono px-2 text-xs text-muted-foreground">
                       {activeGathering
                         ? q
                           ? "No sets in this gathering match."
@@ -1144,12 +1141,12 @@ function Presenter() {
             </div>
           ) : activeGathering ? (
             setList.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              <div className="mono flex h-full items-center justify-center text-sm text-muted-foreground">
                 Gathering is empty. Search the sidebar or drag a set here to add one.
               </div>
             ) : null
           ) : !activeSet ? (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            <div className="mono flex h-full items-center justify-center text-sm text-muted-foreground">
               Select a set to begin.
             </div>
           ) : activeSet.slides.length === 0 ? (
@@ -1398,25 +1395,10 @@ function Presenter() {
             {activeSet?.kind === "song" && <SongTemplateEditor />}
             {activeSet?.kind === "scripture" && <ScriptureTemplateEditor />}
 
-            <div className="rounded-2xl border border-foreground">
-              <button
-                onClick={() => setShortcutsOpen((v) => !v)}
-                className="mono uppercase flex w-full items-center justify-between px-4 py-1.5 text-xs tracking-wider"
-              >
-                <span>Shortcuts</span>
-                {shortcutsOpen ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </button>
-              {shortcutsOpen && (
-                <div className="mono uppercase space-y-1 border-t border-foreground/20 px-4 py-3 text-xs text-muted-foreground">
-                  <div>→ / Space — next slide</div>
-                  <div>← — previous slide</div>
-                  <div>Esc — stop (fade to black)</div>
-                </div>
-              )}
+            <div className="mono uppercase space-y-1 px-1 pt-2 text-xs text-muted-foreground">
+              <div>→ / Space — next slide</div>
+              <div>← — previous slide</div>
+              <div>Esc — stop (fade to black)</div>
             </div>
           </aside>
         )}
