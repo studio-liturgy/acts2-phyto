@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Pencil } from "lucide-react";
 
 // The phone gathering view, as a self-contained presentational component. Two
 // surfaces render it identically:
@@ -122,6 +122,7 @@ export function PhoneViewer({
   activeId,
   onActiveChange,
   onChordChange,
+  onEditSet,
 }: {
   sets: PhoneSet[];
   /** Stable section keys hidden by the leader, keyed by set id. Those sections
@@ -142,6 +143,9 @@ export function PhoneViewer({
    *  set through this callback (and persist for everyone) instead of staying a
    *  per-viewer override. The presenter preview passes this. */
   onChordChange?: (setId: string, patch: { key?: string; display?: "letters" | "numbers" }) => void;
+  /** When provided, hovering the set body reveals a pencil that calls this with
+   *  the active set id (the presenter preview uses it to open the editor). */
+  onEditSet?: (setId: string) => void;
 }) {
   const [activeSetId, setActiveSetId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
   const [activeTabId, setActiveTabId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
@@ -517,39 +521,55 @@ export function PhoneViewer({
       )}
 
       {/* Set content */}
-      <div
-        className="flex-1 overflow-y-auto"
-        onTouchStart={(e) => {
-          if (e.touches.length > 1) {
-            touchStartX.current = null;
-            return;
-          }
-          touchStartX.current = e.touches[0].clientX;
-        }}
-        onTouchMove={(e) => {
-          if (e.touches.length > 1) touchStartX.current = null;
-        }}
-        onTouchEnd={(e) => {
-          if (touchStartX.current === null) return;
-          const dx = e.changedTouches[0].clientX - touchStartX.current;
-          touchStartX.current = null;
-          if (Math.abs(dx) < 50) return;
-          if (dx < 0 && activeIdx < sets.length - 1) {
-            selectSet(sets[activeIdx + 1].id);
-          } else if (dx > 0 && activeIdx > 0) {
-            selectSet(sets[activeIdx - 1].id);
-          }
-        }}
-      >
-        {activeSet && (
-          <SetContent
-            set={activeSet}
-            hiddenKeys={hiddenBySet[activeSet.id] ?? []}
-            isDark={prefs.isDark}
-            showChords={showChords}
-            chordConfig={activeChordConfig}
-          />
+      <div className="group relative min-h-0 flex-1">
+        {onEditSet && activeSet && (
+          <button
+            onClick={() => onEditSet(activeSet.id)}
+            className={`pill absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center border opacity-0 shadow-lg transition group-hover:opacity-100 ${
+              prefs.isDark
+                ? "border-white/30 bg-black text-white hover:bg-white hover:text-black"
+                : "border-black/20 bg-white text-black hover:bg-black hover:text-white"
+            }`}
+            title="Edit this set"
+            aria-label="Edit this set"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
         )}
+        <div
+          className="h-full overflow-y-auto"
+          onTouchStart={(e) => {
+            if (e.touches.length > 1) {
+              touchStartX.current = null;
+              return;
+            }
+            touchStartX.current = e.touches[0].clientX;
+          }}
+          onTouchMove={(e) => {
+            if (e.touches.length > 1) touchStartX.current = null;
+          }}
+          onTouchEnd={(e) => {
+            if (touchStartX.current === null) return;
+            const dx = e.changedTouches[0].clientX - touchStartX.current;
+            touchStartX.current = null;
+            if (Math.abs(dx) < 50) return;
+            if (dx < 0 && activeIdx < sets.length - 1) {
+              selectSet(sets[activeIdx + 1].id);
+            } else if (dx > 0 && activeIdx > 0) {
+              selectSet(sets[activeIdx - 1].id);
+            }
+          }}
+        >
+          {activeSet && (
+            <SetContent
+              set={activeSet}
+              hiddenKeys={hiddenBySet[activeSet.id] ?? []}
+              isDark={prefs.isDark}
+              showChords={showChords}
+              chordConfig={activeChordConfig}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

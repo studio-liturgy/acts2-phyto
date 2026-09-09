@@ -18,6 +18,12 @@ import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { NumberStepper } from "@/components/NumberStepper";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogTitle,
+  AlertDialogDescription,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -46,6 +52,7 @@ import {
   RotateCcw,
   Monitor,
   Smartphone,
+  Wifi,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { stripChords, transposeLyrics, guessKey } from "@/lib/chords";
@@ -137,6 +144,8 @@ function Presenter() {
   const createGathering = useLibrary((s) => s.createGathering);
   const pushHiddenSections = useLibrary((s) => s.pushHiddenSections);
   const updateSet = useLibrary((s) => s.updateSet);
+  const goLive = useLibrary((s) => s.goLive);
+  const endSession = useLibrary((s) => s.endSession);
   const navigate = useNavigate();
   const live = useLive();
   const songTemplate = useLibrary((s) => s.songTemplate);
@@ -236,6 +245,9 @@ function Presenter() {
 
   const isSignedIn = useIsSignedIn();
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showGoLiveDialog, setShowGoLiveDialog] = useState(false);
+  const [showEndSessionDialog, setShowEndSessionDialog] = useState(false);
+  const [isGoingLive, setIsGoingLive] = useState(false);
   const activeShareToken = activeGathering?.share_token ?? null;
   const shareUrl = activeShareToken ? `${window.location.origin}/g/${activeShareToken}` : "";
 
@@ -580,30 +592,25 @@ function Presenter() {
 
           <div className="flex shrink-0 items-center gap-2">
             {/* Slides / Mobile view toggle — only inside a gathering, where the
-                phone preview is meaningful. Minimal switch, like the editor's
-                chords toggle. */}
+                phone preview is meaningful. Minimal icon switch, like the
+                editor's chords toggle. */}
             {activeGathering && (
-              <div className="mono flex items-center gap-2 text-[10px] uppercase tracking-wider">
-                <span
-                  className={`flex items-center gap-1 ${viewMode === "slides" ? "" : "text-muted-foreground"}`}
-                >
-                  <Monitor className="h-3.5 w-3.5" />
-                  Slides
-                </span>
+              <div className="flex items-center gap-2">
+                <Monitor
+                  className={`h-4 w-4 ${viewMode === "slides" ? "" : "text-muted-foreground"}`}
+                />
                 <Switch
                   checked={viewMode === "mobile"}
                   onCheckedChange={(on) => setViewMode(on ? "mobile" : "slides")}
                   aria-label="Toggle mobile preview"
                 />
-                <span
-                  className={`flex items-center gap-1 ${viewMode === "mobile" ? "" : "text-muted-foreground"}`}
-                >
-                  <Smartphone className="h-3.5 w-3.5" />
-                  Mobile
-                </span>
+                <Smartphone
+                  className={`h-4 w-4 ${viewMode === "mobile" ? "" : "text-muted-foreground"}`}
+                />
               </div>
             )}
-            {isSignedIn && activeShareToken && (
+            {/* Share — mobile mode only. */}
+            {effectiveViewMode === "mobile" && isSignedIn && activeShareToken && (
               <button
                 onClick={() => setShowShareDialog(true)}
                 className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
@@ -613,13 +620,39 @@ function Presenter() {
                 <Share2 className="h-4 w-4" />
               </button>
             )}
-            <button
-              onClick={openOutput}
-              className="pill mono uppercase flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
-              title="Output window"
-            >
-              Output <ArrowUpRight className="h-4 w-4" />
-            </button>
+            {/* Go live / End session — mobile mode only, right of Share. */}
+            {effectiveViewMode === "mobile" &&
+              isSignedIn &&
+              activeGathering &&
+              (isLiveNow(activeGathering) ? (
+                <button
+                  onClick={() => setShowEndSessionDialog(true)}
+                  className="pill flex h-10 w-10 items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)] transition animate-pulse hover:animate-none [&>svg]:opacity-0 [&>svg]:transition-opacity [&>svg]:duration-200 hover:[&>svg]:opacity-100"
+                  title="End session"
+                  aria-label="End session"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowGoLiveDialog(true)}
+                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  title="Go live"
+                  aria-label="Go live"
+                >
+                  <Wifi className="h-4 w-4" />
+                </button>
+              ))}
+            {/* Output — slides mode only. */}
+            {effectiveViewMode === "slides" && (
+              <button
+                onClick={openOutput}
+                className="pill mono uppercase flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+                title="Output window"
+              >
+                Output <ArrowUpRight className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -908,6 +941,13 @@ function Presenter() {
                     activeId={activeSetId}
                     onActiveChange={setActiveSetId}
                     onChordChange={handlePreviewChordChange}
+                    onEditSet={(id) =>
+                      navigate({
+                        to: "/set/$setId",
+                        params: { setId: id },
+                        search: { redirectTo: presenterHere },
+                      })
+                    }
                   />
                 </div>
               )}
@@ -955,7 +995,7 @@ function Presenter() {
             </>
           )}
 
-          {activeGathering && setList.length > 0 && (
+          {effectiveViewMode === "slides" && activeGathering && setList.length > 0 && (
             <div className="space-y-8">
               {setList.map((id, i) => {
                 const d = sets[id];
@@ -1231,6 +1271,71 @@ function Presenter() {
             : isLiveNow(activeGathering)
         }
       />
+
+      {/* Go Live confirmation — mirrors the home page: opens the share dialog
+          once live so the leader can hand out the link. */}
+      <Dialog
+        open={showGoLiveDialog}
+        onOpenChange={(open) => {
+          if (isGoingLive) return;
+          setShowGoLiveDialog(open);
+        }}
+      >
+        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+          <DialogTitle className="text-2xl font-normal leading-tight">Go live!</DialogTitle>
+          <p className="mt-4 text-base">
+            This gathering will stay live for 24 hours, unless you end it or go live on another one
+            first.
+          </p>
+          <div className="mt-8">
+            <button
+              onClick={async () => {
+                if (!activeGathering) return;
+                setIsGoingLive(true);
+                await goLive(activeGathering.id);
+                setIsGoingLive(false);
+                setShowGoLiveDialog(false);
+                setShowShareDialog(true);
+              }}
+              disabled={isGoingLive}
+              className="mono uppercase w-full rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90 disabled:opacity-70"
+            >
+              {isGoingLive ? "Going Live..." : "Go Live"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* End Session confirmation */}
+      <AlertDialog open={showEndSessionDialog} onOpenChange={setShowEndSessionDialog}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            End this session?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            Ending the session will take this gathering offline. You can go live again at any time.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                if (activeGathering) endSession(activeGathering.id);
+                setShowEndSessionDialog(false);
+              }}
+              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
+            >
+              End Session
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowEndSessionDialog(false)}
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              Cancel
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
