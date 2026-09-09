@@ -596,22 +596,22 @@ function Presenter() {
                 <PanelLeftOpen className="h-5 w-5" />
               )}
             </button>
-            {effectiveViewMode !== "mobile" && (
-              <input
-                type="range"
-                min={160}
-                max={400}
-                step={8}
-                value={slideW}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setSlideW(v);
-                  localStorage.setItem("presenter-slide-w", String(v));
-                }}
-                style={{ width: 96 }}
-                title="Slide size"
-                aria-label="Slide size"
-              />
+            {/* Slides / Mobile view toggle — grouped with the sidebar toggle as
+                a "how the main area is shown" control. Only inside a gathering. */}
+            {activeGathering && (
+              <div className="flex items-center gap-2 pl-1">
+                <Monitor
+                  className={`h-4 w-4 ${viewMode === "slides" ? "" : "text-muted-foreground"}`}
+                />
+                <Switch
+                  checked={viewMode === "mobile"}
+                  onCheckedChange={(on) => setViewMode(on ? "mobile" : "slides")}
+                  aria-label="Toggle mobile preview"
+                />
+                <Smartphone
+                  className={`h-4 w-4 ${viewMode === "mobile" ? "" : "text-muted-foreground"}`}
+                />
+              </div>
             )}
           </div>
 
@@ -683,74 +683,69 @@ function Presenter() {
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-3">
-            {/* Slides / Mobile view toggle — sits to the LEFT of the action
-                buttons. The action box to its right has a fixed width, so the
-                toggle stays at a static position as the buttons change between
-                modes. Only inside a gathering, where the preview is meaningful. */}
-            {activeGathering && (
-              <div className="flex items-center gap-2">
-                <Monitor
-                  className={`h-4 w-4 ${viewMode === "slides" ? "" : "text-muted-foreground"}`}
-                />
-                <Switch
-                  checked={viewMode === "mobile"}
-                  onCheckedChange={(on) => setViewMode(on ? "mobile" : "slides")}
-                  aria-label="Toggle mobile preview"
-                />
-                <Smartphone
-                  className={`h-4 w-4 ${viewMode === "mobile" ? "" : "text-muted-foreground"}`}
-                />
-              </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Slide-size slider — slides mode only, just left of Output. */}
+            {effectiveViewMode === "slides" && (
+              <input
+                type="range"
+                min={160}
+                max={400}
+                step={8}
+                value={slideW}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setSlideW(v);
+                  localStorage.setItem("presenter-slide-w", String(v));
+                }}
+                style={{ width: 96 }}
+                title="Slide size"
+                aria-label="Slide size"
+              />
             )}
-            {/* Fixed-width, right-aligned action box — keeps its left edge (and
-                therefore the toggle) from shifting when the buttons swap. */}
-            <div className="flex w-[128px] items-center justify-end gap-2">
-              {/* Share — mobile mode only. */}
-              {effectiveViewMode === "mobile" && isSignedIn && activeShareToken && (
+            {/* Share — mobile mode only. */}
+            {effectiveViewMode === "mobile" && isSignedIn && activeShareToken && (
+              <button
+                onClick={() => setShowShareDialog(true)}
+                className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                title="Share gathering"
+                aria-label="Share gathering"
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+            )}
+            {/* Go live / End session — mobile mode only, right of Share. */}
+            {effectiveViewMode === "mobile" &&
+              isSignedIn &&
+              activeGathering &&
+              (isLiveNow(activeGathering) ? (
                 <button
-                  onClick={() => setShowShareDialog(true)}
-                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                  title="Share gathering"
-                  aria-label="Share gathering"
+                  onClick={() => setShowEndSessionDialog(true)}
+                  className="pill flex h-10 w-10 items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)] transition animate-pulse hover:animate-none [&>svg]:opacity-0 [&>svg]:transition-opacity [&>svg]:duration-200 hover:[&>svg]:opacity-100"
+                  title="End session"
+                  aria-label="End session"
                 >
-                  <Share2 className="h-4 w-4" />
+                  <X className="h-4 w-4" />
                 </button>
-              )}
-              {/* Go live / End session — mobile mode only, right of Share. */}
-              {effectiveViewMode === "mobile" &&
-                isSignedIn &&
-                activeGathering &&
-                (isLiveNow(activeGathering) ? (
-                  <button
-                    onClick={() => setShowEndSessionDialog(true)}
-                    className="pill flex h-10 w-10 items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)] transition animate-pulse hover:animate-none [&>svg]:opacity-0 [&>svg]:transition-opacity [&>svg]:duration-200 hover:[&>svg]:opacity-100"
-                    title="End session"
-                    aria-label="End session"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setShowGoLiveDialog(true)}
-                    className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-                    title="Go live"
-                    aria-label="Go live"
-                  >
-                    <Wifi className="h-4 w-4" />
-                  </button>
-                ))}
-              {/* Output — slides mode only. */}
-              {effectiveViewMode === "slides" && (
+              ) : (
                 <button
-                  onClick={openOutput}
-                  className="pill mono uppercase flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
-                  title="Output window"
+                  onClick={() => setShowGoLiveDialog(true)}
+                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  title="Go live"
+                  aria-label="Go live"
                 >
-                  Output <ArrowUpRight className="h-4 w-4" />
+                  <Wifi className="h-4 w-4" />
                 </button>
-              )}
-            </div>
+              ))}
+            {/* Output — slides mode only. */}
+            {effectiveViewMode === "slides" && (
+              <button
+                onClick={openOutput}
+                className="pill mono uppercase flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+                title="Output window"
+              >
+                Output <ArrowUpRight className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </header>
