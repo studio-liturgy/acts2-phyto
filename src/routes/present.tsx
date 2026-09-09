@@ -7,6 +7,7 @@ import {
   useHiddenSections,
   isVideoPlaying,
   startLiveHeartbeat,
+  loadGatheringHiddenSections,
 } from "@/lib/store";
 import { useIsSignedIn } from "@/lib/authStore";
 import { useTheme } from "@/hooks/use-theme";
@@ -220,6 +221,12 @@ function Presenter() {
   // window that was throttled or frozen in the background — the normal state of
   // a tab being cast — can't sit on a stale slide indefinitely.
   useEffect(() => startLiveHeartbeat(), []);
+
+  // Seed this gathering's saved section-hiding when it opens, so hides persist
+  // per gathering across sessions/devices (not just in this tab).
+  useEffect(() => {
+    if (gatheringFromUrl) loadGatheringHiddenSections(gatheringFromUrl);
+  }, [gatheringFromUrl]);
 
   const activeGathering = gatheringFromUrl ? gatherings[gatheringFromUrl] : null;
 

@@ -592,9 +592,10 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         share_token: target.share_token,
         is_live: true,
         live_started_at: new Date(liveStartedAt).toISOString(),
-        // Each session starts with nothing hidden — the leader re-hides as they
-        // go, and those choices don't leak from one gathering to the next.
-        hidden_sections: {},
+        // NOTE: hidden_sections is deliberately NOT written here — section hiding
+        // is a saved per-gathering setting that persists across sessions, so
+        // going live must leave it untouched (the column keeps its stored value;
+        // a brand-new row just gets the '{}' default).
         current_set_index: 0,
         current_slide_index: 0,
         created_at: new Date(target.createdAt).toISOString(),
@@ -777,6 +778,8 @@ function readHiddenSections(): Record<string, string[]> {
 interface HiddenSectionsStore {
   hiddenBySet: Record<string, string[]>;
   setHidden: (setId: string, leaderIds: string[]) => void;
+  /** Merge a set→hidden-keys map in (used to seed a gathering's saved hides). */
+  hydrate: (map: Record<string, string[]>) => void;
 }
 export const useHiddenSections = create<HiddenSectionsStore>((set) => ({
   hiddenBySet: typeof window !== "undefined" ? readHiddenSections() : {},
@@ -788,7 +791,32 @@ export const useHiddenSections = create<HiddenSectionsStore>((set) => ({
       } catch {}
       return { hiddenBySet: next };
     }),
+  hydrate: (map) =>
+    set((s) => {
+      const next = { ...s.hiddenBySet, ...map };
+      try {
+        sessionStorage.setItem(HIDDEN_SECTIONS_KEY, JSON.stringify(next));
+      } catch {}
+      return { hiddenBySet: next };
+    }),
 }));
+
+/** Load a gathering's saved hidden-section map (per-gathering, owner-only) and
+ *  seed the presenter's local state, so hiding persists across sessions and
+ *  devices rather than living only in this tab. No-op when signed out. */
+export async function loadGatheringHiddenSections(gatheringId: string): Promise<void> {
+  const session = useAuthStore.getState().session;
+  if (!session) return;
+  const { data, error } = await supabase
+    .from("gatherings")
+    .select("hidden_sections")
+    .eq("id", gatheringId)
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  if (error || !data) return;
+  const map = (data.hidden_sections as Record<string, string[]>) ?? {};
+  useHiddenSections.getState().hydrate(map);
+}
 
 // Ephemeral, non-persisted preview of the song template while the editor is
 // open. When non-null, slide views should render with this draft instead of
