@@ -334,7 +334,20 @@ export function PhoneViewer({
         )}
 
         {/* Tabs */}
-        <div ref={tabBarRef} className="catalogue-scroll flex overflow-x-auto">
+        <div
+          ref={tabBarRef}
+          className="phone-tab-scroll flex overflow-x-auto"
+          style={{
+            scrollbarWidth: "thin",
+            scrollbarColor: `${
+              prefs.isDark ? "rgba(245,239,239,0.55)" : "rgba(33,33,33,0.55)"
+            } transparent`,
+            // Consumed by the ::-webkit-scrollbar-thumb rule above.
+            ["--phone-sb" as string]: prefs.isDark
+              ? "rgba(245,239,239,0.55)"
+              : "rgba(33,33,33,0.55)",
+          }}
+        >
           {sets.map((s) => (
             <button
               key={s.id}

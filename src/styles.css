@@ -279,3 +279,17 @@ input[type="range"]::-moz-range-thumb {
 .catalogue-scroll::-webkit-scrollbar-thumb:hover {
   background-color: var(--foreground);
 }
+
+/* Phone-preview tab bar scrollbar. Thin, and its thumb colour follows the phone
+   view's own theme via the inline `--phone-sb` var (set from prefs.isDark), so
+   it stays legible whether the previewed phone is dark or light. */
+.phone-tab-scroll::-webkit-scrollbar {
+  height: 3px;
+}
+.phone-tab-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.phone-tab-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--phone-sb);
+  border-radius: 9999px;
+}
