@@ -110,6 +110,54 @@ function KindBadge({ kind, abbrev = false }: { kind: SetKind; abbrev?: boolean }
   );
 }
 
+/** A single-line name that, when it's too long to fit, scrolls left on hover to
+ *  reveal the rest — after a short pause — then springs back on mouse-out. When
+ *  it fits, it behaves like a plain truncating label (ellipsis, no motion). */
+function ScrollingName({ text, className = "" }: { text: string; className?: string }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [hovering, setHovering] = useState(false);
+  const [offset, setOffset] = useState(0);
+
+  const onEnter = () => {
+    const box = boxRef.current;
+    const t = textRef.current;
+    if (box && t) {
+      const overflow = t.scrollWidth - box.clientWidth;
+      setOffset(overflow > 1 ? overflow : 0);
+    }
+    setHovering(true);
+  };
+
+  // Constant reveal speed (~45px/s), so long titles don't whip past.
+  const durationS = offset > 0 ? Math.max(0.5, offset / 45) : 0;
+
+  return (
+    <div
+      ref={boxRef}
+      className={`overflow-hidden ${className}`}
+      onMouseEnter={onEnter}
+      onMouseLeave={() => setHovering(false)}
+    >
+      <span
+        ref={textRef}
+        className="block whitespace-nowrap will-change-transform"
+        style={{
+          // Idle: ordinary ellipsis. Hovering: let the text overflow the box so
+          // the box's clip (not the span's) reveals the tail as it slides.
+          overflow: hovering ? "visible" : "hidden",
+          textOverflow: hovering ? "clip" : "ellipsis",
+          transform: hovering && offset > 0 ? `translateX(${-offset}px)` : "translateX(0)",
+          transition:
+            hovering && offset > 0 ? `transform ${durationS}s linear 0.4s` : "transform 0.25s ease",
+        }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
 /** Lyric search, matched against the text as projected — inline chords like
  *  `(G)` are stripped first so they can't break a phrase mid-search. */
 function setMatchesLyric(s: PhytoSet, q: string): boolean {
@@ -901,15 +949,15 @@ function Presenter() {
                         }`}
                         style={isLive ? { borderColor: kindLiveColor(d.kind) } : undefined}
                       >
-                        <span className="flex items-center gap-1 truncate">
+                        <span className="flex min-w-0 flex-1 items-center gap-1">
                           {inGathering && (
-                            <span className="mono mr-1 text-[10px] text-muted-foreground">
+                            <span className="mono mr-1 shrink-0 text-[10px] text-muted-foreground">
                               {i + 1}.
                             </span>
                           )}
-                          {d.name}
+                          <ScrollingName text={d.name} className="min-w-0 flex-1" />
                         </span>
-                        <span className="flex items-center gap-1">
+                        <span className="flex shrink-0 items-center gap-1">
                           <KindBadge kind={d.kind} abbrev />
                           {inGathering && activeGathering && (
                             <span
