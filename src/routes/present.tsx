@@ -844,7 +844,10 @@ function Presenter() {
                     const d = sets[id];
                     if (!d) return null;
                     const isActive = id === activeSetId;
-                    const isLive = id === live.setId;
+                    // The blue "live" outline is a slides-mode cue; the mobile
+                    // preview has its own current-tab indication, so suppress it
+                    // there.
+                    const isLive = id === live.setId && effectiveViewMode !== "mobile";
                     const inGathering = !!activeGathering;
                     const isDragging = id === reorderDraggingId;
                     return (
