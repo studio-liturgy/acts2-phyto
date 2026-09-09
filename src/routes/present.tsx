@@ -53,6 +53,7 @@ import {
   Monitor,
   Smartphone,
   Wifi,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { stripChords, transposeLyrics, guessKey } from "@/lib/chords";
@@ -149,6 +150,7 @@ function Presenter() {
   const updateSet = useLibrary((s) => s.updateSet);
   const goLive = useLibrary((s) => s.goLive);
   const endSession = useLibrary((s) => s.endSession);
+  const deleteGathering = useLibrary((s) => s.deleteGathering);
   const navigate = useNavigate();
   const live = useLive();
   const songTemplate = useLibrary((s) => s.songTemplate);
@@ -252,6 +254,7 @@ function Presenter() {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showGoLiveDialog, setShowGoLiveDialog] = useState(false);
   const [showEndSessionDialog, setShowEndSessionDialog] = useState(false);
+  const [showDeleteGatheringDialog, setShowDeleteGatheringDialog] = useState(false);
   const [isGoingLive, setIsGoingLive] = useState(false);
   const activeShareToken = activeGathering?.share_token ?? null;
   const shareUrl = activeShareToken ? `${window.location.origin}/g/${activeShareToken}` : "";
@@ -460,7 +463,7 @@ function Presenter() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-foreground bg-background">
-        <div className="flex items-center gap-4 px-6 py-4">
+        <div className="relative flex items-center justify-between gap-4 px-6 py-4">
           <div className="flex shrink-0 items-center gap-2">
             <Link
               to="/"
@@ -519,24 +522,26 @@ function Presenter() {
                 <PanelLeftOpen className="h-5 w-5" />
               )}
             </button>
-            <input
-              type="range"
-              min={160}
-              max={400}
-              step={8}
-              value={slideW}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                setSlideW(v);
-                localStorage.setItem("presenter-slide-w", String(v));
-              }}
-              style={{ width: 96 }}
-              title="Slide size"
-              aria-label="Slide size"
-            />
+            {effectiveViewMode !== "mobile" && (
+              <input
+                type="range"
+                min={160}
+                max={400}
+                step={8}
+                value={slideW}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setSlideW(v);
+                  localStorage.setItem("presenter-slide-w", String(v));
+                }}
+                style={{ width: 96 }}
+                title="Slide size"
+                aria-label="Slide size"
+              />
+            )}
           </div>
 
-          <div className="flex flex-1 items-center justify-center gap-3">
+          <div className="pointer-events-none absolute left-1/2 flex max-w-[50%] -translate-x-1/2 items-center justify-center gap-3">
             <h1 className="shrink-0 text-3xl">Presenter</h1>
             {activeGathering && (
               <>
@@ -545,30 +550,44 @@ function Presenter() {
                   title={isLiveNow(activeGathering) ? "Live" : undefined}
                 />
                 {editingGatheringName ? (
-                  <input
-                    ref={gatheringNameInputRef}
-                    defaultValue={activeGathering.name}
-                    className="w-48 rounded-full border border-foreground bg-transparent px-4 py-1.5 text-base font-normal outline-none"
-                    style={{ letterSpacing: "-0.045em" }}
-                    onBlur={(e) => {
-                      renameGathering(activeGathering.id, e.target.value || activeGathering.name);
-                      setEditingGatheringName(false);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        renameGathering(
-                          activeGathering.id,
-                          e.currentTarget.value || activeGathering.name,
-                        );
+                  <>
+                    <input
+                      ref={gatheringNameInputRef}
+                      defaultValue={activeGathering.name}
+                      className="pointer-events-auto w-48 rounded-full border border-foreground bg-transparent px-4 py-1.5 text-base font-normal outline-none"
+                      style={{ letterSpacing: "-0.045em" }}
+                      onBlur={(e) => {
+                        renameGathering(activeGathering.id, e.target.value || activeGathering.name);
                         setEditingGatheringName(false);
-                      }
-                      if (e.key === "Escape") setEditingGatheringName(false);
-                    }}
-                  />
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          renameGathering(
+                            activeGathering.id,
+                            e.currentTarget.value || activeGathering.name,
+                          );
+                          setEditingGatheringName(false);
+                        }
+                        if (e.key === "Escape") setEditingGatheringName(false);
+                      }}
+                    />
+                    {/* Reveal delete while renaming — same flow as the home page. */}
+                    <button
+                      // Keep the rename input focused (don't blur-commit) when
+                      // opening the delete dialog.
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setShowDeleteGatheringDialog(true)}
+                      className="pill pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                      title="Delete gathering"
+                      aria-label="Delete gathering"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </>
                 ) : (
                   <>
                     <span
-                      className="min-w-0 truncate cursor-text text-3xl font-normal"
+                      className="pointer-events-auto min-w-0 truncate cursor-text text-3xl font-normal"
                       style={{ letterSpacing: "-0.045em", paddingRight: "0.1em" }}
                       onClick={() => {
                         setEditingGatheringName(true);
@@ -583,7 +602,7 @@ function Presenter() {
                         setEditingGatheringName(true);
                         setTimeout(() => gatheringNameInputRef.current?.select(), 0);
                       }}
-                      className="pill flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                      className="pill pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                       title="Rename gathering"
                       aria-label="Rename gathering"
                     >
@@ -596,24 +615,6 @@ function Presenter() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            {/* Slides / Mobile view toggle — only inside a gathering, where the
-                phone preview is meaningful. Minimal icon switch, like the
-                editor's chords toggle. */}
-            {activeGathering && (
-              <div className="flex items-center gap-2">
-                <Monitor
-                  className={`h-4 w-4 ${viewMode === "slides" ? "" : "text-muted-foreground"}`}
-                />
-                <Switch
-                  checked={viewMode === "mobile"}
-                  onCheckedChange={(on) => setViewMode(on ? "mobile" : "slides")}
-                  aria-label="Toggle mobile preview"
-                />
-                <Smartphone
-                  className={`h-4 w-4 ${viewMode === "mobile" ? "" : "text-muted-foreground"}`}
-                />
-              </div>
-            )}
             {/* Share — mobile mode only. */}
             {effectiveViewMode === "mobile" && isSignedIn && activeShareToken && (
               <button
@@ -657,6 +658,24 @@ function Presenter() {
               >
                 Output <ArrowUpRight className="h-4 w-4" />
               </button>
+            )}
+            {/* Slides / Mobile view toggle — pinned rightmost so it stays put
+                as the Share/Go-live/Output buttons change between modes. Only
+                inside a gathering, where the phone preview is meaningful. */}
+            {activeGathering && (
+              <div className="flex items-center gap-2">
+                <Monitor
+                  className={`h-4 w-4 ${viewMode === "slides" ? "" : "text-muted-foreground"}`}
+                />
+                <Switch
+                  checked={viewMode === "mobile"}
+                  onCheckedChange={(on) => setViewMode(on ? "mobile" : "slides")}
+                  aria-label="Toggle mobile preview"
+                />
+                <Smartphone
+                  className={`h-4 w-4 ${viewMode === "mobile" ? "" : "text-muted-foreground"}`}
+                />
+              </div>
             )}
           </div>
         </div>
@@ -1376,6 +1395,39 @@ function Presenter() {
             <button
               type="button"
               onClick={() => setShowEndSessionDialog(false)}
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              Cancel
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete gathering confirmation — mirrors the home page. */}
+      <AlertDialog open={showDeleteGatheringDialog} onOpenChange={setShowDeleteGatheringDialog}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Delete this gathering?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            This will permanently delete this gathering. This cannot be undone.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                if (activeGathering) deleteGathering(activeGathering.id);
+                setShowDeleteGatheringDialog(false);
+                setEditingGatheringName(false);
+                navigate({ to: "/present" });
+              }}
+              className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+            >
+              Delete
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteGatheringDialog(false)}
               className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
             >
               Cancel
