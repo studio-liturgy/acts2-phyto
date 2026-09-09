@@ -223,8 +223,20 @@ function Presenter() {
     setFromUrl ?? (live.setId && sets[live.setId] ? live.setId : null) ?? setList[0] ?? null,
   );
 
-  const presenterReturn = (setId: string) =>
-    gatheringFromUrl ? `/present?gathering=${gatheringFromUrl}` : `/present?set=${setId}`;
+  // Where the set editor returns to. Always carries the edited set so we land
+  // back on it: in a gathering that's `gathering` + `set` (+ `view=mobile` when
+  // previewing the phone), otherwise just `set`.
+  const presenterReturn = (setId: string) => {
+    const params = new URLSearchParams();
+    if (gatheringFromUrl) {
+      params.set("gathering", gatheringFromUrl);
+      params.set("set", setId);
+      if (viewMode === "mobile") params.set("view", "mobile");
+    } else {
+      params.set("set", setId);
+    }
+    return `/present?${params.toString()}`;
+  };
   const [query, setQuery] = useState("");
   const [setSortMode, setSetSortMode] = useState<"az" | "newest">("az");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -310,6 +322,21 @@ function Presenter() {
   useEffect(() => {
     if (setFromUrl) setActiveSetId(setFromUrl);
   }, [setFromUrl]);
+
+  // Returning from the set editor into a gathering in slides mode: scroll that
+  // set's section into view so we land where the set lives. (Mobile follows the
+  // set via the preview's active tab, so no scroll needed there.) Mount-only —
+  // this is the arrival, not every later selection.
+  useEffect(() => {
+    if (!setFromUrl || !gatheringFromUrl || viewFromUrl === "mobile") return;
+    const t = setTimeout(() => {
+      document
+        .getElementById(`set-section-${setFromUrl}`)
+        ?.scrollIntoView({ behavior: "auto", block: "start" });
+    }, 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (activeGathering && !activeSetId) {
       setActiveSetId(activeGathering.setIds[0] ?? null);
@@ -1065,10 +1092,8 @@ function Presenter() {
                         navigate({
                           to: "/set/$setId",
                           params: { setId: id },
-                          // Return to the mobile preview, not slides, after editing.
-                          search: {
-                            redirectTo: `${presenterHere}${presenterHere.includes("?") ? "&" : "?"}view=mobile`,
-                          },
+                          // Return to this set's tab in the mobile preview.
+                          search: { redirectTo: presenterReturn(id) },
                         })
                       }
                     />
