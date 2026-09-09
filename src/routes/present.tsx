@@ -663,7 +663,7 @@ function Presenter() {
                 as the Share/Go-live/Output buttons change between modes. Only
                 inside a gathering, where the phone preview is meaningful. */}
             {activeGathering && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 pl-3">
                 <Monitor
                   className={`h-4 w-4 ${viewMode === "slides" ? "" : "text-muted-foreground"}`}
                 />
@@ -947,23 +947,31 @@ function Presenter() {
           }`}
         >
           {effectiveViewMode === "mobile" ? (
-            <div className="flex h-full items-center justify-center gap-4">
+            <div className="relative h-full">
               {phonePreviewSets.length === 0 ? (
-                <div className="mono uppercase text-xs tracking-wider text-muted-foreground">
+                <div className="mono absolute inset-0 flex items-center justify-center text-xs uppercase tracking-wider text-muted-foreground">
                   Gathering is empty. Add a set to preview the phone view.
                 </div>
               ) : (
                 <>
                   {/* Section visibility gutter — one marker per section of the
-                      active song, in order. Toggling reuses the same hiding as
-                      slides mode, so the preview, phones and slides all agree. */}
+                      active song, in order. Absolutely placed to the LEFT of the
+                      centered phone so its presence never shifts the phone.
+                      Toggling reuses the same hiding as slides mode, so the
+                      preview, phones and slides all agree. */}
                   {activeSet?.kind === "song" &&
                     (() => {
                       const groups = groupSlides(activeSet.slides);
                       if (groups.length === 0) return null;
                       const hidden = new Set(hiddenBySet[activeSet.id] ?? []);
                       return (
-                        <div className="catalogue-scroll flex max-h-full flex-col items-end gap-1.5 overflow-auto py-1">
+                        <div
+                          className="catalogue-scroll absolute top-1/2 flex max-h-full -translate-x-full -translate-y-1/2 flex-col items-end gap-1.5 overflow-auto py-1 pr-4"
+                          // Right edge of the gutter sits just left of the phone
+                          // (phone is 380px wide, centered → its left edge is at
+                          // 50% − 190px).
+                          style={{ left: "calc(50% - 190px)" }}
+                        >
                           {groups.map((g) => {
                             const isHidden = hidden.has(g.key);
                             const label = g.section ?? "Untitled";
@@ -992,8 +1000,8 @@ function Presenter() {
                       );
                     })()}
                   <div
-                    className="overflow-hidden rounded-[2rem] border border-foreground/25 bg-black"
-                    style={{ width: 380, height: "100%" }}
+                    className="absolute bottom-0 left-1/2 top-0 -translate-x-1/2 overflow-hidden rounded-[2rem] border border-foreground/25 bg-black"
+                    style={{ width: 380 }}
                   >
                     <PhoneViewer
                       sets={phonePreviewSets}
