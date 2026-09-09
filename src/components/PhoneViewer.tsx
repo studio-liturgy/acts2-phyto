@@ -327,6 +327,7 @@ export function PhoneViewer({
                   prefs={prefs}
                   setPrefs={setPrefs}
                   hasChords={sets.some((s) => setHasChords(s))}
+                  dark={prefs.isDark}
                 />
               </div>
             )}
@@ -513,14 +514,16 @@ export function ViewerSettings({
   prefs,
   setPrefs,
   hasChords,
+  dark,
 }: {
   prefs: ViewerPrefs;
   setPrefs: (updater: (p: ViewerPrefs) => ViewerPrefs) => void;
   hasChords: boolean;
+  /** Chrome theme (borders / muted text / active fills). The hamburger passes
+   *  the phone theme; the presenter panel passes the editor theme. Kept separate
+   *  from prefs.isDark, which is the phone theme the Theme swatches edit. */
+  dark: boolean;
 }) {
-  // Chrome (borders/muted text/active fills) follows the surrounding theme via
-  // Tailwind `dark:` variants — the phone theme inside the g hamburger (which
-  // forces a `.dark` wrapper) and the editor theme in the presenter panel.
   return (
     <div
       className="space-y-4 text-sm"
@@ -530,7 +533,9 @@ export function ViewerSettings({
       <div>
         <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
           <span>Font size</span>
-          <span className="text-black/40 dark:text-white/40">{prefs.fontSize.toFixed(2)}×</span>
+          <span className={dark ? "text-white/40" : "text-black/40"}>
+            {prefs.fontSize.toFixed(2)}×
+          </span>
         </div>
         <input
           type="range"
@@ -557,8 +562,12 @@ export function ViewerSettings({
                 style={{ fontFamily: FONT_FAMILY_CSS[f] }}
                 className={`rounded-lg border px-3 py-1.5 text-left text-sm capitalize transition ${
                   active
-                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                    : "border-black/20 hover:border-black dark:border-white/20 dark:hover:border-white"
+                    ? dark
+                      ? "border-white bg-white text-black"
+                      : "border-black bg-black text-white"
+                    : dark
+                      ? "border-white/40 hover:border-white"
+                      : "border-black/40 hover:border-black"
                 }`}
               >
                 {f}
@@ -602,6 +611,7 @@ export function ViewerSettings({
             checked={prefs.showChords}
             onCheckedChange={(on) => setPrefs((p) => ({ ...p, showChords: on }))}
             aria-label="Show chords"
+            className={dark ? "border-white/40" : "border-black/40"}
           />
         </div>
       )}
@@ -672,6 +682,9 @@ function SetContent({
         groups.push({ section: slide.section, lines: [...(slide.lines ?? [])] });
       }
     }
+    // A song with no chords shouldn't get the wider chord-row spacing just
+    // because the viewer has chords switched on.
+    const showChordsHere = showChords && phoneSetHasChords(set);
     return (
       <div className="space-y-6 px-4 py-6">
         {groups.map((group, i) => (
@@ -681,7 +694,7 @@ function SetContent({
             lines={group.lines}
             isDark={isDark}
             chordConfig={chordConfig}
-            showChords={showChords}
+            showChords={showChordsHere}
           />
         ))}
       </div>

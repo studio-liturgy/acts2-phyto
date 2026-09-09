@@ -9,6 +9,7 @@ import {
   startLiveHeartbeat,
 } from "@/lib/store";
 import { useIsSignedIn } from "@/lib/authStore";
+import { useTheme } from "@/hooks/use-theme";
 import { APP_NAME } from "@/lib/appConfig";
 import { isLiveNow } from "@/lib/live-session";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
@@ -254,6 +255,7 @@ function Presenter() {
   // Display prefs for the mobile preview, driven by the settings panel beside
   // it (and shared with the preview so changes show live).
   const [phonePrefs, setPhonePrefs] = useState<ViewerPrefs>(() => loadPrefs());
+  const { mode: themeMode } = useTheme();
   const [slideW, setSlideW] = useState(() => {
     if (typeof window === "undefined") return 256;
     const saved = localStorage.getItem("presenter-slide-w");
@@ -1126,6 +1128,7 @@ function Presenter() {
                       prefs={phonePrefs}
                       setPrefs={setPhonePrefs}
                       hasChords={phonePreviewSets.some(phoneSetHasChords)}
+                      dark={themeMode === "dark"}
                     />
                   </div>
                 </>
