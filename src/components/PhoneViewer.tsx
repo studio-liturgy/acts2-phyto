@@ -118,6 +118,10 @@ export function PhoneViewer({
   sets,
   hiddenBySet = {},
   embedded = false,
+  showSettings = true,
+  activeId,
+  onActiveChange,
+  onChordChange,
 }: {
   sets: PhoneSet[];
   /** Stable section keys hidden by the leader, keyed by set id. Those sections
@@ -126,9 +130,21 @@ export function PhoneViewer({
   /** Rendered inside the presenter as a preview: fill the parent (not the whole
    *  screen) and don't touch document-level title/background. */
   embedded?: boolean;
+  /** Show the hamburger settings menu. The presenter preview turns this off. */
+  showSettings?: boolean;
+  /** Drive the active tab from the outside (e.g. the presenter's set list).
+   *  When it changes, the viewer follows. */
+  activeId?: string | null;
+  /** Called whenever the active set changes from inside (tab tap / swipe), so
+   *  the caller can keep its own selection in sync. */
+  onActiveChange?: (setId: string) => void;
+  /** When provided, chord key/display changes are written back to the actual
+   *  set through this callback (and persist for everyone) instead of staying a
+   *  per-viewer override. The presenter preview passes this. */
+  onChordChange?: (setId: string, patch: { key?: string; display?: "letters" | "numbers" }) => void;
 }) {
-  const [activeSetId, setActiveSetId] = useState<string | null>(sets[0]?.id ?? null);
-  const [activeTabId, setActiveTabId] = useState<string | null>(sets[0]?.id ?? null);
+  const [activeSetId, setActiveSetId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
+  const [activeTabId, setActiveTabId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [prefs, setPrefs] = useState<ViewerPrefs>(loadPrefs);
   // A viewer's own transpose/letters-numbers choice, kept per set so flipping
@@ -143,6 +159,22 @@ export function PhoneViewer({
   useEffect(() => {
     savePrefs(prefs);
   }, [prefs]);
+
+  // Select a set from inside (tab tap / swipe), reporting back to the caller.
+  const selectSet = (id: string) => {
+    setActiveSetId(id);
+    setActiveTabId(id);
+    onActiveChange?.(id);
+  };
+
+  // Follow the externally controlled active id (e.g. the presenter's set list).
+  useEffect(() => {
+    if (activeId && activeId !== activeSetId && sets.some((s) => s.id === activeId)) {
+      setActiveSetId(activeId);
+      setActiveTabId(activeId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
 
   // Keep the active set valid as the set list changes (tabs added/removed).
   useEffect(() => {
@@ -196,12 +228,17 @@ export function PhoneViewer({
   const activeIdx = sets.findIndex((s) => s.id === activeSetId);
   const activeSet = sets[activeIdx] ?? sets[0] ?? null;
 
+  // When chord changes write back to the set (presenter preview), the set is the
+  // single source of truth — ignore the per-viewer overrides so the controls
+  // always show what the set actually stores.
+  const persistChords = !!onChordChange;
+
   // The active song's chord view: its own written key/display unless this
   // viewer has transposed or switched it themselves this session.
   const activeChordConfig = (() => {
     if (!activeSet || !setHasChords(activeSet)) return null;
     const writtenKey = setWrittenKey(activeSet);
-    const override = chordOverrides[activeSet.id];
+    const override = persistChords ? undefined : chordOverrides[activeSet.id];
     return {
       writtenKey,
       key: override?.key ?? writtenKey,
@@ -209,10 +246,19 @@ export function PhoneViewer({
     };
   })();
 
+  // The embedded preview has no hamburger, so chords can't be toggled there —
+  // show them whenever the active set actually has any, so the leader can see
+  // and change the key. Otherwise honour the viewer's own Show/Hide choice.
+  const showChords = showSettings ? prefs.showChords : !!activeSet && setHasChords(activeSet);
+
   const setActiveChordOverride = (
     patch: Partial<{ key: string; display: "letters" | "numbers" }>,
   ) => {
     if (!activeSet || !activeChordConfig) return;
+    if (persistChords) {
+      onChordChange!(activeSet.id, patch);
+      return;
+    }
     setChordOverrides((prev) => ({
       ...prev,
       [activeSet.id]: { key: activeChordConfig.key, display: activeChordConfig.display, ...patch },
@@ -233,117 +279,66 @@ export function PhoneViewer({
     >
       {/* Tab bar */}
       <div className={`relative flex shrink-0 items-stretch border-b ${borderClass}`}>
-        {/* Hamburger */}
-        <div ref={menuRef} className="relative shrink-0">
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            className={`flex h-full items-center px-4 ${mutedClass} hover:text-inherit`}
-            aria-label="Settings"
-          >
-            <span className="flex flex-col gap-[5px]">
-              <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
-              <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
-              <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
-            </span>
-          </button>
-
-          {/* Settings overlay */}
-          {menuOpen && (
-            <div
-              className={`absolute left-0 top-full z-50 mt-1 w-[240px] rounded-2xl border p-4 shadow-xl ${
-                prefs.isDark
-                  ? "dark border-white/10 bg-neutral-900 text-white"
-                  : "border-black/10 bg-white text-black"
-              }`}
-              style={{ fontFamily: "'Space Mono', monospace", fontSize: "1rem" }}
+        {/* Hamburger — hidden in the presenter preview. */}
+        {showSettings && (
+          <div ref={menuRef} className="relative shrink-0">
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className={`flex h-full items-center px-4 ${mutedClass} hover:text-inherit`}
+              aria-label="Settings"
             >
-              {/* Header. No close button: tapping outside already dismisses. */}
-              <div className="mb-3 text-[10px] uppercase tracking-wider">Display</div>
+              <span className="flex flex-col gap-[5px]">
+                <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
+                <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
+                <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
+              </span>
+            </button>
 
-              <div className="space-y-4 text-sm">
-                {/* Font size */}
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
-                    <span>Font size</span>
-                    <span className={mutedClass}>{prefs.fontSize.toFixed(2)}×</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0.85}
-                    max={1.8}
-                    step={0.05}
-                    value={prefs.fontSize}
-                    onChange={(e) => setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))}
-                    className="w-full"
-                  />
-                </div>
+            {/* Settings overlay */}
+            {menuOpen && (
+              <div
+                className={`absolute left-0 top-full z-50 mt-1 w-[240px] rounded-2xl border p-4 shadow-xl ${
+                  prefs.isDark
+                    ? "dark border-white/10 bg-neutral-900 text-white"
+                    : "border-black/10 bg-white text-black"
+                }`}
+                style={{ fontFamily: "'Space Mono', monospace", fontSize: "1rem" }}
+              >
+                {/* Header. No close button: tapping outside already dismisses. */}
+                <div className="mb-3 text-[10px] uppercase tracking-wider">Display</div>
 
-                {/* Font type */}
-                <div>
-                  <div className="mb-2 text-[10px] uppercase tracking-wider">Font type</div>
-                  <div className="grid grid-cols-1 gap-1">
-                    {(["sans", "serif", "mono"] as FontFamily[]).map((f) => {
-                      const active = prefs.fontFamily === f;
-                      return (
-                        <button
-                          key={f}
-                          onClick={() => setPrefs((p) => ({ ...p, fontFamily: f }))}
-                          style={{ fontFamily: FONT_FAMILY_CSS[f] }}
-                          className={`rounded-lg border px-3 py-1.5 text-left text-sm capitalize transition ${
-                            active
-                              ? prefs.isDark
-                                ? "border-white bg-white text-black"
-                                : "border-black bg-black text-white"
-                              : prefs.isDark
-                                ? "border-white/20 hover:border-white"
-                                : "border-black/20 hover:border-black"
-                          }`}
-                        >
-                          {f}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Theme */}
-                <div>
-                  <div className="mb-2 text-[10px] uppercase tracking-wider">Theme</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setPrefs((p) => ({ ...p, isDark: true }))}
-                      style={{ fontFamily: "Arial, sans-serif" }}
-                      className={`rounded-lg border px-3 py-2 text-xs transition bg-black text-white ${
-                        prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
-                      }`}
-                    >
-                      Dark
-                    </button>
-                    <button
-                      onClick={() => setPrefs((p) => ({ ...p, isDark: false }))}
-                      style={{ fontFamily: "Arial, sans-serif" }}
-                      className={`rounded-lg border px-3 py-2 text-xs transition bg-white text-black ${
-                        !prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
-                      }`}
-                    >
-                      Light
-                    </button>
-                  </div>
-                </div>
-
-                {/* Chords — only for gatherings that actually have any */}
-                {sets.some((s) => setHasChords(s)) && (
+                <div className="space-y-4 text-sm">
+                  {/* Font size */}
                   <div>
-                    <div className="mb-2 text-[10px] uppercase tracking-wider">Chords</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {([false, true] as const).map((on) => {
-                        const active = prefs.showChords === on;
+                    <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
+                      <span>Font size</span>
+                      <span className={mutedClass}>{prefs.fontSize.toFixed(2)}×</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.85}
+                      max={1.8}
+                      step={0.05}
+                      value={prefs.fontSize}
+                      onChange={(e) =>
+                        setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))
+                      }
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* Font type */}
+                  <div>
+                    <div className="mb-2 text-[10px] uppercase tracking-wider">Font type</div>
+                    <div className="grid grid-cols-1 gap-1">
+                      {(["sans", "serif", "mono"] as FontFamily[]).map((f) => {
+                        const active = prefs.fontFamily === f;
                         return (
                           <button
-                            key={String(on)}
-                            onClick={() => setPrefs((p) => ({ ...p, showChords: on }))}
-                            style={{ fontFamily: "Arial, sans-serif" }}
-                            className={`rounded-lg border px-3 py-2 text-xs transition ${
+                            key={f}
+                            onClick={() => setPrefs((p) => ({ ...p, fontFamily: f }))}
+                            style={{ fontFamily: FONT_FAMILY_CSS[f] }}
+                            className={`rounded-lg border px-3 py-1.5 text-left text-sm capitalize transition ${
                               active
                                 ? prefs.isDark
                                   ? "border-white bg-white text-black"
@@ -353,27 +348,79 @@ export function PhoneViewer({
                                   : "border-black/20 hover:border-black"
                             }`}
                           >
-                            {on ? "Show" : "Hide"}
+                            {f}
                           </button>
                         );
                       })}
                     </div>
                   </div>
-                )}
+
+                  {/* Theme */}
+                  <div>
+                    <div className="mb-2 text-[10px] uppercase tracking-wider">Theme</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setPrefs((p) => ({ ...p, isDark: true }))}
+                        style={{ fontFamily: "Arial, sans-serif" }}
+                        className={`rounded-lg border px-3 py-2 text-xs transition bg-black text-white ${
+                          prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
+                        }`}
+                      >
+                        Dark
+                      </button>
+                      <button
+                        onClick={() => setPrefs((p) => ({ ...p, isDark: false }))}
+                        style={{ fontFamily: "Arial, sans-serif" }}
+                        className={`rounded-lg border px-3 py-2 text-xs transition bg-white text-black ${
+                          !prefs.isDark ? "border-black" : "border-black/20 hover:border-black"
+                        }`}
+                      >
+                        Light
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Chords — only for gatherings that actually have any */}
+                  {sets.some((s) => setHasChords(s)) && (
+                    <div>
+                      <div className="mb-2 text-[10px] uppercase tracking-wider">Chords</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {([false, true] as const).map((on) => {
+                          const active = prefs.showChords === on;
+                          return (
+                            <button
+                              key={String(on)}
+                              onClick={() => setPrefs((p) => ({ ...p, showChords: on }))}
+                              style={{ fontFamily: "Arial, sans-serif" }}
+                              className={`rounded-lg border px-3 py-2 text-xs transition ${
+                                active
+                                  ? prefs.isDark
+                                    ? "border-white bg-white text-black"
+                                    : "border-black bg-black text-white"
+                                  : prefs.isDark
+                                    ? "border-white/20 hover:border-white"
+                                    : "border-black/20 hover:border-black"
+                              }`}
+                            >
+                              {on ? "Show" : "Hide"}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* Tabs */}
         <div ref={tabBarRef} className="flex overflow-x-auto">
           {sets.map((s) => (
             <button
               key={s.id}
-              onClick={() => {
-                setActiveSetId(s.id);
-                setActiveTabId(s.id);
-              }}
+              onClick={() => selectSet(s.id)}
               className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm transition-colors ${
                 s.id === activeTabId
                   ? prefs.isDark
@@ -388,8 +435,8 @@ export function PhoneViewer({
         </div>
       </div>
 
-      {/* Chord controls — transpose and letters/numbers, for this viewer only. */}
-      {prefs.showChords && activeChordConfig && (
+      {/* Chord controls — transpose and letters/numbers. */}
+      {showChords && activeChordConfig && (
         <div
           className={`flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 ${borderClass}`}
         >
@@ -488,13 +535,9 @@ export function PhoneViewer({
           touchStartX.current = null;
           if (Math.abs(dx) < 50) return;
           if (dx < 0 && activeIdx < sets.length - 1) {
-            const nextId = sets[activeIdx + 1].id;
-            setActiveTabId(nextId);
-            setActiveSetId(nextId);
+            selectSet(sets[activeIdx + 1].id);
           } else if (dx > 0 && activeIdx > 0) {
-            const prevId = sets[activeIdx - 1].id;
-            setActiveTabId(prevId);
-            setActiveSetId(prevId);
+            selectSet(sets[activeIdx - 1].id);
           }
         }}
       >
@@ -503,7 +546,7 @@ export function PhoneViewer({
             set={activeSet}
             hiddenKeys={hiddenBySet[activeSet.id] ?? []}
             isDark={prefs.isDark}
-            showChords={prefs.showChords}
+            showChords={showChords}
             chordConfig={activeChordConfig}
           />
         )}

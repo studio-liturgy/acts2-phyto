@@ -48,9 +48,10 @@ import {
   Smartphone,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { stripChords } from "@/lib/chords";
+import { stripChords, transposeLyrics, guessKey } from "@/lib/chords";
 import { groupSlides, hiddenSlideIds } from "@/lib/sections";
 import { PhoneViewer, type PhoneSet } from "@/components/PhoneViewer";
+import { Switch } from "@/components/ui/switch";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
 
@@ -135,6 +136,7 @@ function Presenter() {
   const createSet = useLibrary((s) => s.createSet);
   const createGathering = useLibrary((s) => s.createGathering);
   const pushHiddenSections = useLibrary((s) => s.pushHiddenSections);
+  const updateSet = useLibrary((s) => s.updateSet);
   const navigate = useNavigate();
   const live = useLive();
   const songTemplate = useLibrary((s) => s.songTemplate);
@@ -290,6 +292,35 @@ function Presenter() {
         chords: d.chords,
       }));
   }, [activeGathering, activeSetId, sets]);
+
+  // Mobile preview only makes sense for a gathering (it's the multi-set phone
+  // view). Viewing a single set falls back to slides, and the toggle is hidden.
+  const effectiveViewMode = activeGathering ? viewMode : "slides";
+
+  // In the mobile preview, changing a song's key or letters/numbers writes back
+  // to the actual set — mirroring the set editor: a key change transposes the
+  // stored lyrics too, so the set's chords.key stays the truth about what's
+  // written. Everyone (projection, phones, editor) then sees the new key.
+  const handlePreviewChordChange = (
+    setId: string,
+    patch: { key?: string; display?: "letters" | "numbers" },
+  ) => {
+    const d = sets[setId];
+    if (!d) return;
+    const joined = d.slides.flatMap((sl) => sl.lines ?? []).join("\n");
+    const chords = d.chords ?? { key: guessKey(joined) ?? "G", display: "letters" as const };
+    if (patch.display && patch.display !== chords.display) {
+      updateSet(setId, { chords: { ...chords, display: patch.display } });
+    }
+    if (patch.key && patch.key !== chords.key) {
+      const from = chords.key;
+      const to = patch.key;
+      const slides = d.slides.map((sl) =>
+        sl.lines ? { ...sl, lines: sl.lines.map((l) => transposeLyrics(l, from, to)) } : sl,
+      );
+      updateSet(setId, { slides, chords: { ...chords, key: to } });
+    }
+  };
 
   const q = query.trim().toLowerCase();
   const showAll = !activeGathering;
@@ -548,30 +579,30 @@ function Presenter() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            {/* Slides / Mobile view toggle. Slides is the operator grid; Mobile
-                previews the congregant phone view. */}
-            <div className="pill flex items-center border border-foreground p-0.5">
-              {(["slides", "mobile"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className={`mono uppercase flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs tracking-wider transition ${
-                    viewMode === mode
-                      ? "bg-foreground text-background"
-                      : "text-foreground hover:bg-foreground/10"
-                  }`}
-                  aria-pressed={viewMode === mode}
-                  title={mode === "slides" ? "Slides view" : "Phone preview"}
+            {/* Slides / Mobile view toggle — only inside a gathering, where the
+                phone preview is meaningful. Minimal switch, like the editor's
+                chords toggle. */}
+            {activeGathering && (
+              <div className="mono flex items-center gap-2 text-[10px] uppercase tracking-wider">
+                <span
+                  className={`flex items-center gap-1 ${viewMode === "slides" ? "" : "text-muted-foreground"}`}
                 >
-                  {mode === "slides" ? (
-                    <Monitor className="h-3.5 w-3.5" />
-                  ) : (
-                    <Smartphone className="h-3.5 w-3.5" />
-                  )}
-                  {mode}
-                </button>
-              ))}
-            </div>
+                  <Monitor className="h-3.5 w-3.5" />
+                  Slides
+                </span>
+                <Switch
+                  checked={viewMode === "mobile"}
+                  onCheckedChange={(on) => setViewMode(on ? "mobile" : "slides")}
+                  aria-label="Toggle mobile preview"
+                />
+                <span
+                  className={`flex items-center gap-1 ${viewMode === "mobile" ? "" : "text-muted-foreground"}`}
+                >
+                  <Smartphone className="h-3.5 w-3.5" />
+                  Mobile
+                </span>
+              </div>
+            )}
             {isSignedIn && activeShareToken && (
               <button
                 onClick={() => setShowShareDialog(true)}
@@ -595,7 +626,7 @@ function Presenter() {
 
       <div
         className={`grid flex-1 gap-0 ${
-          viewMode === "mobile"
+          effectiveViewMode === "mobile"
             ? sidebarOpen
               ? "md:grid-cols-[240px_1fr]"
               : "md:grid-cols-[1fr]"
@@ -851,21 +882,33 @@ function Presenter() {
         )}
 
         {/* Main */}
-        <main className="overflow-auto p-6">
-          {viewMode === "mobile" ? (
-            <div className="flex justify-center py-2">
+        <main
+          className={`p-6 ${
+            effectiveViewMode === "mobile"
+              ? "h-[calc(100vh-73px)] overflow-hidden"
+              : "overflow-auto"
+          }`}
+        >
+          {effectiveViewMode === "mobile" ? (
+            <div className="flex h-full items-center justify-center">
               {phonePreviewSets.length === 0 ? (
                 <div className="mono uppercase text-xs tracking-wider text-muted-foreground">
-                  {activeGathering
-                    ? "Gathering is empty. Add a set to preview the phone view."
-                    : "Select a set to preview the phone view."}
+                  Gathering is empty. Add a set to preview the phone view.
                 </div>
               ) : (
                 <div
-                  className="overflow-hidden rounded-[2.5rem] border-8 border-foreground bg-black shadow-xl"
-                  style={{ width: 390, height: "calc(100vh - 73px - 2rem)" }}
+                  className="overflow-hidden rounded-[2rem] border border-foreground/25 bg-black"
+                  style={{ width: 380, height: "100%" }}
                 >
-                  <PhoneViewer sets={phonePreviewSets} hiddenBySet={hiddenBySet} embedded />
+                  <PhoneViewer
+                    sets={phonePreviewSets}
+                    hiddenBySet={hiddenBySet}
+                    embedded
+                    showSettings={false}
+                    activeId={activeSetId}
+                    onActiveChange={setActiveSetId}
+                    onChordChange={handlePreviewChordChange}
+                  />
                 </div>
               )}
             </div>
@@ -1005,7 +1048,7 @@ function Presenter() {
         </main>
 
         {/* Right rail — hidden in mobile-preview mode. */}
-        {viewMode === "slides" && (
+        {effectiveViewMode === "slides" && (
           <aside className="h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground bg-background p-4 md:sticky md:top-[73px]">
             <div>
               <div className="mono mb-2 text-[10px] uppercase tracking-wider">Output preview</div>
