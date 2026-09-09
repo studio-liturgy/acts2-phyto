@@ -501,7 +501,6 @@ function Presenter() {
     const today = new Date().toLocaleDateString(undefined, {
       month: "long",
       day: "numeric",
-      year: "numeric",
     });
     const id = createGathering(today);
     navigate({ to: "/present", search: { gathering: id } });
