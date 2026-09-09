@@ -186,6 +186,11 @@ interface LibraryState {
   goLive: (gatheringId: string) => Promise<void>;
   /** End the live session for this gathering. Supabase is the source of truth. */
   endSession: (gatheringId: string) => Promise<void>;
+  /** Push the leader's hidden-section map to Supabase so the congregant phone
+   *  view (g/<token>) drops the same sections. Server-authoritative, live-only:
+   *  reset to `{}` by goLive at the start of each session. No-op when signed
+   *  out. */
+  pushHiddenSections: (gatheringId: string, hiddenBySet: Record<string, string[]>) => Promise<void>;
   /** Hydrate local `is_live` from Supabase (the source of truth). Call on
    *  login / session restore. No-op when signed out. */
   refreshLiveState: () => Promise<void>;
@@ -587,6 +592,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         share_token: target.share_token,
         is_live: true,
         live_started_at: new Date(liveStartedAt).toISOString(),
+        // Each session starts with nothing hidden — the leader re-hides as they
+        // go, and those choices don't leak from one gathering to the next.
+        hidden_sections: {},
         current_set_index: 0,
         current_slide_index: 0,
         created_at: new Date(target.createdAt).toISOString(),
@@ -650,6 +658,29 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     const updated = { ...target, is_live: false, live_started_at: null };
     set((s) => ({ gatherings: { ...s.gatherings, [gatheringId]: updated } }));
     await db.gatherings.put(updated);
+  },
+
+  pushHiddenSections: async (gatheringId, hiddenBySet) => {
+    const session = useAuthStore.getState().session;
+    if (!session) return;
+    // Only the sets actually in this gathering; a section key can't be hidden
+    // for a set the viewer never sees, and this keeps the row small. Empty
+    // arrays are dropped so an all-visible set doesn't linger in the map.
+    const target = get().gatherings[gatheringId];
+    const allowed = new Set(target?.setIds ?? []);
+    const scoped: Record<string, string[]> = {};
+    for (const [setId, keys] of Object.entries(hiddenBySet)) {
+      if (allowed.has(setId) && keys.length > 0) scoped[setId] = keys;
+    }
+    // Server-authoritative session state, exactly like is_live: no updatedAt
+    // bump (the DB trigger only advances it for title/share_token), and never
+    // written back into Dexie/Zustand as content.
+    const { error } = await supabase
+      .from("gatherings")
+      .update({ hidden_sections: scoped })
+      .eq("id", gatheringId)
+      .eq("user_id", session.user.id);
+    if (error) console.error("[pushHiddenSections] error:", error);
   },
 
   refreshLiveState: async () => {

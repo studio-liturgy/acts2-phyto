@@ -10,6 +10,14 @@
 -- alter table sets      add column if not exists last_modified_by text;
 -- alter table gatherings add column if not exists last_modified_by text;
 --
+-- Section visibility that reaches congregants' phones. The presenter hides song
+-- sections per session; this column carries those hidden section keys (a
+-- { setId: string[] } map) so the public g/<token> view drops the same
+-- sections. Server-authoritative session state like is_live — reset to {} by
+-- goLive at the start of each session, never bumps updated_at. REQUIRED for the
+-- presenter's per-section hiding to reach phones:
+-- alter table gatherings add column if not exists hidden_sections jsonb not null default '{}'::jsonb;
+--
 -- Add the (gathering_id, position) uniqueness invariant to an existing DB.
 -- Run AFTER de-duping any stray rows (the old non-atomic delete+insert path
 -- could leave duplicate positions). Safe to skip — the client no longer relies
@@ -197,6 +205,12 @@ create table if not exists gatherings (
   live_started_at     timestamptz,
   current_set_index   int         default 0,
   current_slide_index int         default 0,
+  -- Section keys the leader has hidden this session, as a { setId: string[] }
+  -- map. Server-authoritative session state (reset to {} on goLive); the public
+  -- share view drops these sections. See gatherings_update_updated_at — it is
+  -- deliberately NOT in the updated_at trigger, so hiding a section mid-session
+  -- doesn't register as a content change.
+  hidden_sections     jsonb       not null default '{}'::jsonb,
   created_at          timestamptz default now(),
   updated_at          timestamptz default now(),
   last_modified_by    text

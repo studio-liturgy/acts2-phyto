@@ -44,9 +44,13 @@ import {
   Play,
   Pause,
   RotateCcw,
+  Monitor,
+  Smartphone,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { stripChords } from "@/lib/chords";
+import { groupSlides, hiddenSlideIds } from "@/lib/sections";
+import { PhoneViewer, type PhoneSet } from "@/components/PhoneViewer";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
 
@@ -130,6 +134,7 @@ function Presenter() {
   const renameGathering = useLibrary((s) => s.renameGathering);
   const createSet = useLibrary((s) => s.createSet);
   const createGathering = useLibrary((s) => s.createGathering);
+  const pushHiddenSections = useLibrary((s) => s.pushHiddenSections);
   const navigate = useNavigate();
   const live = useLive();
   const songTemplate = useLibrary((s) => s.songTemplate);
@@ -159,6 +164,10 @@ function Presenter() {
   const [query, setQuery] = useState("");
   const [setSortMode, setSetSortMode] = useState<"az" | "newest">("az");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  // "slides" = the operator grid + output preview (default). "mobile" = a
+  // preview of what congregants see on their phones, replacing the slide grid
+  // and right rail.
+  const [viewMode, setViewMode] = useState<"slides" | "mobile">("slides");
   const [slideW, setSlideW] = useState(() => {
     if (typeof window === "undefined") return 256;
     const saved = localStorage.getItem("presenter-slide-w");
@@ -195,7 +204,7 @@ function Presenter() {
     // against the set's *current* groups so stale keys (from a prior edit) don't
     // skew the math.
     if (!alreadyHidden) {
-      const groups = sets[setId] ? groupSlides(sets[setId]) : [];
+      const groups = sets[setId] ? groupSlides(sets[setId].slides) : [];
       const hiddenNow = new Set(cur);
       const visible = groups.filter((g) => !hiddenNow.has(g.key)).length;
       if (visible <= 1) {
@@ -207,6 +216,11 @@ function Presenter() {
     }
     const next = alreadyHidden ? cur.filter((k) => k !== sectionKey) : [...cur, sectionKey];
     setHidden(setId, next);
+    // Mirror the change to the shared gathering so congregants' phones drop the
+    // same sections. Only meaningful inside a live gathering; harmless otherwise.
+    if (activeGathering) {
+      pushHiddenSections(activeGathering.id, { ...hiddenBySet, [setId]: next });
+    }
   };
 
   // While the warning is showing, let it follow the cursor.
@@ -261,6 +275,22 @@ function Presenter() {
     [liveSet, live.slideId],
   );
 
+  // Sets feeding the phone preview: the whole gathering (in order) mirrors what
+  // congregants get; outside a gathering, just the set being viewed.
+  const phonePreviewSets: PhoneSet[] = useMemo(() => {
+    const ids = activeGathering ? activeGathering.setIds : activeSetId ? [activeSetId] : [];
+    return ids
+      .map((id) => sets[id])
+      .filter((d): d is PhytoSet => !!d)
+      .map((d) => ({
+        id: d.id,
+        title: d.name,
+        type: d.kind,
+        slides: d.slides,
+        chords: d.chords,
+      }));
+  }, [activeGathering, activeSetId, sets]);
+
   const q = query.trim().toLowerCase();
   const showAll = !activeGathering;
   const filteredSets = setList
@@ -301,7 +331,7 @@ function Presenter() {
       if (!liveSet || !liveSlide) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-      const hidden = hiddenSlideIds(liveSet, hiddenBySet[liveSet.id] ?? []);
+      const hidden = hiddenSlideIds(liveSet.slides, hiddenBySet[liveSet.id] ?? []);
       const idx = liveSet.slides.findIndex((s) => s.id === liveSlide.id);
       const advance = () => {
         let j = idx + 1;
@@ -518,6 +548,30 @@ function Presenter() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            {/* Slides / Mobile view toggle. Slides is the operator grid; Mobile
+                previews the congregant phone view. */}
+            <div className="pill flex items-center border border-foreground p-0.5">
+              {(["slides", "mobile"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`mono uppercase flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs tracking-wider transition ${
+                    viewMode === mode
+                      ? "bg-foreground text-background"
+                      : "text-foreground hover:bg-foreground/10"
+                  }`}
+                  aria-pressed={viewMode === mode}
+                  title={mode === "slides" ? "Slides view" : "Phone preview"}
+                >
+                  {mode === "slides" ? (
+                    <Monitor className="h-3.5 w-3.5" />
+                  ) : (
+                    <Smartphone className="h-3.5 w-3.5" />
+                  )}
+                  {mode}
+                </button>
+              ))}
+            </div>
             {isSignedIn && activeShareToken && (
               <button
                 onClick={() => setShowShareDialog(true)}
@@ -541,7 +595,13 @@ function Presenter() {
 
       <div
         className={`grid flex-1 gap-0 ${
-          sidebarOpen ? "md:grid-cols-[240px_1fr_320px]" : "md:grid-cols-[1fr_320px]"
+          viewMode === "mobile"
+            ? sidebarOpen
+              ? "md:grid-cols-[240px_1fr]"
+              : "md:grid-cols-[1fr]"
+            : sidebarOpen
+              ? "md:grid-cols-[240px_1fr_320px]"
+              : "md:grid-cols-[1fr_320px]"
         }`}
       >
         {/* Sidebar */}
@@ -792,7 +852,24 @@ function Presenter() {
 
         {/* Main */}
         <main className="overflow-auto p-6">
-          {activeGathering ? (
+          {viewMode === "mobile" ? (
+            <div className="flex justify-center py-2">
+              {phonePreviewSets.length === 0 ? (
+                <div className="mono uppercase text-xs tracking-wider text-muted-foreground">
+                  {activeGathering
+                    ? "Gathering is empty. Add a set to preview the phone view."
+                    : "Select a set to preview the phone view."}
+                </div>
+              ) : (
+                <div
+                  className="overflow-hidden rounded-[2.5rem] border-8 border-foreground bg-black shadow-xl"
+                  style={{ width: 390, height: "calc(100vh - 73px - 2rem)" }}
+                >
+                  <PhoneViewer sets={phonePreviewSets} hiddenBySet={hiddenBySet} embedded />
+                </div>
+              )}
+            </div>
+          ) : activeGathering ? (
             setList.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 Gathering is empty. Search the sidebar or drag a set here to add one.
@@ -847,7 +924,7 @@ function Presenter() {
                 // "hidden" badge.
                 const activeHiddenCount = canHide
                   ? (() => {
-                      const groupKeys = new Set(groupSlides(d).map((g) => g.key));
+                      const groupKeys = new Set(groupSlides(d.slides).map((g) => g.key));
                       return hiddenKeys.filter((k) => groupKeys.has(k)).length;
                     })()
                   : 0;
@@ -927,147 +1004,149 @@ function Presenter() {
           )}
         </main>
 
-        {/* Right rail */}
-        <aside className="h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground bg-background p-4 md:sticky md:top-[73px]">
-          <div>
-            <div className="mono mb-2 text-[10px] uppercase tracking-wider">Output preview</div>
-            <div className="relative overflow-hidden rounded-lg bg-[var(--brand-black)]">
-              <DissolveSlide
-                slide={liveSlide}
-                variant="preview"
-                durationMs={fadeMs}
-                videoCmd={live.videoCmd}
-                template={
-                  liveSet?.kind === "song"
-                    ? effectiveSongTemplate
-                    : liveSet?.kind === "scripture"
-                      ? effectiveScriptureTemplate
-                      : liveSet?.template
-                }
-              />
-              <div
-                className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black text-xs text-white/40"
-                style={{
-                  opacity: live.blackout ? 1 : 0,
-                  transition:
-                    (live.blackoutFadeMs ?? 0) > 0
-                      ? `opacity ${live.blackoutFadeMs}ms ease-in-out`
-                      : undefined,
-                }}
-              >
-                BLACK
-              </div>
-            </div>
-            {liveSet && liveSlide && (
-              <p className="mono uppercase mt-2 text-xs text-muted-foreground">
-                {liveSet.name} · {liveSet.slides.findIndex((s) => s.id === liveSlide.id) + 1}
-              </p>
-            )}
-            <div className="mt-2 flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <NumberStepper
-                  value={fadeMs / 1000}
-                  onChange={(s) => setFadeMs(Math.round(s * 1000))}
-                  min={0}
-                  max={5}
-                  step={0.1}
-                  format={(n) => n.toFixed(1)}
-                  boxClassName="w-9"
-                  decrementLabel="Shorter slide fade"
-                  incrementLabel="Longer slide fade"
+        {/* Right rail — hidden in mobile-preview mode. */}
+        {viewMode === "slides" && (
+          <aside className="h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground bg-background p-4 md:sticky md:top-[73px]">
+            <div>
+              <div className="mono mb-2 text-[10px] uppercase tracking-wider">Output preview</div>
+              <div className="relative overflow-hidden rounded-lg bg-[var(--brand-black)]">
+                <DissolveSlide
+                  slide={liveSlide}
+                  variant="preview"
+                  durationMs={fadeMs}
+                  videoCmd={live.videoCmd}
+                  template={
+                    liveSet?.kind === "song"
+                      ? effectiveSongTemplate
+                      : liveSet?.kind === "scripture"
+                        ? effectiveScriptureTemplate
+                        : liveSet?.template
+                  }
                 />
-                <span className="text-xs text-muted-foreground">s</span>
-              </div>
-              <div className="flex items-center gap-1">
-                {liveSlide?.kind === "video" && (
-                  <>
-                    <button
-                      onClick={() => live.setVideoPlaying(!isVideoPlaying(live))}
-                      className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-foreground hover:text-background"
-                      title={isVideoPlaying(live) ? "Stop video" : "Play video"}
-                      aria-label={isVideoPlaying(live) ? "Stop video" : "Play video"}
-                    >
-                      {isVideoPlaying(live) ? (
-                        <Pause className="h-4 w-4" />
-                      ) : (
-                        <Play className="h-4 w-4" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => live.restartVideo()}
-                      className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-foreground hover:text-background"
-                      title="Restart video"
-                      aria-label="Restart video"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => live.toggleBlackout()}
-                  className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
-                  title="Stop (Esc) — fades to black"
-                  aria-label="Stop"
+                <div
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black text-xs text-white/40"
+                  style={{
+                    opacity: live.blackout ? 1 : 0,
+                    transition:
+                      (live.blackoutFadeMs ?? 0) > 0
+                        ? `opacity ${live.blackoutFadeMs}ms ease-in-out`
+                        : undefined,
+                  }}
                 >
-                  <X className="h-4 w-4" />
-                </button>
+                  BLACK
+                </div>
               </div>
-            </div>
-          </div>
-
-          {activeSet?.kind === "media" &&
-            (mediaFunctionsOpen ? (
-              <div className="rounded-2xl border border-foreground p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="mono text-[10px] uppercase tracking-wider">Media Functions</div>
+              {liveSet && liveSlide && (
+                <p className="mono uppercase mt-2 text-xs text-muted-foreground">
+                  {liveSet.name} · {liveSet.slides.findIndex((s) => s.id === liveSlide.id) + 1}
+                </p>
+              )}
+              <div className="mt-2 flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <NumberStepper
+                    value={fadeMs / 1000}
+                    onChange={(s) => setFadeMs(Math.round(s * 1000))}
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    format={(n) => n.toFixed(1)}
+                    boxClassName="w-9"
+                    decrementLabel="Shorter slide fade"
+                    incrementLabel="Longer slide fade"
+                  />
+                  <span className="text-xs text-muted-foreground">s</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {liveSlide?.kind === "video" && (
+                    <>
+                      <button
+                        onClick={() => live.setVideoPlaying(!isVideoPlaying(live))}
+                        className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-foreground hover:text-background"
+                        title={isVideoPlaying(live) ? "Stop video" : "Play video"}
+                        aria-label={isVideoPlaying(live) ? "Stop video" : "Play video"}
+                      >
+                        {isVideoPlaying(live) ? (
+                          <Pause className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => live.restartVideo()}
+                        className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-foreground hover:text-background"
+                        title="Restart video"
+                        aria-label="Restart video"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
                   <button
-                    onClick={() => setMediaFunctionsOpen(false)}
-                    className="mono text-[10px] uppercase text-muted-foreground hover:text-foreground"
+                    onClick={() => live.toggleBlackout()}
+                    className="pill flex h-8 w-8 items-center justify-center border border-foreground text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] hover:border-[var(--brand-red)]"
+                    title="Stop (Esc) — fades to black"
+                    aria-label="Stop"
                   >
-                    Cancel
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
-                <MediaPlaybackControls setId={activeSet.id} />
-                <button
-                  onClick={() => setMediaFunctionsOpen(false)}
-                  className="pill mono uppercase mt-3 flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-                >
-                  Apply to this media set
-                </button>
               </div>
-            ) : (
-              <button
-                onClick={() => setMediaFunctionsOpen(true)}
-                className="mono uppercase pill flex w-full items-center justify-center border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-              >
-                Edit Media Functions
-              </button>
-            ))}
+            </div>
 
-          {activeSet?.kind === "song" && <SongTemplateEditor />}
-          {activeSet?.kind === "scripture" && <ScriptureTemplateEditor />}
-
-          <div className="rounded-2xl border border-foreground">
-            <button
-              onClick={() => setShortcutsOpen((v) => !v)}
-              className="mono uppercase flex w-full items-center justify-between px-4 py-1.5 text-xs tracking-wider"
-            >
-              <span>Shortcuts</span>
-              {shortcutsOpen ? (
-                <ChevronUp className="h-4 w-4" />
+            {activeSet?.kind === "media" &&
+              (mediaFunctionsOpen ? (
+                <div className="rounded-2xl border border-foreground p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="mono text-[10px] uppercase tracking-wider">Media Functions</div>
+                    <button
+                      onClick={() => setMediaFunctionsOpen(false)}
+                      className="mono text-[10px] uppercase text-muted-foreground hover:text-foreground"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <MediaPlaybackControls setId={activeSet.id} />
+                  <button
+                    onClick={() => setMediaFunctionsOpen(false)}
+                    className="pill mono uppercase mt-3 flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                  >
+                    Apply to this media set
+                  </button>
+                </div>
               ) : (
-                <ChevronDown className="h-4 w-4" />
+                <button
+                  onClick={() => setMediaFunctionsOpen(true)}
+                  className="mono uppercase pill flex w-full items-center justify-center border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                >
+                  Edit Media Functions
+                </button>
+              ))}
+
+            {activeSet?.kind === "song" && <SongTemplateEditor />}
+            {activeSet?.kind === "scripture" && <ScriptureTemplateEditor />}
+
+            <div className="rounded-2xl border border-foreground">
+              <button
+                onClick={() => setShortcutsOpen((v) => !v)}
+                className="mono uppercase flex w-full items-center justify-between px-4 py-1.5 text-xs tracking-wider"
+              >
+                <span>Shortcuts</span>
+                {shortcutsOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </button>
+              {shortcutsOpen && (
+                <div className="mono uppercase space-y-1 border-t border-foreground/20 px-4 py-3 text-xs text-muted-foreground">
+                  <div>→ / Space — next slide</div>
+                  <div>← — previous slide</div>
+                  <div>Esc — stop (fade to black)</div>
+                </div>
               )}
-            </button>
-            {shortcutsOpen && (
-              <div className="mono uppercase space-y-1 border-t border-foreground/20 px-4 py-3 text-xs text-muted-foreground">
-                <div>→ / Space — next slide</div>
-                <div>← — previous slide</div>
-                <div>Esc — stop (fade to black)</div>
-              </div>
-            )}
-          </div>
-        </aside>
+            </div>
+          </aside>
+        )}
       </div>
 
       <MediaAutoAdvance />
@@ -1212,67 +1291,6 @@ function MediaPlaybackControls({ setId }: { setId: string }) {
   );
 }
 
-const SECTION_RE =
-  /^\s*\[?(verse\s*\d*|chorus|bridge|pre[- ]?chorus|intro|outro|tag|interlude|refrain)\]?:?\s*$/i;
-
-function sectionOf(s: Slide): string | null {
-  if (s.section && s.section.trim()) return s.section.trim();
-  if (s.kind === "lyric" && s.reference && SECTION_RE.test(s.reference)) {
-    return s.reference.trim();
-  }
-  return null;
-}
-
-type SlideGroup = {
-  /** Resolved section label for the group; null when unlabeled. */
-  section: string | null;
-  /** Stable identity for section-hiding and React keys: the resolved label plus
-   *  its occurrence index (e.g. "Chorus#0", "Verse 2#0", "§none#0"). Unlike a
-   *  slide id, this survives the slide-id regeneration that happens when a
-   *  song/scripture set is edited, so a hidden section stays hidden. */
-  key: string;
-  items: { slide: Slide; index: number }[];
-};
-
-/** Group consecutive slides by their resolved section, the same way the
- *  presenter grid renders them. Shared so navigation and the grid agree. */
-function groupSlides(phytoSet: PhytoSet): SlideGroup[] {
-  const groups: SlideGroup[] = [];
-  let currentSection: string | null = null;
-  phytoSet.slides.forEach((s, i) => {
-    const sec = sectionOf(s);
-    const resolvedSection = sec ?? currentSection;
-    const last = groups[groups.length - 1];
-    if (!last || resolvedSection !== currentSection) {
-      groups.push({ section: resolvedSection, key: "", items: [{ slide: s, index: i }] });
-      currentSection = resolvedSection;
-    } else {
-      last.items.push({ slide: s, index: i });
-    }
-  });
-  // Assign stable keys: label + per-label occurrence index, so two distinct
-  // "Chorus" sections stay independently hideable.
-  const seen = new Map<string, number>();
-  for (const g of groups) {
-    const label = g.section ?? "§none";
-    const n = seen.get(label) ?? 0;
-    seen.set(label, n + 1);
-    g.key = `${label}#${n}`;
-  }
-  return groups;
-}
-
-/** Slide ids belonging to the hidden section groups (identified by stable key). */
-function hiddenSlideIds(phytoSet: PhytoSet, hiddenKeys: string[]): Set<string> {
-  const ids = new Set<string>();
-  if (hiddenKeys.length === 0) return ids;
-  const keys = new Set(hiddenKeys);
-  for (const g of groupSlides(phytoSet)) {
-    if (keys.has(g.key)) for (const it of g.items) ids.add(it.slide.id);
-  }
-  return ids;
-}
-
 function PresenterThumb({
   slide,
   index,
@@ -1377,7 +1395,7 @@ function SlideGridForPresenter({
     );
   }
 
-  const groups = groupSlides(phytoSet);
+  const groups = groupSlides(phytoSet.slides);
   const hidden = new Set(hiddenKeys);
 
   // How many slides fit in one row given the measured container width
