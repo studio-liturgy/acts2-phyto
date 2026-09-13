@@ -1660,6 +1660,7 @@ function PresenterThumb({
   disabled?: boolean;
 }) {
   const isLive = live.setId === phytoSet.id && live.slideId === slide.id;
+  const updateSlide = useLibrary((s) => s.updateSlide);
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
   const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
@@ -1670,34 +1671,115 @@ function PresenterThumb({
       : phytoSet.kind === "scripture"
         ? (scriptureDraft ?? scriptureTemplate)
         : phytoSet.template;
+
+  // Fast Edit: adjust this slide's text lines in place, without opening the set
+  // editor. Only text slides carry editable lines; media/image/blank do not.
+  // Editing `lines` directly preserves inline chord markup as typed (chords are
+  // only stripped for display), so no chord-aware parsing is needed here.
+  const canEdit = slide.kind === "lyric" || slide.kind === "scripture";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const startEdit = () => {
+    setDraft((slide.lines ?? []).join("\n"));
+    setEditing(true);
+  };
+  const confirmEdit = () => {
+    updateSlide(phytoSet.id, slide.id, { lines: draft.split("\n") });
+    setEditing(false);
+  };
+
   return (
-    <button
-      onClick={() => live.go(phytoSet.id, slide.id)}
-      disabled={disabled}
-      className={`group relative w-full overflow-hidden rounded-lg border-2 text-left transition focus:outline-none focus-visible:outline-none ${
-        isLive
-          ? "border-[var(--live-color)] dark:border-foreground"
-          : disabled
-            ? "border-transparent"
-            : "border-transparent hover:border-white dark:hover:border-foreground"
-      } ${disabled ? "cursor-default" : ""}`}
+    <div
+      className="group relative w-full"
       style={
         isLive
           ? ({ "--live-color": kindLiveColor(phytoSet.kind) } as React.CSSProperties)
           : undefined
       }
     >
-      <SlideView slide={slide} variant="thumb" template={template} />
-      <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
-        {isLive && (
-          <span
-            className="h-2 w-2 rounded-full"
-            style={{ backgroundColor: kindLiveColor(phytoSet.kind) }}
+      <button
+        onClick={() => live.go(phytoSet.id, slide.id)}
+        disabled={disabled || editing}
+        className={`w-full overflow-hidden rounded-lg border-2 text-left transition focus:outline-none focus-visible:outline-none ${
+          isLive
+            ? "border-[var(--live-color)] dark:border-foreground"
+            : disabled
+              ? "border-transparent"
+              : "border-transparent hover:border-white dark:hover:border-foreground"
+        } ${disabled ? "cursor-default" : ""}`}
+      >
+        <SlideView slide={slide} variant="thumb" template={template} />
+        <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
+          {isLive && (
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: kindLiveColor(phytoSet.kind) }}
+            />
+          )}
+          {index + 1}
+        </div>
+      </button>
+
+      {/* Hover-revealed Fast Edit pencil, top-right of the slide preview. */}
+      {canEdit && !disabled && !editing && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            startEdit();
+          }}
+          className="pill absolute right-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center border border-foreground bg-background text-foreground opacity-0 transition hover:bg-foreground hover:text-background focus-visible:opacity-100 group-hover:opacity-100"
+          title="Edit text"
+          aria-label="Edit slide text"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      )}
+
+      {/* Inline editor: covers the preview, applies only on Confirm. */}
+      {editing && (
+        <div
+          className="absolute inset-0 z-20 flex flex-col gap-1 rounded-lg border-2 border-foreground bg-background p-1.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <textarea
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setEditing(false);
+              } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                confirmEdit();
+              }
+            }}
+            className="mono w-full flex-1 resize-none rounded-md border border-foreground/20 bg-background p-2 text-xs leading-snug outline-none"
           />
-        )}
-        {index + 1}
-      </div>
-    </button>
+          <div className="flex justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="pill flex h-6 w-6 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+              title="Cancel"
+              aria-label="Cancel edit"
+            >
+              <X className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              onClick={confirmEdit}
+              className="pill flex h-6 w-6 items-center justify-center border border-foreground bg-foreground text-background transition hover:opacity-90"
+              title="Confirm"
+              aria-label="Confirm edit"
+            >
+              <Check className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
