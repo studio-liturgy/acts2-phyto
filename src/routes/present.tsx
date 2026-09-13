@@ -56,7 +56,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { stripChords, transposeLyrics, guessKey } from "@/lib/chords";
+import { stripChords, stripChordsRaw, transposeLyrics, guessKey } from "@/lib/chords";
+import { create } from "zustand";
 import { groupSlides, hiddenSlideIds } from "@/lib/sections";
 import {
   PhoneViewer,
@@ -1646,6 +1647,24 @@ function MediaPlaybackControls({ setId }: { setId: string }) {
   );
 }
 
+// Only one slide may be fast-edited at a time across the whole presenter, so the
+// open editor lives in a shared store keyed by slide id: opening another slide's
+// editor closes the previous one. The draft text lives here too, so switching
+// slides discards an unconfirmed edit rather than leaking it between thumbs.
+const useFastEditSlide = create<{
+  editingId: string | null;
+  draft: string;
+  open: (id: string, seed: string) => void;
+  setDraft: (v: string) => void;
+  close: () => void;
+}>((set) => ({
+  editingId: null,
+  draft: "",
+  open: (id, seed) => set({ editingId: id, draft: seed }),
+  setDraft: (v) => set({ draft: v }),
+  close: () => set({ editingId: null, draft: "" }),
+}));
+
 function PresenterThumb({
   slide,
   index,
@@ -1674,18 +1693,26 @@ function PresenterThumb({
 
   // Fast Edit: adjust this slide's text lines in place, without opening the set
   // editor. Only text slides carry editable lines; media/image/blank do not.
-  // Editing `lines` directly preserves inline chord markup as typed (chords are
-  // only stripped for display), so no chord-aware parsing is needed here.
+  // Chords are hidden and NOT editable here: the textarea shows chord-stripped
+  // lyrics, and on confirm a line whose visible text is unchanged keeps its
+  // original chords verbatim, while a rewritten line is saved as plain text (its
+  // old chord anchors no longer apply — re-add chords in the full editor).
   const canEdit = slide.kind === "lyric" || slide.kind === "scripture";
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const startEdit = () => {
-    setDraft((slide.lines ?? []).join("\n"));
-    setEditing(true);
-  };
+  const editingId = useFastEditSlide((s) => s.editingId);
+  const draft = useFastEditSlide((s) => s.draft);
+  const openEdit = useFastEditSlide((s) => s.open);
+  const setDraft = useFastEditSlide((s) => s.setDraft);
+  const closeEdit = useFastEditSlide((s) => s.close);
+  const editing = editingId === slide.id;
+  const startEdit = () => openEdit(slide.id, (slide.lines ?? []).map(stripChordsRaw).join("\n"));
   const confirmEdit = () => {
-    updateSlide(phytoSet.id, slide.id, { lines: draft.split("\n") });
-    setEditing(false);
+    const orig = slide.lines ?? [];
+    const lines = draft.split("\n").map((plain, i) => {
+      const o = orig[i];
+      return o !== undefined && stripChordsRaw(o) === plain ? o : plain;
+    });
+    updateSlide(phytoSet.id, slide.id, { lines });
+    closeEdit();
   };
 
   return (
@@ -1720,7 +1747,8 @@ function PresenterThumb({
         </div>
       </button>
 
-      {/* Hover-revealed Fast Edit pencil, top-right of the slide preview. */}
+      {/* Hover-revealed Fast Edit pencil, top-right of the slide preview.
+          No outline — just the icon on a subtle chip for legibility. */}
       {canEdit && !disabled && !editing && (
         <button
           type="button"
@@ -1728,7 +1756,7 @@ function PresenterThumb({
             e.stopPropagation();
             startEdit();
           }}
-          className="pill absolute right-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center border border-foreground bg-background text-foreground opacity-0 transition hover:bg-foreground hover:text-background focus-visible:opacity-100 group-hover:opacity-100"
+          className="absolute right-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100"
           title="Edit text"
           aria-label="Edit slide text"
         >
@@ -1736,12 +1764,33 @@ function PresenterThumb({
         </button>
       )}
 
-      {/* Inline editor: covers the preview, applies only on Confirm. */}
+      {/* Inline editor: covers the preview. Cancel / Done sit at the top-right;
+          changes apply only on Done. */}
       {editing && (
         <div
-          className="absolute inset-0 z-20 flex flex-col gap-1 rounded-lg border-2 border-foreground bg-background p-1.5"
+          className="absolute inset-0 z-20 flex flex-col rounded-lg border-2 border-foreground bg-background"
           onClick={(e) => e.stopPropagation()}
         >
+          <div className="flex justify-end gap-1 p-1">
+            <button
+              type="button"
+              onClick={closeEdit}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/10"
+              title="Cancel"
+              aria-label="Cancel edit"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={confirmEdit}
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
+              title="Done"
+              aria-label="Confirm edit"
+            >
+              <Check className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <textarea
             autoFocus
             value={draft}
@@ -1749,34 +1798,14 @@ function PresenterThumb({
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 e.preventDefault();
-                setEditing(false);
+                closeEdit();
               } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 confirmEdit();
               }
             }}
-            className="mono w-full flex-1 resize-none rounded-md border border-foreground/20 bg-background p-2 text-xs leading-snug outline-none"
+            className="mono w-full flex-1 resize-none bg-background px-2 pb-2 text-xs leading-snug outline-none"
           />
-          <div className="flex justify-end gap-1">
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="pill flex h-6 w-6 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-              title="Cancel"
-              aria-label="Cancel edit"
-            >
-              <X className="h-3 w-3" />
-            </button>
-            <button
-              type="button"
-              onClick={confirmEdit}
-              className="pill flex h-6 w-6 items-center justify-center border border-foreground bg-foreground text-background transition hover:opacity-90"
-              title="Confirm"
-              aria-label="Confirm edit"
-            >
-              <Check className="h-3 w-3" />
-            </button>
-          </div>
         </div>
       )}
     </div>
