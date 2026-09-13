@@ -400,13 +400,33 @@ export function DissolveSlide({
   const [templateB, setTemplateB] = useState<Props["template"]>(undefined);
   const [front, setFront] = useState<"a" | "b">("a");
   const lastKey = useRef<string>(slide?.id ?? "none");
+  const lastSig = useRef<string>(slide ? JSON.stringify(slide) : "none");
   const templateRef = useRef(template);
   templateRef.current = template;
 
   useEffect(() => {
     const key = slide?.id ?? "none";
-    if (key === lastKey.current) return;
+    if (key === lastKey.current) {
+      // Same slide id, but its content may have changed — e.g. a live fast-edit
+      // of the currently-live slide. Refresh the visible layer in place (no
+      // dissolve), but only when the content actually changed, so an unrelated
+      // store write handing us a new-but-identical object doesn't needlessly
+      // re-render or restart a playing video.
+      const sig = slide ? JSON.stringify(slide) : "none";
+      if (sig !== lastSig.current) {
+        lastSig.current = sig;
+        if (front === "a") {
+          setA(slide);
+          setTemplateA(templateRef.current);
+        } else {
+          setB(slide);
+          setTemplateB(templateRef.current);
+        }
+      }
+      return;
+    }
     lastKey.current = key;
+    lastSig.current = slide ? JSON.stringify(slide) : "none";
 
     // A dissolve is only worth staging for when there are frames to draw it
     // with. A hidden tab gets no animation frames at all, and Chrome throttles

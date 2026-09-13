@@ -56,7 +56,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { stripChords, stripChordsRaw, transposeLyrics, guessKey } from "@/lib/chords";
+import {
+  stripChords,
+  stripChordsRaw,
+  reapplyChords,
+  transposeLyrics,
+  guessKey,
+} from "@/lib/chords";
 import { create } from "zustand";
 import { groupSlides, hiddenSlideIds } from "@/lib/sections";
 import {
@@ -1694,9 +1700,10 @@ function PresenterThumb({
   // Fast Edit: adjust this slide's text lines in place, without opening the set
   // editor. Only text slides carry editable lines; media/image/blank do not.
   // Chords are hidden and NOT editable here: the textarea shows chord-stripped
-  // lyrics, and on confirm a line whose visible text is unchanged keeps its
-  // original chords verbatim, while a rewritten line is saved as plain text (its
-  // old chord anchors no longer apply — re-add chords in the full editor).
+  // lyrics. On confirm, reapplyChords re-anchors the original chords onto the
+  // edited text (the same LCS reattach the full editor uses for its
+  // chords-hidden mode), so editing a line keeps its chords rather than dropping
+  // them.
   const canEdit = slide.kind === "lyric" || slide.kind === "scripture";
   const editingId = useFastEditSlide((s) => s.editingId);
   const draft = useFastEditSlide((s) => s.draft);
@@ -1706,12 +1713,8 @@ function PresenterThumb({
   const editing = editingId === slide.id;
   const startEdit = () => openEdit(slide.id, (slide.lines ?? []).map(stripChordsRaw).join("\n"));
   const confirmEdit = () => {
-    const orig = slide.lines ?? [];
-    const lines = draft.split("\n").map((plain, i) => {
-      const o = orig[i];
-      return o !== undefined && stripChordsRaw(o) === plain ? o : plain;
-    });
-    updateSlide(phytoSet.id, slide.id, { lines });
+    const merged = reapplyChords((slide.lines ?? []).join("\n"), draft);
+    updateSlide(phytoSet.id, slide.id, { lines: merged.split("\n") });
     closeEdit();
   };
 
@@ -1768,7 +1771,7 @@ function PresenterThumb({
           changes apply only on Done. */}
       {editing && (
         <div
-          className="absolute inset-0 z-20 flex flex-col rounded-lg border-2 border-foreground bg-background"
+          className="absolute inset-0 z-20 flex flex-col overflow-hidden rounded-lg border-2 border-foreground bg-background"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-end gap-1 p-1">
