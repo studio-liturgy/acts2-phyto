@@ -49,6 +49,7 @@ export function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
       loop: s.loop,
       dissolveMs: s.dissolveMs,
     },
+    group_id: s.group_id ?? null,
     created_at: new Date(s.createdAt).toISOString(),
     updated_at: new Date(s.updatedAt).toISOString(),
     synced_at: new Date().toISOString(),
@@ -69,6 +70,7 @@ export function toSupabaseGathering(p: Gathering, userId: string, deviceId: stri
     user_id: userId,
     title: p.name,
     share_token: p.share_token,
+    group_id: p.group_id ?? null,
     current_set_index: 0,
     current_slide_index: 0,
     created_at: new Date(p.createdAt).toISOString(),
@@ -89,6 +91,7 @@ export function fromSupabaseSet(row: Record<string, unknown>): PhytoSet {
     autoAdvanceMs: content.autoAdvanceMs as number | undefined,
     loop: content.loop as boolean | undefined,
     dissolveMs: content.dissolveMs as number | undefined,
+    group_id: row.group_id ? (row.group_id as string) : undefined,
     createdAt: new Date(row.created_at as string).getTime(),
     updatedAt: new Date(row.updated_at as string).getTime(),
   };
@@ -101,6 +104,7 @@ export function fromSupabaseGathering(row: Record<string, unknown>, setIds: stri
     share_token: (row.share_token as string) || nanoid(10),
     is_live: (row.is_live as boolean) ?? false,
     live_started_at: row.live_started_at ? new Date(row.live_started_at as string).getTime() : null,
+    group_id: row.group_id ? (row.group_id as string) : undefined,
     setIds,
     createdAt: new Date(row.created_at as string).getTime(),
     updatedAt: new Date(row.updated_at as string).getTime(),
@@ -215,7 +219,7 @@ export async function fetchRemote(
       (from, to) =>
         supabase
           .from("sets")
-          .select("id, title, type, created_at, updated_at")
+          .select("id, title, type, group_id, created_at, updated_at")
           .eq("user_id", userId)
           .order("id")
           .range(from, to),
@@ -260,9 +264,12 @@ export async function fetchRemote(
     const remoteUpdatedAt = new Date(row.updated_at as string).getTime();
     if (local && sameSecond(local.updatedAt, remoteUpdatedAt)) {
       // Reuse local content; adopt remote timestamps so downstream checks see
-      // exactly what the server reported.
+      // exactly what the server reported. group_id is adopted too: moving a set
+      // between personal and a group doesn't bump updated_at, so it must be
+      // picked up here rather than only on a content re-fetch.
       sets.push({
         ...local,
+        group_id: row.group_id ? (row.group_id as string) : undefined,
         createdAt: new Date(row.created_at as string).getTime(),
         updatedAt: remoteUpdatedAt,
       });

@@ -67,6 +67,9 @@ export interface Set {
   loop?: boolean;
   /** Media-only: cross-dissolve duration in ms between slides. */
   dissolveMs?: number;
+  /** Which workspace this set belongs to: a group id, or absent/null for the
+   *  owner's personal library. `user_id` (server-side) stays the contributor. */
+  group_id?: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -76,6 +79,8 @@ export interface Gathering {
   name: string;
   setIds: string[];
   share_token: string;
+  /** Group workspace this gathering belongs to, or absent/null for personal. */
+  group_id?: string | null;
   /** Live status. Server-authoritative: `true`/`false` reflect Supabase;
    *  `null` means logged-out/unknown (no local truth).
    *  Read this through `isLiveNow()` — a session that was never manually ended

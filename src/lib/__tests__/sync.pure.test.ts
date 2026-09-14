@@ -64,6 +64,30 @@ describe("Supabase row mappers", () => {
     expect(back).toEqual(set);
   });
 
+  it("carries a set's group_id through the row, and stores personal sets as null", () => {
+    // A group set keeps its group_id across the DB row and back.
+    const grouped = makeSet({ group_id: "grp-1" });
+    const groupedRow = toSupabaseSet(grouped, USER_ID, "device-1");
+    expect(groupedRow.group_id).toBe("grp-1");
+    expect(fromSupabaseSet(groupedRow).group_id).toBe("grp-1");
+
+    // A personal set is stored as NULL and read back as absent, so the round-trip
+    // stays identity and the local model keeps "personal = no group_id".
+    const personalRow = toSupabaseSet(makeSet(), USER_ID, "device-1");
+    expect(personalRow.group_id).toBeNull();
+    expect(fromSupabaseSet(personalRow).group_id).toBeUndefined();
+  });
+
+  it("carries a gathering's group_id through toSupabaseGathering/fromSupabaseGathering", () => {
+    const grouped = makeGathering({ group_id: "grp-1" });
+    const row = toSupabaseGathering(grouped, USER_ID, "device-1") as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(row.group_id).toBe("grp-1");
+    expect(fromSupabaseGathering(row, grouped.setIds).group_id).toBe("grp-1");
+  });
+
   it("fromSupabaseGathering backfills share_token and defaults null is_live to false", () => {
     const g = fromSupabaseGathering(
       {

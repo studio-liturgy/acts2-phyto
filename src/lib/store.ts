@@ -59,6 +59,18 @@ function readFadeMs(): number {
   return 0;
 }
 
+// --- Active workspace ("personal" or a group id) persistence ---
+const WORKSPACE_KEY = "active-workspace-v1";
+
+function readActiveWorkspace(): string {
+  if (typeof window === "undefined") return "personal";
+  try {
+    return localStorage.getItem(WORKSPACE_KEY) || "personal";
+  } catch {
+    return "personal";
+  }
+}
+
 function readScriptureTemplate(): SetTemplate {
   if (typeof window === "undefined") return { ...DEFAULT_SCRIPTURE_TEMPLATE };
   try {
@@ -131,10 +143,22 @@ function purgeUploadedMedia(slides: Slide[]): void {
  * `loadFromDb` and the cross-tab `liveQuery` subscription so both produce an
  * identical store, sorted newest-first by `createdAt`.
  */
-function buildLibraryState(allSets: PhytoSet[], allGatherings: Gathering[]) {
+/** Whether a row belongs to the active workspace: `"personal"` shows rows with
+ *  no group_id (the owner's own library); a group id shows only that group's
+ *  rows. Absent/null group_id is always personal. */
+function inWorkspace(row: { group_id?: string | null }, activeWorkspace: string): boolean {
+  return activeWorkspace === "personal" ? !row.group_id : row.group_id === activeWorkspace;
+}
+
+function buildLibraryState(
+  allSets: PhytoSet[],
+  allGatherings: Gathering[],
+  activeWorkspace: string,
+) {
   const sets: Record<string, PhytoSet> = {};
   const order: string[] = [];
   for (const s of allSets) {
+    if (!inWorkspace(s, activeWorkspace)) continue;
     sets[s.id] = s;
     order.push(s.id);
   }
@@ -143,6 +167,7 @@ function buildLibraryState(allSets: PhytoSet[], allGatherings: Gathering[]) {
   const gatherings: Record<string, Gathering> = {};
   const gatheringOrder: string[] = [];
   for (const p of allGatherings) {
+    if (!inWorkspace(p, activeWorkspace)) continue;
     gatherings[p.id] = p;
     gatheringOrder.push(p.id);
   }
@@ -156,6 +181,11 @@ interface LibraryState {
   order: string[];
   gatherings: Record<string, Gathering>;
   gatheringOrder: string[];
+  /** Active workspace: "personal" (the owner's own library) or a group id. The
+   *  library store is derived scoped to this — see buildLibraryState. */
+  activeWorkspace: string;
+  /** Switch workspace and re-derive the visible library from Dexie. */
+  setActiveWorkspace: (ws: string) => Promise<void>;
   /** Global template applied to ALL song sets. */
   songTemplate: SetTemplate;
   setSongTemplate: (patch: SetTemplate) => void;
@@ -213,6 +243,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   order: [],
   gatherings: {},
   gatheringOrder: [],
+  activeWorkspace: typeof window !== "undefined" ? readActiveWorkspace() : "personal",
   songTemplate: typeof window !== "undefined" ? readSongTemplate() : { ...DEFAULT_SONG_TEMPLATE },
   scriptureTemplate:
     typeof window !== "undefined" ? readScriptureTemplate() : { ...DEFAULT_SCRIPTURE_TEMPLATE },
@@ -223,7 +254,18 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       db.sets.toArray(),
       db.gatherings.toArray(),
     ]);
-    set(buildLibraryState(allSets, allGatherings));
+    set(buildLibraryState(allSets, allGatherings, get().activeWorkspace));
+  },
+
+  setActiveWorkspace: async (ws) => {
+    try {
+      localStorage.setItem(WORKSPACE_KEY, ws);
+    } catch {}
+    const [allSets, allGatherings] = await Promise.all([
+      db.sets.toArray(),
+      db.gatherings.toArray(),
+    ]);
+    set({ activeWorkspace: ws, ...buildLibraryState(allSets, allGatherings, ws) });
   },
 
   migrateInlineImages: async () => {
@@ -755,7 +797,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
 if (typeof window !== "undefined") {
   liveQuery(() => Promise.all([db.sets.toArray(), db.gatherings.toArray()])).subscribe({
     next: ([allSets, allGatherings]) =>
-      useLibrary.setState(buildLibraryState(allSets, allGatherings)),
+      useLibrary.setState(
+        buildLibraryState(allSets, allGatherings, useLibrary.getState().activeWorkspace),
+      ),
     error: (err) => console.error("[store] liveQuery subscription error:", err),
   });
 }

@@ -25,6 +25,14 @@ export class PhytoDB extends Dexie {
       gatherings: "id, share_token, createdAt, updatedAt",
       gathering_sets: "id, gathering_id, set_id, position",
     });
+    // v3: index group_id so the library can be scoped to the active workspace
+    // (personal = group_id absent/null). Additive index only; existing rows keep
+    // their data and simply read as personal.
+    this.version(3).stores({
+      sets: "id, createdAt, updatedAt, group_id",
+      gatherings: "id, share_token, createdAt, updatedAt, group_id",
+      gathering_sets: "id, gathering_id, set_id, position",
+    });
   }
 }
 
