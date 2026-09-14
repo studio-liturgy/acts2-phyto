@@ -238,6 +238,7 @@ function SetHeader({
   const [showDeleteSetDialog, setShowDeleteSetDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const isSignedIn = useIsSignedIn();
+  const groups = useLibrary((s) => s.groups);
   const nameBeforeEditRef = useRef(phytoSet.name);
   const commitName = () => {
     if (!phytoSet.name.trim()) {
@@ -356,6 +357,7 @@ function SetHeader({
           onOpenChange={setShowShareDialog}
           setId={phytoSet.id}
           setName={phytoSet.name}
+          groups={groups}
         />
       )}
       {phytoSet.kind === "song" && <SongJump currentId={phytoSet.id} navigate={navigate} />}

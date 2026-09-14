@@ -352,6 +352,7 @@ function Library() {
   const duplicateGroups = useMemo(() => {
     const groups = new Map<string, PhytoSet[]>();
     for (const d of allSets) {
+      if (d.shared) continue; // only dedupe your own sets, not ones shared with you
       const key = d.name.trim().toLowerCase();
       const list = groups.get(key);
       if (list) list.push(d);

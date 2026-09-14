@@ -35,6 +35,9 @@ export function BulkShareSetsDialog({
   const [done, setDone] = useState<string | null>(null);
   const [groupBusy, setGroupBusy] = useState<string | null>(null);
   const [groupDone, setGroupDone] = useState<string | null>(null);
+  // Optimistic per-group membership after an Add/Remove, so the buttons flip
+  // immediately instead of waiting for the liveQuery to catch up.
+  const [localIn, setLocalIn] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!open) return;
@@ -43,10 +46,15 @@ export function BulkShareSetsDialog({
     setDone(null);
     setGroupBusy(null);
     setGroupDone(null);
+    setLocalIn({});
   }, [open]);
 
   const total = sets.length;
-  const inGroupCount = (gid: string) => sets.filter((s) => (s.groupIds ?? []).includes(gid)).length;
+  const inGroupCount = (gid: string) => {
+    const override = localIn[gid];
+    if (override !== undefined) return override ? total : 0;
+    return sets.filter((s) => (s.groupIds ?? []).includes(gid)).length;
+  };
 
   const runGroup = async (
     gid: string,
@@ -58,6 +66,7 @@ export function BulkShareSetsDialog({
     setGroupDone(null);
     try {
       await fn(gid);
+      setLocalIn((m) => ({ ...m, [gid]: verb === "Added" }));
       setGroupDone(`${verb} ${label} ${verb === "Added" ? "to" : "from"} ${name}.`);
     } catch {
       setGroupDone(null);
