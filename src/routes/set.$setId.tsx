@@ -326,15 +326,17 @@ function SetHeader({
         onClick={() => setShowDeleteSetDialog(true)}
         className="mono uppercase pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-xs text-[var(--brand-white)] transition hover:opacity-90"
       >
-        Delete
+        {phytoSet.shared ? "Remove" : "Delete"}
       </button>
       <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">
-            Delete this set?
+            {phytoSet.shared ? "Remove this shared set?" : "Delete this set?"}
           </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            This cannot be undone.
+            {phytoSet.shared
+              ? `This removes you from “${phytoSet.name}” completely. You'll lose access, and it won't come back unless the owner shares it with you again.`
+              : "This cannot be undone."}
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
@@ -345,7 +347,7 @@ function SetHeader({
               }}
               className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
             >
-              Delete
+              {phytoSet.shared ? "Remove" : "Delete"}
             </button>
             <button
               type="button"

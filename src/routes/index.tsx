@@ -51,7 +51,7 @@ import {
   type InboxShare,
 } from "@/lib/sync";
 import { previewText } from "@/lib/set-preview";
-import { SharedInboxDialog } from "@/components/SharedInboxDialog";
+import { SharedInboxList } from "@/components/SharedInboxList";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
 const KIND_COLOR: Record<string, string> = {
@@ -217,7 +217,7 @@ function Library() {
     const ok = await saveSharedSet(share.set.id, share.ownerEmail);
     if (ok) setInbox((prev) => prev.filter((s) => s.shareId !== share.shareId));
   };
-  const handleDismissShare = async (share: InboxShare) => {
+  const handleRemoveShare = async (share: InboxShare) => {
     await removeSharedSet(share.set.id);
     setInbox((prev) => prev.filter((s) => s.shareId !== share.shareId));
   };
@@ -500,16 +500,29 @@ function Library() {
         />
       ) : (
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
-          {/* Incoming shared sets: a single notification pill above everything. */}
+          {/* Incoming shared sets: a notification pill that toggles an inline list
+              directly beneath it (no modal). */}
           {inbox.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setInboxOpen(true)}
-              className="pill mono uppercase mb-8 flex items-center gap-2 border-2 border-[var(--brand-blue)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-blue)] transition hover:bg-[var(--brand-blue)] hover:text-[var(--brand-white)]"
-            >
-              <span className="h-2 w-2 rounded-full bg-current" />
-              {inbox.length} set{inbox.length === 1 ? "" : "s"} shared with you
-            </button>
+            <div className="mb-8">
+              <button
+                type="button"
+                onClick={() => setInboxOpen((v) => !v)}
+                aria-expanded={inboxOpen}
+                className="pill mono uppercase flex items-center gap-2 border-2 border-foreground px-4 py-1.5 text-xs tracking-wider text-foreground transition hover:bg-foreground hover:text-background"
+              >
+                <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
+                {inbox.length} set{inbox.length === 1 ? "" : "s"} shared with you
+              </button>
+              {inboxOpen && (
+                <div className="mt-3">
+                  <SharedInboxList
+                    shares={inbox}
+                    onSave={handleSaveShare}
+                    onRemove={handleRemoveShare}
+                  />
+                </div>
+              )}
+            </div>
           )}
 
           {/* Gatherings */}
@@ -1059,14 +1072,6 @@ function Library() {
           setName={shareSet.name}
         />
       )}
-
-      <SharedInboxDialog
-        open={inboxOpen}
-        onOpenChange={setInboxOpen}
-        shares={inbox}
-        onSave={handleSaveShare}
-        onDismiss={handleDismissShare}
-      />
     </div>
   );
 }
