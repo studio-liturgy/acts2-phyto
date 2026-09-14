@@ -57,6 +57,30 @@ export function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
   };
 }
 
+/** Upsert payload for a FOREIGN set (one shared with me) that I edit as a
+ *  collaborator. Deliberately omits user_id AND group_id, so a conflict-update
+ *  leaves the owner's contributor and workspace untouched (PostgREST leaves
+ *  omitted columns unchanged on conflict); RLS lets me through via the set_share
+ *  grant. Only the editable title + content move. */
+export function toSupabaseSetShared(s: PhytoSet, deviceId: string) {
+  return {
+    id: s.id,
+    title: s.name,
+    type: s.kind,
+    content: {
+      slides: s.slides,
+      template: s.template,
+      chords: s.chords,
+      autoAdvanceMs: s.autoAdvanceMs,
+      loop: s.loop,
+      dissolveMs: s.dissolveMs,
+    },
+    updated_at: new Date(s.updatedAt).toISOString(),
+    synced_at: new Date().toISOString(),
+    last_modified_by: deviceId,
+  };
+}
+
 export function toSupabaseGathering(p: Gathering, userId: string, deviceId: string) {
   // NOTE: `is_live` and `live_started_at` are intentionally omitted. They are
   // server-authoritative and managed exclusively by goLive/endSession (and the
@@ -598,10 +622,14 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
     return null;
   }
 
-  const [localSets, localGatherings] = await Promise.all([
+  const [allLocalSets, localGatherings] = await Promise.all([
     db.sets.toArray(),
     db.gatherings.toArray(),
   ]);
+  // Foreign (shared-with-me) sets sync through the collaborative path
+  // (syncSharedSets), never the personal diff — otherwise they'd classify as
+  // only-local and Merge would push them back to the account as mine.
+  const localSets = allLocalSets.filter((s) => !s.shared);
 
   const remote = await fetchRemote(session.user.id);
   if (!remote) return null;
@@ -1064,15 +1092,21 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
         ])
       : await Promise.all([db.sets.toArray(), db.gatherings.toArray()]);
 
-    if (sets.length) {
+    // Foreign (shared-with-me) sets take the collaborative push (no user_id/
+    // group_id rewrite); my own sets take the owner push. Split so each row is
+    // stamped correctly.
+    const ownedSets = sets.filter((s) => !s.shared);
+    const sharedSets = sets.filter((s) => s.shared);
+
+    if (ownedSets.length) {
       // Upsert in small batches: `content` can carry multi-MB inline images,
       // so a whole-library push (conflict-dialog "Push") in one request can
       // exceed request/timeout limits — and one bad row would fail the whole
       // batch, re-queuing every set forever. On a batch error, retry per-row
       // so only genuinely failing rows are re-marked dirty.
       const savedSets: Record<string, unknown>[] = [];
-      for (let i = 0; i < sets.length; i += SET_BATCH_SIZE) {
-        const chunk = sets.slice(i, i + SET_BATCH_SIZE);
+      for (let i = 0; i < ownedSets.length; i += SET_BATCH_SIZE) {
+        const chunk = ownedSets.slice(i, i + SET_BATCH_SIZE);
         const { data, error } = await supabase
           .from("sets")
           .upsert(
@@ -1099,6 +1133,51 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
         }
       }
       for (const row of savedSets) {
+        await db.sets
+          .where("id")
+          .equals(row.id as string)
+          .modify({
+            updatedAt: new Date(row.updated_at as string).getTime(),
+          });
+      }
+    }
+
+    if (sharedSets.length) {
+      // Collaborative edits to sets shared with me: toSupabaseSetShared omits
+      // user_id/group_id so the owner's ownership survives; RLS admits me via the
+      // set_share grant. Same batch-then-per-row resilience as the owner path.
+      const savedShared: Record<string, unknown>[] = [];
+      for (let i = 0; i < sharedSets.length; i += SET_BATCH_SIZE) {
+        const chunk = sharedSets.slice(i, i + SET_BATCH_SIZE);
+        const { data, error } = await supabase
+          .from("sets")
+          .upsert(
+            chunk.map((s) => toSupabaseSetShared(s, deviceId)),
+            { onConflict: "id" },
+          )
+          .select();
+        if (!error) {
+          savedShared.push(...((data ?? []) as Record<string, unknown>[]));
+          continue;
+        }
+        console.warn(
+          "[sync] pushToSupabase: shared sets batch upsert failed, retrying per-row",
+          error,
+        );
+        for (const s of chunk) {
+          const { data: rowData, error: rowErr } = await supabase
+            .from("sets")
+            .upsert([toSupabaseSetShared(s, deviceId)], { onConflict: "id" })
+            .select();
+          if (rowErr) {
+            console.error("[sync] pushToSupabase: shared set upsert error", s.id, rowErr);
+            ok = false;
+          } else if (rowData?.length) {
+            savedShared.push(...(rowData as Record<string, unknown>[]));
+          }
+        }
+      }
+      for (const row of savedShared) {
         await db.sets
           .where("id")
           .equals(row.id as string)
@@ -1428,5 +1507,145 @@ export async function pushMirrorToSupabase(diff: SyncDiff): Promise<void> {
   await withSyncLock(async () => {
     await doPush(userId);
     await deleteRemoteOnly(userId, diff);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Collaborative sets (shared with me, two-way). Kept OFF the personal diff/push
+// path: foreign rows carry `shared: true` locally, are excluded from
+// diffWithSupabase, and are pushed via toSupabaseSetShared (no user_id rewrite).
+// ---------------------------------------------------------------------------
+
+/** Attach my user id to any set_shares row addressed to my email but not yet
+ *  claimed, so the owner-side `is_set_shared_with` grant (which matches
+ *  grantee_user_id) starts admitting me to the set. Call on login. */
+export async function claimShares(): Promise<void> {
+  const session = getSession();
+  const email = session?.user.email;
+  if (!email) return;
+  const { error } = await supabase
+    .from("set_shares")
+    .update({ grantee_user_id: session.user.id })
+    .eq("grantee_email", email)
+    .is("grantee_user_id", null);
+  if (error) console.error("[sync] claimShares error", error);
+}
+
+export type InboxShare = { shareId: string; setId: string; name: string };
+
+/** Shares addressed to me whose set I have NOT saved into my library yet — the
+ *  "shared with you" inbox above the catalogue. Call claimShares first so the
+ *  set reads are admitted by RLS. */
+export async function fetchInboxShares(): Promise<InboxShare[]> {
+  const session = getSession();
+  if (!session) return [];
+  const { data: shares, error } = await supabase
+    .from("set_shares")
+    .select("id, set_id")
+    .eq("grantee_user_id", session.user.id);
+  if (error) {
+    console.error("[sync] fetchInboxShares error", error);
+    return [];
+  }
+  const rows = (shares ?? []) as { id: string; set_id: string }[];
+  const saved = new Set((await db.sets.toArray()).map((s) => s.id));
+  const pending = rows.filter((r) => !saved.has(r.set_id));
+  if (!pending.length) return [];
+  const { data: sets } = await supabase
+    .from("sets")
+    .select("id, title")
+    .in(
+      "id",
+      pending.map((r) => r.set_id),
+    );
+  const nameById = new Map(
+    ((sets ?? []) as { id: string; title: string }[]).map((s) => [s.id, s.title]),
+  );
+  return pending.map((r) => ({
+    shareId: r.id,
+    setId: r.set_id,
+    name: nameById.get(r.set_id) ?? "Untitled set",
+  }));
+}
+
+/** Pull a shared set into my library (the inbox "Save"). Stored with shared:true
+ *  so it syncs via the collaborative path from now on. */
+export async function saveSharedSet(setId: string): Promise<boolean> {
+  const session = getSession();
+  if (!session) return false;
+  const { data, error } = await supabase.from("sets").select("*").eq("id", setId).maybeSingle();
+  if (error || !data) {
+    console.error("[sync] saveSharedSet error", error);
+    return false;
+  }
+  await db.sets.put({ ...fromSupabaseSet(data as Record<string, unknown>), shared: true });
+  return true;
+}
+
+/** Remove a shared set from MY library only: drop my set_share grant and the
+ *  local copy. Never touches the owner's set. */
+export async function removeSharedSet(setId: string): Promise<void> {
+  const session = getSession();
+  if (session) {
+    const { error } = await supabase
+      .from("set_shares")
+      .delete()
+      .eq("set_id", setId)
+      .eq("grantee_user_id", session.user.id);
+    if (error) console.error("[sync] removeSharedSet error", error);
+  }
+  await db.sets.delete(setId);
+}
+
+/** Refresh saved shared sets: adopt the owner's newer edits (last-write-wins by
+ *  updatedAt) and drop any whose share was revoked or whose set was deleted (no
+ *  longer accessible). This is the ONLY pull path for foreign rows, since they
+ *  are excluded from the personal diff. Runs under the shared sync lock so it
+ *  never interleaves with a personal merge/push. */
+export async function syncSharedSets(): Promise<void> {
+  const session = getSession();
+  if (!session) return;
+  await withSyncLock(async () => {
+    const localShared = (await db.sets.toArray()).filter((s) => s.shared);
+    if (!localShared.length) return;
+
+    const { data: shares, error } = await supabase
+      .from("set_shares")
+      .select("set_id")
+      .eq("grantee_user_id", session.user.id);
+    if (error) {
+      console.error("[sync] syncSharedSets: shares error", error);
+      return;
+    }
+    const accessible = new Set(((shares ?? []) as { set_id: string }[]).map((r) => r.set_id));
+
+    // Revoked or deleted upstream: I no longer have the grant → drop my copy.
+    const revoked = localShared.filter((s) => !accessible.has(s.id));
+    if (revoked.length) await db.sets.bulkDelete(revoked.map((s) => s.id));
+
+    const stillShared = localShared.filter((s) => accessible.has(s.id));
+    if (!stillShared.length) return;
+
+    const { data: rows, error: setsErr } = await supabase
+      .from("sets")
+      .select("*")
+      .in(
+        "id",
+        stillShared.map((s) => s.id),
+      );
+    if (setsErr) {
+      console.error("[sync] syncSharedSets: sets error", setsErr);
+      return;
+    }
+    const localById = new Map(stillShared.map((s) => [s.id, s]));
+    const toWrite: PhytoSet[] = [];
+    for (const row of (rows ?? []) as Record<string, unknown>[]) {
+      const remote: PhytoSet = { ...fromSupabaseSet(row), shared: true };
+      const local = localById.get(remote.id);
+      // Adopt remote only when it's strictly newer, so a local edit still pending
+      // its push isn't clobbered.
+      if (!local || remote.updatedAt > local.updatedAt) toWrite.push(remote);
+    }
+    if (toWrite.length) await db.sets.bulkPut(toWrite);
   });
 }

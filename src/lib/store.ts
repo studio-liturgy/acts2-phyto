@@ -5,7 +5,7 @@ import { db } from "./db";
 import { liveQuery } from "dexie";
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
-import { pushToSupabase, recordDeletions, withSyncLock } from "./sync";
+import { pushToSupabase, recordDeletions, withSyncLock, removeSharedSet } from "./sync";
 import { isLiveNow, type LiveWindow } from "./live-session";
 import { isInlineImage } from "./image-upload";
 import { hasInlineImages, migrateSetImagesToR2 } from "./migrate-images";
@@ -356,6 +356,34 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }),
 
   deleteSet: async (id) => {
+    // A foreign (shared-with-me) set: "delete" removes only MY copy and my grant,
+    // never the owner's set. Handled off the personal delete/tombstone path.
+    if (get().sets[id]?.shared) {
+      await removeSharedSet(id);
+      set((s) => {
+        const { [id]: _gone, ...rest } = s.sets;
+        return { sets: rest, order: s.order.filter((x) => x !== id) };
+      });
+      const gatherings = get().gatherings;
+      const toUpdate: Gathering[] = [];
+      for (const p of Object.values(gatherings)) {
+        if (p.setIds.includes(id)) {
+          toUpdate.push({
+            ...p,
+            setIds: p.setIds.filter((sid) => sid !== id),
+            updatedAt: Date.now(),
+          });
+        }
+      }
+      if (toUpdate.length) {
+        await Promise.all(toUpdate.map((p) => db.gatherings.put(p)));
+        set((s) => ({
+          gatherings: { ...s.gatherings, ...Object.fromEntries(toUpdate.map((p) => [p.id, p])) },
+        }));
+        for (const p of toUpdate) schedulePush({ gathering: p.id });
+      }
+      return;
+    }
     // Serialize against pushes/merges under the shared sync lock so an in-flight
     // push (holding a pre-delete Dexie snapshot) can't re-upsert this row.
     await withSyncLock(async () => {
@@ -397,13 +425,19 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   },
 
   deleteSets: async (ids) => {
-    const idSet = new Set(ids);
-    if (idSet.size === 0) return;
+    if (ids.length === 0) return;
+    const current = get().sets;
+    // Foreign (shared-with-me) sets: remove only my copy + grant, never the
+    // owner's set. Owned sets take the personal delete/tombstone path.
+    const sharedIds = ids.filter((id) => current[id]?.shared);
+    const ownedIds = ids.filter((id) => !current[id]?.shared);
+    for (const id of sharedIds) await removeSharedSet(id);
+
     await withSyncLock(async () => {
-      const current = get().sets;
-      const removedSlides = ids.flatMap((id) => current[id]?.slides ?? []);
+      const idSet = new Set(ownedIds);
+      const removedSlides = ownedIds.flatMap((id) => current[id]?.slides ?? []);
       const session = useAuthStore.getState().session;
-      if (session) {
+      if (session && idSet.size) {
         const { error } = await supabase
           .from("sets")
           .delete()
@@ -414,21 +448,22 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         // pushing them back (sync.ts remotelyDeleted).
         await recordDeletions("set", [...idSet]);
       }
-      await db.sets.bulkDelete([...idSet]);
+      if (idSet.size) await db.sets.bulkDelete([...idSet]);
       purgeUploadedMedia(removedSlides);
+      // Update the store and strip gatherings for ALL removed sets (owned + shared).
+      const allRemoved = new Set(ids);
       set((s) => {
         const rest = { ...s.sets };
-        for (const id of idSet) delete rest[id];
-        return { sets: rest, order: s.order.filter((x) => !idSet.has(x)) };
+        for (const id of allRemoved) delete rest[id];
+        return { sets: rest, order: s.order.filter((x) => !allRemoved.has(x)) };
       });
-      // Drop the deleted sets from every gathering to avoid FK violations on push.
       const gatherings = get().gatherings;
       const toUpdate: Gathering[] = [];
       for (const p of Object.values(gatherings)) {
-        if (p.setIds.some((sid) => idSet.has(sid))) {
+        if (p.setIds.some((sid) => allRemoved.has(sid))) {
           toUpdate.push({
             ...p,
-            setIds: p.setIds.filter((sid) => !idSet.has(sid)),
+            setIds: p.setIds.filter((sid) => !allRemoved.has(sid)),
             updatedAt: Date.now(),
           });
         }

@@ -42,6 +42,8 @@ import type { Set as PhytoSet, SetKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
 import { FirstTimeLanding } from "@/components/FirstTimeLanding";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
+import { ShareSetDialog } from "@/components/ShareSetDialog";
+import { claimShares, fetchInboxShares, saveSharedSet, type InboxShare } from "@/lib/sync";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
 const KIND_COLOR: Record<string, string> = {
@@ -195,6 +197,32 @@ function Library() {
   const accountPull = useAccountPull();
   const [showGoLivePrompt, setShowGoLivePrompt] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
+
+  // Share-a-set: the owned set currently open in the Share dialog.
+  const [shareSet, setShareSet] = useState<PhytoSet | null>(null);
+  // "Shared with you" inbox: claim any invites addressed to my email, then list
+  // shares whose set I haven't saved yet.
+  const [inbox, setInbox] = useState<InboxShare[]>([]);
+  useEffect(() => {
+    if (!isSignedIn) {
+      setInbox([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      await claimShares();
+      const rows = await fetchInboxShares();
+      if (!cancelled) setInbox(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSignedIn]);
+
+  const handleSaveShare = async (share: InboxShare) => {
+    const ok = await saveSharedSet(share.setId);
+    if (ok) setInbox((prev) => prev.filter((s) => s.shareId !== share.shareId));
+  };
 
   // Catalogue import/export
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -527,6 +555,32 @@ function Library() {
             )}
           </section>
 
+          {/* Shared with you — sets others have shared, not yet saved. */}
+          {inbox.length > 0 && (
+            <section className="mb-24">
+              <h2 className="mb-5 text-4xl md:text-5xl">Shared with you</h2>
+              <div className="rounded-3xl border border-foreground p-4">
+                <ul className="space-y-1">
+                  {inbox.map((share) => (
+                    <li
+                      key={share.shareId}
+                      className="pill flex items-center gap-4 bg-muted px-5 py-2 text-foreground"
+                    >
+                      <span className="flex-1 truncate text-base">{share.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveShare(share)}
+                        className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                      >
+                        Save
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          )}
+
           {/* Catalogue */}
           <section>
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -764,7 +818,22 @@ function Library() {
                         <span className="flex-1 truncate text-base">{d.name}</span>
                         <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
                           {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
+                          {d.shared ? " · shared" : ""}
                         </span>
+                        {!editMode && !d.shared && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShareSet(d);
+                            }}
+                            className="rounded-full p-1.5 transition hover:bg-white/20"
+                            title="Share set"
+                            aria-label="Share set"
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </button>
+                        )}
                         <Link
                           to="/set/$setId"
                           params={{ setId: d.id }}
@@ -991,6 +1060,17 @@ function Library() {
         groups={duplicateGroups}
         onResolve={handleResolveDuplicates}
       />
+
+      {shareSet && (
+        <ShareSetDialog
+          open={!!shareSet}
+          onOpenChange={(o) => {
+            if (!o) setShareSet(null);
+          }}
+          setId={shareSet.id}
+          setName={shareSet.name}
+        />
+      )}
     </div>
   );
 }

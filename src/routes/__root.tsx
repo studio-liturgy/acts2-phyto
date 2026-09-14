@@ -27,6 +27,7 @@ import { useLibrary } from "@/lib/store";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import {
   applyMerge,
+  claimShares,
   diffWithSupabase,
   hasDifferences,
   latestRemoteTime,
@@ -34,6 +35,7 @@ import {
   pushMirrorToSupabase,
   replaceWithSupabase,
   previewEffects,
+  syncSharedSets,
   withSyncLock,
   type SyncAction,
   type SyncEffects,
@@ -428,6 +430,15 @@ function RootComponent() {
     }
   };
 
+  // Foreign (shared-with-me) sets sync off the personal diff: claim any invites
+  // addressed to my email, then pull/prune the saved shared sets. Claim must run
+  // first — the set reads are admitted by the RLS grant it establishes.
+  const runCollabSync = async () => {
+    if (pathname.startsWith("/g/")) return;
+    await claimShares();
+    await syncSharedSets();
+  };
+
   useEffect(() => {
     (async () => {
       await migrateLegacyLocalStorage(); // one-time; no-op after first run
@@ -442,6 +453,7 @@ function RootComponent() {
         if (!diffRanThisSession) {
           diffRanThisSession = true;
           runDiff();
+          runCollabSync();
         }
       }
     });
@@ -462,6 +474,7 @@ function RootComponent() {
         if (!diffRanThisSession) {
           diffRanThisSession = true;
           runDiff(isFirstLogin);
+          runCollabSync();
         }
       }
     });

@@ -70,6 +70,11 @@ export interface Set {
   /** Which workspace this set belongs to: a group id, or absent/null for the
    *  owner's personal library. `user_id` (server-side) stays the contributor. */
   group_id?: string | null;
+  /** True when this is a FOREIGN row — a set shared with me by someone else (I
+   *  am not the owner). Foreign rows sync through the collaborative path, not the
+   *  personal engine: they are excluded from the personal diff and pushed without
+   *  rewriting `user_id`. Absent = my own row. */
+  shared?: boolean;
   createdAt: number;
   updatedAt: number;
 }

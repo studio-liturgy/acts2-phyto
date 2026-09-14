@@ -23,8 +23,10 @@ import { Route as ContributeRouteImport } from './routes/contribute'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SetSetIdRouteImport } from './routes/set.$setId'
+import { Route as SShareIdRouteImport } from './routes/s.$shareId'
 import { Route as GTokenRouteImport } from './routes/g.$token'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as ApiShareInviteRouteImport } from './routes/api/share/invite'
 import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedback'
 import { Route as ApiPublicContributeRouteImport } from './routes/api/public/contribute'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
@@ -100,6 +102,11 @@ const SetSetIdRoute = SetSetIdRouteImport.update({
   path: '/set/$setId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SShareIdRoute = SShareIdRouteImport.update({
+  id: '/s/$shareId',
+  path: '/s/$shareId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GTokenRoute = GTokenRouteImport.update({
   id: '/g/$token',
   path: '/g/$token',
@@ -108,6 +115,11 @@ const GTokenRoute = GTokenRouteImport.update({
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShareInviteRoute = ApiShareInviteRouteImport.update({
+  id: '/api/share/invite',
+  path: '/api/share/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicFeedbackRoute = ApiPublicFeedbackRouteImport.update({
@@ -147,11 +159,13 @@ export interface FileRoutesByFullPath {
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
+  '/s/$shareId': typeof SShareIdRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
+  '/api/share/invite': typeof ApiShareInviteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -169,11 +183,13 @@ export interface FileRoutesByTo {
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
+  '/s/$shareId': typeof SShareIdRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
+  '/api/share/invite': typeof ApiShareInviteRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -192,11 +208,13 @@ export interface FileRoutesById {
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
+  '/s/$shareId': typeof SShareIdRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
+  '/api/share/invite': typeof ApiShareInviteRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -216,11 +234,13 @@ export interface FileRouteTypes {
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
+    | '/s/$shareId'
     | '/set/$setId'
     | '/api/auth/welcome'
     | '/api/media/upload'
     | '/api/public/contribute'
     | '/api/public/feedback'
+    | '/api/share/invite'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -238,11 +258,13 @@ export interface FileRouteTypes {
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
+    | '/s/$shareId'
     | '/set/$setId'
     | '/api/auth/welcome'
     | '/api/media/upload'
     | '/api/public/contribute'
     | '/api/public/feedback'
+    | '/api/share/invite'
   id:
     | '__root__'
     | '/'
@@ -260,11 +282,13 @@ export interface FileRouteTypes {
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
+    | '/s/$shareId'
     | '/set/$setId'
     | '/api/auth/welcome'
     | '/api/media/upload'
     | '/api/public/contribute'
     | '/api/public/feedback'
+    | '/api/share/invite'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -283,11 +307,13 @@ export interface RootRouteChildren {
   UpdatesRoute: typeof UpdatesRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   GTokenRoute: typeof GTokenRoute
+  SShareIdRoute: typeof SShareIdRoute
   SetSetIdRoute: typeof SetSetIdRoute
   ApiAuthWelcomeRoute: typeof ApiAuthWelcomeRoute
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
   ApiPublicContributeRoute: typeof ApiPublicContributeRoute
   ApiPublicFeedbackRoute: typeof ApiPublicFeedbackRoute
+  ApiShareInviteRoute: typeof ApiShareInviteRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -390,6 +416,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetSetIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s/$shareId': {
+      id: '/s/$shareId'
+      path: '/s/$shareId'
+      fullPath: '/s/$shareId'
+      preLoaderRoute: typeof SShareIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/g/$token': {
       id: '/g/$token'
       path: '/g/$token'
@@ -402,6 +435,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/share/invite': {
+      id: '/api/share/invite'
+      path: '/api/share/invite'
+      fullPath: '/api/share/invite'
+      preLoaderRoute: typeof ApiShareInviteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/feedback': {
@@ -451,11 +491,13 @@ const rootRouteChildren: RootRouteChildren = {
   UpdatesRoute: UpdatesRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   GTokenRoute: GTokenRoute,
+  SShareIdRoute: SShareIdRoute,
   SetSetIdRoute: SetSetIdRoute,
   ApiAuthWelcomeRoute: ApiAuthWelcomeRoute,
   ApiMediaUploadRoute: ApiMediaUploadRoute,
   ApiPublicContributeRoute: ApiPublicContributeRoute,
   ApiPublicFeedbackRoute: ApiPublicFeedbackRoute,
+  ApiShareInviteRoute: ApiShareInviteRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
