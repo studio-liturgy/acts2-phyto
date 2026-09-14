@@ -27,6 +27,7 @@ import {
   Upload,
   Download,
   Wifi,
+  ChevronDown,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -47,6 +48,7 @@ import {
   fetchSharedOutSetIds,
   saveSharedSet,
   removeSharedSet,
+  createGroup,
   type InboxShare,
 } from "@/lib/sync";
 import { previewText } from "@/lib/set-preview";
@@ -187,6 +189,10 @@ function Library() {
     reorderGatheringSets,
     goLive,
     endSession,
+    activeWorkspace = "personal",
+    setActiveWorkspace,
+    groups = [],
+    loadGroups,
   } = useLibrary();
 
   const isSignedIn = useIsSignedIn();
@@ -200,6 +206,25 @@ function Library() {
   const [shareSet, setShareSet] = useState<PhytoSet | null>(null);
   // Bulk-share (catalogue edit mode) dialog.
   const [showBulkShare, setShowBulkShare] = useState(false);
+
+  // Group workspaces.
+  const [showNewGroup, setShowNewGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const activeWorkspaceLabel =
+    activeWorkspace === "personal"
+      ? "Personal"
+      : (groups.find((g) => g.id === activeWorkspace)?.name ?? "Group");
+  const handleCreateGroup = async () => {
+    const name = newGroupName.trim();
+    if (!name) return;
+    const id = await createGroup(name);
+    setShowNewGroup(false);
+    setNewGroupName("");
+    if (id) {
+      await loadGroups();
+      await setActiveWorkspace(id);
+    }
+  };
   // "Shared with you" inbox: claim any invites addressed to my email, then list
   // shares whose set I haven't saved yet.
   const [inbox, setInbox] = useState<InboxShare[]>([]);
@@ -501,6 +526,42 @@ function Library() {
                 }}
                 title={syncStatus === "syncing" ? "Syncing…" : "Synced"}
               />
+            )}
+            {isSignedIn && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                    title="Switch workspace"
+                  >
+                    {activeWorkspaceLabel}
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem
+                    onClick={() => setActiveWorkspace("personal")}
+                    className="mono uppercase text-xs tracking-wider"
+                  >
+                    Personal
+                  </DropdownMenuItem>
+                  {groups.map((g) => (
+                    <DropdownMenuItem
+                      key={g.id}
+                      onClick={() => setActiveWorkspace(g.id)}
+                      className="mono uppercase text-xs tracking-wider"
+                    >
+                      {g.name}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuItem
+                    onClick={() => setShowNewGroup(true)}
+                    className="mono uppercase text-xs tracking-wider text-muted-foreground"
+                  >
+                    + New group
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             <div className="ml-auto flex flex-wrap items-center gap-4">
@@ -1143,6 +1204,43 @@ function Library() {
         setIds={ownedSelectedIds}
         onShared={refreshSharedOut}
       />
+
+      <Dialog
+        open={showNewGroup}
+        onOpenChange={(o) => {
+          if (!o) {
+            setShowNewGroup(false);
+            setNewGroupName("");
+          }
+        }}
+      >
+        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+          <DialogTitle className="text-2xl font-normal leading-tight">New group</DialogTitle>
+          <p className="mono uppercase mt-2 text-[10px] tracking-wider text-muted-foreground">
+            A shared workspace you can invite people into and edit together.
+          </p>
+          <div className="mt-6 flex items-center gap-2">
+            <input
+              autoFocus
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreateGroup();
+              }}
+              placeholder="Group name"
+              className="mono flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
+            />
+            <button
+              type="button"
+              onClick={handleCreateGroup}
+              disabled={!newGroupName.trim()}
+              className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-40"
+            >
+              Create
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

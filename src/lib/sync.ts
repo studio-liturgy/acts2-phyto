@@ -403,12 +403,23 @@ export async function fetchRemote(
   // (Scoped to our own gatherings: the public-when-live policy also leaks
   // OTHER users' live join rows into this query, and those legitimately
   // reference sets we can never see.) ──
+  // FOREIGN sets (shared with me, or a group's, contributed by other members)
+  // are synced via the collaborative path and are legitimately absent from this
+  // owner-only fetch — a gathering that references one is fine, so exclude them
+  // from the check. A missing reference to one of MY OWN sets still fires (they
+  // are never `shared`), preserving the anon-read guard.
   const ownGatheringIds = new Set(gatheringRows.map((r) => r.id as string));
   const fetchedSetIds = new Set(setMetaRows.map((r) => r.id as string));
+  const foreignLocalIds = new Set(localSets.filter((s) => s.shared).map((s) => s.id));
   const unresolved = [
     ...new Set(
       gsRows
-        .filter((r) => ownGatheringIds.has(r.gathering_id) && !fetchedSetIds.has(r.set_id))
+        .filter(
+          (r) =>
+            ownGatheringIds.has(r.gathering_id) &&
+            !fetchedSetIds.has(r.set_id) &&
+            !foreignLocalIds.has(r.set_id),
+        )
         .map((r) => r.set_id),
     ),
   ];

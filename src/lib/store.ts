@@ -282,7 +282,14 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   },
 
   loadGroups: async () => {
-    set({ groups: await fetchMyGroups() });
+    const groups = await fetchMyGroups();
+    set({ groups });
+    // If the active workspace is a group I'm no longer in (removed/left), fall
+    // back to Personal so the library isn't stuck on an empty, inaccessible view.
+    const ws = get().activeWorkspace;
+    if (ws !== "personal" && !groups.some((g) => g.id === ws)) {
+      await get().setActiveWorkspace("personal");
+    }
   },
 
   moveToWorkspace: (setId, workspace) => {

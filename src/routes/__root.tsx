@@ -28,6 +28,7 @@ import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import {
   applyMerge,
   claimShares,
+  claimGroupMemberships,
   diffWithSupabase,
   hasDifferences,
   latestRemoteTime,
@@ -36,6 +37,7 @@ import {
   replaceWithSupabase,
   previewEffects,
   syncSharedSets,
+  syncGroups,
   withSyncLock,
   type SyncAction,
   type SyncEffects,
@@ -436,7 +438,10 @@ function RootComponent() {
   const runCollabSync = async () => {
     if (pathname.startsWith("/g/")) return;
     await claimShares();
+    await claimGroupMemberships();
     await syncSharedSets();
+    await syncGroups();
+    await useLibrary.getState().loadGroups();
   };
 
   useEffect(() => {
@@ -466,6 +471,9 @@ function RootComponent() {
         diffRanThisSession = false;
         // No local truth for live status while signed out.
         nullLocalLiveState();
+        // Groups are account-scoped: drop them and return to the personal library.
+        useLibrary.getState().setActiveWorkspace("personal");
+        useLibrary.setState({ groups: [] });
       }
       if (event === "SIGNED_IN" && s) {
         // Welcome email is sent from auth.callback.tsx (respects mailing-list opt-in).
