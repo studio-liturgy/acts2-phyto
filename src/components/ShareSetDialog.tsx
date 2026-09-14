@@ -50,7 +50,12 @@ export function ShareSetDialog({
     setError(null);
     const { data, error: insErr } = await supabase
       .from("set_shares")
-      .insert({ set_id: setId, owner_id: session.user.id, grantee_email: e })
+      .insert({
+        set_id: setId,
+        owner_id: session.user.id,
+        owner_email: session.user.email ?? null,
+        grantee_email: e,
+      })
       .select("id, grantee_email")
       .single();
     if (insErr || !data) {
@@ -105,7 +110,7 @@ export function ShareSetDialog({
               if (e.key === "Enter") share();
             }}
             placeholder="name@email.com"
-            className="mono flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
+            className="mono uppercase flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
           />
           <button
             type="button"

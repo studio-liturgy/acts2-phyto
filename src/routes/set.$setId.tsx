@@ -69,8 +69,11 @@ import {
   Loader2,
   ChevronDown,
   X,
+  Share2,
 } from "lucide-react";
 import { NumberStepper } from "@/components/NumberStepper";
+import { useIsSignedIn } from "@/lib/authStore";
+import { ShareSetDialog } from "@/components/ShareSetDialog";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -225,7 +228,7 @@ function SetHeader({
   navigate,
   deleteSet,
 }: {
-  phytoSet: { id: string; name: string; kind: SetKind };
+  phytoSet: { id: string; name: string; kind: SetKind; shared?: boolean; shared_by?: string };
   redirectTo?: string;
   editingName: boolean;
   setEditingName: (v: boolean | ((prev: boolean) => boolean)) => void;
@@ -234,6 +237,8 @@ function SetHeader({
   deleteSet: (id: string) => void;
 }) {
   const [showDeleteSetDialog, setShowDeleteSetDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const isSignedIn = useIsSignedIn();
   const nameBeforeEditRef = useRef(phytoSet.name);
   const commitName = () => {
     if (!phytoSet.name.trim()) {
@@ -289,11 +294,34 @@ function SetHeader({
         >
           {phytoSet.kind}
         </span>
+
+        {phytoSet.shared && (
+          <span className="mono shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
+            Shared by {phytoSet.shared_by ?? "someone"}
+          </span>
+        )}
       </div>
 
       <div className="flex-1" />
 
       {/* Right actions */}
+      {isSignedIn && !phytoSet.shared && (
+        <button
+          onClick={() => setShowShareDialog(true)}
+          className="pill mono uppercase flex shrink-0 items-center gap-2 border border-foreground px-4 py-2 text-xs transition hover:bg-foreground hover:text-background"
+          title="Share set"
+        >
+          <Share2 className="h-4 w-4" /> Share
+        </button>
+      )}
+      {showShareDialog && (
+        <ShareSetDialog
+          open={showShareDialog}
+          onOpenChange={setShowShareDialog}
+          setId={phytoSet.id}
+          setName={phytoSet.name}
+        />
+      )}
       <button
         onClick={() => setShowDeleteSetDialog(true)}
         className="mono uppercase pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-xs text-[var(--brand-white)] transition hover:opacity-90"

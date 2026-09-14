@@ -1531,46 +1531,54 @@ export async function claimShares(): Promise<void> {
   if (error) console.error("[sync] claimShares error", error);
 }
 
-export type InboxShare = { shareId: string; setId: string; name: string };
+export type InboxShare = { shareId: string; set: PhytoSet; ownerEmail: string | null };
 
 /** Shares addressed to me whose set I have NOT saved into my library yet — the
- *  "shared with you" inbox above the catalogue. Call claimShares first so the
- *  set reads are admitted by RLS. */
+ *  "shared with you" inbox. Returns the full set (for the hover preview) and the
+ *  owner's email. Call claimShares first so the set reads are admitted by RLS. */
 export async function fetchInboxShares(): Promise<InboxShare[]> {
   const session = getSession();
   if (!session) return [];
   const { data: shares, error } = await supabase
     .from("set_shares")
-    .select("id, set_id")
+    .select("id, set_id, owner_email")
     .eq("grantee_user_id", session.user.id);
   if (error) {
     console.error("[sync] fetchInboxShares error", error);
     return [];
   }
-  const rows = (shares ?? []) as { id: string; set_id: string }[];
+  const rows = (shares ?? []) as { id: string; set_id: string; owner_email: string | null }[];
   const saved = new Set((await db.sets.toArray()).map((s) => s.id));
   const pending = rows.filter((r) => !saved.has(r.set_id));
   if (!pending.length) return [];
-  const { data: sets } = await supabase
+  const { data: sets, error: setsErr } = await supabase
     .from("sets")
-    .select("id, title")
+    .select("*")
     .in(
       "id",
       pending.map((r) => r.set_id),
     );
-  const nameById = new Map(
-    ((sets ?? []) as { id: string; title: string }[]).map((s) => [s.id, s.title]),
+  if (setsErr) {
+    console.error("[sync] fetchInboxShares: sets error", setsErr);
+    return [];
+  }
+  const setById = new Map(
+    ((sets ?? []) as Record<string, unknown>[]).map((row) => [
+      row.id as string,
+      fromSupabaseSet(row),
+    ]),
   );
-  return pending.map((r) => ({
-    shareId: r.id,
-    setId: r.set_id,
-    name: nameById.get(r.set_id) ?? "Untitled set",
-  }));
+  return pending
+    .map((r): InboxShare | null => {
+      const set = setById.get(r.set_id);
+      return set ? { shareId: r.id, set, ownerEmail: r.owner_email } : null;
+    })
+    .filter((x): x is InboxShare => x !== null);
 }
 
 /** Pull a shared set into my library (the inbox "Save"). Stored with shared:true
- *  so it syncs via the collaborative path from now on. */
-export async function saveSharedSet(setId: string): Promise<boolean> {
+ *  (and the owner's email) so it syncs via the collaborative path from now on. */
+export async function saveSharedSet(setId: string, ownerEmail?: string | null): Promise<boolean> {
   const session = getSession();
   if (!session) return false;
   const { data, error } = await supabase.from("sets").select("*").eq("id", setId).maybeSingle();
@@ -1578,7 +1586,11 @@ export async function saveSharedSet(setId: string): Promise<boolean> {
     console.error("[sync] saveSharedSet error", error);
     return false;
   }
-  await db.sets.put({ ...fromSupabaseSet(data as Record<string, unknown>), shared: true });
+  await db.sets.put({
+    ...fromSupabaseSet(data as Record<string, unknown>),
+    shared: true,
+    shared_by: ownerEmail ?? undefined,
+  });
   return true;
 }
 
@@ -1611,13 +1623,15 @@ export async function syncSharedSets(): Promise<void> {
 
     const { data: shares, error } = await supabase
       .from("set_shares")
-      .select("set_id")
+      .select("set_id, owner_email")
       .eq("grantee_user_id", session.user.id);
     if (error) {
       console.error("[sync] syncSharedSets: shares error", error);
       return;
     }
-    const accessible = new Set(((shares ?? []) as { set_id: string }[]).map((r) => r.set_id));
+    const shareRows = (shares ?? []) as { set_id: string; owner_email: string | null }[];
+    const accessible = new Set(shareRows.map((r) => r.set_id));
+    const ownerEmailBySet = new Map(shareRows.map((r) => [r.set_id, r.owner_email]));
 
     // Revoked or deleted upstream: I no longer have the grant → drop my copy.
     const revoked = localShared.filter((s) => !accessible.has(s.id));
@@ -1640,7 +1654,12 @@ export async function syncSharedSets(): Promise<void> {
     const localById = new Map(stillShared.map((s) => [s.id, s]));
     const toWrite: PhytoSet[] = [];
     for (const row of (rows ?? []) as Record<string, unknown>[]) {
-      const remote: PhytoSet = { ...fromSupabaseSet(row), shared: true };
+      const parsed = fromSupabaseSet(row);
+      const remote: PhytoSet = {
+        ...parsed,
+        shared: true,
+        shared_by: ownerEmailBySet.get(parsed.id) ?? undefined,
+      };
       const local = localById.get(remote.id);
       // Adopt remote only when it's strictly newer, so a local edit still pending
       // its push isn't clobbered.

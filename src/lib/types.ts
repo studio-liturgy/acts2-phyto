@@ -75,6 +75,9 @@ export interface Set {
    *  personal engine: they are excluded from the personal diff and pushed without
    *  rewriting `user_id`. Absent = my own row. */
   shared?: boolean;
+  /** For a foreign (shared) set, the owner's email — shown in the set editor so a
+   *  collaborator can see whose set it is. Absent on my own rows. */
+  shared_by?: string;
   createdAt: number;
   updatedAt: number;
 }

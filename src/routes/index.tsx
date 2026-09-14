@@ -43,7 +43,15 @@ import { Footer } from "@/components/Footer";
 import { FirstTimeLanding } from "@/components/FirstTimeLanding";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { ShareSetDialog } from "@/components/ShareSetDialog";
-import { claimShares, fetchInboxShares, saveSharedSet, type InboxShare } from "@/lib/sync";
+import {
+  claimShares,
+  fetchInboxShares,
+  saveSharedSet,
+  removeSharedSet,
+  type InboxShare,
+} from "@/lib/sync";
+import { previewText } from "@/lib/set-preview";
+import { SharedInboxDialog } from "@/components/SharedInboxDialog";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
 const KIND_COLOR: Record<string, string> = {
@@ -152,21 +160,6 @@ function kindChip(kind: KindFilter, active: boolean): string {
   return "";
 }
 
-/** A short multi-line summary of a set's slides, used for duplicate previews. */
-function previewText(d: PhytoSet): string {
-  if (d.slides.length === 0) return "Empty — no slides.";
-  const lines = d.slides.slice(0, 10).map((s) => {
-    if (s.lines?.length) return s.lines.map(stripChords).filter(Boolean).join(" / ");
-    if (s.reference) return s.reference;
-    if (s.title) return s.title;
-    if (s.imageUrl) return "[image]";
-    if (s.videoUrl || s.youtubeId) return "[video]";
-    return "[blank]";
-  });
-  if (d.slides.length > 10) lines.push("…");
-  return lines.join("\n");
-}
-
 function Library() {
   const navigate = useNavigate();
   const {
@@ -219,10 +212,19 @@ function Library() {
     };
   }, [isSignedIn]);
 
+  const [inboxOpen, setInboxOpen] = useState(false);
   const handleSaveShare = async (share: InboxShare) => {
-    const ok = await saveSharedSet(share.setId);
+    const ok = await saveSharedSet(share.set.id, share.ownerEmail);
     if (ok) setInbox((prev) => prev.filter((s) => s.shareId !== share.shareId));
   };
+  const handleDismissShare = async (share: InboxShare) => {
+    await removeSharedSet(share.set.id);
+    setInbox((prev) => prev.filter((s) => s.shareId !== share.shareId));
+  };
+  // Close the inbox dialog once nothing is left to act on.
+  useEffect(() => {
+    if (inbox.length === 0) setInboxOpen(false);
+  }, [inbox.length]);
 
   // Catalogue import/export
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -342,7 +344,7 @@ function Library() {
   // First-time experience: when there's nothing to show — or when the user
   // opens the Intro link — replace the home view with the onboarding landing.
   const { intro } = Route.useSearch();
-  const isEmpty = gatheringOrder.length === 0 && order.length === 0;
+  const isEmpty = gatheringOrder.length === 0 && order.length === 0 && inbox.length === 0;
   const showLanding = isEmpty || !!intro;
 
   // The live gathering always leads, regardless of creation order.
@@ -498,6 +500,18 @@ function Library() {
         />
       ) : (
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
+          {/* Incoming shared sets: a single notification pill above everything. */}
+          {inbox.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setInboxOpen(true)}
+              className="pill mono uppercase mb-8 flex items-center gap-2 border-2 border-[var(--brand-blue)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-blue)] transition hover:bg-[var(--brand-blue)] hover:text-[var(--brand-white)]"
+            >
+              <span className="h-2 w-2 rounded-full bg-current" />
+              {inbox.length} set{inbox.length === 1 ? "" : "s"} shared with you
+            </button>
+          )}
+
           {/* Gatherings */}
           <section className="mb-24">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -554,32 +568,6 @@ function Library() {
               </div>
             )}
           </section>
-
-          {/* Shared with you — sets others have shared, not yet saved. */}
-          {inbox.length > 0 && (
-            <section className="mb-24">
-              <h2 className="mb-5 text-4xl md:text-5xl">Shared with you</h2>
-              <div className="rounded-3xl border border-foreground p-4">
-                <ul className="space-y-1">
-                  {inbox.map((share) => (
-                    <li
-                      key={share.shareId}
-                      className="pill flex items-center gap-4 bg-muted px-5 py-2 text-foreground"
-                    >
-                      <span className="flex-1 truncate text-base">{share.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleSaveShare(share)}
-                        className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-                      >
-                        Save
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </section>
-          )}
 
           {/* Catalogue */}
           <section>
@@ -820,7 +808,7 @@ function Library() {
                           {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
                           {d.shared ? " · shared" : ""}
                         </span>
-                        {!editMode && !d.shared && (
+                        {!editMode && !d.shared && isSignedIn && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -1071,6 +1059,14 @@ function Library() {
           setName={shareSet.name}
         />
       )}
+
+      <SharedInboxDialog
+        open={inboxOpen}
+        onOpenChange={setInboxOpen}
+        shares={inbox}
+        onSave={handleSaveShare}
+        onDismiss={handleDismissShare}
+      />
     </div>
   );
 }
