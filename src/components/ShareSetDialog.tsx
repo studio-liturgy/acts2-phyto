@@ -48,6 +48,11 @@ export function ShareSetDialog({
     if (!e || !session) return;
     setBusy(true);
     setError(null);
+    if (e === (session.user.email ?? "").toLowerCase()) {
+      setError("You can't share a set with yourself.");
+      setBusy(false);
+      return;
+    }
     // Only share with people who already have a phyto account. Resolving the
     // email also lets us attach the grant to them immediately (no claim needed).
     const { data: granteeId, error: lookupErr } = await supabase.rpc("user_id_for_email", {

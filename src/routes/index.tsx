@@ -161,8 +161,8 @@ function kindChip(kind: KindFilter, active: boolean): string {
   }
   if (kind === "shared") {
     return active
-      ? "border-foreground bg-foreground text-background"
-      : "border-foreground text-foreground hover:bg-foreground hover:text-background";
+      ? "border-[#6b7280] bg-[#6b7280] text-[var(--brand-white)]"
+      : "border-[#6b7280] text-[#6b7280] hover:bg-[#6b7280] hover:text-[var(--brand-white)]";
   }
   return "";
 }
@@ -540,7 +540,7 @@ function Library() {
                 type="button"
                 onClick={() => setInboxOpen((v) => !v)}
                 aria-expanded={inboxOpen}
-                className="pill mono uppercase flex items-center gap-2 border-2 border-foreground px-4 py-1.5 text-xs tracking-wider text-foreground transition hover:bg-foreground hover:text-background"
+                className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider text-foreground transition hover:bg-foreground hover:text-background"
               >
                 <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
                 {inbox.length} set{inbox.length === 1 ? "" : "s"} shared with you
@@ -645,6 +645,20 @@ function Library() {
                       >
                         <Eraser className="h-4 w-4" /> Clear empty
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowBulkDelete(true)}
+                        disabled={selectedIds.size === 0}
+                        className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
+                        title={
+                          selectedIds.size
+                            ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
+                            : "Select sets to delete"
+                        }
+                        aria-label="Delete selected sets"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                       {isSignedIn && (
                         <button
                           type="button"
@@ -661,20 +675,6 @@ function Library() {
                           <Share2 className="h-4 w-4" />
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => setShowBulkDelete(true)}
-                        disabled={selectedIds.size === 0}
-                        className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
-                        title={
-                          selectedIds.size
-                            ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
-                            : "Select sets to delete"
-                        }
-                        aria-label="Delete selected sets"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
                       {/* Import and export live in edit mode only: they're rare,
                           destructive-adjacent operations, and having them on the
                           resting toolbar put a whole-catalogue replace one stray
@@ -866,43 +866,51 @@ function Library() {
                         ) : (
                           <DotsGrip className="cursor-grab opacity-80" />
                         )}
-                        <span className="flex-1 truncate text-base">{d.name}</span>
-                        {d.shared ? (
-                          <span className="mono hidden max-w-[40%] truncate text-xs uppercase tracking-wider opacity-90 sm:inline">
-                            from {d.shared_by ?? "someone"}
+                        <span className="min-w-0 flex-1 truncate text-base">{d.name}</span>
+                        {/* Right side: fixed-width columns so meta, share and edit
+                            line up down the list — the share slot is reserved even
+                            when a row has no share button. */}
+                        <div className="ml-auto flex shrink-0 items-center gap-2">
+                          <div className="mono hidden items-center text-xs uppercase tracking-wider opacity-90 sm:flex">
+                            {(d.shared || sharedOutIds.has(d.id)) && (
+                              <>
+                                <span className="max-w-[200px] truncate">
+                                  {d.shared ? `from ${d.shared_by ?? "someone"}` : "shared by you"}
+                                </span>
+                                <span className="mx-1">·</span>
+                              </>
+                            )}
+                            <span className="w-[168px] shrink-0 text-right">
+                              {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
+                            </span>
+                          </div>
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center">
+                            {!editMode && !d.shared && isSignedIn && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShareSet(d);
+                                }}
+                                className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/20"
+                                title="Share set"
+                                aria-label="Share set"
+                              >
+                                <Share2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </span>
-                        ) : sharedOutIds.has(d.id) ? (
-                          <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
-                            shared by you
-                          </span>
-                        ) : null}
-                        <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
-                          {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
-                        </span>
-                        {!editMode && !d.shared && isSignedIn && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShareSet(d);
-                            }}
-                            className="rounded-full p-1.5 transition hover:bg-white/20"
-                            title="Share set"
-                            aria-label="Share set"
+                          <Link
+                            to="/set/$setId"
+                            params={{ setId: d.id }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-white/20"
+                            title="Edit set"
+                            aria-label="Edit set"
                           >
-                            <Share2 className="h-4 w-4" />
-                          </button>
-                        )}
-                        <Link
-                          to="/set/$setId"
-                          params={{ setId: d.id }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="rounded-full p-1.5 transition hover:bg-white/20"
-                          title="Edit set"
-                          aria-label="Edit set"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Link>
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                        </div>
                       </li>
                     );
                   })}

@@ -39,6 +39,11 @@ export function BulkShareSetsDialog({
     setBusy(true);
     setError(null);
     setDone(null);
+    if (e === (session.user.email ?? "").toLowerCase()) {
+      setError("You can't share a set with yourself.");
+      setBusy(false);
+      return;
+    }
     const { data: granteeId, error: lookupErr } = await supabase.rpc("user_id_for_email", {
       p_email: e,
     });

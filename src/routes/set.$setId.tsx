@@ -69,7 +69,6 @@ import {
   Loader2,
   ChevronDown,
   X,
-  Share2,
 } from "lucide-react";
 import { NumberStepper } from "@/components/NumberStepper";
 import { useIsSignedIn } from "@/lib/authStore";
@@ -305,23 +304,6 @@ function SetHeader({
       <div className="flex-1" />
 
       {/* Right actions */}
-      {isSignedIn && !phytoSet.shared && (
-        <button
-          onClick={() => setShowShareDialog(true)}
-          className="pill mono uppercase flex shrink-0 items-center gap-2 border border-foreground px-4 py-2 text-xs transition hover:bg-foreground hover:text-background"
-          title="Share set"
-        >
-          <Share2 className="h-4 w-4" /> Share
-        </button>
-      )}
-      {showShareDialog && (
-        <ShareSetDialog
-          open={showShareDialog}
-          onOpenChange={setShowShareDialog}
-          setId={phytoSet.id}
-          setName={phytoSet.name}
-        />
-      )}
       <button
         onClick={() => setShowDeleteSetDialog(true)}
         className="mono uppercase pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-xs text-[var(--brand-white)] transition hover:opacity-90"
@@ -359,6 +341,23 @@ function SetHeader({
           </div>
         </AlertDialogContent>
       </AlertDialog>
+      {isSignedIn && !phytoSet.shared && (
+        <button
+          onClick={() => setShowShareDialog(true)}
+          className="pill mono uppercase shrink-0 border border-foreground px-4 py-2 text-xs transition hover:bg-foreground hover:text-background"
+          title="Share set"
+        >
+          Share
+        </button>
+      )}
+      {showShareDialog && (
+        <ShareSetDialog
+          open={showShareDialog}
+          onOpenChange={setShowShareDialog}
+          setId={phytoSet.id}
+          setName={phytoSet.name}
+        />
+      )}
       {phytoSet.kind === "song" && <SongJump currentId={phytoSet.id} navigate={navigate} />}
       <AddToGathering setId={phytoSet.id} onAdded={setPresentGatheringId} />
       {!fromPresenter && (
