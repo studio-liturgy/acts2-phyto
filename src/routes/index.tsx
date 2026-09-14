@@ -378,6 +378,37 @@ function Library() {
   const ownedSelectedSets = useMemo(() => selectedSets.filter((d) => !d.shared), [selectedSets]);
   const ownedSelectedIds = useMemo(() => ownedSelectedSets.map((d) => d.id), [ownedSelectedSets]);
 
+  // Bulk-delete confirm copy. Removing a set shared WITH you only drops your
+  // access (matching the set editor's wording), while deleting your OWN set is
+  // permanent, so the dialog adapts to what's in the selection.
+  const bulkDeleteCopy = useMemo(() => {
+    const sharedSel = selectedSets.filter((d) => d.shared);
+    const owned = selectedSets.length - sharedSel.length;
+    const shared = sharedSel.length;
+    if (shared > 0 && owned === 0) {
+      return {
+        title: shared === 1 ? "Remove this shared set?" : `Remove ${shared} shared sets?`,
+        body:
+          shared === 1
+            ? `This removes you from “${sharedSel[0].name}” completely. You'll lose access, and it won't come back unless the owner shares it with you again.`
+            : "This removes you from these shared sets completely. You'll lose access, and they won't come back unless their owners share them with you again.",
+        action: "Remove",
+      };
+    }
+    if (shared === 0) {
+      return {
+        title: `Delete ${owned} set${owned === 1 ? "" : "s"}?`,
+        body: "This will permanently delete the selected sets. This cannot be undone.",
+        action: "Delete",
+      };
+    }
+    return {
+      title: `Delete ${owned} and remove ${shared} set${selectedSets.length === 1 ? "" : "s"}?`,
+      body: "Your own sets are permanently deleted (this cannot be undone). Sets shared with you are only removed from your library: you'll lose access unless their owners share them again.",
+      action: "Delete",
+    };
+  }, [selectedSets]);
+
   const handleBulkDelete = async () => {
     await deleteSets([...selectedIds]);
     setShowBulkDelete(false);
@@ -1173,10 +1204,10 @@ function Library() {
       <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">
-            Delete {selectedSets.length} set{selectedSets.length === 1 ? "" : "s"}?
+            {bulkDeleteCopy.title}
           </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            This will permanently delete the selected sets. This cannot be undone.
+            {bulkDeleteCopy.body}
           </AlertDialogDescription>
           <ul className="mono mt-4 max-h-48 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-muted-foreground">
             {selectedSets.map((d) => (
@@ -1191,7 +1222,7 @@ function Library() {
               onClick={handleBulkDelete}
               className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
             >
-              Delete
+              {bulkDeleteCopy.action}
             </button>
             <button
               type="button"

@@ -294,7 +294,7 @@ export function BulkShareSetsDialog({
               const canRemove = inCount > 0; // shared with at least one selected set
               return (
                 <li key={e} className="flex items-center gap-2">
-                  <span className="mono flex-1 truncate text-sm lowercase">{e}</span>
+                  <span className="mono flex-1 truncate text-sm uppercase">{e}</span>
                   {canAdd && (
                     <button
                       type="button"
