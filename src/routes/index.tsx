@@ -54,6 +54,7 @@ import {
 import { previewText } from "@/lib/set-preview";
 import { SharedInboxList } from "@/components/SharedInboxList";
 import { BulkShareSetsDialog } from "@/components/BulkShareSetsDialog";
+import { GroupPanelDialog } from "@/components/GroupPanelDialog";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
 const KIND_COLOR: Record<string, string> = {
@@ -213,6 +214,8 @@ function Library() {
 
   // Group workspaces.
   const [showNewGroup, setShowNewGroup] = useState(false);
+  const [showGroupPanel, setShowGroupPanel] = useState(false);
+  const activeGroup = groups.find((g) => g.id === activeWorkspace);
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
   // After creating a group, offer to share the whole personal catalogue into it.
@@ -612,6 +615,15 @@ function Library() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            )}
+            {isSignedIn && activeGroup && (
+              <button
+                onClick={() => setShowGroupPanel(true)}
+                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                title="Manage group members"
+              >
+                Members
+              </button>
             )}
             {isSignedIn && syncStatus !== "offline" && (
               <span
@@ -1295,6 +1307,15 @@ function Library() {
         groups={duplicateGroups}
         onResolve={handleResolveDuplicates}
       />
+
+      {activeGroup && (
+        <GroupPanelDialog
+          open={showGroupPanel}
+          onOpenChange={setShowGroupPanel}
+          group={activeGroup}
+          onChanged={loadGroups}
+        />
+      )}
 
       {shareSet && (
         <ShareSetDialog

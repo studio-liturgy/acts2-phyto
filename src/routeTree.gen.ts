@@ -30,6 +30,7 @@ import { Route as ApiShareInviteRouteImport } from './routes/api/share/invite'
 import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedback'
 import { Route as ApiPublicContributeRouteImport } from './routes/api/public/contribute'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
+import { Route as ApiGroupsInviteRouteImport } from './routes/api/groups/invite'
 import { Route as ApiAuthWelcomeRouteImport } from './routes/api/auth/welcome'
 
 const UpdatesRoute = UpdatesRouteImport.update({
@@ -137,6 +138,11 @@ const ApiMediaUploadRoute = ApiMediaUploadRouteImport.update({
   path: '/api/media/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGroupsInviteRoute = ApiGroupsInviteRouteImport.update({
+  id: '/api/groups/invite',
+  path: '/api/groups/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthWelcomeRoute = ApiAuthWelcomeRouteImport.update({
   id: '/api/auth/welcome',
   path: '/api/auth/welcome',
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/s/$shareId': typeof SShareIdRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
+  '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/s/$shareId': typeof SShareIdRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
+  '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
@@ -211,6 +219,7 @@ export interface FileRoutesById {
   '/s/$shareId': typeof SShareIdRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
+  '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
@@ -237,6 +246,7 @@ export interface FileRouteTypes {
     | '/s/$shareId'
     | '/set/$setId'
     | '/api/auth/welcome'
+    | '/api/groups/invite'
     | '/api/media/upload'
     | '/api/public/contribute'
     | '/api/public/feedback'
@@ -261,6 +271,7 @@ export interface FileRouteTypes {
     | '/s/$shareId'
     | '/set/$setId'
     | '/api/auth/welcome'
+    | '/api/groups/invite'
     | '/api/media/upload'
     | '/api/public/contribute'
     | '/api/public/feedback'
@@ -285,6 +296,7 @@ export interface FileRouteTypes {
     | '/s/$shareId'
     | '/set/$setId'
     | '/api/auth/welcome'
+    | '/api/groups/invite'
     | '/api/media/upload'
     | '/api/public/contribute'
     | '/api/public/feedback'
@@ -310,6 +322,7 @@ export interface RootRouteChildren {
   SShareIdRoute: typeof SShareIdRoute
   SetSetIdRoute: typeof SetSetIdRoute
   ApiAuthWelcomeRoute: typeof ApiAuthWelcomeRoute
+  ApiGroupsInviteRoute: typeof ApiGroupsInviteRoute
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
   ApiPublicContributeRoute: typeof ApiPublicContributeRoute
   ApiPublicFeedbackRoute: typeof ApiPublicFeedbackRoute
@@ -465,6 +478,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMediaUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/groups/invite': {
+      id: '/api/groups/invite'
+      path: '/api/groups/invite'
+      fullPath: '/api/groups/invite'
+      preLoaderRoute: typeof ApiGroupsInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/welcome': {
       id: '/api/auth/welcome'
       path: '/api/auth/welcome'
@@ -494,6 +514,7 @@ const rootRouteChildren: RootRouteChildren = {
   SShareIdRoute: SShareIdRoute,
   SetSetIdRoute: SetSetIdRoute,
   ApiAuthWelcomeRoute: ApiAuthWelcomeRoute,
+  ApiGroupsInviteRoute: ApiGroupsInviteRoute,
   ApiMediaUploadRoute: ApiMediaUploadRoute,
   ApiPublicContributeRoute: ApiPublicContributeRoute,
   ApiPublicFeedbackRoute: ApiPublicFeedbackRoute,

@@ -14,6 +14,8 @@ import {
   shareSetToGroup,
   removeSetFromGroup,
   syncGroups,
+  leaveGroup,
+  deleteGroup,
   type MyGroup,
 } from "./sync";
 import { isLiveNow, type LiveWindow } from "./live-session";
@@ -225,6 +227,12 @@ interface LibraryState {
   unshareSetFromGroup: (setId: string, groupId: string) => Promise<void>;
   /** Share all my personal sets to a group (the create-group prompt). */
   shareCatalogueToGroup: (groupId: string) => Promise<void>;
+  /** Leave a group I'm in. My own sets stay personal; the group keeps my grants. */
+  leaveGroupById: (groupId: string) => Promise<boolean>;
+  /** Delete a group I own (cascades memberships and grants). */
+  deleteGroupById: (groupId: string) => Promise<boolean>;
+  /** Internal: local cleanup shared by leave + delete. */
+  _afterLeaveOrDeleteGroup: (groupId: string) => Promise<void>;
   /** Global template applied to ALL song sets. */
   songTemplate: SetTemplate;
   setSongTemplate: (patch: SetTemplate) => void;
@@ -372,6 +380,44 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   shareCatalogueToGroup: async (groupId) => {
     const mine = (await db.sets.toArray()).filter((s) => !s.shared).map((s) => s.id);
     await get().shareSetsToGroup(mine, groupId);
+  },
+
+  leaveGroupById: async (groupId) => {
+    const ok = await leaveGroup(groupId);
+    if (ok) await get()._afterLeaveOrDeleteGroup(groupId);
+    return ok;
+  },
+
+  deleteGroupById: async (groupId) => {
+    const ok = await deleteGroup(groupId);
+    if (ok) await get()._afterLeaveOrDeleteGroup(groupId);
+    return ok;
+  },
+
+  // Shared cleanup after leaving or deleting a group: strip the group's grants
+  // off my own local sets, prune foreign sets I no longer see, refresh the group
+  // list, and fall back to Personal if I was viewing that group.
+  _afterLeaveOrDeleteGroup: async (groupId) => {
+    const mineTagged = (await db.sets.toArray()).filter(
+      (s) => !s.shared && (s.groupIds ?? []).includes(groupId),
+    );
+    if (mineTagged.length) {
+      await db.sets.bulkPut(
+        mineTagged.map((s) => ({
+          ...s,
+          groupIds: (s.groupIds ?? []).filter((g) => g !== groupId),
+        })),
+      );
+    }
+    try {
+      await syncGroups();
+    } catch {}
+    await get().loadGroups();
+    if (get().activeWorkspace === groupId) {
+      await get().setActiveWorkspace("personal");
+    } else {
+      await get().loadFromDb();
+    }
   },
 
   migrateInlineImages: async () => {

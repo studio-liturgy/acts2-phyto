@@ -1778,6 +1778,18 @@ export async function renameGroup(groupId: string, name: string): Promise<void> 
   if (error) console.error("[sync] renameGroup error", error);
 }
 
+/** Delete a group (owner only, enforced by RLS). Cascades its memberships and
+ *  set grants; the sets themselves are untouched and revert to personal-only.
+ *  Returns true on success. */
+export async function deleteGroup(groupId: string): Promise<boolean> {
+  const { error } = await supabase.from("groups").delete().eq("id", groupId);
+  if (error) {
+    console.error("[sync] deleteGroup error", error);
+    return false;
+  }
+  return true;
+}
+
 /** Pull FOREIGN group sets (other members' contributions) into Dexie, tagged
  *  shared+group_id, last-write-wins, pruning ones I've lost access to. My own
  *  group sets are handled by the personal engine. Runs under the sync lock. */
@@ -1895,4 +1907,118 @@ export async function removeSetFromGroup(setId: string, groupId: string): Promis
     .eq("set_id", setId)
     .eq("group_id", groupId);
   if (error) console.error("[sync] removeSetFromGroup error", error);
+}
+
+export type GroupMember = {
+  id: string;
+  email: string;
+  role: "admin" | "member";
+  /** Invited but hasn't signed in to claim the membership yet. */
+  pending: boolean;
+  /** True for the current user's own row. */
+  isMe: boolean;
+};
+
+/** The roster of a group (owner + members + pending invitees). */
+export async function fetchGroupMembers(groupId: string): Promise<GroupMember[]> {
+  const session = getSession();
+  const { data, error } = await supabase
+    .from("group_members")
+    .select("id, email, role, user_id")
+    .eq("group_id", groupId)
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("[sync] fetchGroupMembers error", error);
+    return [];
+  }
+  const rows = (data ?? []) as {
+    id: string;
+    email: string;
+    role: string;
+    user_id: string | null;
+  }[];
+  return rows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    role: r.role === "admin" ? "admin" : "member",
+    pending: !r.user_id,
+    isMe: !!session && r.user_id === session.user.id,
+  }));
+}
+
+export type InviteResult = "ok" | "self" | "exists" | "error";
+
+/** Invite someone to a group by email (owner only, enforced by RLS). If they
+ *  have no account yet the row is created pending and claimed on their next
+ *  login. Best-effort invite email. */
+export async function inviteGroupMember(groupId: string, rawEmail: string): Promise<InviteResult> {
+  const session = getSession();
+  if (!session) return "error";
+  const email = rawEmail.trim().toLowerCase();
+  if (!email) return "error";
+  if (email === (session.user.email ?? "").toLowerCase()) return "self";
+
+  // Resolve an existing account (nullable: a pending invite is fine).
+  const { data: granteeId, error: lookupErr } = await supabase.rpc("user_id_for_email", {
+    p_email: email,
+  });
+  if (lookupErr) return "error";
+
+  const { error, count } = await supabase.from("group_members").upsert(
+    {
+      group_id: groupId,
+      email,
+      role: "member",
+      added_by: session.user.id,
+      user_id: (granteeId as string | null) ?? null,
+    },
+    { onConflict: "group_id,email", ignoreDuplicates: true, count: "exact" },
+  );
+  if (error) {
+    console.error("[sync] inviteGroupMember error", error);
+    return "error";
+  }
+  if (count === 0) return "exists"; // already invited/a member
+
+  // Best-effort invite email; the membership stands regardless.
+  try {
+    const groupName = (await fetchMyGroups()).find((g) => g.id === groupId)?.name;
+    await fetch("/api/groups/invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, ownerEmail: session.user.email, groupName }),
+    });
+  } catch {
+    // Ignore: the membership exists whether or not the email sends.
+  }
+  return "ok";
+}
+
+/** Remove a member from a group by email (owner only, enforced by RLS). Their
+ *  own sets stay theirs; the grants they made persist, so the group keeps them. */
+export async function removeGroupMember(groupId: string, email: string): Promise<void> {
+  const { error } = await supabase
+    .from("group_members")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("email", email.toLowerCase());
+  if (error) console.error("[sync] removeGroupMember error", error);
+}
+
+/** Leave a group I'm in (deletes only my own membership row). My own sets stay
+ *  in my personal library; the grants I made persist so the group keeps them.
+ *  Returns true on success. */
+export async function leaveGroup(groupId: string): Promise<boolean> {
+  const session = getSession();
+  if (!session) return false;
+  const { error } = await supabase
+    .from("group_members")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("user_id", session.user.id);
+  if (error) {
+    console.error("[sync] leaveGroup error", error);
+    return false;
+  }
+  return true;
 }
