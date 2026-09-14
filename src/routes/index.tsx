@@ -1285,7 +1285,7 @@ function Library() {
           await shareSetsToGroup(ownedSelectedIds, groupId);
         }}
         onRemoveFromGroup={async (groupId) => {
-          for (const id of ownedSelectedIds) await unshareSetFromGroup(id, groupId);
+          await Promise.all(ownedSelectedIds.map((id) => unshareSetFromGroup(id, groupId)));
         }}
       />
 

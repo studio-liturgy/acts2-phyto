@@ -62,16 +62,24 @@ export function BulkShareSetsDialog({
     fn: (id: string) => Promise<void>,
     verb: string,
   ) => {
+    if (groupBusy === gid) return; // ignore re-entrant clicks while this group is in flight
+    // Flip the buttons immediately; the actual grant/retract runs in the
+    // background so the UI never sits greyed while a large batch processes.
+    setLocalIn((m) => ({ ...m, [gid]: verb === "Added" }));
+    setGroupDone(`${verb} ${label} ${verb === "Added" ? "to" : "from"} ${name}.`);
     setGroupBusy(gid);
-    setGroupDone(null);
     try {
       await fn(gid);
-      setLocalIn((m) => ({ ...m, [gid]: verb === "Added" }));
-      setGroupDone(`${verb} ${label} ${verb === "Added" ? "to" : "from"} ${name}.`);
     } catch {
+      // Roll back the optimistic flip on failure.
+      setLocalIn((m) => {
+        const next = { ...m };
+        delete next[gid];
+        return next;
+      });
       setGroupDone(null);
     } finally {
-      setGroupBusy(null);
+      setGroupBusy((b) => (b === gid ? null : b));
     }
   };
 
@@ -157,9 +165,8 @@ export function BulkShareSetsDialog({
                     {canAdd && (
                       <button
                         type="button"
-                        disabled={groupBusy === g.id}
                         onClick={() => runGroup(g.id, g.name, onShareToGroup, "Added")}
-                        className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-40"
+                        className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
                       >
                         Add
                       </button>
@@ -167,9 +174,8 @@ export function BulkShareSetsDialog({
                     {canRemove && onRemoveFromGroup && (
                       <button
                         type="button"
-                        disabled={groupBusy === g.id}
                         onClick={() => runGroup(g.id, g.name, onRemoveFromGroup, "Removed")}
-                        className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] disabled:opacity-40"
+                        className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
                       >
                         Remove
                       </button>
