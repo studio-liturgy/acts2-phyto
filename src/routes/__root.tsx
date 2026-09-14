@@ -28,7 +28,6 @@ import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import {
   applyMerge,
   claimShares,
-  claimGroupMemberships,
   diffWithSupabase,
   hasDifferences,
   latestRemoteTime,
@@ -438,7 +437,8 @@ function RootComponent() {
   const runCollabSync = async () => {
     if (pathname.startsWith("/g/")) return;
     await claimShares();
-    await claimGroupMemberships();
+    // Group invites are NOT auto-claimed: they wait in the invite inbox for the
+    // user to accept or decline (see index.tsx).
     await syncSharedSets();
     await syncGroups();
     await useLibrary.getState().loadGroups();

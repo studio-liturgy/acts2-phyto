@@ -1734,17 +1734,57 @@ export async function fetchMyGroups(): Promise<MyGroup[]> {
   return out;
 }
 
-/** Attach my id to group invites addressed to my email (sent before I signed in). */
-export async function claimGroupMemberships(): Promise<void> {
+export type GroupInvite = { inviteId: string; groupId: string; groupName: string };
+
+/** Pending group invites addressed to my email that I haven't accepted yet
+ *  (user_id still NULL) — the "you've been invited" inbox, mirroring set shares.
+ *  Requires the group-invite-accept migration so I can read the group's name. */
+export async function fetchGroupInvites(): Promise<GroupInvite[]> {
   const session = getSession();
   const email = session?.user.email;
-  if (!email) return;
+  if (!email) return [];
+  const { data, error } = await supabase
+    .from("group_members")
+    .select("id, group_id, groups(name)")
+    .eq("email", email)
+    .is("user_id", null);
+  if (error) {
+    console.error("[sync] fetchGroupInvites error", error);
+    return [];
+  }
+  type G = { name: string };
+  const rows = (data ?? []) as unknown as {
+    id: string;
+    group_id: string;
+    groups: G | G[] | null;
+  }[];
+  const out: GroupInvite[] = [];
+  for (const r of rows) {
+    const g = Array.isArray(r.groups) ? r.groups[0] : r.groups;
+    out.push({ inviteId: r.id, groupId: r.group_id, groupName: g?.name ?? "a group" });
+  }
+  return out;
+}
+
+/** Accept a group invite: claim my membership row (set user_id = me). */
+export async function acceptGroupInvite(inviteId: string): Promise<boolean> {
+  const session = getSession();
+  if (!session) return false;
   const { error } = await supabase
     .from("group_members")
     .update({ user_id: session.user.id })
-    .eq("email", email)
-    .is("user_id", null);
-  if (error) console.error("[sync] claimGroupMemberships error", error);
+    .eq("id", inviteId);
+  if (error) {
+    console.error("[sync] acceptGroupInvite error", error);
+    return false;
+  }
+  return true;
+}
+
+/** Decline a group invite: delete my pending membership row. */
+export async function declineGroupInvite(inviteId: string): Promise<void> {
+  const { error } = await supabase.from("group_members").delete().eq("id", inviteId);
+  if (error) console.error("[sync] declineGroupInvite error", error);
 }
 
 /** Create a group I own and enroll myself as its admin. Returns the group id. */
@@ -1948,9 +1988,10 @@ export async function fetchGroupMembers(groupId: string): Promise<GroupMember[]>
 
 export type InviteResult = "ok" | "self" | "exists" | "error";
 
-/** Invite someone to a group by email (owner only, enforced by RLS). If they
- *  have no account yet the row is created pending and claimed on their next
- *  login. Best-effort invite email. */
+/** Invite someone to a group by email (owner only, enforced by RLS). The row is
+ *  created PENDING (user_id NULL) regardless of whether they have an account;
+ *  they accept or decline from their invite inbox on their next visit. Best-
+ *  effort invite email. */
 export async function inviteGroupMember(groupId: string, rawEmail: string): Promise<InviteResult> {
   const session = getSession();
   if (!session) return "error";
@@ -1958,19 +1999,13 @@ export async function inviteGroupMember(groupId: string, rawEmail: string): Prom
   if (!email) return "error";
   if (email === (session.user.email ?? "").toLowerCase()) return "self";
 
-  // Resolve an existing account (nullable: a pending invite is fine).
-  const { data: granteeId, error: lookupErr } = await supabase.rpc("user_id_for_email", {
-    p_email: email,
-  });
-  if (lookupErr) return "error";
-
   const { error, count } = await supabase.from("group_members").upsert(
     {
       group_id: groupId,
       email,
       role: "member",
       added_by: session.user.id,
-      user_id: (granteeId as string | null) ?? null,
+      user_id: null,
     },
     { onConflict: "group_id,email", ignoreDuplicates: true, count: "exact" },
   );

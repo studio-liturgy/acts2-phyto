@@ -49,7 +49,11 @@ import {
   saveSharedSet,
   removeSharedSet,
   createGroup,
+  fetchGroupInvites,
+  acceptGroupInvite,
+  declineGroupInvite,
   type InboxShare,
+  type GroupInvite,
 } from "@/lib/sync";
 import { previewText } from "@/lib/set-preview";
 import { SharedInboxList } from "@/components/SharedInboxList";
@@ -246,6 +250,8 @@ function Library() {
   // "Shared with you" inbox: claim any invites addressed to my email, then list
   // shares whose set I haven't saved yet.
   const [inbox, setInbox] = useState<InboxShare[]>([]);
+  // Pending group invites addressed to me (accept/decline, like set shares).
+  const [groupInvites, setGroupInvites] = useState<GroupInvite[]>([]);
   // Ids of my own sets I've shared out — for the catalogue's outgoing indicator
   // and the Shared filter.
   const [sharedOutIds, setSharedOutIds] = useState<Set<string>>(new Set());
@@ -255,22 +261,40 @@ function Library() {
   useEffect(() => {
     if (!isSignedIn) {
       setInbox([]);
+      setGroupInvites([]);
       setSharedOutIds(new Set());
       return;
     }
     let cancelled = false;
     (async () => {
       await claimShares();
-      const [rows, outIds] = await Promise.all([fetchInboxShares(), fetchSharedOutSetIds()]);
+      const [rows, outIds, invites] = await Promise.all([
+        fetchInboxShares(),
+        fetchSharedOutSetIds(),
+        fetchGroupInvites(),
+      ]);
       if (!cancelled) {
         setInbox(rows);
         setSharedOutIds(new Set(outIds));
+        setGroupInvites(invites);
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [isSignedIn]);
+
+  const handleAcceptInvite = async (invite: GroupInvite) => {
+    const ok = await acceptGroupInvite(invite.inviteId);
+    if (!ok) return;
+    setGroupInvites((prev) => prev.filter((i) => i.inviteId !== invite.inviteId));
+    await loadGroups();
+    await setActiveWorkspace(invite.groupId);
+  };
+  const handleDeclineInvite = async (invite: GroupInvite) => {
+    await declineGroupInvite(invite.inviteId);
+    setGroupInvites((prev) => prev.filter((i) => i.inviteId !== invite.inviteId));
+  };
 
   const [inboxOpen, setInboxOpen] = useState(false);
   const handleSaveShare = async (share: InboxShare) => {
@@ -450,7 +474,11 @@ function Library() {
   // First-time experience: when there's nothing to show — or when the user
   // opens the Intro link — replace the home view with the onboarding landing.
   const { intro } = Route.useSearch();
-  const isEmpty = gatheringOrder.length === 0 && order.length === 0 && inbox.length === 0;
+  const isEmpty =
+    gatheringOrder.length === 0 &&
+    order.length === 0 &&
+    inbox.length === 0 &&
+    groupInvites.length === 0;
   // The first-time landing is only for the personal library; an empty group shows
   // the normal (empty) catalogue, not the intro.
   const showLanding = activeWorkspace === "personal" && (isEmpty || !!intro);
@@ -622,7 +650,7 @@ function Library() {
                 className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
                 title="Manage group members"
               >
-                Members
+                Manage
               </button>
             )}
             {isSignedIn && syncStatus !== "offline" && (
@@ -654,6 +682,40 @@ function Library() {
             </div>
           </div>
         </header>
+      )}
+
+      {/* Pending group invites: accept to join, decline to dismiss. */}
+      {!showLanding && groupInvites.length > 0 && (
+        <div className="mx-auto w-full max-w-6xl px-6 pt-4">
+          <ul className="space-y-2">
+            {groupInvites.map((invite) => (
+              <li
+                key={invite.inviteId}
+                className="pill flex items-center gap-4 border border-foreground px-5 py-2"
+              >
+                <span className="mono flex-1 truncate text-xs uppercase tracking-wider">
+                  You've been invited to {invite.groupName}
+                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleAcceptInvite(invite)}
+                    className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeclineInvite(invite)}
+                    className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {/* Incoming shared sets: notification pill just under the header, with the
