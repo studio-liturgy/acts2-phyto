@@ -67,16 +67,21 @@ export interface Set {
   loop?: boolean;
   /** Media-only: cross-dissolve duration in ms between slides. */
   dissolveMs?: number;
-  /** Which workspace this set belongs to: a group id, or absent/null for the
-   *  owner's personal library. `user_id` (server-side) stays the contributor. */
+  /** Deprecated: the original single-workspace tag. Group membership now works
+   *  through GRANTS (group_sets → local `groupIds`), so a set can live in Personal
+   *  and several groups at once. Kept for backward compat / the RLS predicate. */
   group_id?: string | null;
-  /** True when this is a FOREIGN row — a set shared with me by someone else (I
-   *  am not the owner). Foreign rows sync through the collaborative path, not the
-   *  personal engine: they are excluded from the personal diff and pushed without
-   *  rewriting `user_id`. Absent = my own row. */
+  /** Groups this set is shared to (grant ids). A set can be in Personal (its
+   *  owner's library) AND several groups. Derived from group_sets on sync. */
+  groupIds?: string[];
+  /** True when this is a FOREIGN row — a set owned by someone else that reaches
+   *  me via a share or a group grant. Foreign rows sync through the collaborative
+   *  path, not the personal engine (excluded from the personal diff, pushed
+   *  without rewriting `user_id`). Absent = my own row. */
   shared?: boolean;
-  /** For a foreign (shared) set, the owner's email — shown in the set editor so a
-   *  collaborator can see whose set it is. Absent on my own rows. */
+  /** The owner's email — shown so collaborators can see whose set it is (in the
+   *  editor, and per-set in a group catalogue). Set for foreign rows, and for my
+   *  own rows once they're granted to a group. */
   shared_by?: string;
   createdAt: number;
   updatedAt: number;

@@ -193,6 +193,8 @@ function Library() {
     setActiveWorkspace,
     groups = [],
     loadGroups,
+    shareSetsToGroup,
+    shareCatalogueToGroup,
   } = useLibrary();
 
   const isSignedIn = useIsSignedIn();
@@ -210,19 +212,30 @@ function Library() {
   // Group workspaces.
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  // After creating a group, offer to share the whole personal catalogue into it.
+  const [catalogueShareGroupId, setCatalogueShareGroupId] = useState<string | null>(null);
   const activeWorkspaceLabel =
     activeWorkspace === "personal"
       ? "Personal"
       : (groups.find((g) => g.id === activeWorkspace)?.name ?? "Group");
+  const groupNames = (ids?: string[]) =>
+    (ids ?? [])
+      .map((id) => groups.find((g) => g.id === id)?.name)
+      .filter(Boolean)
+      .join(", ");
   const handleCreateGroup = async () => {
     const name = newGroupName.trim();
-    if (!name) return;
+    if (!name || creatingGroup) return; // guard against double-submit while creating
+    setCreatingGroup(true);
     const id = await createGroup(name);
+    setCreatingGroup(false);
     setShowNewGroup(false);
     setNewGroupName("");
     if (id) {
       await loadGroups();
       await setActiveWorkspace(id);
+      setCatalogueShareGroupId(id);
     }
   };
   // "Shared with you" inbox: claim any invites addressed to my email, then list
@@ -258,6 +271,11 @@ function Library() {
   const handleSaveShare = async (share: InboxShare) => {
     const ok = await saveSharedSet(share.set.id, share.ownerEmail);
     if (ok) setInbox((prev) => prev.filter((s) => s.shareId !== share.shareId));
+  };
+  const handleSaveAll = async () => {
+    const rows = [...inbox];
+    for (const s of rows) await saveSharedSet(s.set.id, s.ownerEmail);
+    setInbox([]);
   };
   const handleRemoveShare = async (share: InboxShare) => {
     await removeSharedSet(share.set.id);
@@ -393,7 +411,9 @@ function Library() {
   // opens the Intro link — replace the home view with the onboarding landing.
   const { intro } = Route.useSearch();
   const isEmpty = gatheringOrder.length === 0 && order.length === 0 && inbox.length === 0;
-  const showLanding = isEmpty || !!intro;
+  // The first-time landing is only for the personal library; an empty group shows
+  // the normal (empty) catalogue, not the intro.
+  const showLanding = activeWorkspace === "personal" && (isEmpty || !!intro);
 
   // The live gathering always leads, regardless of creation order.
   const gatheringDisplayOrder = useMemo(
@@ -509,24 +529,6 @@ function Library() {
                 Sign out
               </button>
             )}
-            {isSignedIn && syncStatus !== "offline" && userEmail && (
-              <span
-                className="mono text-xs uppercase tracking-wider text-foreground/60"
-                title="Signed in as"
-              >
-                {userEmail}
-              </span>
-            )}
-            {isSignedIn && syncStatus !== "offline" && (
-              <span
-                data-sync={syncStatus}
-                className={`h-4 w-4 rounded-full ${syncStatus === "syncing" ? "bg-[var(--brand-orange)]" : "bg-[var(--brand-green)]"}`}
-                style={{
-                  transition: `background-color ${syncStatus === "syncing" ? "0.5s" : "1.5s"} ease`,
-                }}
-                title={syncStatus === "syncing" ? "Syncing…" : "Synced"}
-              />
-            )}
             {isSignedIn && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -563,6 +565,24 @@ function Library() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            {isSignedIn && syncStatus !== "offline" && (
+              <span
+                data-sync={syncStatus}
+                className={`h-4 w-4 rounded-full ${syncStatus === "syncing" ? "bg-[var(--brand-orange)]" : "bg-[var(--brand-green)]"}`}
+                style={{
+                  transition: `background-color ${syncStatus === "syncing" ? "0.5s" : "1.5s"} ease`,
+                }}
+                title={syncStatus === "syncing" ? "Syncing…" : "Synced"}
+              />
+            )}
+            {isSignedIn && syncStatus !== "offline" && userEmail && (
+              <span
+                className="mono text-xs uppercase tracking-wider text-foreground/60"
+                title="Signed in as"
+              >
+                {userEmail}
+              </span>
+            )}
 
             <div className="ml-auto flex flex-wrap items-center gap-4">
               <Link
@@ -594,7 +614,9 @@ function Library() {
               <SharedInboxList
                 shares={inbox}
                 onSave={handleSaveShare}
+                onSaveAll={handleSaveAll}
                 onRemove={handleRemoveShare}
+                inGroupWorkspace={activeWorkspace !== "personal"}
               />
             </div>
           )}
@@ -891,6 +913,20 @@ function Library() {
                 <ul className="space-y-1">
                   {catalogueRows.map((d) => {
                     const checked = selectedIds.has(d.id);
+                    // Left-of-category info: in a group view, who owns the set; in
+                    // personal, whether it's shared out (to groups or people) or in.
+                    const inGroupView = activeWorkspace !== "personal";
+                    const leftInfo = inGroupView
+                      ? d.shared
+                        ? (d.shared_by ?? "someone")
+                        : (userEmail ?? "you")
+                      : d.shared
+                        ? (d.shared_by ?? "someone")
+                        : d.groupIds?.length
+                          ? `shared to ${groupNames(d.groupIds)}`
+                          : sharedOutIds.has(d.id)
+                            ? "shared"
+                            : null;
                     return (
                       <li
                         key={d.id}
@@ -922,22 +958,24 @@ function Library() {
                               </svg>
                             )}
                           </span>
-                        ) : (
-                          <DotsGrip className="cursor-grab opacity-80" />
-                        )}
+                        ) : null}
                         <span className="min-w-0 flex-1 truncate text-base">{d.name}</span>
                         {/* Right side: fixed-width columns so meta, share and edit
                             line up down the list — the share slot is reserved even
                             when a row has no share button. */}
                         <div className="ml-auto flex shrink-0 items-center gap-2">
                           <div className="mono hidden items-center text-xs uppercase tracking-wider opacity-90 sm:flex">
-                            {(d.shared || sharedOutIds.has(d.id)) && (
+                            {leftInfo && (
                               <span className="mr-8 whitespace-nowrap text-[10px] opacity-50">
-                                {d.shared ? (d.shared_by ?? "someone") : "shared by you"}
+                                {leftInfo}
                               </span>
                             )}
-                            <span className="w-[168px] shrink-0 text-right">
-                              {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
+                            <span className="flex shrink-0 items-center gap-1">
+                              <span className="w-[84px] text-right">{d.kind}</span>
+                              <span>·</span>
+                              <span className="w-[72px] text-left">
+                                {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
+                              </span>
                             </span>
                           </div>
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center">
@@ -1195,6 +1233,7 @@ function Library() {
           }}
           setId={shareSet.id}
           setName={shareSet.name}
+          groups={groups}
         />
       )}
 
@@ -1203,6 +1242,12 @@ function Library() {
         onOpenChange={setShowBulkShare}
         setIds={ownedSelectedIds}
         onShared={refreshSharedOut}
+        groups={groups}
+        onShareToGroup={async (groupId) => {
+          await shareSetsToGroup(ownedSelectedIds, groupId);
+          setShowBulkShare(false);
+          exitEditMode();
+        }}
       />
 
       <Dialog
@@ -1233,14 +1278,52 @@ function Library() {
             <button
               type="button"
               onClick={handleCreateGroup}
-              disabled={!newGroupName.trim()}
+              disabled={!newGroupName.trim() || creatingGroup}
               className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-40"
             >
-              Create
+              {creatingGroup ? "Creating…" : "Create"}
             </button>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* After creating a group: offer to share the whole personal catalogue. */}
+      <AlertDialog
+        open={catalogueShareGroupId !== null}
+        onOpenChange={(o) => {
+          if (!o) setCatalogueShareGroupId(null);
+        }}
+      >
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Share your catalogue?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            Add all your personal sets to this group so everyone can use them. You can retract any
+            set later.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={async () => {
+                const gid = catalogueShareGroupId;
+                setCatalogueShareGroupId(null);
+                if (gid) await shareCatalogueToGroup(gid);
+              }}
+              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
+            >
+              Share catalogue
+            </button>
+            <button
+              type="button"
+              onClick={() => setCatalogueShareGroupId(null)}
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              Not now
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

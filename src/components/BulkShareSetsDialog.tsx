@@ -2,23 +2,27 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/authStore";
+import type { MyGroup } from "@/lib/sync";
 
 /**
- * Share several owned sets at once (from the catalogue's edit mode). One email
- * per person grants two-way access to every selected set; the invite links to the
- * app, where the recipient sees them all in "shared with you". Only-account check
- * is the same as the single-set dialog.
+ * Share several owned sets at once (from the catalogue's edit mode). Add them to a
+ * group (a grant per set) or share with a person by email. One email per person
+ * grants two-way access to every selected set; the invite links to the app.
  */
 export function BulkShareSetsDialog({
   open,
   onOpenChange,
   setIds,
   onShared,
+  groups = [],
+  onShareToGroup,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   setIds: string[];
   onShared?: () => void;
+  groups?: MyGroup[];
+  onShareToGroup?: (groupId: string) => Promise<void>;
 }) {
   const session = useAuthStore((s) => s.session);
   const [email, setEmail] = useState("");
@@ -95,10 +99,34 @@ export function BulkShareSetsDialog({
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
         <DialogTitle className="text-2xl font-normal leading-tight">Share {label}!</DialogTitle>
         <p className="mono uppercase mt-2 text-[10px] tracking-wider text-muted-foreground">
-          The people you add can view, save, and edit these sets with you.
+          Add them to a group, or share with a person. Either way they can be viewed, saved, and
+          edited together.
         </p>
 
-        <div className="mt-6 flex items-center gap-2">
+        {groups.length > 0 && onShareToGroup && (
+          <div className="mt-6">
+            <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+              Add to a group
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {groups.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => onShareToGroup(g.id)}
+                  className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                >
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
+          Share with a person
+        </div>
+        <div className="flex items-center gap-2">
           <input
             type="email"
             value={email}
@@ -118,7 +146,11 @@ export function BulkShareSetsDialog({
             Share
           </button>
         </div>
-        {error && <p className="mt-2 text-xs text-[var(--brand-red)]">{error}</p>}
+        {error && (
+          <p className="mono uppercase mt-2 text-[10px] tracking-wider text-[var(--brand-red)]">
+            {error}
+          </p>
+        )}
         {done && (
           <p className="mono mt-3 text-xs uppercase tracking-wider text-muted-foreground">
             Shared {label} with {done}. Add another email or close.

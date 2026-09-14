@@ -11,6 +11,8 @@ import {
   withSyncLock,
   removeSharedSet,
   fetchMyGroups,
+  shareSetToGroup,
+  removeSetFromGroup,
   type MyGroup,
 } from "./sync";
 import { isLiveNow, type LiveWindow } from "./live-session";
@@ -150,11 +152,12 @@ function purgeUploadedMedia(slides: Slide[]): void {
  * `loadFromDb` and the cross-tab `liveQuery` subscription so both produce an
  * identical store, sorted newest-first by `createdAt`.
  */
-/** Whether a row belongs to the active workspace: `"personal"` shows rows with
- *  no group_id (the owner's own library); a group id shows only that group's
- *  rows. Absent/null group_id is always personal. */
-function inWorkspace(row: { group_id?: string | null }, activeWorkspace: string): boolean {
-  return activeWorkspace === "personal" ? !row.group_id : row.group_id === activeWorkspace;
+/** Sets: Personal shows my own sets and person-shares (sets not granted to any
+ *  group); a group shows the sets granted to it. Gatherings are never shared to a
+ *  group, so they are always the viewer's own and show in every workspace. */
+function setInWorkspace(s: PhytoSet, activeWorkspace: string): boolean {
+  if (activeWorkspace === "personal") return !s.shared || (s.groupIds?.length ?? 0) === 0;
+  return (s.groupIds ?? []).includes(activeWorkspace);
 }
 
 function buildLibraryState(
@@ -165,16 +168,17 @@ function buildLibraryState(
   const sets: Record<string, PhytoSet> = {};
   const order: string[] = [];
   for (const s of allSets) {
-    if (!inWorkspace(s, activeWorkspace)) continue;
+    if (!setInWorkspace(s, activeWorkspace)) continue;
     sets[s.id] = s;
     order.push(s.id);
   }
   order.sort((a, b) => (sets[b].createdAt ?? 0) - (sets[a].createdAt ?? 0));
 
+  // Gatherings are never shared to groups, so all local ones are the viewer's own
+  // and show in every workspace.
   const gatherings: Record<string, Gathering> = {};
   const gatheringOrder: string[] = [];
   for (const p of allGatherings) {
-    if (!inWorkspace(p, activeWorkspace)) continue;
     gatherings[p.id] = p;
     gatheringOrder.push(p.id);
   }
@@ -196,8 +200,12 @@ interface LibraryState {
   /** Groups I belong to (for the workspace switcher). */
   groups: MyGroup[];
   loadGroups: () => Promise<void>;
-  /** Re-home one of my OWN sets between Personal ("personal") and a group id. */
-  moveToWorkspace: (setId: string, workspace: string) => void;
+  /** Share my own sets to a group (creates grants; sets stay in my library). */
+  shareSetsToGroup: (setIds: string[], groupId: string) => Promise<void>;
+  /** Remove a set from a group (owner retract, or group admin). */
+  unshareSetFromGroup: (setId: string, groupId: string) => Promise<void>;
+  /** Share all my personal sets to a group (the create-group prompt). */
+  shareCatalogueToGroup: (groupId: string) => Promise<void>;
   /** Global template applied to ALL song sets. */
   songTemplate: SetTemplate;
   setSongTemplate: (patch: SetTemplate) => void;
@@ -292,10 +300,34 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }
   },
 
-  moveToWorkspace: (setId, workspace) => {
-    // Re-home one of my own sets. updateSet persists + pushes group_id, and the
-    // Dexie liveQuery re-derives the (workspace-filtered) library.
-    get().updateSet(setId, { group_id: workspace === "personal" ? null : workspace });
+  shareSetsToGroup: async (setIds, groupId) => {
+    await Promise.all(setIds.map((id) => shareSetToGroup(id, groupId)));
+    // Optimistically tag locally so they appear in the group immediately; sync
+    // reconciles the authoritative grants.
+    const updates: PhytoSet[] = [];
+    for (const id of setIds) {
+      const s = await db.sets.get(id);
+      if (s && !(s.groupIds ?? []).includes(groupId)) {
+        updates.push({ ...s, groupIds: [...(s.groupIds ?? []), groupId] });
+      }
+    }
+    if (updates.length) await db.sets.bulkPut(updates);
+  },
+
+  unshareSetFromGroup: async (setId, groupId) => {
+    await removeSetFromGroup(setId, groupId);
+    const s = await db.sets.get(setId);
+    if (!s) return;
+    const groupIds = (s.groupIds ?? []).filter((g) => g !== groupId);
+    // A FOREIGN set (someone else's, admin-removed) with no groups left is no
+    // longer accessible to me — drop the local copy. My own sets are kept.
+    if (s.shared && groupIds.length === 0) await db.sets.delete(setId);
+    else await db.sets.put({ ...s, groupIds });
+  },
+
+  shareCatalogueToGroup: async (groupId) => {
+    const mine = (await db.sets.toArray()).filter((s) => !s.shared).map((s) => s.id);
+    await get().shareSetsToGroup(mine, groupId);
   },
 
   migrateInlineImages: async () => {
@@ -359,18 +391,29 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     const id = uid();
     const now = Date.now();
     const ws = get().activeWorkspace;
+    const inGroup = ws !== "personal";
     const record: PhytoSet = {
       ...newSet,
       id,
       createdAt: now,
       updatedAt: now,
-      group_id: ws === "personal" ? undefined : ws,
+      // Created inside a group: still my own set, optimistically tagged so it shows
+      // in the group right away; the grant row is created once the set lands.
+      groupIds: inGroup ? [ws] : undefined,
     };
     set((s) => ({
       sets: { ...s.sets, [id]: record },
       order: [id, ...s.order],
     }));
-    db.sets.put(record).then(() => schedulePush({ set: id }));
+    db.sets.put(record).then(async () => {
+      if (inGroup) {
+        // Push the set first so the group_sets FK resolves, then grant.
+        await pushToSupabase({ setIds: [id], gatheringIds: [] });
+        await shareSetToGroup(id, ws);
+      } else {
+        schedulePush({ set: id });
+      }
+    });
     return id;
   },
 
@@ -569,7 +612,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   createGathering: (name) => {
     const id = uid();
     const now = Date.now();
-    const ws = get().activeWorkspace;
+    // Gatherings are always personal (groups share only sets); no group tag.
     const record: Gathering = {
       id,
       name,
@@ -579,7 +622,6 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       live_started_at: null,
       createdAt: now,
       updatedAt: now,
-      group_id: ws === "personal" ? undefined : ws,
     };
     set((s) => ({
       gatherings: { ...s.gatherings, [id]: record },

@@ -33,52 +33,76 @@ function imageSlides(set: PhytoSet) {
 export function SharedInboxList({
   shares,
   onSave,
+  onSaveAll,
   onRemove,
+  inGroupWorkspace = false,
 }: {
   shares: InboxShare[];
   onSave: (share: InboxShare) => void;
+  onSaveAll: () => void;
   onRemove: (share: InboxShare) => void;
+  inGroupWorkspace?: boolean;
 }) {
   const [preview, setPreview] = useState<{ set: PhytoSet; x: number; y: number } | null>(null);
   const [confirm, setConfirm] = useState<InboxShare | null>(null);
+  // Saving while viewing a group is confirmed first: shared sets always land in
+  // the personal library (only their owner can add them to a group).
+  const [confirmSave, setConfirmSave] = useState<InboxShare | "all" | null>(null);
 
   const mediaThumbs = preview ? imageSlides(preview.set) : [];
   const showImages = preview?.set.kind === "media" && mediaThumbs.length > 0;
 
+  const requestSave = (share: InboxShare) =>
+    inGroupWorkspace ? setConfirmSave(share) : onSave(share);
+  const requestSaveAll = () => (inGroupWorkspace ? setConfirmSave("all") : onSaveAll());
+
   return (
-    <ul className="space-y-1.5">
-      {shares.map((share) => (
-        <li
-          key={share.shareId}
-          onMouseEnter={(e) => setPreview({ set: share.set, x: e.clientX, y: e.clientY })}
-          onMouseMove={(e) => setPreview((p) => (p ? { ...p, x: e.clientX, y: e.clientY } : p))}
-          onMouseLeave={() => setPreview(null)}
-          className={`pill flex items-center gap-4 px-5 py-2 ${kindBg(share.set.kind)}`}
-        >
-          <span className="flex-1 truncate text-base">{share.set.name}</span>
-          {share.ownerEmail && (
-            <span className="mono mr-8 hidden whitespace-nowrap text-[10px] uppercase tracking-wider opacity-50 sm:inline">
-              {share.ownerEmail}
-            </span>
-          )}
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onSave(share)}
-              className="mono uppercase rounded-full bg-white/20 px-4 py-1.5 text-xs tracking-wider transition hover:bg-white/30"
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirm(share)}
-              className="mono uppercase rounded-full border border-white/40 px-4 py-1.5 text-xs tracking-wider transition hover:bg-white/20"
-            >
-              Remove
-            </button>
-          </div>
-        </li>
-      ))}
+    <div>
+      {shares.length > 1 && (
+        <div className="mb-2 flex justify-end">
+          <button
+            type="button"
+            onClick={requestSaveAll}
+            className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+          >
+            Save all
+          </button>
+        </div>
+      )}
+      <ul className="space-y-1.5">
+        {shares.map((share) => (
+          <li
+            key={share.shareId}
+            onMouseEnter={(e) => setPreview({ set: share.set, x: e.clientX, y: e.clientY })}
+            onMouseMove={(e) => setPreview((p) => (p ? { ...p, x: e.clientX, y: e.clientY } : p))}
+            onMouseLeave={() => setPreview(null)}
+            className={`pill flex items-center gap-4 px-5 py-2 ${kindBg(share.set.kind)}`}
+          >
+            <span className="flex-1 truncate text-base">{share.set.name}</span>
+            {share.ownerEmail && (
+              <span className="mono mr-8 hidden whitespace-nowrap text-[10px] uppercase tracking-wider opacity-50 sm:inline">
+                {share.ownerEmail}
+              </span>
+            )}
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => requestSave(share)}
+                className="mono uppercase rounded-full bg-white/20 px-4 py-1.5 text-xs tracking-wider transition hover:bg-white/30"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirm(share)}
+                className="mono uppercase rounded-full border border-white/40 px-4 py-1.5 text-xs tracking-wider transition hover:bg-white/20"
+              >
+                Remove
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
 
       {preview &&
         typeof document !== "undefined" &&
@@ -151,6 +175,44 @@ export function SharedInboxList({
           </div>
         </AlertDialogContent>
       </AlertDialog>
-    </ul>
+
+      <AlertDialog
+        open={confirmSave !== null}
+        onOpenChange={(o) => {
+          if (!o) setConfirmSave(null);
+        }}
+      >
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Save to your library?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            You're viewing a group, but shared sets are saved to your personal library — only a
+            set's owner can add it to a group.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                const c = confirmSave;
+                setConfirmSave(null);
+                if (c === "all") onSaveAll();
+                else if (c) onSave(c);
+              }}
+              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmSave(null)}
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              Cancel
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }

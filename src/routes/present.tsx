@@ -1155,7 +1155,7 @@ function Presenter() {
               </div>
             ) : null
           ) : !activeSet ? (
-            <div className="mono flex h-full items-center justify-center text-sm text-muted-foreground">
+            <div className="mono uppercase flex h-full items-center justify-center text-sm tracking-wider text-muted-foreground">
               Select a set to begin.
             </div>
           ) : activeSet.slides.length === 0 ? (

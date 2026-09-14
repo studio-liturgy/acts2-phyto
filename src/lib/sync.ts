@@ -1787,34 +1787,112 @@ export async function syncGroups(): Promise<void> {
   const uid = session.user.id;
   const groupIds = (await fetchMyGroups()).map((g) => g.id);
   await withSyncLock(async () => {
-    const localGroupSets = (await db.sets.toArray()).filter((s) => s.shared && s.group_id);
+    const local = await db.sets.toArray();
+    const localForeignGroup = local.filter((s) => s.shared && (s.groupIds?.length ?? 0) > 0);
 
     if (!groupIds.length) {
-      if (localGroupSets.length) await db.sets.bulkDelete(localGroupSets.map((s) => s.id));
+      // Not in any group: drop foreign group sets and clear grants off my own.
+      if (localForeignGroup.length) await db.sets.bulkDelete(localForeignGroup.map((s) => s.id));
+      const myGranted = local.filter((s) => !s.shared && (s.groupIds?.length ?? 0) > 0);
+      if (myGranted.length) await db.sets.bulkPut(myGranted.map((s) => ({ ...s, groupIds: [] })));
       return;
     }
 
-    const { data, error } = await supabase
-      .from("sets")
-      .select("*")
-      .in("group_id", groupIds)
-      .neq("user_id", uid);
-    if (error) {
-      console.error("[sync] syncGroups sets error", error);
+    // Every grant for the groups I'm in.
+    const { data: grantRows, error: grantErr } = await supabase
+      .from("group_sets")
+      .select("group_id, set_id, owner_id, owner_email")
+      .in("group_id", groupIds);
+    if (grantErr) {
+      console.error("[sync] syncGroups grants error", grantErr);
       return;
     }
-    const remote = (data as Record<string, unknown>[]).map((row) => ({
-      ...fromSupabaseSet(row),
-      shared: true as const,
-    }));
-    const remoteIds = new Set(remote.map((s) => s.id));
-    const localById = new Map(localGroupSets.map((s) => [s.id, s]));
-    const toWrite = remote.filter((r) => {
-      const l = localById.get(r.id);
-      return !l || r.updatedAt > l.updatedAt;
-    });
-    if (toWrite.length) await db.sets.bulkPut(toWrite);
-    const gone = localGroupSets.filter((s) => !remoteIds.has(s.id));
+    const grants = (grantRows ?? []) as {
+      group_id: string;
+      set_id: string;
+      owner_id: string;
+      owner_email: string | null;
+    }[];
+    const groupsBySet = new Map<string, string[]>();
+    const ownerEmailBySet = new Map<string, string | null>();
+    for (const g of grants) {
+      const arr = groupsBySet.get(g.set_id) ?? [];
+      arr.push(g.group_id);
+      groupsBySet.set(g.set_id, arr);
+      ownerEmailBySet.set(g.set_id, g.owner_email);
+    }
+    const sameSet = (a: string[], b: string[]) =>
+      a.length === b.length && a.every((x) => b.includes(x));
+
+    // 1) My own sets: mirror their grants into local groupIds (so they appear in
+    //    the group views), clearing ones no longer granted.
+    const myUpdates: PhytoSet[] = [];
+    for (const s of local) {
+      if (s.shared) continue;
+      const desired = groupsBySet.get(s.id) ?? [];
+      if (!sameSet(desired, s.groupIds ?? [])) myUpdates.push({ ...s, groupIds: desired });
+    }
+    if (myUpdates.length) await db.sets.bulkPut(myUpdates);
+
+    // 2) Foreign granted sets (owned by others): pull content + tag.
+    const foreignSetIds = [
+      ...new Set(grants.filter((g) => g.owner_id !== uid).map((g) => g.set_id)),
+    ];
+    const localForeignById = new Map(localForeignGroup.map((s) => [s.id, s]));
+    if (foreignSetIds.length) {
+      const { data: setRows, error: setErr } = await supabase
+        .from("sets")
+        .select("*")
+        .in("id", foreignSetIds);
+      if (setErr) {
+        console.error("[sync] syncGroups sets error", setErr);
+        return;
+      }
+      const toWrite: PhytoSet[] = [];
+      for (const row of (setRows ?? []) as Record<string, unknown>[]) {
+        const parsed = fromSupabaseSet(row);
+        const gids = groupsBySet.get(parsed.id) ?? [];
+        const email = ownerEmailBySet.get(parsed.id) ?? undefined;
+        const localCopy = localForeignById.get(parsed.id);
+        if (!localCopy || parsed.updatedAt > localCopy.updatedAt) {
+          // Remote content wins.
+          toWrite.push({ ...parsed, shared: true, groupIds: gids, shared_by: email });
+        } else if (!sameSet(gids, localCopy.groupIds ?? []) || localCopy.shared_by !== email) {
+          // My local content is newer/equal (a pending edit) — keep it, refresh tags.
+          toWrite.push({ ...localCopy, groupIds: gids, shared_by: email });
+        }
+      }
+      if (toWrite.length) await db.sets.bulkPut(toWrite);
+    }
+    // Prune foreign group sets no longer granted to me.
+    const accessible = new Set(foreignSetIds);
+    const gone = localForeignGroup.filter((s) => !accessible.has(s.id));
     if (gone.length) await db.sets.bulkDelete(gone.map((s) => s.id));
   });
+}
+
+/** Share one of my sets to a group (a grant). Idempotent. */
+export async function shareSetToGroup(setId: string, groupId: string): Promise<void> {
+  const session = getSession();
+  if (!session) return;
+  const { error } = await supabase.from("group_sets").upsert(
+    {
+      group_id: groupId,
+      set_id: setId,
+      owner_id: session.user.id,
+      owner_email: session.user.email ?? null,
+    },
+    { onConflict: "group_id,set_id", ignoreDuplicates: true },
+  );
+  if (error) console.error("[sync] shareSetToGroup error", error);
+}
+
+/** Remove a set from a group (retract). Allowed for the owner or group admin. */
+export async function removeSetFromGroup(setId: string, groupId: string): Promise<void> {
+  const { error } = await supabase
+    .from("group_sets")
+    .delete()
+    .eq("set_id", setId)
+    .eq("group_id", groupId);
+  if (error) console.error("[sync] removeSetFromGroup error", error);
 }

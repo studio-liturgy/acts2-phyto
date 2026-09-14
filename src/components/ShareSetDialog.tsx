@@ -3,6 +3,7 @@ import { Copy, Check, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/authStore";
+import { shareSetToGroup, removeSetFromGroup, type MyGroup } from "@/lib/sync";
 
 type ShareRow = { id: string; grantee_email: string };
 
@@ -17,15 +18,18 @@ export function ShareSetDialog({
   onOpenChange,
   setId,
   setName,
+  groups = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   setId: string;
   setName: string;
+  groups?: MyGroup[];
 }) {
   const session = useAuthStore((s) => s.session);
   const [email, setEmail] = useState("");
   const [shares, setShares] = useState<ShareRow[]>([]);
+  const [groupGrants, setGroupGrants] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -41,7 +45,24 @@ export function ShareSetDialog({
       .select("id, grantee_email")
       .eq("set_id", setId)
       .then(({ data }) => setShares((data ?? []) as ShareRow[]));
+    supabase
+      .from("group_sets")
+      .select("group_id")
+      .eq("set_id", setId)
+      .then(({ data }) =>
+        setGroupGrants(((data ?? []) as { group_id: string }[]).map((r) => r.group_id)),
+      );
   }, [open, setId]);
+
+  const toggleGroup = async (groupId: string) => {
+    if (groupGrants.includes(groupId)) {
+      await removeSetFromGroup(setId, groupId);
+      setGroupGrants((g) => g.filter((x) => x !== groupId));
+    } else {
+      await shareSetToGroup(setId, groupId);
+      setGroupGrants((g) => [...g, groupId]);
+    }
+  };
 
   const share = async () => {
     const e = email.trim().toLowerCase();
@@ -124,10 +145,42 @@ export function ShareSetDialog({
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
         <DialogTitle className="text-2xl font-normal leading-tight">Share this set!</DialogTitle>
         <p className="mono uppercase mt-2 text-[10px] tracking-wider text-muted-foreground">
-          People you add can view, save, and edit this set with you.
+          People and groups you add can view, save, and edit this set with you.
         </p>
 
-        <div className="mt-6 flex items-center gap-2">
+        {groups.length > 0 && (
+          <div className="mt-6">
+            <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+              Groups
+            </div>
+            <ul className="space-y-2">
+              {groups.map((g) => {
+                const inGroup = groupGrants.includes(g.id);
+                return (
+                  <li key={g.id} className="flex items-center gap-2">
+                    <span className="mono flex-1 truncate text-sm uppercase">{g.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(g.id)}
+                      className={`mono uppercase rounded-full px-4 py-1.5 text-xs tracking-wider transition ${
+                        inGroup
+                          ? "border border-foreground hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                          : "bg-foreground text-background hover:opacity-90"
+                      }`}
+                    >
+                      {inGroup ? "Remove" : "Add"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
+          Share with a person
+        </div>
+        <div className="flex items-center gap-2">
           <input
             type="email"
             value={email}
@@ -147,7 +200,11 @@ export function ShareSetDialog({
             Share
           </button>
         </div>
-        {error && <p className="mt-2 text-xs text-[var(--brand-red)]">{error}</p>}
+        {error && (
+          <p className="mono uppercase mt-2 text-[10px] tracking-wider text-[var(--brand-red)]">
+            {error}
+          </p>
+        )}
 
         {shares.length > 0 && (
           <ul className="mt-6 space-y-2">
