@@ -168,8 +168,8 @@ function purgeUploadedMedia(slides: Slide[]): void {
  * identical store, sorted newest-first by `createdAt`.
  */
 /** Sets: Personal shows my own sets and person-shares (sets not granted to any
- *  group); a group shows the sets granted to it. Gatherings are never shared to a
- *  group, so they are always the viewer's own and show in every workspace. */
+ *  group); a group shows the sets granted to it. Gatherings are scoped separately
+ *  (by group_id) in buildLibraryState below. */
 function setInWorkspace(s: PhytoSet, activeWorkspace: string): boolean {
   if (activeWorkspace === "personal") return !s.shared || (s.groupIds?.length ?? 0) === 0;
   return (s.groupIds ?? []).includes(activeWorkspace);
@@ -733,6 +733,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }),
 
   deleteGathering: async (id) => {
+    // A foreign group gathering is a shared resource: deleting it removes it for
+    // the whole group (RLS member-delete), with no personal tombstone.
+    const isForeign = !!get().gatherings[id]?.shared;
     // Serialize against pushes/merges so an in-flight push can't re-upsert this
     // gathering (or its gathering_sets) from a pre-delete Dexie snapshot.
     await withSyncLock(async () => {
@@ -745,15 +748,15 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
           .eq("gathering_id", id);
         if (gsErr) console.error("[deleteGathering] gathering_sets delete error:", gsErr);
 
-        const { error: gErr } = await supabase
-          .from("gatherings")
-          .delete()
-          .eq("id", id)
-          .eq("user_id", userId);
+        const gDelete = supabase.from("gatherings").delete().eq("id", id);
+        // My own rows are scoped to me (owner delete); a group gathering owned by
+        // another member is deleted via the group-member delete policy.
+        const { error: gErr } = await (isForeign ? gDelete : gDelete.eq("user_id", userId));
         if (gErr) console.error("[deleteGathering] gatherings delete error:", gErr);
-        // Tombstone so other devices holding a copy delete it instead of
-        // pushing it back (sync.ts remotelyDeleted).
-        await recordDeletions("gathering", [id]);
+        // Tombstone only my OWN rows so other devices delete their copy instead of
+        // pushing it back (sync.ts remotelyDeleted). A foreign row isn't mine to
+        // tombstone; other members prune it via syncGroups.
+        if (!isForeign) await recordDeletions("gathering", [id]);
       }
 
       await db.gatherings.delete(id);
@@ -813,59 +816,76 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       return;
     }
     const userId = session.user.id;
+    // "One live per scope": a group has one live gathering (shared across its
+    // members); Personal has its own, independent one. So going live takes offline
+    // only the OTHER gatherings in the same scope, and Personal and each group
+    // never disturb each other.
+    const groupId = target.group_id ?? null;
+    const sameScope = (p: Gathering) => (groupId ? p.group_id === groupId : !p.group_id);
 
     // ── Supabase (source of truth) ────────────────────────────────────────────
-    // 1. Take every other gathering offline first, so there is never a window
-    //    with two live rows.
-    const { error: offlineErr } = await supabase
+    // 1. Take every other gathering in this scope offline first, so there is
+    //    never a window with two live rows in the scope.
+    const offlineOthers = supabase
       .from("gatherings")
       .update({ is_live: false })
-      .neq("id", gatheringId)
-      .eq("user_id", userId);
+      .neq("id", gatheringId);
+    const { error: offlineErr } = await (groupId
+      ? offlineOthers.eq("group_id", groupId) // any member's row in the group
+      : offlineOthers.eq("user_id", userId).is("group_id", null)); // my personal only
     if (offlineErr) {
       console.error("[goLive] offline-others error:", offlineErr);
       throw offlineErr;
     }
 
-    // 2. Upsert the target with is_live: true in a single call — this both
-    //    ensures a never-pushed gathering exists and flips it live atomically.
-    //    `live_started_at` starts the 24h expiry clock. The DB trigger stamps it
-    //    too, but sending it explicitly is what restarts an EXPIRED session:
-    //    that row is still is_live=true, so the trigger sees no flip and would
-    //    leave the old, already-elapsed timestamp in place.
+    // 2. Flip the target live. `live_started_at` starts the 24h expiry clock; the
+    //    DB trigger stamps it too, but sending it explicitly restarts an EXPIRED
+    //    session. A foreign group gathering (owned by another member) is UPDATEd
+    //    in place so its ownership survives; my own is upserted so a never-pushed
+    //    gathering is created atomically.
     const liveStartedAt = Date.now();
-    const { error: liveErr } = await supabase.from("gatherings").upsert(
-      {
-        id: target.id,
-        user_id: userId,
-        title: target.name,
-        share_token: target.share_token,
-        is_live: true,
-        live_started_at: new Date(liveStartedAt).toISOString(),
-        // NOTE: hidden_sections is deliberately NOT written here — section hiding
-        // is a saved per-gathering setting that persists across sessions, so
-        // going live must leave it untouched (the column keeps its stored value;
-        // a brand-new row just gets the '{}' default).
-        current_set_index: 0,
-        current_slide_index: 0,
-        created_at: new Date(target.createdAt).toISOString(),
-        updated_at: new Date(target.updatedAt).toISOString(),
-      },
-      { onConflict: "id" },
-    );
+    const liveErr = target.shared
+      ? (
+          await supabase
+            .from("gatherings")
+            .update({ is_live: true, live_started_at: new Date(liveStartedAt).toISOString() })
+            .eq("id", target.id)
+        ).error
+      : (
+          await supabase.from("gatherings").upsert(
+            {
+              id: target.id,
+              user_id: userId,
+              title: target.name,
+              share_token: target.share_token,
+              group_id: groupId,
+              is_live: true,
+              live_started_at: new Date(liveStartedAt).toISOString(),
+              // NOTE: hidden_sections is deliberately NOT written here — section
+              // hiding is a saved per-gathering setting that persists across
+              // sessions, so going live must leave it untouched.
+              current_set_index: 0,
+              current_slide_index: 0,
+              created_at: new Date(target.createdAt).toISOString(),
+              updated_at: new Date(target.updatedAt).toISOString(),
+            },
+            { onConflict: "id" },
+          )
+        ).error;
     if (liveErr) {
-      console.error("[goLive] live upsert error:", liveErr);
+      console.error("[goLive] live write error:", liveErr);
       throw liveErr;
     }
 
     // ── Reflect into Dexie + Zustand (do NOT bump updatedAt — is_live is not a
     //    synced content change, and bumping it would trigger a false conflict).
+    //    Only same-scope gatherings are taken offline locally, mirroring 1.
     const allGatherings = await db.gatherings.toArray();
     await db.transaction("rw", db.gatherings, async () => {
       for (const p of allGatherings) {
         if (p.id === gatheringId) {
           await db.gatherings.put({ ...p, is_live: true, live_started_at: liveStartedAt });
-        } else if (p.is_live) {
+        } else if (p.is_live && sameScope(p)) {
           await db.gatherings.put({ ...p, is_live: false, live_started_at: null });
         }
       }
@@ -873,12 +893,12 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     set((s) => {
       const updated = { ...s.gatherings };
       for (const id of Object.keys(updated)) {
-        const live = id === gatheringId;
-        updated[id] = {
-          ...updated[id],
-          is_live: live,
-          live_started_at: live ? liveStartedAt : null,
-        };
+        const p = updated[id];
+        if (id === gatheringId) {
+          updated[id] = { ...p, is_live: true, live_started_at: liveStartedAt };
+        } else if (p.is_live && sameScope(p)) {
+          updated[id] = { ...p, is_live: false, live_started_at: null };
+        }
       }
       return { gatherings: updated };
     });
@@ -895,11 +915,10 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }
 
     // ── Supabase (source of truth) ────────────────────────────────────────────
-    const { error } = await supabase
-      .from("gatherings")
-      .update({ is_live: false })
-      .eq("id", gatheringId)
-      .eq("user_id", session.user.id);
+    // My own row is scoped to me; a foreign group gathering is ended via the
+    // group-member update policy (no user_id filter).
+    const endUpdate = supabase.from("gatherings").update({ is_live: false }).eq("id", gatheringId);
+    const { error } = await (target.shared ? endUpdate : endUpdate.eq("user_id", session.user.id));
     if (error) {
       console.error("[endSession] error:", error);
       throw error;
@@ -937,10 +956,11 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   refreshLiveState: async () => {
     const session = useAuthStore.getState().session;
     if (!session) return;
+    // No user_id filter: RLS returns my own gatherings AND the group gatherings
+    // I can see, so a group's live session reflects for every member.
     const { data, error } = await supabase
       .from("gatherings")
-      .select("id, is_live, live_started_at")
-      .eq("user_id", session.user.id);
+      .select("id, is_live, live_started_at");
     if (error) {
       console.error("[refreshLiveState] error:", error);
       return;

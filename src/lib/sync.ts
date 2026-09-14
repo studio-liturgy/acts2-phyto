@@ -103,6 +103,22 @@ export function toSupabaseGathering(p: Gathering, userId: string, deviceId: stri
   };
 }
 
+/** Upsert payload for a FOREIGN group gathering I edit as a collaborator.
+ *  Deliberately omits user_id (so the contributor's ownership survives a
+ *  conflict-update) AND is_live/live_started_at (server-authoritative). RLS
+ *  admits me via group membership. group_id is kept so it stays in the group. */
+export function toSupabaseGatheringShared(p: Gathering, deviceId: string) {
+  return {
+    id: p.id,
+    title: p.name,
+    share_token: p.share_token,
+    group_id: p.group_id ?? null,
+    created_at: new Date(p.createdAt).toISOString(),
+    updated_at: new Date(p.updatedAt).toISOString(),
+    last_modified_by: deviceId,
+  };
+}
+
 export function fromSupabaseSet(row: Record<string, unknown>): PhytoSet {
   const content = (row.content ?? {}) as Record<string, unknown>;
   return {
@@ -633,14 +649,16 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
     return null;
   }
 
-  const [allLocalSets, localGatherings] = await Promise.all([
+  const [allLocalSets, allLocalGatherings] = await Promise.all([
     db.sets.toArray(),
     db.gatherings.toArray(),
   ]);
-  // Foreign (shared-with-me) sets sync through the collaborative path
-  // (syncSharedSets), never the personal diff — otherwise they'd classify as
-  // only-local and Merge would push them back to the account as mine.
+  // Foreign (shared-with-me) sets and foreign group gatherings sync through the
+  // collaborative path (syncSharedSets / syncGroups), never the personal diff —
+  // otherwise they'd classify as only-local and Merge would push them back to
+  // the account as mine (rewriting the contributor's ownership).
   const localSets = allLocalSets.filter((s) => !s.shared);
+  const localGatherings = allLocalGatherings.filter((p) => !p.shared);
 
   const remote = await fetchRemote(session.user.id);
   if (!remote) return null;
@@ -1198,76 +1216,119 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
       }
     }
 
+    // Foreign (group) gatherings take the collaborative push (no user_id
+    // rewrite); my own gatherings take the owner push, which also handles the
+    // stranded-duplicate / foreign-id re-ID guards.
+    const ownedGatherings = gatherings.filter((p) => !p.shared);
+    const sharedGatherings = gatherings.filter((p) => p.shared);
+
     if (gatherings.length) {
       // Gatherings that actually landed in Supabase. A failed parent must be
       // excluded from the gathering_sets rewrite below, or its join rows fail RLS.
-      let pushedGatherings = gatherings;
+      const pushedGatherings: Gathering[] = [];
       const savedGatherings: Record<string, unknown>[] = [];
 
-      const { data, error: gErr } = await supabase
-        .from("gatherings")
-        .upsert(
-          gatherings.map((p) => toSupabaseGathering(p, userId, deviceId)),
-          { onConflict: "id" },
-        )
-        .select();
-      if (!gErr) {
-        savedGatherings.push(...((data ?? []) as Record<string, unknown>[]));
-      } else {
-        // Race/leftover guard: a 23505 share_token collision means a synced
-        // gathering already owns that token under a different id — this local copy
-        // is a stranded duplicate. Retry per-row: drop the colliding local copy,
-        // keep pushing the rest. Mirrors the applyMerge guard.
-        console.error("[sync] pushToSupabase: gatherings upsert error — retrying per-row", gErr);
-        const survivors: typeof gatherings = [];
-        for (const p of gatherings) {
-          const { data: rowData, error: rowErr } = await supabase
-            .from("gatherings")
-            .upsert([toSupabaseGathering(p, userId, deviceId)], { onConflict: "id" })
-            .select();
-          if (!rowErr) {
-            survivors.push(p);
-            if (rowData?.length) savedGatherings.push(...(rowData as Record<string, unknown>[]));
-          } else if (rowErr.code === "23505") {
-            console.warn(
-              "[sync] pushToSupabase: dropping stranded duplicate gathering (token collision):",
-              p.id,
-            );
-            await db.gatherings.delete(p.id);
-          } else if (rowErr.code === "42501") {
-            // Id owned by ANOTHER account (imported .phyto with gatherings, or
-            // a different account once used this browser): the conflict-update
-            // hits their row and RLS rejects it on every retry, forever. Re-ID
-            // the local copy (fresh share_token too) and push it as this
-            // account's own row. Mirrors the applyMerge guard.
-            console.warn(
-              "[sync] pushToSupabase: re-IDing gathering owned by another account:",
-              p.id,
-            );
-            const reIded = { ...p, id: crypto.randomUUID() as string, share_token: nanoid(10) };
-            await db.gatherings.delete(p.id);
-            await db.gatherings.put(reIded);
-            const { data: reData, error: reErr } = await supabase
+      if (ownedGatherings.length) {
+        const { data, error: gErr } = await supabase
+          .from("gatherings")
+          .upsert(
+            ownedGatherings.map((p) => toSupabaseGathering(p, userId, deviceId)),
+            { onConflict: "id" },
+          )
+          .select();
+        if (!gErr) {
+          savedGatherings.push(...((data ?? []) as Record<string, unknown>[]));
+          pushedGatherings.push(...ownedGatherings);
+        } else {
+          // Race/leftover guard: a 23505 share_token collision means a synced
+          // gathering already owns that token under a different id — this local copy
+          // is a stranded duplicate. Retry per-row: drop the colliding local copy,
+          // keep pushing the rest. Mirrors the applyMerge guard.
+          console.error("[sync] pushToSupabase: gatherings upsert error — retrying per-row", gErr);
+          for (const p of ownedGatherings) {
+            const { data: rowData, error: rowErr } = await supabase
               .from("gatherings")
-              .upsert([toSupabaseGathering(reIded, userId, deviceId)], { onConflict: "id" })
+              .upsert([toSupabaseGathering(p, userId, deviceId)], { onConflict: "id" })
               .select();
-            if (!reErr) {
-              survivors.push(reIded);
-              if (reData?.length) savedGatherings.push(...(reData as Record<string, unknown>[]));
-            } else {
-              console.error(
-                "[sync] pushToSupabase: re-IDed gathering upsert error",
-                reIded.id,
-                reErr,
+            if (!rowErr) {
+              pushedGatherings.push(p);
+              if (rowData?.length) savedGatherings.push(...(rowData as Record<string, unknown>[]));
+            } else if (rowErr.code === "23505") {
+              console.warn(
+                "[sync] pushToSupabase: dropping stranded duplicate gathering (token collision):",
+                p.id,
               );
+              await db.gatherings.delete(p.id);
+            } else if (rowErr.code === "42501") {
+              // Id owned by ANOTHER account (imported .phyto with gatherings, or
+              // a different account once used this browser): the conflict-update
+              // hits their row and RLS rejects it on every retry, forever. Re-ID
+              // the local copy (fresh share_token too) and push it as this
+              // account's own row. Mirrors the applyMerge guard.
+              console.warn(
+                "[sync] pushToSupabase: re-IDing gathering owned by another account:",
+                p.id,
+              );
+              const reIded = { ...p, id: crypto.randomUUID() as string, share_token: nanoid(10) };
+              await db.gatherings.delete(p.id);
+              await db.gatherings.put(reIded);
+              const { data: reData, error: reErr } = await supabase
+                .from("gatherings")
+                .upsert([toSupabaseGathering(reIded, userId, deviceId)], { onConflict: "id" })
+                .select();
+              if (!reErr) {
+                pushedGatherings.push(reIded);
+                if (reData?.length) savedGatherings.push(...(reData as Record<string, unknown>[]));
+              } else {
+                console.error(
+                  "[sync] pushToSupabase: re-IDed gathering upsert error",
+                  reIded.id,
+                  reErr,
+                );
+                ok = false;
+              }
+            } else {
+              console.error("[sync] pushToSupabase: gathering upsert error", p.id, rowErr);
               ok = false;
             }
-          } else {
-            console.error("[sync] pushToSupabase: gathering upsert error", p.id, rowErr);
-            ok = false;
           }
         }
-        pushedGatherings = survivors;
+      }
+
+      if (sharedGatherings.length) {
+        // Collaborative edits to a group's gatherings: toSupabaseGatheringShared
+        // omits user_id (so the contributor's ownership survives) and is_live;
+        // RLS admits me via group membership. These rows already exist remotely,
+        // so no re-ID/token-collision handling is needed.
+        const { data, error } = await supabase
+          .from("gatherings")
+          .upsert(
+            sharedGatherings.map((p) => toSupabaseGatheringShared(p, deviceId)),
+            { onConflict: "id" },
+          )
+          .select();
+        if (!error) {
+          savedGatherings.push(...((data ?? []) as Record<string, unknown>[]));
+          pushedGatherings.push(...sharedGatherings);
+        } else {
+          console.error(
+            "[sync] pushToSupabase: shared gatherings batch upsert failed, retrying per-row",
+            error,
+          );
+          for (const p of sharedGatherings) {
+            const { data: rowData, error: rowErr } = await supabase
+              .from("gatherings")
+              .upsert([toSupabaseGatheringShared(p, deviceId)], { onConflict: "id" })
+              .select();
+            if (rowErr) {
+              console.error("[sync] pushToSupabase: shared gathering upsert error", p.id, rowErr);
+              ok = false;
+            } else {
+              pushedGatherings.push(p);
+              if (rowData?.length) savedGatherings.push(...(rowData as Record<string, unknown>[]));
+            }
+          }
+        }
       }
 
       // Sync server-side timestamps back to Dexie. The server may have a trigger
@@ -1847,6 +1908,9 @@ export async function syncGroups(): Promise<void> {
       if (localForeignGroup.length) await db.sets.bulkDelete(localForeignGroup.map((s) => s.id));
       const myGranted = local.filter((s) => !s.shared && (s.groupIds?.length ?? 0) > 0);
       if (myGranted.length) await db.sets.bulkPut(myGranted.map((s) => ({ ...s, groupIds: [] })));
+      // ...and drop any foreign group gatherings I was seeing.
+      const foreignGath = (await db.gatherings.toArray()).filter((p) => p.shared);
+      if (foreignGath.length) await db.gatherings.bulkDelete(foreignGath.map((p) => p.id));
       return;
     }
 
@@ -1920,6 +1984,68 @@ export async function syncGroups(): Promise<void> {
     const accessible = new Set(foreignSetIds);
     const gone = localForeignGroup.filter((s) => !accessible.has(s.id));
     if (gone.length) await db.sets.bulkDelete(gone.map((s) => s.id));
+
+    // ── Foreign group GATHERINGS (contributed by other members) ───────────────
+    // My own group gatherings (user_id = me) sync through the personal engine;
+    // here we pull the ones OTHER members made so the whole group sees them.
+    const { data: gathRows, error: gathErr } = await supabase
+      .from("gatherings")
+      .select("*")
+      .in("group_id", groupIds);
+    if (gathErr) {
+      console.error("[sync] syncGroups gatherings error", gathErr);
+      return;
+    }
+    const foreignGathRows = ((gathRows ?? []) as Record<string, unknown>[]).filter(
+      (r) => r.user_id !== uid,
+    );
+    const localGath = await db.gatherings.toArray();
+    const localForeignGath = localGath.filter((p) => p.shared);
+    const localForeignGathById = new Map(localForeignGath.map((p) => [p.id, p]));
+
+    if (foreignGathRows.length) {
+      // Their ordered set lists (gathering_sets), grouped + sorted by position.
+      const gathIds = foreignGathRows.map((r) => r.id as string);
+      const { data: gsRows } = await supabase
+        .from("gathering_sets")
+        .select("gathering_id, set_id, position")
+        .in("gathering_id", gathIds);
+      const setIdsByGathering = new Map<string, string[]>();
+      for (const row of (gsRows ?? []) as {
+        gathering_id: string;
+        set_id: string;
+        position: number;
+      }[]) {
+        const arr = setIdsByGathering.get(row.gathering_id) ?? [];
+        arr[row.position] = row.set_id;
+        setIdsByGathering.set(row.gathering_id, arr);
+      }
+      const toWrite: Gathering[] = [];
+      for (const row of foreignGathRows) {
+        const ids = (setIdsByGathering.get(row.id as string) ?? []).filter(Boolean);
+        const parsed = fromSupabaseGathering(row, ids);
+        const localCopy = localForeignGathById.get(parsed.id);
+        // Last-write-wins by content updatedAt; is_live/live_started_at always
+        // adopt the server's (session state is authoritative, never a conflict).
+        if (!localCopy || parsed.updatedAt > localCopy.updatedAt) {
+          toWrite.push({ ...parsed, shared: true });
+        } else if (
+          localCopy.is_live !== parsed.is_live ||
+          localCopy.live_started_at !== parsed.live_started_at
+        ) {
+          toWrite.push({
+            ...localCopy,
+            is_live: parsed.is_live,
+            live_started_at: parsed.live_started_at,
+          });
+        }
+      }
+      if (toWrite.length) await db.gatherings.bulkPut(toWrite);
+    }
+    // Prune foreign group gatherings I've lost access to (removed/left/deleted).
+    const accessibleGath = new Set(foreignGathRows.map((r) => r.id as string));
+    const goneGath = localForeignGath.filter((p) => !accessibleGath.has(p.id));
+    if (goneGath.length) await db.gatherings.bulkDelete(goneGath.map((p) => p.id));
   });
 }
 

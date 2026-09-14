@@ -94,6 +94,13 @@ export interface Gathering {
   share_token: string;
   /** Group workspace this gathering belongs to, or absent/null for personal. */
   group_id?: string | null;
+  /** True for a FOREIGN group gathering (contributed by another member) that I
+   *  see and edit collaboratively. Excluded from the personal diff; pushed via
+   *  toSupabaseGatheringShared (no user_id rewrite), pulled/pruned by syncGroups.
+   *  My own gatherings (including ones I created in a group) leave this unset. */
+  shared?: boolean;
+  /** For a foreign group gathering, the contributor's email (display only). */
+  shared_by?: string;
   /** Live status. Server-authoritative: `true`/`false` reflect Supabase;
    *  `null` means logged-out/unknown (no local truth).
    *  Read this through `isLiveNow()` — a session that was never manually ended
