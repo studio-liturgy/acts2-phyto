@@ -312,13 +312,10 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       localStorage.setItem(WORKSPACE_KEY, ws);
       localStorage.setItem(WORKSPACE_NAME_KEY, name);
     } catch {}
-    // Switching into a group pulls its latest content first, so members don't
-    // have to refresh to see it.
-    if (ws !== "personal") {
-      try {
-        await syncGroups();
-      } catch {}
-    }
+    // Render IMMEDIATELY from what's already in Dexie — switching workspace must
+    // feel instant even with a large library. Any newer group content is pulled
+    // in the background afterwards and re-derived when it lands, so we never block
+    // the switch on a network round-trip.
     const [allSets, allGatherings] = await Promise.all([
       db.sets.toArray(),
       db.gatherings.toArray(),
@@ -328,6 +325,15 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       activeWorkspaceName: name,
       ...buildLibraryState(allSets, allGatherings, ws),
     });
+    if (ws !== "personal") {
+      (async () => {
+        try {
+          await syncGroups();
+          // Only re-derive if the user is still on this workspace.
+          if (get().activeWorkspace === ws) await get().loadFromDb();
+        } catch {}
+      })();
+    }
   },
 
   loadGroups: async () => {

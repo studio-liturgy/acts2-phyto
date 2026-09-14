@@ -636,18 +636,21 @@ function Presenter() {
                     >
                       Done
                     </button>
-                    {/* Reveal delete while renaming — same flow as the home page. */}
-                    <button
-                      // Keep the rename input focused (don't blur-commit) when
-                      // opening the delete dialog.
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => setShowDeleteGatheringDialog(true)}
-                      className="pill pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-                      title="Delete gathering"
-                      aria-label="Delete gathering"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {/* Reveal delete while renaming — same flow as the home page.
+                        Only the owner may delete a group gathering. */}
+                    {!activeGathering.shared && (
+                      <button
+                        // Keep the rename input focused (don't blur-commit) when
+                        // opening the delete dialog.
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => setShowDeleteGatheringDialog(true)}
+                        className="pill pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                        title="Delete gathering"
+                        aria-label="Delete gathering"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </>
                 ) : (
                   <>

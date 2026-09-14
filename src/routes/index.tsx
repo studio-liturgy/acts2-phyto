@@ -813,6 +813,7 @@ function Library() {
                       className={gatheringDisplayOrder.length > 2 ? "w-[450px] shrink-0" : ""}
                       editMode={editingGatheringId === pid}
                       onEditModeChange={(v) => setEditingGatheringId(v ? pid : null)}
+                      canDelete={!p.shared}
                     />
                   );
                 })}
@@ -1625,6 +1626,7 @@ function GatheringCard({
   className = "",
   editMode,
   onEditModeChange,
+  canDelete = true,
 }: {
   gatheringId: string;
   name: string;
@@ -1634,6 +1636,8 @@ function GatheringCard({
   allSets: { id: string; name: string; kind: SetKind }[];
   onRename: (name: string) => void;
   onDelete: () => void;
+  /** False for a group gathering I don't own: only the owner may delete it. */
+  canDelete?: boolean;
   onAdd: (setId: string) => void;
   onRemoveAt: (index: number) => void;
   onReorder: (ids: string[]) => void;
@@ -1787,7 +1791,7 @@ function GatheringCard({
               ))}
           </>
         )}
-        {editMode && (
+        {editMode && canDelete && (
           <button
             onClick={() => setShowDeleteDialog(true)}
             className="pill flex h-10 w-10 items-center justify-center text-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"

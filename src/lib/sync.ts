@@ -1296,37 +1296,27 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
       }
 
       if (sharedGatherings.length) {
-        // Collaborative edits to a group's gatherings: toSupabaseGatheringShared
-        // omits user_id (so the contributor's ownership survives) and is_live;
-        // RLS admits me via group membership. These rows already exist remotely,
-        // so no re-ID/token-collision handling is needed.
-        const { data, error } = await supabase
-          .from("gatherings")
-          .upsert(
-            sharedGatherings.map((p) => toSupabaseGatheringShared(p, deviceId)),
-            { onConflict: "id" },
-          )
-          .select();
-        if (!error) {
-          savedGatherings.push(...((data ?? []) as Record<string, unknown>[]));
-          pushedGatherings.push(...sharedGatherings);
-        } else {
-          console.error(
-            "[sync] pushToSupabase: shared gatherings batch upsert failed, retrying per-row",
-            error,
-          );
-          for (const p of sharedGatherings) {
-            const { data: rowData, error: rowErr } = await supabase
-              .from("gatherings")
-              .upsert([toSupabaseGatheringShared(p, deviceId)], { onConflict: "id" })
-              .select();
-            if (rowErr) {
-              console.error("[sync] pushToSupabase: shared gathering upsert error", p.id, rowErr);
-              ok = false;
-            } else {
-              pushedGatherings.push(p);
-              if (rowData?.length) savedGatherings.push(...(rowData as Record<string, unknown>[]));
-            }
+        // Collaborative edits to a group's gatherings. These rows ALREADY exist
+        // remotely (owned by another member), so this is an UPDATE keyed on id,
+        // never an upsert — an insert would carry a null user_id and be rejected
+        // by RLS (42501), which would then reschedule forever. A row I can't write
+        // (removed from the group, or it was deleted) simply matches zero rows
+        // with NO error; syncGroups reconciles my local copy afterwards. The
+        // payload omits user_id (owner survives) and is_live (server state).
+        for (const p of sharedGatherings) {
+          const { id: _id, ...patch } = toSupabaseGatheringShared(p, deviceId);
+          const { data: rowData, error: rowErr } = await supabase
+            .from("gatherings")
+            .update(patch)
+            .eq("id", p.id)
+            .select();
+          if (rowErr) {
+            // Permanent (RLS) errors must NOT set ok=false, or the dirty-id retry
+            // in store.ts loops. Log and move on; syncGroups is the safety net.
+            console.error("[sync] pushToSupabase: shared gathering update error", p.id, rowErr);
+          } else if (rowData?.length) {
+            pushedGatherings.push(p);
+            savedGatherings.push(...(rowData as Record<string, unknown>[]));
           }
         }
       }

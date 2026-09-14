@@ -113,10 +113,16 @@ export function BulkShareSetsDialog({
     verb: string,
   ) => {
     if (groupBusy === gid) return; // ignore re-entrant clicks while this group is in flight
+    // Actual delta: Add affects only sets not already in the group; Remove only
+    // the ones that are. So the feedback shows the real number changed.
+    const already = inGroupCount(gid);
+    const n = verb === "Added" ? total - already : already;
     // Flip the buttons immediately; the actual grant/retract runs in the
     // background so the UI never sits greyed while a large batch processes.
     setLocalIn((m) => ({ ...m, [gid]: verb === "Added" }));
-    setGroupDone(`${verb} ${label} ${verb === "Added" ? "to" : "from"} ${name}.`);
+    setGroupDone(
+      `${verb} ${n} set${n === 1 ? "" : "s"} ${verb === "Added" ? "to" : "from"} ${name}.`,
+    );
     setGroupBusy(gid);
     try {
       await fn(gid);
@@ -182,8 +188,12 @@ export function BulkShareSetsDialog({
   // Per-person Add/Remove from the list, optimistic like the group buttons.
   const runPerson = async (e: string, verb: "Added" | "Removed") => {
     if (personBusy === e) return;
+    // Actual delta: Add affects only sets not already shared with them; Remove
+    // only the ones that are.
+    const already = inPersonCount(e);
+    const n = verb === "Added" ? setIds.length - already : already;
     setPersonLocalIn((m) => ({ ...m, [e]: verb === "Added" }));
-    setDone(`${verb} ${label} ${verb === "Added" ? "with" : "from"} ${e}.`);
+    setDone(`${verb} ${n} set${n === 1 ? "" : "s"} ${verb === "Added" ? "with" : "from"} ${e}.`);
     setPersonBusy(e);
     const err = await (verb === "Added" ? grantPerson(e) : revokePerson(e));
     if (err) {
@@ -213,10 +223,11 @@ export function BulkShareSetsDialog({
       setBusy(false);
       return;
     }
+    const added = setIds.length - inPersonCount(e); // sets not already shared with them
     setBusy(false);
     setPeople((p) => (p.includes(e) ? p : [...p, e]));
     setPersonLocalIn((m) => ({ ...m, [e]: true }));
-    setDone(`Shared ${label} with ${e}. Add another email or close.`);
+    setDone(`Shared ${added} set${added === 1 ? "" : "s"} with ${e}. Add another email or close.`);
     setEmail("");
     onShared?.();
   };

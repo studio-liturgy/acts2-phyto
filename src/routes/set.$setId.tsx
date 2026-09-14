@@ -227,7 +227,14 @@ function SetHeader({
   navigate,
   deleteSet,
 }: {
-  phytoSet: { id: string; name: string; kind: SetKind; shared?: boolean; shared_by?: string };
+  phytoSet: {
+    id: string;
+    name: string;
+    kind: SetKind;
+    shared?: boolean;
+    shared_by?: string;
+    groupIds?: string[];
+  };
   redirectTo?: string;
   editingName: boolean;
   setEditingName: (v: boolean | ((prev: boolean) => boolean)) => void;
@@ -304,13 +311,16 @@ function SetHeader({
 
       <div className="flex-1" />
 
-      {/* Right actions */}
-      <button
-        onClick={() => setShowDeleteSetDialog(true)}
-        className="mono uppercase pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-xs text-[var(--brand-white)] transition hover:opacity-90"
-      >
-        {phytoSet.shared ? "Remove" : "Delete"}
-      </button>
+      {/* Right actions. A set shared into a group belongs to its owner: other
+          members can edit it but can't remove it (only the owner retracts it). */}
+      {!(phytoSet.shared && (phytoSet.groupIds?.length ?? 0) > 0) && (
+        <button
+          onClick={() => setShowDeleteSetDialog(true)}
+          className="mono uppercase pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-xs text-[var(--brand-white)] transition hover:opacity-90"
+        >
+          {phytoSet.shared ? "Remove" : "Delete"}
+        </button>
+      )}
       <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">
