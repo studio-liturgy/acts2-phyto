@@ -8,27 +8,27 @@ import {
 } from "@/components/ui/alert-dialog";
 import { previewText } from "@/lib/set-preview";
 import type { InboxShare } from "@/lib/sync";
+import type { Set as PhytoSet } from "@/lib/types";
 
-const KIND_LABEL: Record<string, string> = {
-  song: "Song",
-  scripture: "Scripture",
-  media: "Media",
-  mixed: "Mixed",
-};
+/** Full-colour pill classes, matching the catalogue rows. */
+function kindBg(kind: string): string {
+  if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
+  if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
+  if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
+  return "bg-muted text-foreground";
+}
 
-function kindColor(kind: string): string {
-  if (kind === "song") return "var(--brand-blue)";
-  if (kind === "scripture") return "var(--brand-green)";
-  if (kind === "media") return "var(--brand-orange)";
-  return "var(--foreground)";
+/** Slides worth previewing as images (media). */
+function imageSlides(set: PhytoSet) {
+  return set.slides.filter((s) => s.imageUrl).slice(0, 4);
 }
 
 /**
- * Incoming shared sets, rendered inline directly below the notification pill (not
- * a modal). Hovering a row shows a chord-free text preview that follows the
- * cursor — portaled to <body> so it's positioned against the viewport rather than
- * any transformed ancestor. Save adds it to the library; Remove takes you off the
- * set after a confirmation.
+ * Incoming shared sets, rendered inline below the notification pill (not a modal),
+ * as full-colour pills matching the catalogue. Hovering a row shows a preview that
+ * follows the cursor — chord-free text for songs/scripture, actual slide
+ * thumbnails for media — portaled to <body> so it's placed against the viewport.
+ * Save adds it to the library; Remove takes you off the set after a confirmation.
  */
 export function SharedInboxList({
   shares,
@@ -39,60 +39,53 @@ export function SharedInboxList({
   onSave: (share: InboxShare) => void;
   onRemove: (share: InboxShare) => void;
 }) {
-  const [preview, setPreview] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [preview, setPreview] = useState<{ set: PhytoSet; x: number; y: number } | null>(null);
   const [confirm, setConfirm] = useState<InboxShare | null>(null);
 
+  const mediaThumbs = preview ? imageSlides(preview.set) : [];
+  const showImages = preview?.set.kind === "media" && mediaThumbs.length > 0;
+
   return (
-    <div className="mb-8 rounded-3xl border border-foreground p-4">
-      <ul className="space-y-2">
-        {shares.map((share) => (
-          <li
-            key={share.shareId}
-            onMouseEnter={(e) =>
-              setPreview({ text: previewText(share.set), x: e.clientX, y: e.clientY })
-            }
-            onMouseMove={(e) => setPreview((p) => (p ? { ...p, x: e.clientX, y: e.clientY } : p))}
-            onMouseLeave={() => setPreview(null)}
-            className="flex items-center gap-3 rounded-2xl border border-foreground px-4 py-3"
+    <ul className="space-y-1.5">
+      {shares.map((share) => (
+        <li
+          key={share.shareId}
+          onMouseEnter={(e) => setPreview({ set: share.set, x: e.clientX, y: e.clientY })}
+          onMouseMove={(e) => setPreview((p) => (p ? { ...p, x: e.clientX, y: e.clientY } : p))}
+          onMouseLeave={() => setPreview(null)}
+          className={`pill flex items-center gap-4 px-5 py-2 ${kindBg(share.set.kind)}`}
+        >
+          <span className="flex-1 truncate text-base">{share.set.name}</span>
+          {share.ownerEmail && (
+            <span className="mono hidden truncate text-xs uppercase tracking-wider opacity-90 sm:inline">
+              from {share.ownerEmail}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => onSave(share)}
+            className="mono uppercase shrink-0 rounded-full bg-white/20 px-4 py-1.5 text-xs tracking-wider transition hover:bg-white/30"
           >
-            <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: kindColor(share.set.kind) }}
-            />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-base">{share.set.name}</div>
-              <div className="mono truncate text-[10px] uppercase tracking-wider text-muted-foreground">
-                {KIND_LABEL[share.set.kind] ?? share.set.kind}
-                {share.ownerEmail ? ` · from ${share.ownerEmail}` : ""}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => onSave(share)}
-              className="mono uppercase shrink-0 rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirm(share)}
-              className="mono uppercase shrink-0 rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-            >
-              Remove
-            </button>
-          </li>
-        ))}
-      </ul>
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirm(share)}
+            className="mono uppercase shrink-0 rounded-full border border-white/40 px-4 py-1.5 text-xs tracking-wider transition hover:bg-white/20"
+          >
+            Remove
+          </button>
+        </li>
+      ))}
 
       {preview &&
-        preview.text &&
         typeof document !== "undefined" &&
         createPortal(
           <div
-            className="mono pointer-events-none fixed z-[100] whitespace-pre-line rounded-2xl border border-foreground bg-background p-3 text-[11px] leading-relaxed shadow-lg"
+            className="mono pointer-events-none fixed z-[100] rounded-2xl border border-foreground bg-background p-3 text-[11px] leading-relaxed shadow-lg"
             style={(() => {
               const W = 240;
-              const H = 200;
+              const H = 220;
               const GAP = 16;
               const vw = window.innerWidth;
               const vh = window.innerHeight;
@@ -103,7 +96,20 @@ export function SharedInboxList({
               return { left, top, width: W, maxHeight: H, overflow: "hidden" };
             })()}
           >
-            {preview.text}
+            {showImages ? (
+              <div className="grid grid-cols-2 gap-1">
+                {mediaThumbs.map((s) => (
+                  <img
+                    key={s.id}
+                    src={s.imageUrl}
+                    alt=""
+                    className="aspect-video w-full rounded object-cover"
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="whitespace-pre-line">{previewText(preview.set)}</div>
+            )}
           </div>,
           document.body,
         )}
@@ -143,6 +149,6 @@ export function SharedInboxList({
           </div>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </ul>
   );
 }

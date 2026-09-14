@@ -127,7 +127,7 @@ export function ShareSetDialog({
           <ul className="mt-6 space-y-2">
             {shares.map((s) => (
               <li key={s.id} className="flex items-center gap-2">
-                <span className="mono flex-1 truncate text-sm">{s.grantee_email}</span>
+                <span className="mono uppercase flex-1 truncate text-sm">{s.grantee_email}</span>
                 <button
                   type="button"
                   onClick={() => copyLink(s.id)}

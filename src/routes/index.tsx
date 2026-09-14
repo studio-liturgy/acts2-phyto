@@ -126,7 +126,7 @@ export const Route = createFileRoute("/")({
 const SET_DRAG_TYPE = "application/x-stage-set-id";
 
 type SortMode = "az" | "newest";
-type KindFilter = "all" | SetKind;
+type KindFilter = "all" | "shared" | SetKind;
 
 function kindBg(kind: SetKind | string): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
@@ -156,6 +156,11 @@ function kindChip(kind: KindFilter, active: boolean): string {
     return active
       ? "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]"
       : "border-[var(--brand-orange)] text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-[var(--brand-white)]";
+  }
+  if (kind === "shared") {
+    return active
+      ? "border-foreground bg-foreground text-background"
+      : "border-foreground text-foreground hover:bg-foreground hover:text-background";
   }
   return "";
 }
@@ -364,7 +369,9 @@ function Library() {
     let rows = order
       .map((id) => sets[id])
       .filter(Boolean)
-      .filter((d) => kindFilter === "all" || d.kind === kindFilter)
+      .filter((d) =>
+        kindFilter === "all" ? true : kindFilter === "shared" ? !!d.shared : d.kind === kindFilter,
+      )
       .filter(
         (d) =>
           !q ||
@@ -394,6 +401,7 @@ function Library() {
     song: "No Songs yet!",
     scripture: "No Scriptures yet!",
     media: "No Media yet!",
+    shared: "No shared sets yet!",
   };
 
   // While the post-login account pull runs on a device with an empty library,
@@ -681,7 +689,7 @@ function Library() {
               </div>
               {/* Right: filter chips + sort + search + new */}
               <div className="flex flex-wrap items-center gap-2">
-                {(["all", "song", "scripture", "media"] as KindFilter[]).map((k) => (
+                {(["all", "song", "scripture", "media", "shared"] as KindFilter[]).map((k) => (
                   <button
                     key={k}
                     onClick={() => setKindFilter(k)}
@@ -693,7 +701,9 @@ function Library() {
                         ? "Songs"
                         : k === "scripture"
                           ? "Scriptures"
-                          : "Media"}
+                          : k === "media"
+                            ? "Media"
+                            : "Shared"}
                   </button>
                 ))}
                 <button
