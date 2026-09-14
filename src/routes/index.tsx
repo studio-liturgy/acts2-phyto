@@ -585,13 +585,15 @@ function Library() {
       {!showLanding && (
         <header className="pt-6 md:pt-10">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6">
-            <Link
-              to="/"
-              search={{ intro: true }}
-              className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-            >
-              Intro
-            </Link>
+            {activeWorkspace === "personal" && (
+              <Link
+                to="/"
+                search={{ intro: true }}
+                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+              >
+                Intro
+              </Link>
+            )}
             {!isSignedIn && (
               <Link
                 to="/login"
