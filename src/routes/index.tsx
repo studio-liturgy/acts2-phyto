@@ -195,6 +195,7 @@ function Library() {
     loadGroups,
     shareSetsToGroup,
     shareCatalogueToGroup,
+    unshareSetFromGroup,
   } = useLibrary();
 
   const isSignedIn = useIsSignedIn();
@@ -427,6 +428,17 @@ function Library() {
   // Only one gathering card can be in edit mode at a time.
   const [editingGatheringId, setEditingGatheringId] = useState<string | null>(null);
 
+  // Switching workspace resets the home view: search, filter, edit modes.
+  useEffect(() => {
+    setCatalogueFilter("");
+    setShowCatalogueSearch(false);
+    setKindFilter("all");
+    setInboxOpen(false);
+    setEditMode(false);
+    setSelectedIds(new Set());
+    setEditingGatheringId(null);
+  }, [activeWorkspace]);
+
   const catalogueRows = useMemo(() => {
     const q = catalogueFilter.trim().toLowerCase();
     let rows = order
@@ -436,7 +448,7 @@ function Library() {
         kindFilter === "all"
           ? true
           : kindFilter === "shared"
-            ? !!d.shared || sharedOutIds.has(d.id)
+            ? !!d.shared || sharedOutIds.has(d.id) || (d.groupIds?.length ?? 0) > 0
             : d.kind === kindFilter,
       )
       .filter(
@@ -740,7 +752,7 @@ function Library() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
-                      {isSignedIn && (
+                      {isSignedIn && activeWorkspace === "personal" && (
                         <button
                           type="button"
                           onClick={() => setShowBulkShare(true)}
@@ -810,7 +822,15 @@ function Library() {
               </div>
               {/* Right: filter chips + sort + search + new */}
               <div className="flex flex-wrap items-center gap-2">
-                {(["all", "song", "scripture", "media", "shared"] as KindFilter[]).map((k) => (
+                {(
+                  [
+                    "all",
+                    "song",
+                    "scripture",
+                    "media",
+                    ...(activeWorkspace === "personal" ? (["shared"] as const) : []),
+                  ] as KindFilter[]
+                ).map((k) => (
                   <button
                     key={k}
                     onClick={() => setKindFilter(k)}
@@ -979,20 +999,23 @@ function Library() {
                             </span>
                           </div>
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center">
-                            {!editMode && !d.shared && isSignedIn && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShareSet(d);
-                                }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/20"
-                                title="Share set"
-                                aria-label="Share set"
-                              >
-                                <Share2 className="h-4 w-4" />
-                              </button>
-                            )}
+                            {!editMode &&
+                              !d.shared &&
+                              isSignedIn &&
+                              activeWorkspace === "personal" && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShareSet(d);
+                                  }}
+                                  className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/20"
+                                  title="Share set"
+                                  aria-label="Share set"
+                                >
+                                  <Share2 className="h-4 w-4" />
+                                </button>
+                              )}
                           </span>
                           <Link
                             to="/set/$setId"
@@ -1245,6 +1268,11 @@ function Library() {
         groups={groups}
         onShareToGroup={async (groupId) => {
           await shareSetsToGroup(ownedSelectedIds, groupId);
+          setShowBulkShare(false);
+          exitEditMode();
+        }}
+        onRemoveFromGroup={async (groupId) => {
+          for (const id of ownedSelectedIds) await unshareSetFromGroup(id, groupId);
           setShowBulkShare(false);
           exitEditMode();
         }}

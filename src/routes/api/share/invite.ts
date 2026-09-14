@@ -66,8 +66,10 @@ export const Route = createFileRoute("/api/share/invite")({
         const name = setName || "a set";
         // Render email addresses as same-colour, non-underlined links so mail
         // clients don't auto-linkify them into blue text.
+        // Render emails inside an hrefless <a>: not clickable, and mail clients
+        // leave text already inside an anchor alone (so it isn't auto-linked blue).
         const emailLink = (addr: string) =>
-          `<a href="mailto:${escapeHtml(addr)}" style="color:inherit !important;text-decoration:none;">${escapeHtml(addr)}</a>`;
+          `<a style="color:inherit !important;text-decoration:none;cursor:default;">${escapeHtml(addr)}</a>`;
         const byText = ownerEmail ? `${ownerEmail} shared` : "Someone shared";
         const byHtml = ownerEmail ? `${emailLink(ownerEmail)} shared` : "Someone shared";
         const subject = isBulk
@@ -108,7 +110,7 @@ export const Route = createFileRoute("/api/share/invite")({
                 <p style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:22px;line-height:1.3;letter-spacing:-0.03em;">${byHtml} ${whatHtml} with you.</p>
               </td></tr>
               <tr><td align="center">
-                <a href="${link}" style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:16px;line-height:1;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;padding:16px 30px;white-space:nowrap;">${cta}</a>
+                <a href="${link}" style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:16px;line-height:1;letter-spacing:-0.02em;text-transform:uppercase;text-decoration:none;padding:16px 30px;white-space:nowrap;">${cta}</a>
               </td></tr>
               <tr><td style="padding-top:44px;text-align:center;">
                 <p style="margin:0;color:#dce8ef;font-size:13px;line-height:1.6;">Sign in with ${emailLink(email)} to view and save it.</p>

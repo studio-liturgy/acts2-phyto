@@ -13,6 +13,7 @@ import {
   fetchMyGroups,
   shareSetToGroup,
   removeSetFromGroup,
+  syncGroups,
   type MyGroup,
 } from "./sync";
 import { isLiveNow, type LiveWindow } from "./live-session";
@@ -174,11 +175,14 @@ function buildLibraryState(
   }
   order.sort((a, b) => (sets[b].createdAt ?? 0) - (sets[a].createdAt ?? 0));
 
-  // Gatherings are never shared to groups, so all local ones are the viewer's own
-  // and show in every workspace.
+  // Gatherings are workspace-scoped and per-member: Personal shows those with no
+  // group_id; a group shows that group's. Personal and group gatherings never
+  // overlap.
   const gatherings: Record<string, Gathering> = {};
   const gatheringOrder: string[] = [];
   for (const p of allGatherings) {
+    const inWs = activeWorkspace === "personal" ? !p.group_id : p.group_id === activeWorkspace;
+    if (!inWs) continue;
     gatherings[p.id] = p;
     gatheringOrder.push(p.id);
   }
@@ -282,6 +286,13 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     try {
       localStorage.setItem(WORKSPACE_KEY, ws);
     } catch {}
+    // Switching into a group pulls its latest content first, so members don't
+    // have to refresh to see it.
+    if (ws !== "personal") {
+      try {
+        await syncGroups();
+      } catch {}
+    }
     const [allSets, allGatherings] = await Promise.all([
       db.sets.toArray(),
       db.gatherings.toArray(),
@@ -612,7 +623,8 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   createGathering: (name) => {
     const id = uid();
     const now = Date.now();
-    // Gatherings are always personal (groups share only sets); no group tag.
+    // Gatherings are workspace-scoped: one created in a group belongs to it.
+    const ws = get().activeWorkspace;
     const record: Gathering = {
       id,
       name,
@@ -622,6 +634,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       live_started_at: null,
       createdAt: now,
       updatedAt: now,
+      group_id: ws === "personal" ? undefined : ws,
     };
     set((s) => ({
       gatherings: { ...s.gatherings, [id]: record },

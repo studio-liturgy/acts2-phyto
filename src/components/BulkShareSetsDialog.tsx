@@ -16,6 +16,7 @@ export function BulkShareSetsDialog({
   onShared,
   groups = [],
   onShareToGroup,
+  onRemoveFromGroup,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -23,6 +24,7 @@ export function BulkShareSetsDialog({
   onShared?: () => void;
   groups?: MyGroup[];
   onShareToGroup?: (groupId: string) => Promise<void>;
+  onRemoveFromGroup?: (groupId: string) => Promise<void>;
 }) {
   const session = useAuthStore((s) => s.session);
   const [email, setEmail] = useState("");
@@ -106,20 +108,31 @@ export function BulkShareSetsDialog({
         {groups.length > 0 && onShareToGroup && (
           <div className="mt-6">
             <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-              Add to a group
+              Groups
             </div>
-            <div className="flex flex-wrap gap-2">
+            <ul className="space-y-2">
               {groups.map((g) => (
-                <button
-                  key={g.id}
-                  type="button"
-                  onClick={() => onShareToGroup(g.id)}
-                  className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-                >
-                  {g.name}
-                </button>
+                <li key={g.id} className="flex items-center gap-2">
+                  <span className="mono flex-1 truncate text-sm uppercase">{g.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => onShareToGroup(g.id)}
+                    className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                  >
+                    Add
+                  </button>
+                  {onRemoveFromGroup && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveFromGroup(g.id)}
+                      className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         )}
 
