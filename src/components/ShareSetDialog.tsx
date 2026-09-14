@@ -72,7 +72,12 @@ export function ShareSetDialog({
       await fetch("/api/share/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: e, setName, shareId: (data as ShareRow).id }),
+        body: JSON.stringify({
+          email: e,
+          setName,
+          shareId: (data as ShareRow).id,
+          ownerEmail: session.user.email,
+        }),
       });
     } catch {
       // Ignore: the person can still be reached via the copyable link.

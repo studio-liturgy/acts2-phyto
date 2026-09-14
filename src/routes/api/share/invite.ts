@@ -10,6 +10,7 @@ const InviteSchema = z.object({
   email: z.string().trim().max(255).email(),
   setName: z.string().trim().max(200).optional(),
   shareId: z.string().trim().min(1).max(64),
+  ownerEmail: z.string().trim().max(255).email().optional(),
 });
 
 const rateLimited = makeRateLimiter();
@@ -54,19 +55,72 @@ export const Route = createFileRoute("/api/share/invite")({
           return Response.json({ ok: false, error: "Invalid request." }, { status: 400 });
         }
 
-        const { email, setName, shareId } = parsed.data;
+        const { email, setName, shareId, ownerEmail } = parsed.data;
         const link = `${new URL(request.url).origin}/s/${shareId}`;
         const name = setName || "a set";
+        const byText = ownerEmail ? `${ownerEmail} shared` : "Someone shared";
+        const byHtml = ownerEmail ? `${escapeHtml(ownerEmail)} shared` : "Someone shared";
         const resend = new Resend(RESEND_API_KEY);
+
+        // Mirrors the sign-in code email: brand-blue ground, hero PNG, Space Mono
+        // pill, matching footer. The code pill becomes an "Open the set" link.
+        const html = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light only" />
+    <title>A set was shared with you | phyto</title>
+    <style>
+      @font-face { font-family: 'Space Mono'; src: url('https://phyto.live/fonts/SpaceMono-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }
+      @media only screen and (max-width:600px) { .h1 { font-size:34px !important; } }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:#2E7299;font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.03em;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${byHtml} "${escapeHtml(name)}" with you on phyto.</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#2E7299;">
+      <tr><td align="center" style="padding:0;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+          <tr><td style="padding:0;font-size:0;line-height:0;">
+            <img src="https://phyto.live/email/email-header.png" width="600" alt="phyto" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
+          </td></tr>
+          <tr><td style="padding:44px 40px 40px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr><td align="center" style="padding-bottom:16px;">
+                <h1 class="h1" style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:40px;line-height:1.05;font-weight:400;letter-spacing:-0.045em;">A set was shared with you!</h1>
+              </td></tr>
+              <tr><td align="center" style="padding-bottom:28px;">
+                <p style="margin:0;color:#dce8ef;font-size:15px;line-height:1.6;">${byHtml} <strong style="color:#F5EFEF;">${escapeHtml(name)}</strong> with you.</p>
+              </td></tr>
+              <tr><td align="center">
+                <a href="${link}" style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:16px;line-height:1;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;padding:16px 30px;white-space:nowrap;">Open the set</a>
+              </td></tr>
+              <tr><td style="padding-top:44px;text-align:center;">
+                <p style="margin:0;color:#dce8ef;font-size:13px;line-height:1.6;">Sign in with ${escapeHtml(email)} to view and save it.</p>
+                <p style="margin:2px 0 0;color:#bcd2dd;font-size:13px;line-height:1.6;">If you didn't expect this, you can safely ignore this email.</p>
+              </td></tr>
+            </table>
+          </td></tr>
+          <tr><td style="padding:0 40px;">
+            <div style="border-top:1px solid rgba(245,239,239,0.2);font-size:0;line-height:0;">&nbsp;</div>
+          </td></tr>
+          <tr><td align="center" style="padding:24px 40px 48px;">
+            <a href="https://phyto.live/about" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">About</a>
+            <a href="https://instagram.com/phyto.live" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">Instagram</a>
+            <a href="https://phyto.live/donate" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">Donate</a>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
 
         const { error } = await resend.emails.send({
           from: RESEND_FROM,
           to: email,
           subject: "A set was shared with you on phyto",
-          text: `Someone shared "${name}" with you on phyto.\n\nOpen this link to view and save it: ${link}\n\nSign in with ${email} to accept.`,
-          html:
-            `<p>Someone shared <strong>${escapeHtml(name)}</strong> with you on phyto.</p>` +
-            `<p><a href="${link}">Open it to view and save</a> (sign in with ${escapeHtml(email)} to accept).</p>`,
+          text: `${byText} "${name}" with you on phyto.\n\nOpen this link to view and save it: ${link}\n\nSign in with ${email} to accept.`,
+          html,
         });
 
         if (error) {
