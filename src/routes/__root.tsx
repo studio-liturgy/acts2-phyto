@@ -496,6 +496,49 @@ function RootComponent() {
     }
   }, [session, pathname, navigate]);
 
+  // Live collaboration: keep group + shared content and live status fresh without
+  // a manual reload. This is the COLLABORATIVE pull path only (foreign group
+  // sets/gatherings, person-shares, live flags) — it writes changed rows to Dexie
+  // and the store's liveQuery re-derives the UI, so updates appear on their own.
+  // The personal diff is deliberately NOT polled here (it can surface a
+  // Merge/Replace dialog). Polls on an interval, and immediately whenever the tab
+  // regains focus/visibility or the network comes back, for a snappy feel.
+  useEffect(() => {
+    if (!session || pathname.startsWith("/g/")) return;
+    let running = false;
+    const tick = async () => {
+      if (running) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      running = true;
+      try {
+        await refreshLiveState();
+        await syncSharedSets();
+        await syncGroups();
+        await useLibrary.getState().loadGroups();
+      } catch {
+        // Transient (offline/RLS) — the next tick retries.
+      } finally {
+        running = false;
+      }
+    };
+    const interval = setInterval(tick, 12000);
+    const onFocus = () => tick();
+    const onVisible = () => {
+      if (!document.hidden) tick();
+    };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    // Prime once on mount so a just-loaded group is current within a beat.
+    tick();
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [session, pathname, refreshLiveState]);
+
   // Hoist legacy inline base64 slide images into R2 once things have settled.
   //
   // Gated on there being no unresolved sync dialog: the migration rewrites sets

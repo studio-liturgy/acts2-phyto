@@ -125,99 +125,6 @@ function PanelCard({
   );
 }
 
-/**
- * Search the catalogue's songs from inside the editor and jump straight to one,
- * so working through a set list doesn't mean going home between every song.
- * Songs only: scripture and media have different editors.
- */
-function SongJump({
-  currentId,
-  navigate,
-}: {
-  currentId: string;
-  navigate: ReturnType<typeof useNavigate>;
-}) {
-  const sets = useLibrary((s) => s.sets);
-  const order = useLibrary((s) => s.order);
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const boxRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  const needle = query.trim().toLowerCase();
-  const results = useMemo(() => {
-    if (!needle) return [];
-    const out: { id: string; name: string }[] = [];
-    for (const id of order) {
-      const d = sets[id];
-      if (!d || d.kind !== "song" || d.id === currentId) continue;
-      const inName = d.name.toLowerCase().includes(needle);
-      const inLyrics =
-        !inName &&
-        d.slides.some((sl) => sl.lines?.some((l) => stripChords(l).toLowerCase().includes(needle)));
-      if (inName || inLyrics) out.push({ id: d.id, name: d.name });
-      if (out.length >= 8) break;
-    }
-    return out;
-  }, [needle, order, sets, currentId]);
-
-  const go = (id: string) => {
-    setQuery("");
-    setOpen(false);
-    navigate({ to: "/set/$setId", params: { setId: id } });
-  };
-
-  return (
-    <div ref={boxRef} className="relative shrink-0">
-      <div className="pill flex h-9 w-52 items-center gap-2 border border-foreground bg-background px-3">
-        <Search className="h-3.5 w-3.5 shrink-0" />
-        <input
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setOpen(false);
-            if (e.key === "Enter" && results[0]) go(results[0].id);
-          }}
-          placeholder="Go to song"
-          className="mono uppercase w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-        />
-      </div>
-
-      {open && needle !== "" && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden rounded-2xl border border-foreground bg-background shadow-lg">
-          {results.length === 0 ? (
-            <p className="mono px-3 py-2.5 text-[11px] text-muted-foreground">No songs match.</p>
-          ) : (
-            <div className="max-h-64 overflow-y-auto p-1">
-              {results.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => go(r.id)}
-                  className="block w-full truncate rounded-xl px-2.5 py-2 text-left text-sm transition hover:bg-muted"
-                >
-                  {r.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function SetHeader({
   phytoSet,
   redirectTo,
@@ -370,7 +277,6 @@ function SetHeader({
           groups={groups}
         />
       )}
-      {phytoSet.kind === "song" && <SongJump currentId={phytoSet.id} navigate={navigate} />}
       <AddToGathering setId={phytoSet.id} onAdded={setPresentGatheringId} />
       {!fromPresenter && (
         <button
