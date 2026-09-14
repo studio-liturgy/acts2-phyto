@@ -38,6 +38,13 @@ export function BulkShareSetsDialog({
   // Optimistic per-group membership after an Add/Remove, so the buttons flip
   // immediately instead of waiting for the liveQuery to catch up.
   const [localIn, setLocalIn] = useState<Record<string, boolean>>({});
+  // People the selected sets are shared with. Fetched on open (union across the
+  // selection), plus anyone added by email this session. Persistent until the
+  // dialog reopens, even after a Remove, so you can re-add them.
+  const [people, setPeople] = useState<string[]>([]);
+  const [personCount, setPersonCount] = useState<Record<string, number>>({});
+  const [personLocalIn, setPersonLocalIn] = useState<Record<string, boolean>>({});
+  const [personBusy, setPersonBusy] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -47,13 +54,39 @@ export function BulkShareSetsDialog({
     setGroupBusy(null);
     setGroupDone(null);
     setLocalIn({});
-  }, [open]);
+    setPersonLocalIn({});
+    setPersonBusy(null);
+    // Which people are the selected sets already shared with?
+    if (setIds.length > 0) {
+      supabase
+        .from("set_shares")
+        .select("grantee_email")
+        .in("set_id", setIds)
+        .then(({ data }) => {
+          const counts: Record<string, number> = {};
+          for (const r of (data ?? []) as { grantee_email: string }[]) {
+            const e = r.grantee_email.toLowerCase();
+            counts[e] = (counts[e] ?? 0) + 1;
+          }
+          setPersonCount(counts);
+          setPeople(Object.keys(counts));
+        });
+    } else {
+      setPersonCount({});
+      setPeople([]);
+    }
+  }, [open, setIds]);
 
   const total = sets.length;
   const inGroupCount = (gid: string) => {
     const override = localIn[gid];
     if (override !== undefined) return override ? total : 0;
     return sets.filter((s) => (s.groupIds ?? []).includes(gid)).length;
+  };
+  const inPersonCount = (e: string) => {
+    const override = personLocalIn[e];
+    if (override !== undefined) return override ? setIds.length : 0;
+    return personCount[e] ?? 0;
   };
 
   const runGroup = async (
@@ -83,30 +116,17 @@ export function BulkShareSetsDialog({
     }
   };
 
-  const share = async () => {
-    const e = email.trim().toLowerCase();
-    if (!e || !session || setIds.length === 0) return;
-    setBusy(true);
-    setError(null);
-    setDone(null);
+  // Grant two-way access to every selected set. Returns an error string or null.
+  const grantPerson = async (e: string): Promise<string | null> => {
+    if (!session || setIds.length === 0) return "Nothing to share.";
     if (e === (session.user.email ?? "").toLowerCase()) {
-      setError("You can't share a set with yourself.");
-      setBusy(false);
-      return;
+      return "You can't share a set with yourself.";
     }
     const { data: granteeId, error: lookupErr } = await supabase.rpc("user_id_for_email", {
       p_email: e,
     });
-    if (lookupErr) {
-      setError("Could not check that email. Try again.");
-      setBusy(false);
-      return;
-    }
-    if (!granteeId) {
-      setError("That email doesn't have a phyto account yet.");
-      setBusy(false);
-      return;
-    }
+    if (lookupErr) return "Could not check that email. Try again.";
+    if (!granteeId) return "That email doesn't have a phyto account yet.";
     const rows = setIds.map((id) => ({
       set_id: id,
       owner_id: session.user.id,
@@ -118,11 +138,7 @@ export function BulkShareSetsDialog({
     const { error: insErr } = await supabase
       .from("set_shares")
       .upsert(rows, { onConflict: "set_id,grantee_email", ignoreDuplicates: true });
-    if (insErr) {
-      setError("Could not share. Try again.");
-      setBusy(false);
-      return;
-    }
+    if (insErr) return "Could not share. Try again.";
     try {
       await fetch("/api/share/invite", {
         method: "POST",
@@ -132,8 +148,58 @@ export function BulkShareSetsDialog({
     } catch {
       // Ignore: the grants exist regardless of the email.
     }
+    return null;
+  };
+
+  const revokePerson = async (e: string): Promise<string | null> => {
+    if (setIds.length === 0) return null;
+    const { error: delErr } = await supabase
+      .from("set_shares")
+      .delete()
+      .in("set_id", setIds)
+      .eq("grantee_email", e);
+    if (delErr) return "Could not remove. Try again.";
+    return null;
+  };
+
+  // Per-person Add/Remove from the list, optimistic like the group buttons.
+  const runPerson = async (e: string, verb: "Added" | "Removed") => {
+    if (personBusy === e) return;
+    setPersonLocalIn((m) => ({ ...m, [e]: verb === "Added" }));
+    setDone(`${verb} ${label} ${verb === "Added" ? "with" : "from"} ${e}.`);
+    setPersonBusy(e);
+    const err = await (verb === "Added" ? grantPerson(e) : revokePerson(e));
+    if (err) {
+      setPersonLocalIn((m) => {
+        const next = { ...m };
+        delete next[e];
+        return next;
+      });
+      setDone(null);
+      setError(err);
+    } else {
+      onShared?.();
+    }
+    setPersonBusy((b) => (b === e ? null : b));
+  };
+
+  // The email search bar: validate, grant, and pin the person to the list.
+  const share = async () => {
+    const e = email.trim().toLowerCase();
+    if (!e || !session || setIds.length === 0) return;
+    setBusy(true);
+    setError(null);
+    setDone(null);
+    const err = await grantPerson(e);
+    if (err) {
+      setError(err);
+      setBusy(false);
+      return;
+    }
     setBusy(false);
-    setDone(e);
+    setPeople((p) => (p.includes(e) ? p : [...p, e]));
+    setPersonLocalIn((m) => ({ ...m, [e]: true }));
+    setDone(`Shared ${label} with ${e}. Add another email or close.`);
     setEmail("");
     onShared?.();
   };
@@ -220,10 +286,40 @@ export function BulkShareSetsDialog({
             {error}
           </p>
         )}
+        {people.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {people.map((e) => {
+              const inCount = inPersonCount(e);
+              const canAdd = inCount < setIds.length; // not yet shared with every selected set
+              const canRemove = inCount > 0; // shared with at least one selected set
+              return (
+                <li key={e} className="flex items-center gap-2">
+                  <span className="mono flex-1 truncate text-sm lowercase">{e}</span>
+                  {canAdd && (
+                    <button
+                      type="button"
+                      onClick={() => runPerson(e, "Added")}
+                      className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                    >
+                      Add
+                    </button>
+                  )}
+                  {canRemove && (
+                    <button
+                      type="button"
+                      onClick={() => runPerson(e, "Removed")}
+                      className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
         {done && (
-          <p className="mono mt-3 text-xs uppercase tracking-wider text-muted-foreground">
-            Shared {label} with {done}. Add another email or close.
-          </p>
+          <p className="mono mt-3 text-xs uppercase tracking-wider text-muted-foreground">{done}</p>
         )}
       </DialogContent>
     </Dialog>

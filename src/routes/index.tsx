@@ -276,12 +276,17 @@ function Library() {
   };
   const handleSaveAll = async () => {
     const rows = [...inbox];
-    for (const s of rows) await saveSharedSet(s.set.id, s.ownerEmail);
+    await Promise.all(rows.map((s) => saveSharedSet(s.set.id, s.ownerEmail)));
     setInbox([]);
   };
   const handleRemoveShare = async (share: InboxShare) => {
     await removeSharedSet(share.set.id);
     setInbox((prev) => prev.filter((s) => s.shareId !== share.shareId));
+  };
+  const handleRemoveAll = async () => {
+    const rows = [...inbox];
+    await Promise.all(rows.map((s) => removeSharedSet(s.set.id)));
+    setInbox([]);
   };
   // Close the inbox dialog once nothing is left to act on.
   useEffect(() => {
@@ -628,6 +633,7 @@ function Library() {
                 onSave={handleSaveShare}
                 onSaveAll={handleSaveAll}
                 onRemove={handleRemoveShare}
+                onRemoveAll={handleRemoveAll}
                 inGroupWorkspace={activeWorkspace !== "personal"}
               />
             </div>

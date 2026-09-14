@@ -35,16 +35,19 @@ export function SharedInboxList({
   onSave,
   onSaveAll,
   onRemove,
+  onRemoveAll,
   inGroupWorkspace = false,
 }: {
   shares: InboxShare[];
   onSave: (share: InboxShare) => void;
   onSaveAll: () => void;
   onRemove: (share: InboxShare) => void;
+  onRemoveAll: () => void;
   inGroupWorkspace?: boolean;
 }) {
   const [preview, setPreview] = useState<{ set: PhytoSet; x: number; y: number } | null>(null);
   const [confirm, setConfirm] = useState<InboxShare | null>(null);
+  const [confirmRemoveAll, setConfirmRemoveAll] = useState(false);
   // Saving while viewing a group is confirmed first: shared sets always land in
   // the personal library (only their owner can add them to a group).
   const [confirmSave, setConfirmSave] = useState<InboxShare | "all" | null>(null);
@@ -59,13 +62,20 @@ export function SharedInboxList({
   return (
     <div>
       {shares.length > 1 && (
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2 flex justify-end gap-2">
           <button
             type="button"
             onClick={requestSaveAll}
             className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
           >
             Save all
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmRemoveAll(true)}
+            className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+          >
+            Remove all
           </button>
         </div>
       )}
@@ -168,6 +178,42 @@ export function SharedInboxList({
             <button
               type="button"
               onClick={() => setConfirm(null)}
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              Cancel
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmRemoveAll}
+        onOpenChange={(o) => {
+          if (!o) setConfirmRemoveAll(false);
+        }}
+      >
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Remove all shared sets?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            This removes you from all {shares.length} sets shared with you. You'll lose access, and
+            they won't come back unless their owners share them with you again.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmRemoveAll(false);
+                onRemoveAll();
+              }}
+              className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+            >
+              Remove all
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmRemoveAll(false)}
               className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
             >
               Cancel
