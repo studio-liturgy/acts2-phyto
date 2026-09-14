@@ -1576,6 +1576,22 @@ export async function fetchInboxShares(): Promise<InboxShare[]> {
     .filter((x): x is InboxShare => x !== null);
 }
 
+/** Ids of MY sets that I have shared out to at least one person. Used by the
+ *  catalogue to mark outgoing shares and include them in the "Shared" filter. */
+export async function fetchSharedOutSetIds(): Promise<string[]> {
+  const session = getSession();
+  if (!session) return [];
+  const { data, error } = await supabase
+    .from("set_shares")
+    .select("set_id")
+    .eq("owner_id", session.user.id);
+  if (error) {
+    console.error("[sync] fetchSharedOutSetIds error", error);
+    return [];
+  }
+  return [...new Set(((data ?? []) as { set_id: string }[]).map((r) => r.set_id))];
+}
+
 /** Pull a shared set into my library (the inbox "Save"). Stored with shared:true
  *  (and the owner's email) so it syncs via the collaborative path from now on. */
 export async function saveSharedSet(setId: string, ownerEmail?: string | null): Promise<boolean> {

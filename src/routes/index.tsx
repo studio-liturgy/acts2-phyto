@@ -46,12 +46,14 @@ import { ShareSetDialog } from "@/components/ShareSetDialog";
 import {
   claimShares,
   fetchInboxShares,
+  fetchSharedOutSetIds,
   saveSharedSet,
   removeSharedSet,
   type InboxShare,
 } from "@/lib/sync";
 import { previewText } from "@/lib/set-preview";
 import { SharedInboxList } from "@/components/SharedInboxList";
+import { BulkShareSetsDialog } from "@/components/BulkShareSetsDialog";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
 const KIND_COLOR: Record<string, string> = {
@@ -198,19 +200,31 @@ function Library() {
 
   // Share-a-set: the owned set currently open in the Share dialog.
   const [shareSet, setShareSet] = useState<PhytoSet | null>(null);
+  // Bulk-share (catalogue edit mode) dialog.
+  const [showBulkShare, setShowBulkShare] = useState(false);
   // "Shared with you" inbox: claim any invites addressed to my email, then list
   // shares whose set I haven't saved yet.
   const [inbox, setInbox] = useState<InboxShare[]>([]);
+  // Ids of my own sets I've shared out — for the catalogue's outgoing indicator
+  // and the Shared filter.
+  const [sharedOutIds, setSharedOutIds] = useState<Set<string>>(new Set());
+  const refreshSharedOut = () => {
+    if (isSignedIn) fetchSharedOutSetIds().then((ids) => setSharedOutIds(new Set(ids)));
+  };
   useEffect(() => {
     if (!isSignedIn) {
       setInbox([]);
+      setSharedOutIds(new Set());
       return;
     }
     let cancelled = false;
     (async () => {
       await claimShares();
-      const rows = await fetchInboxShares();
-      if (!cancelled) setInbox(rows);
+      const [rows, outIds] = await Promise.all([fetchInboxShares(), fetchSharedOutSetIds()]);
+      if (!cancelled) {
+        setInbox(rows);
+        setSharedOutIds(new Set(outIds));
+      }
     })();
     return () => {
       cancelled = true;
@@ -310,6 +324,12 @@ function Library() {
     () => allSets.filter((d) => selectedIds.has(d.id)),
     [allSets, selectedIds],
   );
+  // You can only share your OWN sets, so bulk-share acts on the owned ones in the
+  // selection (foreign shared sets are skipped).
+  const ownedSelectedIds = useMemo(
+    () => selectedSets.filter((d) => !d.shared).map((d) => d.id),
+    [selectedSets],
+  );
 
   const handleBulkDelete = async () => {
     await deleteSets([...selectedIds]);
@@ -370,7 +390,11 @@ function Library() {
       .map((id) => sets[id])
       .filter(Boolean)
       .filter((d) =>
-        kindFilter === "all" ? true : kindFilter === "shared" ? !!d.shared : d.kind === kindFilter,
+        kindFilter === "all"
+          ? true
+          : kindFilter === "shared"
+            ? !!d.shared || sharedOutIds.has(d.id)
+            : d.kind === kindFilter,
       )
       .filter(
         (d) =>
@@ -389,7 +413,7 @@ function Library() {
       }
     });
     return rows;
-  }, [order, sets, catalogueFilter, sortMode, kindFilter]);
+  }, [order, sets, catalogueFilter, sortMode, kindFilter, sharedOutIds]);
 
   const sortLabel: Record<SortMode, string> = {
     az: "A → Z",
@@ -621,6 +645,22 @@ function Library() {
                       >
                         <Eraser className="h-4 w-4" /> Clear empty
                       </button>
+                      {isSignedIn && (
+                        <button
+                          type="button"
+                          onClick={() => setShowBulkShare(true)}
+                          disabled={ownedSelectedIds.length === 0}
+                          className="pill flex h-10 w-10 items-center justify-center border border-foreground transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                          title={
+                            ownedSelectedIds.length
+                              ? `Share ${ownedSelectedIds.length} selected set${ownedSelectedIds.length === 1 ? "" : "s"}`
+                              : "Select your own sets to share"
+                          }
+                          aria-label="Share selected sets"
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setShowBulkDelete(true)}
@@ -827,9 +867,17 @@ function Library() {
                           <DotsGrip className="cursor-grab opacity-80" />
                         )}
                         <span className="flex-1 truncate text-base">{d.name}</span>
+                        {d.shared ? (
+                          <span className="mono hidden max-w-[40%] truncate text-xs uppercase tracking-wider opacity-90 sm:inline">
+                            from {d.shared_by ?? "someone"}
+                          </span>
+                        ) : sharedOutIds.has(d.id) ? (
+                          <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
+                            shared by you
+                          </span>
+                        ) : null}
                         <span className="mono hidden text-xs uppercase tracking-wider opacity-90 sm:inline">
                           {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
-                          {d.shared ? " · shared" : ""}
                         </span>
                         {!editMode && !d.shared && isSignedIn && (
                           <button
@@ -1076,12 +1124,22 @@ function Library() {
         <ShareSetDialog
           open={!!shareSet}
           onOpenChange={(o) => {
-            if (!o) setShareSet(null);
+            if (!o) {
+              setShareSet(null);
+              refreshSharedOut();
+            }
           }}
           setId={shareSet.id}
           setName={shareSet.name}
         />
       )}
+
+      <BulkShareSetsDialog
+        open={showBulkShare}
+        onOpenChange={setShowBulkShare}
+        setIds={ownedSelectedIds}
+        onShared={refreshSharedOut}
+      />
     </div>
   );
 }

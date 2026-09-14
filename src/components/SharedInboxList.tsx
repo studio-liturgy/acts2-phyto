@@ -61,20 +61,22 @@ export function SharedInboxList({
               from {share.ownerEmail}
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => onSave(share)}
-            className="mono uppercase shrink-0 rounded-full bg-white/20 px-4 py-1.5 text-xs tracking-wider transition hover:bg-white/30"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={() => setConfirm(share)}
-            className="mono uppercase shrink-0 rounded-full border border-white/40 px-4 py-1.5 text-xs tracking-wider transition hover:bg-white/20"
-          >
-            Remove
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onSave(share)}
+              className="mono uppercase rounded-full bg-white/20 px-4 py-1.5 text-xs tracking-wider transition hover:bg-white/30"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirm(share)}
+              className="mono uppercase rounded-full border border-white/40 px-4 py-1.5 text-xs tracking-wider transition hover:bg-white/20"
+            >
+              Remove
+            </button>
+          </div>
         </li>
       ))}
 

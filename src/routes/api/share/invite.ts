@@ -9,8 +9,10 @@ import { readEnv, makeRateLimiter } from "@/lib/worker-env";
 const InviteSchema = z.object({
   email: z.string().trim().max(255).email(),
   setName: z.string().trim().max(200).optional(),
-  shareId: z.string().trim().min(1).max(64),
+  shareId: z.string().trim().min(1).max(64).optional(),
   ownerEmail: z.string().trim().max(255).email().optional(),
+  // Present (and > 1) for a bulk share of several sets at once.
+  count: z.number().int().positive().max(500).optional(),
 });
 
 const rateLimited = makeRateLimiter();
@@ -55,11 +57,27 @@ export const Route = createFileRoute("/api/share/invite")({
           return Response.json({ ok: false, error: "Invalid request." }, { status: 400 });
         }
 
-        const { email, setName, shareId, ownerEmail } = parsed.data;
-        const link = `${new URL(request.url).origin}/s/${shareId}`;
+        const { email, setName, shareId, ownerEmail, count } = parsed.data;
+        const origin = new URL(request.url).origin;
+        const isBulk = (count ?? 1) > 1;
+        // Bulk (or a missing shareId) can't deep-link one set, so point at the app
+        // where the recipient sees all of them in "shared with you".
+        const link = !isBulk && shareId ? `${origin}/s/${shareId}` : origin;
         const name = setName || "a set";
+        // Render email addresses as same-colour, non-underlined links so mail
+        // clients don't auto-linkify them into blue text.
+        const emailLink = (addr: string) =>
+          `<a href="mailto:${escapeHtml(addr)}" style="color:inherit !important;text-decoration:none;">${escapeHtml(addr)}</a>`;
         const byText = ownerEmail ? `${ownerEmail} shared` : "Someone shared";
-        const byHtml = ownerEmail ? `${escapeHtml(ownerEmail)} shared` : "Someone shared";
+        const byHtml = ownerEmail ? `${emailLink(ownerEmail)} shared` : "Someone shared";
+        const subject = isBulk
+          ? "Sets were shared with you | phyto"
+          : "A set was shared with you | phyto";
+        const whatHtml = isBulk
+          ? `${count} sets`
+          : `<strong style="color:#F5EFEF;">${escapeHtml(name)}</strong>`;
+        const whatText = isBulk ? `${count} sets` : `"${name}"`;
+        const cta = isBulk ? "Open phyto" : "Open the set";
         const resend = new Resend(RESEND_API_KEY);
 
         // Mirrors the sign-in code email: brand-blue ground, hero PNG, Space Mono
@@ -77,7 +95,7 @@ export const Route = createFileRoute("/api/share/invite")({
     </style>
   </head>
   <body style="margin:0;padding:0;background:#2E7299;font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.03em;">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${byHtml} "${escapeHtml(name)}" with you on phyto.</div>
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${byText} ${whatText} with you on phyto.</div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#2E7299;">
       <tr><td align="center" style="padding:0;">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
@@ -86,17 +104,14 @@ export const Route = createFileRoute("/api/share/invite")({
           </td></tr>
           <tr><td style="padding:44px 40px 40px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-              <tr><td align="center" style="padding-bottom:16px;">
-                <h1 class="h1" style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:40px;line-height:1.05;font-weight:400;letter-spacing:-0.045em;">A set was shared with you!</h1>
-              </td></tr>
               <tr><td align="center" style="padding-bottom:28px;">
-                <p style="margin:0;color:#dce8ef;font-size:15px;line-height:1.6;">${byHtml} <strong style="color:#F5EFEF;">${escapeHtml(name)}</strong> with you.</p>
+                <p style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:22px;line-height:1.3;letter-spacing:-0.03em;">${byHtml} ${whatHtml} with you.</p>
               </td></tr>
               <tr><td align="center">
-                <a href="${link}" style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:16px;line-height:1;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;padding:16px 30px;white-space:nowrap;">Open the set</a>
+                <a href="${link}" style="display:inline-block;border:1.5px solid #F5EFEF;border-radius:9999px;color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:16px;line-height:1;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;padding:16px 30px;white-space:nowrap;">${cta}</a>
               </td></tr>
               <tr><td style="padding-top:44px;text-align:center;">
-                <p style="margin:0;color:#dce8ef;font-size:13px;line-height:1.6;">Sign in with ${escapeHtml(email)} to view and save it.</p>
+                <p style="margin:0;color:#dce8ef;font-size:13px;line-height:1.6;">Sign in with ${emailLink(email)} to view and save it.</p>
                 <p style="margin:2px 0 0;color:#bcd2dd;font-size:13px;line-height:1.6;">If you didn't expect this, you can safely ignore this email.</p>
               </td></tr>
             </table>
@@ -118,8 +133,8 @@ export const Route = createFileRoute("/api/share/invite")({
         const { error } = await resend.emails.send({
           from: RESEND_FROM,
           to: email,
-          subject: "A set was shared with you on phyto",
-          text: `${byText} "${name}" with you on phyto.\n\nOpen this link to view and save it: ${link}\n\nSign in with ${email} to accept.`,
+          subject,
+          text: `${byText} ${whatText} with you on phyto.\n\nOpen this link to view and save: ${link}\n\nSign in with ${email} to accept.`,
           html,
         });
 

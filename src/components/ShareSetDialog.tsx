@@ -48,6 +48,21 @@ export function ShareSetDialog({
     if (!e || !session) return;
     setBusy(true);
     setError(null);
+    // Only share with people who already have a phyto account. Resolving the
+    // email also lets us attach the grant to them immediately (no claim needed).
+    const { data: granteeId, error: lookupErr } = await supabase.rpc("user_id_for_email", {
+      p_email: e,
+    });
+    if (lookupErr) {
+      setError("Could not check that email. Try again.");
+      setBusy(false);
+      return;
+    }
+    if (!granteeId) {
+      setError("That email doesn't have a phyto account yet.");
+      setBusy(false);
+      return;
+    }
     const { data, error: insErr } = await supabase
       .from("set_shares")
       .insert({
@@ -55,6 +70,7 @@ export function ShareSetDialog({
         owner_id: session.user.id,
         owner_email: session.user.email ?? null,
         grantee_email: e,
+        grantee_user_id: granteeId as string,
       })
       .select("id, grantee_email")
       .single();
