@@ -71,6 +71,9 @@ function readFadeMs(): number {
 
 // --- Active workspace ("personal" or a group id) persistence ---
 const WORKSPACE_KEY = "active-workspace-v1";
+// The active group's name, cached so the switcher shows it instantly on reload
+// instead of a "Group" placeholder while the group list fetches.
+const WORKSPACE_NAME_KEY = "active-workspace-name-v1";
 
 function readActiveWorkspace(): string {
   if (typeof window === "undefined") return "personal";
@@ -78,6 +81,15 @@ function readActiveWorkspace(): string {
     return localStorage.getItem(WORKSPACE_KEY) || "personal";
   } catch {
     return "personal";
+  }
+}
+
+function readActiveWorkspaceName(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem(WORKSPACE_NAME_KEY) || "";
+  } catch {
+    return "";
   }
 }
 
@@ -199,6 +211,9 @@ interface LibraryState {
   /** Active workspace: "personal" (the owner's own library) or a group id. The
    *  library store is derived scoped to this — see buildLibraryState. */
   activeWorkspace: string;
+  /** Cached name of the active group, so the switcher renders it instantly on
+   *  reload before the group list has fetched. Empty when in personal. */
+  activeWorkspaceName: string;
   /** Switch workspace and re-derive the visible library from Dexie. */
   setActiveWorkspace: (ws: string) => Promise<void>;
   /** Groups I belong to (for the workspace switcher). */
@@ -268,6 +283,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   gatherings: {},
   gatheringOrder: [],
   activeWorkspace: typeof window !== "undefined" ? readActiveWorkspace() : "personal",
+  activeWorkspaceName: typeof window !== "undefined" ? readActiveWorkspaceName() : "",
   groups: [],
   songTemplate: typeof window !== "undefined" ? readSongTemplate() : { ...DEFAULT_SONG_TEMPLATE },
   scriptureTemplate:
@@ -283,8 +299,10 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   },
 
   setActiveWorkspace: async (ws) => {
+    const name = ws === "personal" ? "" : (get().groups.find((g) => g.id === ws)?.name ?? "");
     try {
       localStorage.setItem(WORKSPACE_KEY, ws);
+      localStorage.setItem(WORKSPACE_NAME_KEY, name);
     } catch {}
     // Switching into a group pulls its latest content first, so members don't
     // have to refresh to see it.
@@ -297,12 +315,27 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       db.sets.toArray(),
       db.gatherings.toArray(),
     ]);
-    set({ activeWorkspace: ws, ...buildLibraryState(allSets, allGatherings, ws) });
+    set({
+      activeWorkspace: ws,
+      activeWorkspaceName: name,
+      ...buildLibraryState(allSets, allGatherings, ws),
+    });
   },
 
   loadGroups: async () => {
     const groups = await fetchMyGroups();
     set({ groups });
+    // Refresh the cached active-group name now that the list is known.
+    const activeWs = get().activeWorkspace;
+    if (activeWs !== "personal") {
+      const name = groups.find((g) => g.id === activeWs)?.name;
+      if (name && name !== get().activeWorkspaceName) {
+        set({ activeWorkspaceName: name });
+        try {
+          localStorage.setItem(WORKSPACE_NAME_KEY, name);
+        } catch {}
+      }
+    }
     // If the active workspace is a group I'm no longer in (removed/left), fall
     // back to Personal so the library isn't stuck on an empty, inaccessible view.
     const ws = get().activeWorkspace;

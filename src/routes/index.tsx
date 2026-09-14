@@ -190,6 +190,7 @@ function Library() {
     goLive,
     endSession,
     activeWorkspace = "personal",
+    activeWorkspaceName = "",
     setActiveWorkspace,
     groups = [],
     loadGroups,
@@ -219,7 +220,7 @@ function Library() {
   const activeWorkspaceLabel =
     activeWorkspace === "personal"
       ? "Personal"
-      : (groups.find((g) => g.id === activeWorkspace)?.name ?? "Group");
+      : groups.find((g) => g.id === activeWorkspace)?.name || activeWorkspaceName || "Group";
   const groupNames = (ids?: string[]) =>
     (ids ?? [])
       .map((id) => groups.find((g) => g.id === id)?.name)
