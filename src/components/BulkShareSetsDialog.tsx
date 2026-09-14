@@ -13,6 +13,7 @@ export function BulkShareSetsDialog({
   open,
   onOpenChange,
   setIds,
+  sets = [],
   onShared,
   groups = [],
   onShareToGroup,
@@ -21,6 +22,7 @@ export function BulkShareSetsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   setIds: string[];
+  sets?: { id: string; groupIds?: string[] }[];
   onShared?: () => void;
   groups?: MyGroup[];
   onShareToGroup?: (groupId: string) => Promise<void>;
@@ -31,13 +33,38 @@ export function BulkShareSetsDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [groupBusy, setGroupBusy] = useState<string | null>(null);
+  const [groupDone, setGroupDone] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setEmail("");
     setError(null);
     setDone(null);
+    setGroupBusy(null);
+    setGroupDone(null);
   }, [open]);
+
+  const total = sets.length;
+  const inGroupCount = (gid: string) => sets.filter((s) => (s.groupIds ?? []).includes(gid)).length;
+
+  const runGroup = async (
+    gid: string,
+    name: string,
+    fn: (id: string) => Promise<void>,
+    verb: string,
+  ) => {
+    setGroupBusy(gid);
+    setGroupDone(null);
+    try {
+      await fn(gid);
+      setGroupDone(`${verb} ${label} ${verb === "Added" ? "to" : "from"} ${name}.`);
+    } catch {
+      setGroupDone(null);
+    } finally {
+      setGroupBusy(null);
+    }
+  };
 
   const share = async () => {
     const e = email.trim().toLowerCase();
@@ -111,28 +138,42 @@ export function BulkShareSetsDialog({
               Groups
             </div>
             <ul className="space-y-2">
-              {groups.map((g) => (
-                <li key={g.id} className="flex items-center gap-2">
-                  <span className="mono flex-1 truncate text-sm uppercase">{g.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => onShareToGroup(g.id)}
-                    className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-                  >
-                    Add
-                  </button>
-                  {onRemoveFromGroup && (
-                    <button
-                      type="button"
-                      onClick={() => onRemoveFromGroup(g.id)}
-                      className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </li>
-              ))}
+              {groups.map((g) => {
+                const inCount = inGroupCount(g.id);
+                const canAdd = inCount < total; // some selected sets not yet in the group
+                const canRemove = inCount > 0; // some selected sets are in the group
+                return (
+                  <li key={g.id} className="flex items-center gap-2">
+                    <span className="mono flex-1 truncate text-sm uppercase">{g.name}</span>
+                    {canAdd && (
+                      <button
+                        type="button"
+                        disabled={groupBusy === g.id}
+                        onClick={() => runGroup(g.id, g.name, onShareToGroup, "Added")}
+                        className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-40"
+                      >
+                        Add
+                      </button>
+                    )}
+                    {canRemove && onRemoveFromGroup && (
+                      <button
+                        type="button"
+                        disabled={groupBusy === g.id}
+                        onClick={() => runGroup(g.id, g.name, onRemoveFromGroup, "Removed")}
+                        className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] disabled:opacity-40"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
+            {groupDone && (
+              <p className="mono mt-3 text-xs uppercase tracking-wider text-muted-foreground">
+                {groupDone}
+              </p>
+            )}
           </div>
         )}
 

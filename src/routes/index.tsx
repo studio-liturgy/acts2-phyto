@@ -368,10 +368,8 @@ function Library() {
   );
   // You can only share your OWN sets, so bulk-share acts on the owned ones in the
   // selection (foreign shared sets are skipped).
-  const ownedSelectedIds = useMemo(
-    () => selectedSets.filter((d) => !d.shared).map((d) => d.id),
-    [selectedSets],
-  );
+  const ownedSelectedSets = useMemo(() => selectedSets.filter((d) => !d.shared), [selectedSets]);
+  const ownedSelectedIds = useMemo(() => ownedSelectedSets.map((d) => d.id), [ownedSelectedSets]);
 
   const handleBulkDelete = async () => {
     await deleteSets([...selectedIds]);
@@ -718,6 +716,23 @@ function Library() {
                     <>
                       <button
                         type="button"
+                        onClick={() => {
+                          const ids = catalogueRows.map((d) => d.id);
+                          const allSelected =
+                            ids.length > 0 && ids.every((id) => selectedIds.has(id));
+                          setSelectedIds(allSelected ? new Set() : new Set(ids));
+                        }}
+                        disabled={catalogueRows.length === 0}
+                        className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                        title="Select or deselect every set"
+                      >
+                        {catalogueRows.length > 0 &&
+                        catalogueRows.every((d) => selectedIds.has(d.id))
+                          ? "Deselect all"
+                          : "Select all"}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setShowDuplicates(true)}
                         disabled={duplicateGroups.length === 0}
                         className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
@@ -752,7 +767,7 @@ function Library() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
-                      {isSignedIn && activeWorkspace === "personal" && (
+                      {isSignedIn && (
                         <button
                           type="button"
                           onClick={() => setShowBulkShare(true)}
@@ -999,23 +1014,20 @@ function Library() {
                             </span>
                           </div>
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center">
-                            {!editMode &&
-                              !d.shared &&
-                              isSignedIn &&
-                              activeWorkspace === "personal" && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShareSet(d);
-                                  }}
-                                  className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/20"
-                                  title="Share set"
-                                  aria-label="Share set"
-                                >
-                                  <Share2 className="h-4 w-4" />
-                                </button>
-                              )}
+                            {!editMode && !d.shared && isSignedIn && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShareSet(d);
+                                }}
+                                className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/20"
+                                title="Share set"
+                                aria-label="Share set"
+                              >
+                                <Share2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </span>
                           <Link
                             to="/set/$setId"
@@ -1264,17 +1276,14 @@ function Library() {
         open={showBulkShare}
         onOpenChange={setShowBulkShare}
         setIds={ownedSelectedIds}
+        sets={ownedSelectedSets.map((d) => ({ id: d.id, groupIds: d.groupIds }))}
         onShared={refreshSharedOut}
         groups={groups}
         onShareToGroup={async (groupId) => {
           await shareSetsToGroup(ownedSelectedIds, groupId);
-          setShowBulkShare(false);
-          exitEditMode();
         }}
         onRemoveFromGroup={async (groupId) => {
           for (const id of ownedSelectedIds) await unshareSetFromGroup(id, groupId);
-          setShowBulkShare(false);
-          exitEditMode();
         }}
       />
 
