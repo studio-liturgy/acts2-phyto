@@ -159,7 +159,7 @@ export function GroupPanelDialog({
                 <button
                   type="button"
                   onClick={() => remove(m.email)}
-                  className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  className="mono uppercase rounded-full bg-[var(--brand-red)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-white)] transition hover:opacity-90"
                 >
                   Remove
                 </button>
@@ -210,7 +210,7 @@ export function GroupPanelDialog({
             <button
               type="button"
               onClick={() => setConfirm(isOwner ? "delete" : "leave")}
-              className="mono uppercase w-full rounded-full border border-foreground py-2 text-sm tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+              className="mono uppercase w-full rounded-full bg-[var(--brand-red)] py-2 text-sm tracking-wider text-[var(--brand-white)] transition hover:opacity-90"
             >
               {isOwner ? "Delete group" : "Leave group"}
             </button>

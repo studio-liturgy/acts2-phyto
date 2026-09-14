@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/authStore";
@@ -46,6 +46,12 @@ export function BulkShareSetsDialog({
   const [personLocalIn, setPersonLocalIn] = useState<Record<string, boolean>>({});
   const [personBusy, setPersonBusy] = useState<string | null>(null);
 
+  // Stable key for the selection: the parent hands us a fresh setIds array on
+  // every liveQuery re-render, so keying effects on the identity would wrongly
+  // reset feedback after each Add/Remove. Key on the CONTENT instead.
+  const setIdsKey = useMemo(() => [...setIds].sort().join(","), [setIds]);
+
+  // Reset transient UI only when the dialog opens (not on parent re-renders).
   useEffect(() => {
     if (!open) return;
     setEmail("");
@@ -56,26 +62,37 @@ export function BulkShareSetsDialog({
     setLocalIn({});
     setPersonLocalIn({});
     setPersonBusy(null);
-    // Which people are the selected sets already shared with?
-    if (setIds.length > 0) {
-      supabase
-        .from("set_shares")
-        .select("grantee_email")
-        .in("set_id", setIds)
-        .then(({ data }) => {
-          const counts: Record<string, number> = {};
-          for (const r of (data ?? []) as { grantee_email: string }[]) {
-            const e = r.grantee_email.toLowerCase();
-            counts[e] = (counts[e] ?? 0) + 1;
-          }
-          setPersonCount(counts);
-          setPeople(Object.keys(counts));
-        });
-    } else {
+  }, [open]);
+
+  // Which people are the selected sets already shared with? Refetch only when the
+  // selection's contents actually change, so feedback survives an Add/Remove.
+  useEffect(() => {
+    if (!open) return;
+    const ids = setIdsKey ? setIdsKey.split(",") : [];
+    if (ids.length === 0) {
       setPersonCount({});
       setPeople([]);
+      return;
     }
-  }, [open, setIds]);
+    let cancelled = false;
+    supabase
+      .from("set_shares")
+      .select("grantee_email")
+      .in("set_id", ids)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const counts: Record<string, number> = {};
+        for (const r of (data ?? []) as { grantee_email: string }[]) {
+          const e = r.grantee_email.toLowerCase();
+          counts[e] = (counts[e] ?? 0) + 1;
+        }
+        setPersonCount(counts);
+        setPeople(Object.keys(counts));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, setIdsKey]);
 
   const total = sets.length;
   const inGroupCount = (gid: string) => {
@@ -241,7 +258,7 @@ export function BulkShareSetsDialog({
                       <button
                         type="button"
                         onClick={() => runGroup(g.id, g.name, onRemoveFromGroup, "Removed")}
-                        className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                        className="mono uppercase rounded-full bg-[var(--brand-red)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-white)] transition hover:opacity-90"
                       >
                         Remove
                       </button>
@@ -308,7 +325,7 @@ export function BulkShareSetsDialog({
                     <button
                       type="button"
                       onClick={() => runPerson(e, "Removed")}
-                      className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                      className="mono uppercase rounded-full bg-[var(--brand-red)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-white)] transition hover:opacity-90"
                     >
                       Remove
                     </button>

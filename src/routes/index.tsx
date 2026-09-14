@@ -603,14 +603,6 @@ function Library() {
               </Link>
             )}
             {isSignedIn && (
-              <button
-                onClick={() => setShowSignOutDialog(true)}
-                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-              >
-                Sign out
-              </button>
-            )}
-            {isSignedIn && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -653,6 +645,14 @@ function Library() {
                 title="Manage group members"
               >
                 Manage
+              </button>
+            )}
+            {isSignedIn && (
+              <button
+                onClick={() => setShowSignOutDialog(true)}
+                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+              >
+                Sign out
               </button>
             )}
             {isSignedIn && syncStatus !== "offline" && (

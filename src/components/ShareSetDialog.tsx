@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Copy, Check, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/authStore";
@@ -32,9 +32,6 @@ export function ShareSetDialog({
   const [groupGrants, setGroupGrants] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   useEffect(() => {
     if (!open) return;
@@ -134,12 +131,6 @@ export function ShareSetDialog({
     setShares((prev) => prev.filter((s) => s.id !== id));
   };
 
-  const copyLink = (id: string) => {
-    navigator.clipboard.writeText(`${origin}/s/${id}`);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
@@ -164,7 +155,7 @@ export function ShareSetDialog({
                       onClick={() => toggleGroup(g.id)}
                       className={`mono uppercase rounded-full px-4 py-1.5 text-xs tracking-wider transition ${
                         inGroup
-                          ? "border border-foreground hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                          ? "bg-[var(--brand-red)] text-[var(--brand-white)] hover:opacity-90"
                           : "bg-foreground text-background hover:opacity-90"
                       }`}
                     >
@@ -213,19 +204,10 @@ export function ShareSetDialog({
                 <span className="mono uppercase flex-1 truncate text-sm">{s.grantee_email}</span>
                 <button
                   type="button"
-                  onClick={() => copyLink(s.id)}
-                  title="Copy invite link"
-                  aria-label="Copy invite link"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-foreground transition hover:bg-foreground hover:text-background"
-                >
-                  {copiedId === s.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </button>
-                <button
-                  type="button"
                   onClick={() => revoke(s.id)}
                   title="Revoke access"
                   aria-label="Revoke access"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-red)] text-[var(--brand-white)] transition hover:opacity-90"
                 >
                   <X className="h-4 w-4" />
                 </button>
