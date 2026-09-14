@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -37,6 +37,9 @@ import {
   previewEffects,
   syncSharedSets,
   syncGroups,
+  syncGroupChannels,
+  stopGroupChannels,
+  setGroupChangeHandler,
   withSyncLock,
   type SyncAction,
   type SyncEffects,
@@ -319,6 +322,7 @@ function RootComponent() {
   const loadFromDb = useLibrary((s) => s.loadFromDb);
   const refreshLiveState = useLibrary((s) => s.refreshLiveState);
   const nullLocalLiveState = useLibrary((s) => s.nullLocalLiveState);
+  const myGroups = useLibrary((s) => s.groups);
   const migrateInlineImages = useLibrary((s) => s.migrateInlineImages);
   const [syncDiff, setSyncDiff] = useState<SyncDiff | null>(null);
   const [pendingAction, setPendingAction] = useState<SyncAction | null>(null);
@@ -474,6 +478,7 @@ function RootComponent() {
         // Groups are account-scoped: drop them and return to the personal library.
         useLibrary.getState().setActiveWorkspace("personal");
         useLibrary.setState({ groups: [] });
+        stopGroupChannels();
       }
       if (event === "SIGNED_IN" && s) {
         // Welcome email is sent from auth.callback.tsx (respects mailing-list opt-in).
@@ -488,6 +493,11 @@ function RootComponent() {
     });
 
     return () => subscription.unsubscribe();
+    // Run-once-on-mount + auth-subscription setup. The sync helpers it calls
+    // (loadFromDb, runDiff, runCollabSync, refreshLiveState, nullLocalLiveState)
+    // are recreated each render; listing them would re-subscribe auth on every
+    // render. They're invoked imperatively here, so intentionally omitted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setSession]);
 
   useEffect(() => {
@@ -538,6 +548,50 @@ function RootComponent() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [session, pathname, refreshLiveState]);
+
+  // Realtime: near-instant collaboration. Subscribe to change pings for my groups
+  // (Supabase Broadcast — carries no data), and on any ping re-pull the group +
+  // shared content (debounced to coalesce a burst). Updates then appear in ~a
+  // second instead of on the 12s fallback poll above.
+  const groupIdsKey = useMemo(
+    () =>
+      myGroups
+        .map((g) => g.id)
+        .sort()
+        .join(","),
+    [myGroups],
+  );
+  useEffect(() => {
+    if (!session || pathname.startsWith("/g/")) {
+      stopGroupChannels();
+      setGroupChangeHandler(null);
+      return;
+    }
+    let t: ReturnType<typeof setTimeout> | null = null;
+    let running = false;
+    const pull = async () => {
+      if (running) return;
+      running = true;
+      try {
+        await syncSharedSets();
+        await syncGroups();
+        await refreshLiveState();
+      } catch {
+        // Transient — the fallback poll and the next ping recover.
+      } finally {
+        running = false;
+      }
+    };
+    setGroupChangeHandler(() => {
+      if (t) clearTimeout(t);
+      t = setTimeout(pull, 300);
+    });
+    syncGroupChannels(groupIdsKey ? groupIdsKey.split(",") : []);
+    return () => {
+      if (t) clearTimeout(t);
+      setGroupChangeHandler(null);
+    };
+  }, [session, pathname, groupIdsKey, refreshLiveState]);
 
   // Hoist legacy inline base64 slide images into R2 once things have settled.
   //

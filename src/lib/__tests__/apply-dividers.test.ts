@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyDividers } from "../../routes/set.$setId";
+import { applyDividers } from "../apply-dividers";
 import { normaliseChordSheet } from "../chords";
 
 // Regression test for a bug where re-running applyDividers on already-divided

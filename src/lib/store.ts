@@ -16,6 +16,7 @@ import {
   syncGroups,
   leaveGroup,
   deleteGroup,
+  pingGroupsChanged,
   type MyGroup,
 } from "./sync";
 import { isLiveNow, type LiveWindow } from "./live-session";
@@ -370,17 +371,22 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       }
     }
     if (updates.length) await db.sets.bulkPut(updates);
+    pingGroupsChanged([groupId]); // members re-pull the new grants live
   },
 
   unshareSetFromGroup: async (setId, groupId) => {
     await removeSetFromGroup(setId, groupId);
     const s = await db.sets.get(setId);
-    if (!s) return;
+    if (!s) {
+      pingGroupsChanged([groupId]);
+      return;
+    }
     const groupIds = (s.groupIds ?? []).filter((g) => g !== groupId);
     // A FOREIGN set (someone else's, admin-removed) with no groups left is no
     // longer accessible to me — drop the local copy. My own sets are kept.
     if (s.shared && groupIds.length === 0) await db.sets.delete(setId);
     else await db.sets.put({ ...s, groupIds });
+    pingGroupsChanged([groupId]); // members re-pull the retraction live
   },
 
   shareCatalogueToGroup: async (groupId) => {
@@ -741,7 +747,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   deleteGathering: async (id) => {
     // A foreign group gathering is a shared resource: deleting it removes it for
     // the whole group (RLS member-delete), with no personal tombstone.
-    const isForeign = !!get().gatherings[id]?.shared;
+    const existing = get().gatherings[id];
+    const isForeign = !!existing?.shared;
+    const groupId = existing?.group_id ?? null;
     // Serialize against pushes/merges so an in-flight push can't re-upsert this
     // gathering (or its gathering_sets) from a pre-delete Dexie snapshot.
     await withSyncLock(async () => {
@@ -772,6 +780,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         return { gatherings: rest, gatheringOrder: s.gatheringOrder.filter((x) => x !== id) };
       });
     });
+    if (groupId) pingGroupsChanged([groupId]); // members prune it live
   },
 
   addSetToGathering: (gatheringId, setId) =>

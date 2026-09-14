@@ -225,6 +225,24 @@ input[type="range"]::-moz-range-thumb {
   background: var(--foreground);
 }
 
+/* A range slider that must follow the SYSTEM (OS) light/dark, never a locally
+   overridden --foreground from a slide-preview wrapper it sits inside. Used by
+   the set editor's font-size sliders. */
+.system-range::-webkit-slider-runnable-track,
+.system-range::-webkit-slider-thumb,
+.system-range::-moz-range-track,
+.system-range::-moz-range-thumb {
+  background: #212121;
+}
+@media (prefers-color-scheme: dark) {
+  .system-range::-webkit-slider-runnable-track,
+  .system-range::-webkit-slider-thumb,
+  .system-range::-moz-range-track,
+  .system-range::-moz-range-thumb {
+    background: #f5efef;
+  }
+}
+
 /* Reusable pill-shaped utilities */
 @utility pill {
   border-radius: 9999px;

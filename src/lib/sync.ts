@@ -423,8 +423,12 @@ export async function fetchRemote(
   // are synced via the collaborative path and are legitimately absent from this
   // owner-only fetch — a gathering that references one is fine, so exclude them
   // from the check. A missing reference to one of MY OWN sets still fires (they
-  // are never `shared`), preserving the anon-read guard.
-  const ownGatheringIds = new Set(gatheringRows.map((r) => r.id as string));
+  // are never `shared`), preserving the anon-read guard. GROUP gatherings are
+  // excluded outright: they reference group sets owned by other members that are
+  // never in this owner-only sets fetch, so they can't be part of the check.
+  const ownGatheringIds = new Set(
+    gatheringRows.filter((r) => !r.group_id).map((r) => r.id as string),
+  );
   const fetchedSetIds = new Set(setMetaRows.map((r) => r.id as string));
   const foreignLocalIds = new Set(localSets.filter((s) => s.shared).map((s) => s.id));
   const unresolved = [
@@ -653,16 +657,23 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
     db.sets.toArray(),
     db.gatherings.toArray(),
   ]);
-  // Foreign (shared-with-me) sets and foreign group gatherings sync through the
-  // collaborative path (syncSharedSets / syncGroups), never the personal diff —
-  // otherwise they'd classify as only-local and Merge would push them back to
-  // the account as mine (rewriting the contributor's ownership).
+  // Foreign (shared-with-me) sets sync through the collaborative path
+  // (syncSharedSets), never the personal diff — otherwise they'd classify as
+  // only-local and Merge would push them back to the account as mine.
   const localSets = allLocalSets.filter((s) => !s.shared);
-  const localGatherings = allLocalGatherings.filter((p) => !p.shared);
+  // ALL group gatherings — foreign AND my own — sync through syncGroups with
+  // last-write-wins, NOT the personal diff. Keeping them out means editing a
+  // group gathering never raises the "review versions" (Merge/Replace) dialog;
+  // that prompt is for personal content only. My own group gatherings are still
+  // pushed by the owner path in doPush.
+  const localGatherings = allLocalGatherings.filter((p) => !p.shared && !p.group_id);
 
   const remote = await fetchRemote(session.user.id);
   if (!remote) return null;
-  const { sets: remoteSets, gatherings: remoteGatherings, deletions: remoteDeletions } = remote;
+  const { sets: remoteSets, deletions: remoteDeletions } = remote;
+  // Drop group gatherings from the remote side too, so they aren't seen as
+  // only-remote and pulled/overwritten by the personal merge.
+  const remoteGatherings = remote.gatherings.filter((p) => !p.group_id);
 
   const localSetMap = new Map(localSets.map((s) => [s.id, s]));
   const localGatheringMap = new Map(localGatherings.map((p) => [p.id, p]));
@@ -1376,8 +1387,13 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
     }
 
     setStatus("synced");
-    // No broadcast needed: the timestamp writebacks above mutate Dexie, which the
-    // cross-tab `liveQuery` in store.ts picks up to refresh every tab's store.
+    // Nudge other members to re-pull now (realtime), so group edits land in ~a
+    // second instead of on the 12s fallback poll. Cross-tab consistency on THIS
+    // device is handled by the Dexie liveQuery in store.ts.
+    const changedGroups = new Set<string>();
+    for (const s of sets) for (const g of s.groupIds ?? []) changedGroups.add(g);
+    for (const p of gatherings) if (p.group_id) changedGroups.add(p.group_id);
+    if (changedGroups.size) pingGroupsChanged([...changedGroups]);
     return ok;
   } catch (e) {
     console.error("[sync] pushToSupabase: unexpected error", e);
@@ -1696,7 +1712,13 @@ export async function syncSharedSets(): Promise<void> {
   const session = getSession();
   if (!session) return;
   await withSyncLock(async () => {
-    const localShared = (await db.sets.toArray()).filter((s) => s.shared);
+    // ONLY person-shares (set_shares grants). Foreign GROUP sets are also
+    // `shared` but are tracked by group_sets and managed by syncGroups — they
+    // have no set_shares row, so including them here would wrongly prune them
+    // (then syncGroups re-adds them, causing a flicker).
+    const localShared = (await db.sets.toArray()).filter(
+      (s) => s.shared && (s.groupIds?.length ?? 0) === 0,
+    );
     if (!localShared.length) return;
 
     const { data: shares, error } = await supabase
@@ -1975,9 +1997,11 @@ export async function syncGroups(): Promise<void> {
     const gone = localForeignGroup.filter((s) => !accessible.has(s.id));
     if (gone.length) await db.sets.bulkDelete(gone.map((s) => s.id));
 
-    // ── Foreign group GATHERINGS (contributed by other members) ───────────────
-    // My own group gatherings (user_id = me) sync through the personal engine;
-    // here we pull the ones OTHER members made so the whole group sees them.
+    // ── Group GATHERINGS (collaborative, last-write-wins) ─────────────────────
+    // ALL group gatherings sync here, not the personal diff, so a group gathering
+    // never raises the review-versions dialog. Foreign ones (other members') are
+    // tagged `shared`; my own stay owned (pushed by doPush's owner path) but I
+    // still PULL other members' edits to them here.
     const { data: gathRows, error: gathErr } = await supabase
       .from("gatherings")
       .select("*")
@@ -1986,16 +2010,14 @@ export async function syncGroups(): Promise<void> {
       console.error("[sync] syncGroups gatherings error", gathErr);
       return;
     }
-    const foreignGathRows = ((gathRows ?? []) as Record<string, unknown>[]).filter(
-      (r) => r.user_id !== uid,
-    );
+    const remoteGathRows = (gathRows ?? []) as Record<string, unknown>[];
     const localGath = await db.gatherings.toArray();
+    const localGathById = new Map(localGath.map((p) => [p.id, p]));
     const localForeignGath = localGath.filter((p) => p.shared);
-    const localForeignGathById = new Map(localForeignGath.map((p) => [p.id, p]));
 
-    if (foreignGathRows.length) {
-      // Their ordered set lists (gathering_sets), grouped + sorted by position.
-      const gathIds = foreignGathRows.map((r) => r.id as string);
+    if (remoteGathRows.length) {
+      // Ordered set lists (gathering_sets), grouped + sorted by position.
+      const gathIds = remoteGathRows.map((r) => r.id as string);
       const { data: gsRows } = await supabase
         .from("gathering_sets")
         .select("gathering_id, set_id, position")
@@ -2011,14 +2033,18 @@ export async function syncGroups(): Promise<void> {
         setIdsByGathering.set(row.gathering_id, arr);
       }
       const toWrite: Gathering[] = [];
-      for (const row of foreignGathRows) {
+      for (const row of remoteGathRows) {
+        const mine = row.user_id === uid;
         const ids = (setIdsByGathering.get(row.id as string) ?? []).filter(Boolean);
         const parsed = fromSupabaseGathering(row, ids);
-        const localCopy = localForeignGathById.get(parsed.id);
-        // Last-write-wins by content updatedAt; is_live/live_started_at always
-        // adopt the server's (session state is authoritative, never a conflict).
+        const localCopy = localGathById.get(parsed.id);
+        // Last-write-wins by content updatedAt. `shared` marks foreign rows only
+        // (mine stay owned). is_live/live_started_at always adopt the server's
+        // (session state is authoritative, never a content conflict).
+        const tag = (g: Gathering): Gathering =>
+          mine ? { ...g, shared: undefined } : { ...g, shared: true };
         if (!localCopy || parsed.updatedAt > localCopy.updatedAt) {
-          toWrite.push({ ...parsed, shared: true });
+          toWrite.push(tag(parsed));
         } else if (
           localCopy.is_live !== parsed.is_live ||
           localCopy.live_started_at !== parsed.live_started_at
@@ -2032,8 +2058,10 @@ export async function syncGroups(): Promise<void> {
       }
       if (toWrite.length) await db.gatherings.bulkPut(toWrite);
     }
-    // Prune foreign group gatherings I've lost access to (removed/left/deleted).
-    const accessibleGath = new Set(foreignGathRows.map((r) => r.id as string));
+    // Prune FOREIGN group gatherings I've lost access to (removed/left/deleted by
+    // the owner). My own are never pruned here: a freshly created one isn't remote
+    // yet, and deletion of mine is handled by deleteGathering.
+    const accessibleGath = new Set(remoteGathRows.map((r) => r.id as string));
     const goneGath = localForeignGath.filter((p) => !accessibleGath.has(p.id));
     if (goneGath.length) await db.gatherings.bulkDelete(goneGath.map((p) => p.id));
   });
@@ -2172,4 +2200,57 @@ export async function leaveGroup(groupId: string): Promise<boolean> {
     return false;
   }
   return true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Realtime group signalling (Supabase Broadcast)
+//
+// Broadcast is a lightweight pub/sub that needs no table publication or realtime
+// RLS setup. It carries NO row data — just a "something in this group changed"
+// ping. On receipt, a client re-pulls authoritatively through the RLS-protected
+// syncGroups, so the ping can never leak content. This makes collaborative edits
+// appear in ~a second instead of waiting for the 12s fallback poll.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type GroupChannel = ReturnType<typeof supabase.channel>;
+const groupChannels = new Map<string, GroupChannel>();
+let onGroupChange: (() => void) | null = null;
+
+/** Set the callback fired when any subscribed group gets a change ping. */
+export function setGroupChangeHandler(fn: (() => void) | null): void {
+  onGroupChange = fn;
+}
+
+/** Subscribe to change pings for exactly `groupIds` (idempotent): opens channels
+ *  for new groups and closes ones we've left. */
+export function syncGroupChannels(groupIds: string[]): void {
+  for (const [id, ch] of groupChannels) {
+    if (!groupIds.includes(id)) {
+      supabase.removeChannel(ch);
+      groupChannels.delete(id);
+    }
+  }
+  for (const id of groupIds) {
+    if (groupChannels.has(id)) continue;
+    const ch = supabase
+      .channel(`group-sync:${id}`, { config: { broadcast: { self: false } } })
+      .on("broadcast", { event: "changed" }, () => onGroupChange?.())
+      .subscribe();
+    groupChannels.set(id, ch);
+  }
+}
+
+/** Close every group channel (call on sign-out). */
+export function stopGroupChannels(): void {
+  for (const [, ch] of groupChannels) supabase.removeChannel(ch);
+  groupChannels.clear();
+}
+
+/** Tell the other members of these groups that something changed, so they
+ *  re-pull immediately. Best-effort: only groups we already have a channel for. */
+export function pingGroupsChanged(groupIds: string[]): void {
+  for (const id of new Set(groupIds)) {
+    const ch = groupChannels.get(id);
+    if (ch) ch.send({ type: "broadcast", event: "changed", payload: {} });
+  }
 }

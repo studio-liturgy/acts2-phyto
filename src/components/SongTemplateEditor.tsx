@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLibrary, useSongTemplateDraft } from "@/lib/store";
 
-export const FONT_OPTIONS: { label: string; value: string }[] = [
+const FONT_OPTIONS: { label: string; value: string }[] = [
   { label: "Sans", value: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" },
   { label: "Serif", value: "'Times New Roman', Times, serif" },
   { label: "Mono", value: "'Courier New', Courier, monospace" },
@@ -88,7 +88,7 @@ export function SongTemplateEditor() {
             step={0.05}
             value={draft.fontScale}
             onChange={(e) => setDraft((d) => ({ ...d, fontScale: Number(e.target.value) }))}
-            className="w-full"
+            className="system-range w-full"
           />
         </div>
 
