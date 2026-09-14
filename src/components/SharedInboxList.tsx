@@ -57,8 +57,8 @@ export function SharedInboxList({
         >
           <span className="flex-1 truncate text-base">{share.set.name}</span>
           {share.ownerEmail && (
-            <span className="mono hidden truncate text-xs uppercase tracking-wider opacity-90 sm:inline">
-              from {share.ownerEmail}
+            <span className="mono mr-8 hidden whitespace-nowrap text-[10px] uppercase tracking-wider opacity-50 sm:inline">
+              {share.ownerEmail}
             </span>
           )}
           <div className="flex shrink-0 items-center gap-2">

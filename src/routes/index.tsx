@@ -27,8 +27,6 @@ import {
   Upload,
   Download,
   Wifi,
-  Copy,
-  Eraser,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -517,6 +515,31 @@ function Library() {
         </header>
       )}
 
+      {/* Incoming shared sets: notification pill just under the header, with the
+          inline list beneath it (no modal). */}
+      {!showLanding && inbox.length > 0 && (
+        <div className="mx-auto w-full max-w-6xl px-6 pt-4">
+          <button
+            type="button"
+            onClick={() => setInboxOpen((v) => !v)}
+            aria-expanded={inboxOpen}
+            className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider text-foreground transition hover:bg-foreground hover:text-background"
+          >
+            <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
+            {inbox.length} set{inbox.length === 1 ? "" : "s"} shared with you
+          </button>
+          {inboxOpen && (
+            <div className="mt-3">
+              <SharedInboxList
+                shares={inbox}
+                onSave={handleSaveShare}
+                onRemove={handleRemoveShare}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       {showLanding ? (
         <FirstTimeLanding
           onNewGathering={() => {
@@ -532,31 +555,6 @@ function Library() {
         />
       ) : (
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
-          {/* Incoming shared sets: a notification pill that toggles an inline list
-              directly beneath it (no modal). */}
-          {inbox.length > 0 && (
-            <div className="mb-8">
-              <button
-                type="button"
-                onClick={() => setInboxOpen((v) => !v)}
-                aria-expanded={inboxOpen}
-                className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider text-foreground transition hover:bg-foreground hover:text-background"
-              >
-                <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
-                {inbox.length} set{inbox.length === 1 ? "" : "s"} shared with you
-              </button>
-              {inboxOpen && (
-                <div className="mt-3">
-                  <SharedInboxList
-                    shares={inbox}
-                    onSave={handleSaveShare}
-                    onRemove={handleRemoveShare}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Gatherings */}
           <section className="mb-24">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -604,7 +602,7 @@ function Library() {
                         isSignedIn ? goLive(pid) : (setShowGoLivePrompt(true), Promise.resolve())
                       }
                       onEndSession={() => endSession(pid)}
-                      className={gatheringDisplayOrder.length > 2 ? "w-[360px] shrink-0" : ""}
+                      className={gatheringDisplayOrder.length > 2 ? "w-[450px] shrink-0" : ""}
                       editMode={editingGatheringId === pid}
                       onEditModeChange={(v) => setEditingGatheringId(v ? pid : null)}
                     />
@@ -634,7 +632,7 @@ function Library() {
                             : "No duplicate names"
                         }
                       >
-                        <Copy className="h-4 w-4" /> Fix duplicates
+                        Fix duplicates
                       </button>
                       <button
                         type="button"
@@ -643,7 +641,7 @@ function Library() {
                         className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
                         title={emptySets.length ? "Clear sets with no slides" : "No empty sets"}
                       >
-                        <Eraser className="h-4 w-4" /> Clear empty
+                        Clear empty
                       </button>
                       <button
                         type="button"
@@ -664,7 +662,7 @@ function Library() {
                           type="button"
                           onClick={() => setShowBulkShare(true)}
                           disabled={ownedSelectedIds.length === 0}
-                          className="pill flex h-10 w-10 items-center justify-center border border-foreground transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                          className="pill flex h-10 w-10 items-center justify-center transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
                           title={
                             ownedSelectedIds.length
                               ? `Share ${ownedSelectedIds.length} selected set${ownedSelectedIds.length === 1 ? "" : "s"}`
@@ -682,7 +680,7 @@ function Library() {
                       <button
                         type="button"
                         onClick={() => setShowExportConfirm(true)}
-                        className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                        className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
                         title="Export"
                         aria-label="Export"
                       >
@@ -691,7 +689,7 @@ function Library() {
                       <button
                         type="button"
                         onClick={() => importFileRef.current?.click()}
-                        className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                        className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
                         title="Import"
                         aria-label="Import"
                       >
@@ -711,7 +709,7 @@ function Library() {
                     <button
                       type="button"
                       onClick={() => setEditMode(true)}
-                      className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                      className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
                       title="Edit catalogue"
                       aria-label="Edit catalogue"
                     >
@@ -873,12 +871,9 @@ function Library() {
                         <div className="ml-auto flex shrink-0 items-center gap-2">
                           <div className="mono hidden items-center text-xs uppercase tracking-wider opacity-90 sm:flex">
                             {(d.shared || sharedOutIds.has(d.id)) && (
-                              <>
-                                <span className="max-w-[200px] truncate">
-                                  {d.shared ? `from ${d.shared_by ?? "someone"}` : "shared by you"}
-                                </span>
-                                <span className="mx-1">·</span>
-                              </>
+                              <span className="mr-8 whitespace-nowrap text-[10px] opacity-50">
+                                {d.shared ? (d.shared_by ?? "someone") : "shared by you"}
+                              </span>
                             )}
                             <span className="w-[168px] shrink-0 text-right">
                               {d.kind} · {d.slides.length} slide{d.slides.length === 1 ? "" : "s"}
@@ -1396,7 +1391,7 @@ function GatheringCard({
             if (editMode) setEditingName(false);
             onEditModeChange(!editMode);
           }}
-          className={`pill flex items-center justify-center border border-foreground transition ${
+          className={`pill flex items-center justify-center transition ${
             editMode
               ? "mono uppercase bg-foreground text-background px-4 py-1.5 text-xs tracking-wider"
               : "h-10 w-10 hover:bg-foreground hover:text-background"
@@ -1411,7 +1406,7 @@ function GatheringCard({
             <Link
               to="/present"
               search={{ gathering: gatheringId }}
-              className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+              className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
               title="Present gathering"
               aria-label="Present gathering"
             >
@@ -1421,7 +1416,7 @@ function GatheringCard({
               <button
                 type="button"
                 onClick={() => setShowShareDialog(true)}
-                className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
                 title="Share gathering"
                 aria-label="Share gathering"
               >
@@ -1441,7 +1436,7 @@ function GatheringCard({
               ) : (
                 <button
                   onClick={() => setShowGoLiveDialog(true)}
-                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  className="pill flex h-10 w-10 items-center justify-center transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
                   title="Go live"
                   aria-label="Go live"
                 >

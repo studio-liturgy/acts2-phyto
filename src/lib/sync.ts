@@ -1684,3 +1684,126 @@ export async function syncSharedSets(): Promise<void> {
     if (toWrite.length) await db.sets.bulkPut(toWrite);
   });
 }
+
+// ---------------------------------------------------------------------------
+// Group workspaces. A group's sets carry group_id. My OWN contributions
+// (user_id = me) flow through the personal engine (they carry group_id and are
+// simply shown in the group workspace). OTHER members' contributions are FOREIGN
+// — pulled here, tagged shared+group_id, and pushed via the shared-set path.
+// ---------------------------------------------------------------------------
+
+export type MyGroup = { id: string; name: string; role: "admin" | "member"; owner_id: string };
+
+/** Groups I belong to (claimed memberships). */
+export async function fetchMyGroups(): Promise<MyGroup[]> {
+  const session = getSession();
+  if (!session) return [];
+  const { data, error } = await supabase
+    .from("group_members")
+    .select("role, groups(id, name, owner_id)")
+    .eq("user_id", session.user.id);
+  if (error) {
+    console.error("[sync] fetchMyGroups error", error);
+    return [];
+  }
+  type G = { id: string; name: string; owner_id: string };
+  const rows = (data ?? []) as unknown as { role: string; groups: G | G[] | null }[];
+  const out: MyGroup[] = [];
+  for (const r of rows) {
+    const g = Array.isArray(r.groups) ? r.groups[0] : r.groups;
+    if (g) {
+      out.push({
+        id: g.id,
+        name: g.name,
+        role: r.role === "admin" ? "admin" : "member",
+        owner_id: g.owner_id,
+      });
+    }
+  }
+  return out;
+}
+
+/** Attach my id to group invites addressed to my email (sent before I signed in). */
+export async function claimGroupMemberships(): Promise<void> {
+  const session = getSession();
+  const email = session?.user.email;
+  if (!email) return;
+  const { error } = await supabase
+    .from("group_members")
+    .update({ user_id: session.user.id })
+    .eq("email", email)
+    .is("user_id", null);
+  if (error) console.error("[sync] claimGroupMemberships error", error);
+}
+
+/** Create a group I own and enroll myself as its admin. Returns the group id. */
+export async function createGroup(name: string): Promise<string | null> {
+  const session = getSession();
+  if (!session) return null;
+  const { data, error } = await supabase
+    .from("groups")
+    .insert({ name, owner_id: session.user.id })
+    .select("id")
+    .single();
+  if (error || !data) {
+    console.error("[sync] createGroup error", error);
+    return null;
+  }
+  const groupId = data.id as string;
+  const { error: memErr } = await supabase.from("group_members").insert({
+    group_id: groupId,
+    user_id: session.user.id,
+    email: session.user.email ?? "",
+    role: "admin",
+    added_by: session.user.id,
+  });
+  if (memErr) console.error("[sync] createGroup member error", memErr);
+  return groupId;
+}
+
+/** Rename a group (owner only, enforced by RLS). */
+export async function renameGroup(groupId: string, name: string): Promise<void> {
+  const { error } = await supabase.from("groups").update({ name }).eq("id", groupId);
+  if (error) console.error("[sync] renameGroup error", error);
+}
+
+/** Pull FOREIGN group sets (other members' contributions) into Dexie, tagged
+ *  shared+group_id, last-write-wins, pruning ones I've lost access to. My own
+ *  group sets are handled by the personal engine. Runs under the sync lock. */
+export async function syncGroups(): Promise<void> {
+  const session = getSession();
+  if (!session) return;
+  const uid = session.user.id;
+  const groupIds = (await fetchMyGroups()).map((g) => g.id);
+  await withSyncLock(async () => {
+    const localGroupSets = (await db.sets.toArray()).filter((s) => s.shared && s.group_id);
+
+    if (!groupIds.length) {
+      if (localGroupSets.length) await db.sets.bulkDelete(localGroupSets.map((s) => s.id));
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("sets")
+      .select("*")
+      .in("group_id", groupIds)
+      .neq("user_id", uid);
+    if (error) {
+      console.error("[sync] syncGroups sets error", error);
+      return;
+    }
+    const remote = (data as Record<string, unknown>[]).map((row) => ({
+      ...fromSupabaseSet(row),
+      shared: true as const,
+    }));
+    const remoteIds = new Set(remote.map((s) => s.id));
+    const localById = new Map(localGroupSets.map((s) => [s.id, s]));
+    const toWrite = remote.filter((r) => {
+      const l = localById.get(r.id);
+      return !l || r.updatedAt > l.updatedAt;
+    });
+    if (toWrite.length) await db.sets.bulkPut(toWrite);
+    const gone = localGroupSets.filter((s) => !remoteIds.has(s.id));
+    if (gone.length) await db.sets.bulkDelete(gone.map((s) => s.id));
+  });
+}

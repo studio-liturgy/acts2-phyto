@@ -5,7 +5,14 @@ import { db } from "./db";
 import { liveQuery } from "dexie";
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
-import { pushToSupabase, recordDeletions, withSyncLock, removeSharedSet } from "./sync";
+import {
+  pushToSupabase,
+  recordDeletions,
+  withSyncLock,
+  removeSharedSet,
+  fetchMyGroups,
+  type MyGroup,
+} from "./sync";
 import { isLiveNow, type LiveWindow } from "./live-session";
 import { isInlineImage } from "./image-upload";
 import { hasInlineImages, migrateSetImagesToR2 } from "./migrate-images";
@@ -186,6 +193,11 @@ interface LibraryState {
   activeWorkspace: string;
   /** Switch workspace and re-derive the visible library from Dexie. */
   setActiveWorkspace: (ws: string) => Promise<void>;
+  /** Groups I belong to (for the workspace switcher). */
+  groups: MyGroup[];
+  loadGroups: () => Promise<void>;
+  /** Re-home one of my OWN sets between Personal ("personal") and a group id. */
+  moveToWorkspace: (setId: string, workspace: string) => void;
   /** Global template applied to ALL song sets. */
   songTemplate: SetTemplate;
   setSongTemplate: (patch: SetTemplate) => void;
@@ -244,6 +256,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   gatherings: {},
   gatheringOrder: [],
   activeWorkspace: typeof window !== "undefined" ? readActiveWorkspace() : "personal",
+  groups: [],
   songTemplate: typeof window !== "undefined" ? readSongTemplate() : { ...DEFAULT_SONG_TEMPLATE },
   scriptureTemplate:
     typeof window !== "undefined" ? readScriptureTemplate() : { ...DEFAULT_SCRIPTURE_TEMPLATE },
@@ -266,6 +279,16 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       db.gatherings.toArray(),
     ]);
     set({ activeWorkspace: ws, ...buildLibraryState(allSets, allGatherings, ws) });
+  },
+
+  loadGroups: async () => {
+    set({ groups: await fetchMyGroups() });
+  },
+
+  moveToWorkspace: (setId, workspace) => {
+    // Re-home one of my own sets. updateSet persists + pushes group_id, and the
+    // Dexie liveQuery re-derives the (workspace-filtered) library.
+    get().updateSet(setId, { group_id: workspace === "personal" ? null : workspace });
   },
 
   migrateInlineImages: async () => {
@@ -328,7 +351,14 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   createSet: (newSet) => {
     const id = uid();
     const now = Date.now();
-    const record: PhytoSet = { ...newSet, id, createdAt: now, updatedAt: now };
+    const ws = get().activeWorkspace;
+    const record: PhytoSet = {
+      ...newSet,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      group_id: ws === "personal" ? undefined : ws,
+    };
     set((s) => ({
       sets: { ...s.sets, [id]: record },
       order: [id, ...s.order],
@@ -532,6 +562,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   createGathering: (name) => {
     const id = uid();
     const now = Date.now();
+    const ws = get().activeWorkspace;
     const record: Gathering = {
       id,
       name,
@@ -541,6 +572,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       live_started_at: null,
       createdAt: now,
       updatedAt: now,
+      group_id: ws === "personal" ? undefined : ws,
     };
     set((s) => ({
       gatherings: { ...s.gatherings, [id]: record },
