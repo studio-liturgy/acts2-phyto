@@ -609,7 +609,7 @@ function Presenter() {
                     <input
                       ref={gatheringNameInputRef}
                       defaultValue={activeGathering.name}
-                      className="pointer-events-auto w-48 rounded-full border border-foreground bg-transparent px-4 py-1.5 text-base font-normal outline-none"
+                      className="pointer-events-auto h-10 w-48 rounded-full border border-foreground bg-transparent px-4 text-base font-normal outline-none"
                       style={{ letterSpacing: "-0.045em" }}
                       onBlur={(e) => {
                         renameGathering(activeGathering.id, e.target.value || activeGathering.name);
@@ -626,11 +626,20 @@ function Presenter() {
                         if (e.key === "Escape") setEditingGatheringName(false);
                       }}
                     />
-                    {/* Done — mirrors the home page's edit→Done toggle. The
-                        input's blur commits the rename; this just closes edit. */}
+                    {/* Done — commit the rename and close edit. preventDefault on
+                        mousedown keeps the input from blurring first: a blur would
+                        re-render this control back to the pencil at the same spot,
+                        and the click would land on it and re-open edit. */}
                     <button
-                      onClick={() => setEditingGatheringName(false)}
-                      className="pill mono uppercase pointer-events-auto shrink-0 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        renameGathering(
+                          activeGathering.id,
+                          gatheringNameInputRef.current?.value || activeGathering.name,
+                        );
+                        setEditingGatheringName(false);
+                      }}
+                      className="pill mono uppercase pointer-events-auto flex h-10 shrink-0 items-center bg-foreground px-4 text-xs tracking-wider text-background transition hover:opacity-90"
                       title="Done editing"
                       aria-label="Done editing"
                     >
@@ -644,11 +653,11 @@ function Presenter() {
                         // opening the delete dialog.
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => setShowDeleteGatheringDialog(true)}
-                        className="pill pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                        className="pill pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
                         title="Delete gathering"
                         aria-label="Delete gathering"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     )}
                   </>
@@ -670,11 +679,11 @@ function Presenter() {
                         setEditingGatheringName(true);
                         setTimeout(() => gatheringNameInputRef.current?.select(), 0);
                       }}
-                      className="pill pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                      className="pill pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                       title="Rename gathering"
                       aria-label="Rename gathering"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-4 w-4" />
                     </button>
                   </>
                 )}
@@ -740,7 +749,7 @@ function Presenter() {
             {effectiveViewMode === "slides" && (
               <button
                 onClick={openOutput}
-                className="pill mono uppercase flex items-center gap-2 border border-foreground px-5 py-2 text-sm transition hover:bg-foreground hover:text-background"
+                className="pill mono uppercase flex h-10 items-center gap-2 border border-foreground px-5 text-sm transition hover:bg-foreground hover:text-background"
                 title="Output window"
               >
                 Output <ArrowUpRight className="h-4 w-4" />
