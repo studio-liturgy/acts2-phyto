@@ -544,7 +544,10 @@ export function ViewerSettings({
           value={prefs.fontSize}
           onChange={(e) => setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))}
           className="phone-range w-full"
-          style={{ ["--phone-fg" as string]: prefs.isDark ? "#f5efef" : "#212121" }}
+          // Colour the slider to the surrounding CHROME (the hamburger passes the
+          // phone theme; the presenter panel passes the editor/system theme), NOT
+          // the phone-preview Dark/Light toggle it's editing.
+          style={{ ["--phone-fg" as string]: dark ? "#f5efef" : "#212121" }}
         />
       </div>
 

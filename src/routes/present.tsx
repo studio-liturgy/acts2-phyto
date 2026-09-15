@@ -1072,7 +1072,9 @@ function Presenter() {
                   {activeSet?.kind === "song" &&
                     (() => {
                       const groups = groupSlides(activeSet.slides);
-                      if (groups.length === 0) return null;
+                      // No visibility toggles with a single section: hiding the
+                      // only section is disallowed anyway, so the button is moot.
+                      if (groups.length <= 1) return null;
                       const hidden = new Set(hiddenBySet[activeSet.id] ?? []);
                       return (
                         <div

@@ -88,7 +88,7 @@ export function SongTemplateEditor() {
             step={0.05}
             value={draft.fontScale}
             onChange={(e) => setDraft((d) => ({ ...d, fontScale: Number(e.target.value) }))}
-            className="system-range w-full"
+            className="w-full"
           />
         </div>
 
