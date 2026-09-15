@@ -766,12 +766,15 @@ function SetContent({
             ) : null;
           }
           const lines = (slide.lines ?? []).filter((l) => l.trim());
+          // Points share the reading text size (they inherit it, so they scale
+          // with the viewer's font slider and read consistently beside verses);
+          // bullets are a touch smaller.
           if (slide.pointType === "quote") {
             return (
               <div key={i} className="space-y-1">
-                <p className="text-lg font-semibold leading-relaxed">{`“${lines.join(" ")}”`}</p>
+                <p className="font-semibold leading-relaxed">{`“${lines.join(" ")}”`}</p>
                 {slide.attribution?.trim() && (
-                  <p className={`text-sm ${isDark ? "opacity-60" : "opacity-70"}`}>
+                  <p className={`text-[0.8em] ${isDark ? "opacity-60" : "opacity-70"}`}>
                     {`— ${slide.attribution.trim()}`}
                   </p>
                 )}
@@ -780,7 +783,7 @@ function SetContent({
           }
           if (slide.pointType === "bullets") {
             return (
-              <div key={i} className="space-y-1">
+              <div key={i} className="space-y-1 text-[0.85em]">
                 {slide.title?.trim() && <p className="font-semibold">{slide.title}</p>}
                 <ul className="list-disc space-y-1 pl-5">
                   {lines.map((l, j) => (
@@ -793,7 +796,7 @@ function SetContent({
             );
           }
           return (
-            <p key={i} className="text-lg font-semibold leading-relaxed">
+            <p key={i} className="font-semibold leading-relaxed">
               {lines.join(" ")}
             </p>
           );

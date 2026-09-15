@@ -1945,8 +1945,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
 
   if (kind === "scripture") {
     return (
-      <div className="flex h-full flex-col gap-0 overflow-hidden">
-        {/* API lookup section */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* API lookup section: scripture is import-only (no manual text editor);
+            verses are built by importing, then images and points are added. */}
         <div className="shrink-0 border-b border-foreground/20 p-4">
           <PillInput
             value={ref}
@@ -2026,18 +2027,6 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           >
             {busy ? "Fetching…" : "Import"}
           </button>
-        </div>
-
-        {/* Verses textarea — fills remaining height, live sync */}
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <Textarea
-            value={manualText}
-            onChange={(e) => setManualText(e.target.value)}
-            placeholder={
-              "Paste verses here, or import above.\n\n[John 3:16-17]\nFor God so loved the world…\n---\nFor God did not send his Son…"
-            }
-            className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
-          />
         </div>
       </div>
     );

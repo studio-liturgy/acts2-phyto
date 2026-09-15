@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image as ImageIcon, Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,26 +68,12 @@ export function AddElementBar({ setId }: { setId: string }) {
     <div className="space-y-2">
       {err && <p className="text-center text-[10px] text-destructive">{err}</p>}
       <div className="flex flex-wrap justify-center gap-2">
-        <label
-          className={`mono flex cursor-pointer items-center gap-1.5 rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background ${busy ? "opacity-50" : ""}`}
-        >
-          <ImageIcon className="h-3.5 w-3.5" />
-          {busy ? "Adding…" : "Add an image"}
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            disabled={busy}
-            onChange={(e) => addImage(e.target.files?.[0])}
-          />
-        </label>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="mono flex items-center gap-1.5 rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background"
+              className="mono rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background"
             >
-              <Plus className="h-3.5 w-3.5" />
               Add a point
             </button>
           </DropdownMenuTrigger>
@@ -103,6 +89,18 @@ export function AddElementBar({ setId }: { setId: string }) {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        <label
+          className={`mono cursor-pointer rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background ${busy ? "opacity-50" : ""}`}
+        >
+          {busy ? "Adding…" : "Add an image"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={busy}
+            onChange={(e) => addImage(e.target.files?.[0])}
+          />
+        </label>
       </div>
     </div>
   );
