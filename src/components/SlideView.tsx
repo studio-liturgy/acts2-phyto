@@ -344,34 +344,40 @@ export function SlideView({
         <div
           className={`relative flex h-full w-full flex-col px-24 py-20 ${positionClass} ${alignClass}`}
         >
-          {slide?.title && (
-            <div
-              className="mb-10 font-semibold leading-tight"
-              style={{ fontSize: `${4.5 * fontScale}rem` }}
-            >
-              {slide.title}
-            </div>
+          {slide?.kind === "point" ? (
+            <PointBody slide={slide} fontScale={fontScale} />
+          ) : (
+            <>
+              {slide?.title && (
+                <div
+                  className="mb-10 font-semibold leading-tight"
+                  style={{ fontSize: `${4.5 * fontScale}rem` }}
+                >
+                  {slide.title}
+                </div>
+              )}
+              {slide?.reference && slide.kind === "scripture" && refAbove && (
+                <div className="mb-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
+                  {slide.reference}
+                </div>
+              )}
+              {displayLines.map((l, i) => (
+                <div
+                  key={i}
+                  className="font-medium leading-snug"
+                  style={{ fontSize: `${3.75 * fontScale}rem`, textTransform: lyricCase }}
+                >
+                  {l}
+                </div>
+              ))}
+              {slide?.reference && slide.kind === "scripture" && !refAbove && (
+                <div className="mt-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
+                  {slide.reference}
+                </div>
+              )}
+              {!slide && <div className={`text-3xl ${placeholderText}`}>No slide selected</div>}
+            </>
           )}
-          {slide?.reference && slide.kind === "scripture" && refAbove && (
-            <div className="mb-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
-              {slide.reference}
-            </div>
-          )}
-          {displayLines.map((l, i) => (
-            <div
-              key={i}
-              className="font-medium leading-snug"
-              style={{ fontSize: `${3.75 * fontScale}rem`, textTransform: lyricCase }}
-            >
-              {l}
-            </div>
-          ))}
-          {slide?.reference && slide.kind === "scripture" && !refAbove && (
-            <div className="mt-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
-              {slide.reference}
-            </div>
-          )}
-          {!slide && <div className={`text-3xl ${placeholderText}`}>No slide selected</div>}
         </div>
       </div>
     </div>
@@ -525,6 +531,71 @@ export function DissolveSlide({
           className="h-full w-full"
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * A "point" in a message set — a quote, a bulleted list, or a single statement.
+ * Each has its own fixed preset layout, all sharing the slide's background,
+ * colour and font scale so they sit alongside scripture in the same message.
+ */
+function PointBody({ slide, fontScale }: { slide: Slide; fontScale: number }) {
+  const type = slide.pointType ?? "statement";
+  const lines = (slide.lines ?? []).filter((l) => l.trim());
+
+  if (type === "quote") {
+    return (
+      <>
+        <div
+          className="font-semibold leading-tight"
+          style={{ fontSize: `${4 * fontScale}rem`, whiteSpace: "pre-line" }}
+        >
+          {`“${lines.join("\n")}”`}
+        </div>
+        {slide.attribution?.trim() && (
+          <div className="mt-12 opacity-70" style={{ fontSize: `${2 * fontScale}rem` }}>
+            {`— ${slide.attribution.trim()}`}
+          </div>
+        )}
+      </>
+    );
+  }
+
+  if (type === "bullets") {
+    return (
+      <>
+        {slide.title?.trim() && (
+          <div
+            className="mb-12 font-semibold leading-tight"
+            style={{ fontSize: `${3.5 * fontScale}rem` }}
+          >
+            {slide.title}
+          </div>
+        )}
+        <ul className="flex flex-col gap-8 text-left">
+          {lines.map((l, i) => (
+            <li
+              key={i}
+              className="flex items-start gap-6 leading-snug"
+              style={{ fontSize: `${3 * fontScale}rem` }}
+            >
+              <span className="opacity-50">&bull;</span>
+              <span>{l}</span>
+            </li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+
+  // statement
+  return (
+    <div
+      className="font-bold leading-tight"
+      style={{ fontSize: `${5 * fontScale}rem`, whiteSpace: "pre-line" }}
+    >
+      {lines.join("\n")}
     </div>
   );
 }

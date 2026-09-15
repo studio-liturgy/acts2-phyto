@@ -138,6 +138,7 @@ type KindFilter = "all" | "shared" | SetKind;
 function kindBg(kind: SetKind | string): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
   if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
+  if (kind === "message") return "bg-[var(--brand-green-dark)] text-[var(--brand-white)]";
   if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
   return "bg-muted text-foreground";
 }

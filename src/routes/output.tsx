@@ -31,7 +31,7 @@ function Output() {
   const template =
     phytoSet?.kind === "song"
       ? (songDraft ?? songTemplate)
-      : phytoSet?.kind === "scripture"
+      : phytoSet?.kind === "scripture" || phytoSet?.kind === "message"
         ? (scriptureDraft ?? scriptureTemplate)
         : phytoSet?.template;
 

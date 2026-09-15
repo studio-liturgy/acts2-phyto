@@ -1,0 +1,295 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { DotsGrip, hideDragGhost } from "@/components/DragBits";
+import { AutoTextarea, BlockFrame, ElementCard, AddElementBar } from "@/components/MessageElements";
+import { useLibrary } from "@/lib/store";
+import type { Slide } from "@/lib/types";
+
+// The same tints the scripture verse editor and the slide grid give each import.
+const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+
+type Block =
+  | { kind: "import"; idx: number; key: string; slides: Slide[] }
+  | { kind: "element"; key: string; slide: Slide };
+
+/** Group a message's slides into blocks in their stored order: consecutive
+ *  scripture verses of one import become one block; each point/image is its own. */
+function toBlocks(slides: Slide[]): Block[] {
+  const blocks: Block[] = [];
+  for (const s of slides) {
+    if (s.kind === "scripture") {
+      const idx = s.importIndex ?? 0;
+      const last = blocks[blocks.length - 1];
+      if (last && last.kind === "import" && last.idx === idx) last.slides.push(s);
+      else blocks.push({ kind: "import", idx, key: `import-${idx}`, slides: [s] });
+    } else {
+      blocks.push({ kind: "element", key: s.id, slide: s });
+    }
+  }
+  return blocks;
+}
+
+const flatten = (blocks: Block[]): Slide[] =>
+  blocks.flatMap((b) => (b.kind === "import" ? b.slides : [b.slide]));
+
+/**
+ * The message editor. Every imported passage, point and image is a draggable
+ * block, so a reading, a picture and a quote can sit in any order — the block
+ * order IS the slide order. Verses keep the scripture editor's exact look.
+ * (`versions` is a single entry today; the machinery is kept so a second
+ * translation can drop in later.)
+ */
+export function MessageBlockEditor({ setId, versions }: { setId: string; versions: string[] }) {
+  const slides = useLibrary((s) => s.sets[setId]?.slides ?? []);
+  const updateSet = useLibrary((s) => s.updateSet);
+  const updateSlide = useLibrary((s) => s.updateSlide);
+  const removeSlide = useLibrary((s) => s.removeSlide);
+
+  // During a drag we reorder a local copy of the slides so the list follows the
+  // pointer, and only write the final order to the store on drop (rather than on
+  // every dragover, which would thrash sync).
+  const [liveOrder, setLiveOrder] = useState<Slide[] | null>(null);
+  const liveRef = useRef<Slide[] | null>(null);
+  const dragFrom = useRef<number | null>(null);
+  const display = liveOrder ?? slides;
+  const blocks = useMemo(() => toBlocks(display), [display]);
+
+  const dragOver = (i: number) => {
+    const from = dragFrom.current;
+    if (from === null || from === i) return;
+    const next = [...blocks];
+    const [m] = next.splice(from, 1);
+    next.splice(i, 0, m);
+    dragFrom.current = i;
+    const flat = flatten(next);
+    liveRef.current = flat;
+    setLiveOrder(flat);
+  };
+  const commitOrder = () => {
+    dragFrom.current = null;
+    if (liveRef.current) updateSet(setId, { slides: liveRef.current });
+    liveRef.current = null;
+    setLiveOrder(null);
+  };
+
+  // Drag down a version column to select a run of verses across the whole
+  // message, exactly like the song editor. Verses are numbered in slide order so
+  // a range can span separate import blocks.
+  const verseSeq = new Map<string, number>();
+  {
+    let seq = 0;
+    for (const s of display) if (s.kind === "scripture") verseSeq.set(s.id, seq++);
+  }
+  const [colSel, setColSel] = useState<{ version: string; from: number; to: number } | null>(null);
+  const colDragAnchor = useRef<{ version: string; seq: number } | null>(null);
+  const onCellMouseDown = (version: string, seq: number) => {
+    setColSel(null);
+    colDragAnchor.current = { version, seq };
+    const onMove = (e: MouseEvent) => {
+      const anchor = colDragAnchor.current;
+      if (!anchor) return;
+      const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      const cell = under?.closest?.("[data-verse-version]") as HTMLElement | null;
+      if (!cell || cell.getAttribute("data-verse-version") !== anchor.version) return;
+      const s = Number(cell.getAttribute("data-verse-seq"));
+      if (Number.isNaN(s) || s === anchor.seq) {
+        setColSel(null);
+        return;
+      }
+      window.getSelection()?.removeAllRanges();
+      setColSel({
+        version: anchor.version,
+        from: Math.min(anchor.seq, s),
+        to: Math.max(anchor.seq, s),
+      });
+    };
+    const onUp = () => {
+      colDragAnchor.current = null;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+  useEffect(() => {
+    if (!colSel) return;
+    const onCopy = (e: ClipboardEvent) => {
+      const text = display
+        .filter((s) => s.kind === "scripture")
+        .filter((s) => {
+          const seq = verseSeq.get(s.id);
+          return seq !== undefined && seq >= colSel.from && seq <= colSel.to;
+        })
+        .map(
+          (s) =>
+            s.linesByVersion?.[colSel.version] ??
+            (colSel.version === versions[0] ? (s.lines?.[0] ?? "") : ""),
+        )
+        .join("\n");
+      e.clipboardData?.setData("text/plain", text);
+      e.preventDefault();
+    };
+    document.addEventListener("copy", onCopy);
+    return () => document.removeEventListener("copy", onCopy);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colSel, display]);
+
+  const removeBlock = (b: Block) => {
+    if (b.kind === "import") {
+      const ids = new Set(b.slides.map((s) => s.id));
+      updateSet(setId, { slides: slides.filter((s) => !ids.has(s.id)) });
+    } else {
+      removeSlide(setId, b.slide.id);
+    }
+  };
+
+  // Colour by block: each scripture import is its own colour, and a run of
+  // consecutive points/images shares one — the same scheme the right preview and
+  // the presenter use, so a block reads as the same colour everywhere.
+  const tints: string[] = [];
+  let colorIndex = -1;
+  let lastColorKey: string | undefined;
+  for (const b of blocks) {
+    const colorKey = b.kind === "import" ? `i${b.idx}` : "elements";
+    if (colorKey !== lastColorKey) colorIndex += 1;
+    lastColorKey = colorKey;
+    tints.push(TINTS[colorIndex % TINTS.length]);
+  }
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      {blocks.map((b, i) => {
+        const grip = (
+          <Grip
+            onDragStart={(e) => {
+              dragFrom.current = i;
+              hideDragGhost(e);
+            }}
+            onDragEnd={commitOrder}
+          />
+        );
+        return (
+          <div
+            key={b.key}
+            onDragOver={(e) => {
+              if (dragFrom.current === null) return;
+              e.preventDefault();
+              dragOver(i);
+            }}
+          >
+            {b.kind === "import" ? (
+              <ImportBlock
+                versions={versions}
+                slides={b.slides}
+                tint={tints[i]}
+                grip={grip}
+                seqOf={(id) => verseSeq.get(id)}
+                colSel={colSel}
+                onCellMouseDown={onCellMouseDown}
+                onEdit={(slide, v, val) => {
+                  const patch: Partial<Slide> = {
+                    linesByVersion: { ...(slide.linesByVersion ?? {}), [v]: val },
+                  };
+                  if (v === versions[0]) patch.lines = [val];
+                  updateSlide(setId, slide.id, patch);
+                }}
+                onRemove={() => removeBlock(b)}
+              />
+            ) : (
+              <ElementCard
+                slide={b.slide}
+                onChange={(patch) => updateSlide(setId, b.slide.id, patch)}
+                onRemove={() => removeBlock(b)}
+                grip={grip}
+                tint={tints[i]}
+              />
+            )}
+          </div>
+        );
+      })}
+
+      <div className="p-4">
+        <AddElementBar setId={setId} />
+      </div>
+    </div>
+  );
+}
+
+function Grip({
+  onDragStart,
+  onDragEnd,
+}: {
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
+}) {
+  return (
+    <span
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className="flex cursor-grab items-center"
+      title="Drag to reorder this block"
+    >
+      <DotsGrip className="opacity-40" size={12} />
+    </span>
+  );
+}
+
+function ImportBlock({
+  versions,
+  slides,
+  tint,
+  grip,
+  seqOf,
+  colSel,
+  onCellMouseDown,
+  onEdit,
+  onRemove,
+}: {
+  versions: string[];
+  slides: Slide[];
+  tint: string;
+  grip: React.ReactNode;
+  seqOf: (id: string) => number | undefined;
+  colSel: { version: string; from: number; to: number } | null;
+  onCellMouseDown: (version: string, seq: number) => void;
+  onEdit: (slide: Slide, version: string, value: string) => void;
+  onRemove: () => void;
+}) {
+  const primary = versions[0];
+  const reference = slides[0]?.referencesByVersion?.[primary] ?? slides[0]?.reference ?? "Passage";
+  const cols = `repeat(${versions.length}, minmax(0, 1fr))`;
+
+  return (
+    <BlockFrame label={reference} grip={grip} onRemove={onRemove} tint={tint}>
+      {slides.map((s) => {
+        const seq = seqOf(s.id);
+        return (
+          <div
+            key={s.id}
+            className="grid divide-x border-b last:border-b-0"
+            style={{ gridTemplateColumns: cols }}
+          >
+            {versions.map((v) => (
+              <AutoTextarea
+                key={v}
+                value={s.linesByVersion?.[v] ?? (v === primary ? (s.lines?.[0] ?? "") : "")}
+                onChange={(val) => onEdit(s, v, val)}
+                data={
+                  seq !== undefined ? { "data-verse-version": v, "data-verse-seq": seq } : undefined
+                }
+                onMouseDown={seq !== undefined ? () => onCellMouseDown(v, seq) : undefined}
+                selected={
+                  !!colSel &&
+                  colSel.version === v &&
+                  seq !== undefined &&
+                  seq >= colSel.from &&
+                  seq <= colSel.to
+                }
+              />
+            ))}
+          </div>
+        );
+      })}
+    </BlockFrame>
+  );
+}

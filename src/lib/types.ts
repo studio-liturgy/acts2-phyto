@@ -1,6 +1,9 @@
 import type { SongChords } from "./chords";
 
-export type SlideKind = "lyric" | "scripture" | "image" | "video" | "blank";
+export type SlideKind = "lyric" | "scripture" | "image" | "video" | "blank" | "point";
+
+/** A "point" in a message set: a quote, a bulleted list, or a single statement. */
+export type PointType = "quote" | "bullets" | "statement";
 
 /** Where a video slide's media comes from.
  *  "youtube" → embedded via youtube-nocookie; "file" → uploaded to R2;
@@ -29,9 +32,27 @@ export interface Slide {
   /** Video-only: start playing automatically when the slide goes live.
    *  Default falsey = click-to-start (operator presses Play). */
   autoplay?: boolean;
+  /** Scripture-only: which import (0-based) this verse came from, so two imports
+   *  of the same reference stay separate groups in the editor and slide grid
+   *  rather than merging under one shared `section`. */
+  importIndex?: number;
+  /** Scripture-only: one verse per bible version, keyed by version code. Only a
+   *  single version is surfaced today; the second is hidden until dual-translation
+   *  ships. `lines` stays populated with the primary so everything that predates
+   *  this keeps working. */
+  linesByVersion?: Record<string, string>;
+  /** Scripture-only: the reference per version, so a translation can show its own
+   *  localized book name. Keyed like linesByVersion. */
+  referencesByVersion?: Record<string, string>;
+  /** Message-only (kind === "point"): which preset layout this point uses.
+   *  Quote → `lines` is the quotation + `attribution`; Bullets → `title` heading
+   *  + `lines` bullets; Statement → `lines` is one short line. */
+  pointType?: PointType;
+  /** Message-only: who a quote is attributed to. */
+  attribution?: string;
 }
 
-export type SetKind = "song" | "scripture" | "media" | "mixed";
+export type SetKind = "song" | "scripture" | "media" | "mixed" | "message";
 
 export interface SetTemplate {
   /** Multiplier on slide text sizes. 1 = current/smallest. */

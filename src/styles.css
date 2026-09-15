@@ -79,6 +79,7 @@
   --brand-orange-dark: #c0681f;
   --brand-red: #c01e21;
   --brand-green: #538844;
+  --brand-green-dark: #3c6330;
 
   --background: #f5efef;
   --foreground: #212121;
@@ -130,6 +131,7 @@
   --brand-orange-dark: #ae5e1c;
   --brand-red: #a81a1d;
   --brand-green: #487539;
+  --brand-green-dark: #34572a;
 }
 
 @layer base {

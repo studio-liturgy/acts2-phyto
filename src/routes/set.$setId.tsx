@@ -23,6 +23,8 @@ import {
   slidesToScriptureText,
 } from "@/lib/slide-text";
 import { SlideView } from "@/components/SlideView";
+import { MessageElements } from "@/components/MessageElements";
+import { MessageBlockEditor } from "@/components/MessageBlockEditor";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -101,9 +103,15 @@ export const Route = createFileRoute("/set/$setId")({
   component: SetEditor,
 });
 
+// Message scripture verses key off a bible version. Only one is surfaced today
+// (the second translation is hidden until dual-translation ships), so the block
+// editor is driven with a single placeholder version.
+const SINGLE_VERSION = ["_"];
+
 function kindBadgeBg(kind: SetKind): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
   if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
+  if (kind === "message") return "bg-[var(--brand-green-dark)] text-[var(--brand-white)]";
   if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
   return "bg-muted text-foreground";
 }
@@ -308,6 +316,14 @@ function SetEditor() {
   const scriptureDraft = useScriptureTemplateDraft((s) => s.draft);
   const effectiveScriptureTemplate = scriptureDraft ?? scriptureTemplate;
 
+  // A message with no points or images left is just a scripture set again: flip
+  // it back so it drops the block editor and returns to the plain textarea.
+  useEffect(() => {
+    if (phytoSet?.kind !== "message") return;
+    const hasElements = phytoSet.slides.some((s) => s.kind === "point" || s.kind === "image");
+    if (!hasElements) updateSet(phytoSet.id, { kind: "scripture" });
+  }, [phytoSet?.kind, phytoSet?.slides, phytoSet?.id, updateSet]);
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
   const [groupView, setGroupView] = useState(true);
@@ -453,18 +469,27 @@ function SetEditor() {
     );
   }
 
-  // Scripture: full-page two-column layout (mirrors song layout)
-  if (phytoSet.kind === "scripture") {
+  // Scripture / message: full-page two-column layout (mirrors song layout). A
+  // message is a scripture set that also carries images and points.
+  if (phytoSet.kind === "scripture" || phytoSet.kind === "message") {
     return (
       <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
         <SetHeader {...headerProps} />
         <div className="flex min-h-0 flex-1 divide-x divide-foreground">
-          {/* Left: import controls */}
+          {/* Left: a plain scripture uses the import textarea plus the add-an-
+              element bar; once it's a message the block editor owns the slides. */}
           <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
-            {/* Keyed so navigating straight to another song remounts the editor.
-                Without it the box would keep the previous song's lyrics and the
-                live-sync effect would write them over the new song's slides. */}
-            <Importers key={phytoSet.id} setId={phytoSet.id} kind={phytoSet.kind} />
+            {phytoSet.kind === "message" ? (
+              <MessageBlockEditor key={phytoSet.id} setId={phytoSet.id} versions={SINGLE_VERSION} />
+            ) : (
+              <>
+                {/* Keyed so navigating straight to another set remounts the editor.
+                    Without it the box would keep the previous set's text and the
+                    live-sync effect would write them over the new set's slides. */}
+                <Importers key={phytoSet.id} setId={phytoSet.id} kind={phytoSet.kind} />
+                <MessageElements setId={phytoSet.id} hasVerses={phytoSet.slides.length > 0} />
+              </>
+            )}
           </div>
           {/* Right: template editor + live slide grid */}
           <div className="w-1/2 overflow-y-auto p-6">
@@ -478,14 +503,21 @@ function SetEditor() {
             ) : (
               (() => {
                 const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+                // One coloured group per block, matching the editor: each scripture
+                // section is its own group; a run of consecutive points/images is a
+                // single "elements" group.
                 const groups: { label: string | undefined; slides: Slide[] }[] = [];
+                let lastKey: string | undefined;
                 for (const s of phytoSet.slides) {
+                  const key =
+                    s.kind === "point" || s.kind === "image" ? "elements" : (s.section ?? "");
                   const last = groups[groups.length - 1];
-                  if (!last || s.section !== last.label) {
-                    groups.push({ label: s.section, slides: [s] });
+                  if (!last || key !== lastKey) {
+                    groups.push({ label: s.reference ?? s.section, slides: [s] });
                   } else {
                     last.slides.push(s);
                   }
+                  lastKey = key;
                 }
                 return (
                   <div className="space-y-4">
@@ -879,6 +911,7 @@ function PillInput({
 function kindColor(kind?: SetKind): string {
   if (kind === "song") return "var(--brand-blue)";
   if (kind === "scripture") return "var(--brand-green)";
+  if (kind === "message") return "var(--brand-green-dark)";
   if (kind === "media") return "var(--brand-orange)";
   return "var(--foreground)";
 }

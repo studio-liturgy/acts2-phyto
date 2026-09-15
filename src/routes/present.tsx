@@ -82,6 +82,7 @@ type LiveApi = ReturnType<typeof useLive.getState>;
 function kindBadgeBg(kind: SetKind): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
   if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
+  if (kind === "message") return "bg-[var(--brand-green-dark)] text-[var(--brand-white)]";
   if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
   return "bg-muted text-foreground";
 }
@@ -89,6 +90,7 @@ function kindBadgeBg(kind: SetKind): string {
 function kindHoverBg(kind: SetKind): string {
   if (kind === "song") return "hover:bg-[var(--brand-blue)]/10";
   if (kind === "scripture") return "hover:bg-[var(--brand-green)]/10";
+  if (kind === "message") return "hover:bg-[var(--brand-green-dark)]/10";
   if (kind === "media") return "hover:bg-[var(--brand-orange)]/10";
   return "hover:bg-muted/50";
 }
@@ -96,6 +98,7 @@ function kindHoverBg(kind: SetKind): string {
 function kindActiveBg(kind: SetKind): string {
   if (kind === "song") return "bg-[var(--brand-blue)]/10";
   if (kind === "scripture") return "bg-[var(--brand-green)]/10";
+  if (kind === "message") return "bg-[var(--brand-green-dark)]/10";
   if (kind === "media") return "bg-[var(--brand-orange)]/10";
   return "bg-muted/50";
 }
@@ -103,6 +106,7 @@ function kindActiveBg(kind: SetKind): string {
 function kindLiveColor(kind: SetKind): string {
   if (kind === "song") return "var(--brand-blue)";
   if (kind === "scripture") return "var(--brand-green)";
+  if (kind === "message") return "var(--brand-green-dark)";
   if (kind === "media") return "var(--brand-orange)";
   return "var(--brand-red)";
 }
@@ -112,6 +116,7 @@ const KIND_ABBREV: Record<SetKind, string> = {
   scripture: "SC",
   media: "ME",
   mixed: "MX",
+  message: "MSG",
 };
 
 function KindBadge({ kind, abbrev = false }: { kind: SetKind; abbrev?: boolean }) {
@@ -1318,7 +1323,7 @@ function Presenter() {
                   template={
                     liveSet?.kind === "song"
                       ? effectiveSongTemplate
-                      : liveSet?.kind === "scripture"
+                      : liveSet?.kind === "scripture" || liveSet?.kind === "message"
                         ? effectiveScriptureTemplate
                         : liveSet?.template
                   }
@@ -1423,7 +1428,9 @@ function Presenter() {
               ))}
 
             {activeSet?.kind === "song" && <SongTemplateEditor />}
-            {activeSet?.kind === "scripture" && <ScriptureTemplateEditor />}
+            {(activeSet?.kind === "scripture" || activeSet?.kind === "message") && (
+              <ScriptureTemplateEditor />
+            )}
 
             <div className="mono uppercase space-y-1 px-1 pt-2 text-xs text-muted-foreground">
               <div>→ / Space — next slide</div>
@@ -1714,7 +1721,7 @@ function PresenterThumb({
   const template =
     phytoSet.kind === "song"
       ? (songDraft ?? songTemplate)
-      : phytoSet.kind === "scripture"
+      : phytoSet.kind === "scripture" || phytoSet.kind === "message"
         ? (scriptureDraft ?? scriptureTemplate)
         : phytoSet.template;
 

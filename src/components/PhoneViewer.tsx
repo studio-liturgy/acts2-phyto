@@ -31,6 +31,11 @@ export interface PhoneSlide {
   imageUrl?: string;
   videoUrl?: string;
   youtubeId?: string;
+  /** Message-only (kind === "point"): the point layout + its attribution. */
+  pointType?: "quote" | "bullets" | "statement";
+  attribution?: string;
+  /** Scripture-only: which import this verse came from (for grouping). */
+  importIndex?: number;
 }
 
 export interface PhoneSet {
@@ -710,6 +715,89 @@ function SetContent({
             showChords={showChordsHere}
           />
         ))}
+      </div>
+    );
+  }
+
+  if (set.type === "message") {
+    // A message mixes scripture passages, points and images in one order.
+    // Consecutive verses of the same passage flow together; each point/image is
+    // rendered on its own so the reader sees the same sequence as the screen.
+    type Blk =
+      | { kind: "scripture"; key: string | number | undefined; ref?: string; lines: string[] }
+      | { kind: "element"; slide: PhoneSlide };
+    const blocks: Blk[] = [];
+    for (const slide of slides) {
+      if (slide.kind === "scripture") {
+        const slideLines = slide.lines ?? [];
+        const key = slide.importIndex ?? slide.section;
+        const last = blocks[blocks.length - 1];
+        if (last && last.kind === "scripture" && last.key === key) {
+          last.lines.push(...slideLines);
+        } else {
+          blocks.push({
+            kind: "scripture",
+            key,
+            ref: slide.reference ?? slide.section,
+            lines: [...slideLines],
+          });
+        }
+      } else {
+        blocks.push({ kind: "element", slide });
+      }
+    }
+
+    const refClass = `text-xs uppercase tracking-widest ${isDark ? "opacity-40" : "opacity-50"}`;
+    return (
+      <div className="space-y-6 px-4 py-6">
+        {blocks.map((b, i) => {
+          if (b.kind === "scripture") {
+            return (
+              <div key={i} className="space-y-1">
+                {b.ref && <p className={refClass}>{b.ref}</p>}
+                <p className="leading-relaxed">{b.lines.join(" ")}</p>
+              </div>
+            );
+          }
+          const slide = b.slide;
+          if (slide.kind === "image") {
+            return slide.imageUrl ? (
+              <img key={i} src={slide.imageUrl} alt="" className="w-full rounded-lg" />
+            ) : null;
+          }
+          const lines = (slide.lines ?? []).filter((l) => l.trim());
+          if (slide.pointType === "quote") {
+            return (
+              <div key={i} className="space-y-1">
+                <p className="text-lg font-semibold leading-relaxed">{`“${lines.join(" ")}”`}</p>
+                {slide.attribution?.trim() && (
+                  <p className={`text-sm ${isDark ? "opacity-60" : "opacity-70"}`}>
+                    {`— ${slide.attribution.trim()}`}
+                  </p>
+                )}
+              </div>
+            );
+          }
+          if (slide.pointType === "bullets") {
+            return (
+              <div key={i} className="space-y-1">
+                {slide.title?.trim() && <p className="font-semibold">{slide.title}</p>}
+                <ul className="list-disc space-y-1 pl-5">
+                  {lines.map((l, j) => (
+                    <li key={j} className="leading-relaxed">
+                      {l}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          }
+          return (
+            <p key={i} className="text-lg font-semibold leading-relaxed">
+              {lines.join(" ")}
+            </p>
+          );
+        })}
       </div>
     );
   }
