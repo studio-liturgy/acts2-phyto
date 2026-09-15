@@ -517,7 +517,10 @@ function Library() {
           ? true
           : kindFilter === "shared"
             ? !!d.shared || sharedOutIds.has(d.id) || (d.groupIds?.length ?? 0) > 0
-            : d.kind === kindFilter,
+            : // A message is a scripture variant, so it shows under Scripture too.
+              kindFilter === "scripture"
+              ? d.kind === "scripture" || d.kind === "message"
+              : d.kind === kindFilter,
       )
       .filter(
         (d) =>
