@@ -1654,7 +1654,9 @@ function GatheringCard({
   onEditModeChange: (editing: boolean) => void;
 }) {
   const dragIndex = useRef<number | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  // Index (position) of the row being reordered — not a set id, since a set can
+  // appear more than once in the gathering.
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [liveOrder, setLiveOrder] = useState<string[] | null>(null);
   const liveOrderRef = useRef<string[] | null>(null);
   const [dropActive, setDropActive] = useState(false);
@@ -1684,7 +1686,7 @@ function GatheringCard({
   return (
     <div
       onDragOver={(e) => {
-        if (draggingId !== null) {
+        if (draggingIndex !== null) {
           e.preventDefault();
           return;
         }
@@ -1708,7 +1710,7 @@ function GatheringCard({
         e.preventDefault();
         setDropActive(false);
         // Internal reorder drops are handled by the <ol> — ignore them here.
-        if (draggingId !== null) return;
+        if (draggingIndex !== null) return;
         const incoming =
           e.dataTransfer.getData(SET_DRAG_TYPE) || e.dataTransfer.getData("text/plain");
         if (incoming && allSets.some((d) => d.id === incoming)) onAdd(incoming);
@@ -1818,21 +1820,23 @@ function GatheringCard({
             e.preventDefault();
             if (liveOrderRef.current) onReorder(liveOrderRef.current);
             liveOrderRef.current = null;
-            setDraggingId(null);
+            setDraggingIndex(null);
             setLiveOrder(null);
             dragIndex.current = null;
           }}
         >
           {(liveOrder ?? setIds).map((id, i) => {
             const d = nameLookup[id];
-            const isDragging = id === draggingId;
-            const originalIndex = setIds.indexOf(id);
+            // Identify list items by POSITION, not set id: the same set can appear
+            // more than once in a gathering, so id-based lookups (indexOf) would
+            // move or remove the wrong copy.
+            const isDragging = i === draggingIndex;
             return (
               <li
                 key={`${id}-${i}`}
                 draggable={editMode}
                 onDragStart={(e) => {
-                  setDraggingId(id);
+                  setDraggingIndex(i);
                   dragIndex.current = i;
                   e.dataTransfer.effectAllowed = "move";
                   hideDragGhost(e);
@@ -1840,20 +1844,21 @@ function GatheringCard({
                 onDragEnd={() => {
                   if (liveOrderRef.current) onReorder(liveOrderRef.current);
                   liveOrderRef.current = null;
-                  setDraggingId(null);
+                  setDraggingIndex(null);
                   setLiveOrder(null);
                   dragIndex.current = null;
                 }}
                 onDragOver={(e) => {
-                  if (dragIndex.current === null) return;
+                  const from = dragIndex.current;
+                  if (from === null || from === i) return;
                   e.preventDefault();
                   e.stopPropagation();
                   const currentOrder = liveOrder ?? setIds;
-                  const currentFromIndex = currentOrder.indexOf(draggingId!);
-                  if (currentFromIndex === i) return;
                   const next = [...currentOrder];
-                  next.splice(currentFromIndex, 1);
-                  next.splice(i, 0, draggingId!);
+                  const [moved] = next.splice(from, 1);
+                  next.splice(i, 0, moved);
+                  dragIndex.current = i;
+                  setDraggingIndex(i);
                   liveOrderRef.current = next;
                   setLiveOrder(next);
                 }}
@@ -1874,7 +1879,7 @@ function GatheringCard({
                 {editMode && (
                   <button
                     draggable={false}
-                    onClick={() => onRemoveAt(originalIndex)}
+                    onClick={() => onRemoveAt(i)}
                     className="rounded-full p-0.5 transition hover:bg-white/25"
                     aria-label="Remove from gathering"
                   >

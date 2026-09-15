@@ -281,7 +281,7 @@ function Presenter() {
     return saved ? Number(saved) : 256;
   });
   const [dragOverGathering, setDragOverGathering] = useState<string | null>(null);
-  const [reorderDraggingId, setReorderDraggingId] = useState<string | null>(null);
+  const [reorderDragUiIndex, setReorderDragUiIndex] = useState<number | null>(null);
   const [reorderLiveOrder, setReorderLiveOrder] = useState<string[] | null>(null);
   const reorderLiveRef = useRef<string[] | null>(null);
   const reorderDragIndex = useRef<number | null>(null);
@@ -388,7 +388,7 @@ function Presenter() {
   useEffect(() => {
     reorderLiveRef.current = null;
     setReorderLiveOrder(null);
-    setReorderDraggingId(null);
+    setReorderDragUiIndex(null);
     reorderDragIndex.current = null;
     setManageSet(null);
   }, [activeGathering?.id]);
@@ -992,29 +992,32 @@ function Presenter() {
                     // there.
                     const isLive = id === live.setId && effectiveViewMode !== "mobile";
                     const inGathering = !!activeGathering;
-                    const isDragging = id === reorderDraggingId;
+                    // Identify rows by POSITION, not set id: a set can recur in a
+                    // gathering, so id-based reorder would move the wrong copy.
+                    const isDragging = inGathering && i === reorderDragUiIndex;
                     return (
                       <button
-                        key={id}
+                        key={`${id}-${i}`}
                         draggable
                         onDragStart={(e) => {
                           e.dataTransfer.setData("application/x-set-id", id);
                           e.dataTransfer.effectAllowed = inGathering ? "move" : "copy";
                           if (inGathering) {
-                            setReorderDraggingId(id);
+                            setReorderDragUiIndex(i);
                             reorderDragIndex.current = i;
                           }
                         }}
                         onDragOver={(e) => {
-                          if (!inGathering || reorderDragIndex.current === null) return;
+                          const from = reorderDragIndex.current;
+                          if (!inGathering || from === null || from === i) return;
                           e.preventDefault();
                           e.dataTransfer.dropEffect = "move";
                           const current = reorderLiveOrder ?? filteredSets;
-                          const fromIdx = current.indexOf(reorderDraggingId!);
-                          if (fromIdx === i || fromIdx === -1) return;
                           const next = [...current];
-                          next.splice(fromIdx, 1);
-                          next.splice(i, 0, reorderDraggingId!);
+                          const [moved] = next.splice(from, 1);
+                          next.splice(i, 0, moved);
+                          reorderDragIndex.current = i;
+                          setReorderDragUiIndex(i);
                           reorderLiveRef.current = next;
                           setReorderLiveOrder(next);
                         }}
@@ -1023,7 +1026,7 @@ function Presenter() {
                             reorderGatheringSets(activeGathering.id, reorderLiveRef.current);
                           reorderLiveRef.current = null;
                           setReorderLiveOrder(null);
-                          setReorderDraggingId(null);
+                          setReorderDragUiIndex(null);
                           reorderDragIndex.current = null;
                         }}
                         onClick={() => {
