@@ -25,6 +25,7 @@ import {
 import { SlideView } from "@/components/SlideView";
 import { MessageElements } from "@/components/MessageElements";
 import { MessageBlockEditor } from "@/components/MessageBlockEditor";
+import { ScriptureVerseEditor } from "@/components/ScriptureVerseEditor";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -476,20 +477,12 @@ function SetEditor() {
       <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
         <SetHeader {...headerProps} />
         <div className="flex min-h-0 flex-1 divide-x divide-foreground">
-          {/* Left: a plain scripture uses the import textarea plus the add-an-
-              element bar; once it's a message the block editor owns the slides. */}
+          {/* Left: the importer stays persistent; below it a plain scripture
+              shows its imported verses (editable) with the add-an-element bar,
+              and a message shows the draggable block editor. All inside Importers.
+              Keyed so navigating straight to another set remounts the editor. */}
           <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
-            {phytoSet.kind === "message" ? (
-              <MessageBlockEditor key={phytoSet.id} setId={phytoSet.id} versions={SINGLE_VERSION} />
-            ) : (
-              <>
-                {/* Keyed so navigating straight to another set remounts the editor.
-                    Without it the box would keep the previous set's text and the
-                    live-sync effect would write them over the new set's slides. */}
-                <Importers key={phytoSet.id} setId={phytoSet.id} kind={phytoSet.kind} />
-                <MessageElements setId={phytoSet.id} hasVerses={phytoSet.slides.length > 0} />
-              </>
-            )}
+            <Importers key={phytoSet.id} setId={phytoSet.id} kind={phytoSet.kind} />
           </div>
           {/* Right: template editor + live slide grid */}
           <div className="w-1/2 overflow-y-auto p-6">
@@ -1608,10 +1601,24 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         parts.push(i === 0 ? `[${labelled}]\n${verseTexts}` : verseTexts);
       }
       const newBlock = parts.join("\n\n");
-      // Append to any existing passage rather than replacing it.
-      setManualText((prev) => (prev.trim() ? `${prev}\n\n---\n\n${newBlock}` : newBlock));
-      // Title stays as the first passage imported.
-      if (!manualText.trim()) updateSet(setId, { name: labelled });
+      if (kind === "message") {
+        // A message owns its slides directly (the block editor), so an import
+        // appends a fresh verse block at the end (its own importIndex) rather
+        // than going through the box; the user then drags it into place.
+        const built = parseScriptureFromText(newBlock, vPer);
+        const existing = useLibrary.getState().sets[setId]?.slides ?? [];
+        // Index-less existing verses count as import 0, so a fresh import lands in
+        // its own block rather than merging with them.
+        const nextIdx = existing.reduce((m, s) => Math.max(m, s.importIndex ?? 0), -1) + 1;
+        updateSet(setId, {
+          slides: [...existing, ...built.map((s) => ({ ...s, importIndex: nextIdx }))],
+        });
+      } else {
+        // Append to any existing passage rather than replacing it.
+        setManualText((prev) => (prev.trim() ? `${prev}\n\n---\n\n${newBlock}` : newBlock));
+        // Title stays as the first passage imported.
+        if (!manualText.trim()) updateSet(setId, { name: labelled });
+      }
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -1943,12 +1950,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     );
   }
 
-  if (kind === "scripture") {
+  if (kind === "scripture" || kind === "message") {
     return (
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {/* API lookup section: scripture is import-only (no manual text editor);
-            verses are built by importing, then images and points are added. */}
-        <div className="shrink-0 border-b border-foreground/20 p-4">
+      <div className="flex h-full flex-col overflow-hidden">
+        {/* API lookup section — persistent, above the verse/block editor, so you
+            can import more passages while adding points and images. */}
+        <div className="relative z-20 shrink-0 border-b border-foreground/20 p-4">
           <PillInput
             value={ref}
             onChange={setRef}
@@ -1994,19 +2001,18 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 )}
               </div>
             </div>
-            <div>
-              <div className="mono mb-1 text-[10px] uppercase tracking-wider">Verses per slide</div>
-              <input
-                type="number"
-                min={1}
-                max={3}
-                value={versesPer}
-                onChange={(e) => {
-                  const next = Math.min(3, Math.max(1, Number(e.target.value) || 1));
-                  setVersesPer(next);
-                }}
-                className="pill h-9 w-full border border-foreground bg-background px-3 text-sm outline-none"
-              />
+            <div className="flex flex-col justify-end">
+              <div className="flex items-center gap-2 py-2">
+                <div className="mono text-[10px] uppercase tracking-wider">Verses per slide</div>
+                <NumberStepper
+                  value={versesPer}
+                  onChange={(n) => setVersesPer(Math.min(3, Math.max(1, Math.round(n))))}
+                  min={1}
+                  max={3}
+                  decrementLabel="Fewer verses per slide"
+                  incrementLabel="More verses per slide"
+                />
+              </div>
             </div>
           </div>
           <label className="mt-3 inline-flex cursor-pointer items-center gap-2">
@@ -2028,6 +2034,24 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             {busy ? "Fetching…" : "Import"}
           </button>
         </div>
+
+        {/* Body: a message owns its slides (draggable block editor); a plain
+            scripture shows its imported verses (editable) with the add-bar below,
+            so a passage can grow points and images without leaving this view. */}
+        {kind === "message" ? (
+          <MessageBlockEditor setId={setId} versions={SINGLE_VERSION} />
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {manualText.trim() && (
+              <ScriptureVerseEditor
+                versions={SINGLE_VERSION}
+                text={{ _: manualText }}
+                setText={(_v, val) => setManualText(val)}
+              />
+            )}
+            <MessageElements setId={setId} hasVerses={!!manualText.trim()} />
+          </div>
+        )}
       </div>
     );
   }

@@ -157,3 +157,76 @@ export function reconcileSlideIds(
   });
   return { slides, changed };
 }
+
+/** Split one scripture box into its `---`-separated verse blocks, pulling a
+ *  leading `[ref]` header off each. */
+function scriptureSegments(text: string): { ref?: string; text: string }[] {
+  return text.split(/^---\s*$/m).map((seg) => {
+    let ref: string | undefined;
+    let sawContent = false;
+    const body: string[] = [];
+    for (const line of seg.split("\n")) {
+      const m = /^\s*\[(.+)\]\s*$/.exec(line);
+      // The [ref] header may sit behind the blank line that the --- split
+      // leaves at the top of a segment, so ignore leading blanks when finding it.
+      if (m && ref === undefined && !sawContent) {
+        ref = m[1].trim();
+        continue;
+      }
+      if (line.trim()) sawContent = true;
+      body.push(line);
+    }
+    return { ref, text: body.join("\n").trim() };
+  });
+}
+
+/** One editable verse across the versions, for the row-based scripture editor:
+ *  the aligned block at a position, its reference per version, and its text.
+ *  `starts` marks the first verse of an import — the boundary the editor groups
+ *  on, so importing the same passage twice makes two groups, not one merged one
+ *  (a group can't be detected from the reference value alone, since a re-import
+ *  repeats it). It's carried by the primary version's explicit `[ref]` header. */
+export interface VerseRow {
+  refs: Record<string, string | undefined>;
+  text: Record<string, string>;
+  starts: boolean;
+}
+
+/** Parse the version boxes into aligned verse rows (so the editor can draw a
+ *  divider between verses instead of a literal "---"). */
+export function toVerseRows(byVersionText: Record<string, string>, versions: string[]): VerseRow[] {
+  const primary = versions[0];
+  const segs: Record<string, { ref?: string; text: string }[]> = {};
+  for (const v of versions) segs[v] = scriptureSegments(byVersionText[v] ?? "");
+  const count = Math.max(...versions.map((v) => segs[v].length), 0);
+  const rows: VerseRow[] = [];
+  const lastRef: Record<string, string> = {};
+  for (let i = 0; i < count; i++) {
+    const refs: Record<string, string | undefined> = {};
+    const text: Record<string, string> = {};
+    for (const v of versions) {
+      const s = segs[v][i];
+      if (s?.ref) lastRef[v] = s.ref;
+      refs[v] = s?.ref ?? lastRef[v];
+      text[v] = s?.text ?? "";
+    }
+    // A verse begins a new import when its primary box carries an explicit
+    // header; the very first verse always begins one.
+    rows.push({ refs, text, starts: i === 0 || segs[primary][i]?.ref !== undefined });
+  }
+  return rows;
+}
+
+/** Serialize verse rows back to the version boxes. Inverse of toVerseRows.
+ *  A `[ref]` header is written only on the verses that begin an import, so the
+ *  round-trip preserves import boundaries instead of stamping a header on every
+ *  verse (which would then read back as one import per verse). */
+export function fromVerseRows(rows: VerseRow[], versions: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const v of versions) {
+    out[v] = rows
+      .map((r) => (r.starts && r.refs[v] ? `[${r.refs[v]}]\n${r.text[v]}` : r.text[v]))
+      .join("\n---\n");
+  }
+  return out;
+}
