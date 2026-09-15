@@ -653,7 +653,7 @@ function Presenter() {
                         // opening the delete dialog.
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => setShowDeleteGatheringDialog(true)}
-                        className="pill pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                        className="pill pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
                         title="Delete gathering"
                         aria-label="Delete gathering"
                       >
