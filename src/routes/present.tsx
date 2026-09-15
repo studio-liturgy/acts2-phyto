@@ -602,7 +602,7 @@ function Presenter() {
           </div>
 
           <div className="pointer-events-none absolute left-1/2 flex max-w-[50%] -translate-x-1/2 items-center justify-center gap-3">
-            {activeGathering && (
+            {activeGathering ? (
               <>
                 {editingGatheringName ? (
                   <>
@@ -688,7 +688,29 @@ function Presenter() {
                   </>
                 )}
               </>
-            )}
+            ) : activeSet ? (
+              /* Standalone set (not in a gathering): its name + category + edit
+                 live in the top-bar centre, where the gathering name would sit. */
+              <>
+                <span
+                  className="pointer-events-auto min-w-0 truncate text-3xl font-normal"
+                  style={{ letterSpacing: "-0.045em", paddingRight: "0.1em" }}
+                >
+                  {activeSet.name}
+                </span>
+                <KindBadge kind={activeSet.kind} />
+                <Link
+                  to="/set/$setId"
+                  params={{ setId: activeSet.id }}
+                  search={{ redirectTo: presenterReturn(activeSet.id) }}
+                  className="pill pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                  title="Edit set"
+                  aria-label="Edit set"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Link>
+              </>
+            ) : null}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
@@ -1186,23 +1208,8 @@ function Presenter() {
               </Link>
             </div>
           ) : (
-            <>
-              <div className="mb-4 flex items-center gap-3">
-                <h2 className="text-2xl">{activeSet.name}</h2>
-                <KindBadge kind={activeSet.kind} />
-                <Link
-                  to="/set/$setId"
-                  params={{ setId: activeSet.id }}
-                  search={{ redirectTo: presenterReturn(activeSet.id) }}
-                  className="pill flex h-8 w-8 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                  title="Edit set"
-                  aria-label="Edit set"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Link>
-              </div>
-              <SlideGridForPresenter phytoSet={activeSet} live={live} slideW={slideW} />
-            </>
+            /* Title / category / edit now live in the top-bar centre. */
+            <SlideGridForPresenter phytoSet={activeSet} live={live} slideW={slideW} />
           )}
 
           {effectiveViewMode === "slides" && activeGathering && setList.length > 0 && (
