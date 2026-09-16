@@ -231,7 +231,7 @@ export function GroupPanelDialog({
         </ul>
 
         {removeTarget && (
-          <div className="mt-4 rounded-2xl border border-[var(--brand-red)] p-4">
+          <div className="mt-4 rounded-2xl border border-foreground/20 p-4">
             <p className="mono text-xs uppercase leading-relaxed tracking-wider text-foreground">
               Remove {removeTarget.email}?{" "}
               {removeSets === null

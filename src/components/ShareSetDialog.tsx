@@ -150,17 +150,25 @@ export function ShareSetDialog({
                 return (
                   <li key={g.id} className="flex items-center gap-2">
                     <span className="mono flex-1 truncate text-sm uppercase">{g.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => toggleGroup(g.id)}
-                      className={`mono uppercase rounded-full px-4 py-1.5 text-xs tracking-wider transition ${
-                        inGroup
-                          ? "bg-[var(--brand-red)] text-[var(--brand-white)] hover:opacity-90"
-                          : "bg-foreground text-background hover:opacity-90"
-                      }`}
-                    >
-                      {inGroup ? "Remove" : "Add"}
-                    </button>
+                    {inGroup ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(g.id)}
+                        title="Remove from group"
+                        aria-label="Remove from group"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(g.id)}
+                        className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                      >
+                        Add
+                      </button>
+                    )}
                   </li>
                 );
               })}
