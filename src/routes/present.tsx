@@ -129,6 +129,19 @@ function KindBadge({ kind, abbrev = false }: { kind: SetKind; abbrev?: boolean }
   );
 }
 
+/** A small colour-coded dot standing in for the set category (used in the
+ *  presenter lists instead of the abbreviated text badge). */
+function KindDot({ kind }: { kind: SetKind }) {
+  return (
+    <span
+      className="h-2 w-2 shrink-0 rounded-full"
+      style={{ backgroundColor: kindLiveColor(kind) }}
+      title={kind === "mixed" ? "Mixed" : kind}
+      aria-label={kind}
+    />
+  );
+}
+
 /** A single-line name that, when it's too long to fit, scrolls left on hover to
  *  reveal the rest — after a short pause — then springs back on mouse-out. When
  *  it fits, it behaves like a plain truncating label (ellipsis, no motion). */
@@ -930,7 +943,7 @@ function Presenter() {
                         >
                           <span className="truncate">{d.name}</span>
                           <span className="flex items-center gap-1">
-                            <KindBadge kind={d.kind} abbrev />
+                            <KindDot kind={d.kind} />
                             <Plus className="h-4 w-4 opacity-40 group-hover:opacity-100" />
                           </span>
                         </button>
@@ -1056,7 +1069,7 @@ function Presenter() {
                           <ScrollingName text={d.name} className="min-w-0 flex-1" />
                         </span>
                         <span className="flex shrink-0 items-center gap-1">
-                          <KindBadge kind={d.kind} abbrev />
+                          <KindDot kind={d.kind} />
                           {inGathering && activeGathering && (
                             <span
                               role="button"

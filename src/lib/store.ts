@@ -15,6 +15,7 @@ import {
   removeSetFromGroup,
   syncGroups,
   leaveGroup,
+  removeMyContributionsFromGroup,
   deleteGroup,
   pingGroupsChanged,
   type MyGroup,
@@ -395,6 +396,10 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   },
 
   leaveGroupById: async (groupId) => {
+    // Pull my sets out of the group (and its gatherings) WHILE I still have
+    // access, then delete my membership.
+    await removeMyContributionsFromGroup(groupId);
+    pingGroupsChanged([groupId]); // members re-pull the removals live
     const ok = await leaveGroup(groupId);
     if (ok) await get()._afterLeaveOrDeleteGroup(groupId);
     return ok;

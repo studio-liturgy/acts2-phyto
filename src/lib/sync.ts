@@ -2184,9 +2184,71 @@ export async function removeGroupMember(groupId: string, email: string): Promise
   if (error) console.error("[sync] removeGroupMember error", error);
 }
 
-/** Leave a group I'm in (deletes only my own membership row). My own sets stay
- *  in my personal library; the grants I made persist so the group keeps them.
- *  Returns true on success. */
+/** Pull MY contributions out of a group: delete my set grants to it, and remove
+ *  my sets from the group's gatherings (bumping those gatherings so members see
+ *  them go). Run this BEFORE deleting my membership, while I still have access.
+ *  My own sets stay in my personal library; only their group membership is
+ *  removed. */
+export async function removeMyContributionsFromGroup(groupId: string): Promise<void> {
+  const session = getSession();
+  if (!session) return;
+  const uid = session.user.id;
+
+  // Which of my sets are granted to this group?
+  const { data: grants } = await supabase
+    .from("group_sets")
+    .select("set_id")
+    .eq("group_id", groupId)
+    .eq("owner_id", uid);
+  const mySetIds = ((grants ?? []) as { set_id: string }[]).map((r) => r.set_id);
+
+  if (mySetIds.length) {
+    // The group's gatherings, and which of them reference my sets.
+    const { data: gathRows } = await supabase
+      .from("gatherings")
+      .select("id")
+      .eq("group_id", groupId);
+    const gathIds = ((gathRows ?? []) as { id: string }[]).map((r) => r.id);
+    if (gathIds.length) {
+      const { data: affected } = await supabase
+        .from("gathering_sets")
+        .select("gathering_id")
+        .in("gathering_id", gathIds)
+        .in("set_id", mySetIds);
+      const affectedGathIds = [
+        ...new Set(((affected ?? []) as { gathering_id: string }[]).map((r) => r.gathering_id)),
+      ];
+      if (affectedGathIds.length) {
+        // Remove my sets from those gatherings. Positions left with gaps are
+        // read back compact (filter(Boolean)) and rewritten on the next edit.
+        const { error: delErr } = await supabase
+          .from("gathering_sets")
+          .delete()
+          .in("gathering_id", affectedGathIds)
+          .in("set_id", mySetIds);
+        if (delErr) console.error("[sync] removeMyContributions gathering_sets error", delErr);
+        // Bump so every member's syncGroups adopts the shortened set list.
+        const { error: bumpErr } = await supabase
+          .from("gatherings")
+          .update({ updated_at: new Date().toISOString() })
+          .in("id", affectedGathIds);
+        if (bumpErr) console.error("[sync] removeMyContributions bump error", bumpErr);
+      }
+    }
+  }
+
+  // Finally retract my set grants: my sets leave the group.
+  const { error: grantErr } = await supabase
+    .from("group_sets")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("owner_id", uid);
+  if (grantErr) console.error("[sync] removeMyContributions grants error", grantErr);
+}
+
+/** Leave a group I'm in (deletes only my own membership row). Returns true on
+ *  success. Call removeMyContributionsFromGroup first if my sets should leave
+ *  with me. */
 export async function leaveGroup(groupId: string): Promise<boolean> {
   const session = getSession();
   if (!session) return false;

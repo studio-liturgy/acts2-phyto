@@ -135,6 +135,9 @@ const SET_DRAG_TYPE = "application/x-stage-set-id";
 type SortMode = "az" | "newest";
 type KindFilter = "all" | "shared" | SetKind;
 
+// A user can belong to at most this many groups.
+const MAX_GROUPS = 3;
+
 function kindBg(kind: SetKind | string): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
   if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
@@ -223,6 +226,8 @@ function Library() {
   const activeGroup = groups.find((g) => g.id === activeWorkspace);
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
+  // Shown when the 3-group limit blocks creating or accepting.
+  const [groupLimitMsg, setGroupLimitMsg] = useState<string | null>(null);
   // After creating a group, offer to share the whole personal catalogue into it.
   const [catalogueShareGroupId, setCatalogueShareGroupId] = useState<string | null>(null);
   const activeWorkspaceLabel =
@@ -237,6 +242,7 @@ function Library() {
   const handleCreateGroup = async () => {
     const name = newGroupName.trim();
     if (!name || creatingGroup) return; // guard against double-submit while creating
+    if (groups.length >= MAX_GROUPS) return; // the dialog shows the limit inline
     setCreatingGroup(true);
     const id = await createGroup(name);
     setCreatingGroup(false);
@@ -286,6 +292,10 @@ function Library() {
   }, [isSignedIn]);
 
   const handleAcceptInvite = async (invite: GroupInvite) => {
+    if (groups.length >= MAX_GROUPS) {
+      setGroupLimitMsg(`You can be in at most ${MAX_GROUPS} groups. Leave one to join another.`);
+      return;
+    }
     const ok = await acceptGroupInvite(invite.inviteId);
     if (!ok) return;
     setGroupInvites((prev) => prev.filter((i) => i.inviteId !== invite.inviteId));
@@ -721,6 +731,11 @@ function Library() {
               </li>
             ))}
           </ul>
+          {groupLimitMsg && (
+            <p className="mono uppercase mt-2 text-[10px] tracking-wider text-[var(--brand-red)]">
+              {groupLimitMsg}
+            </p>
+          )}
         </div>
       )}
 
@@ -1444,12 +1459,17 @@ function Library() {
             <button
               type="button"
               onClick={handleCreateGroup}
-              disabled={!newGroupName.trim() || creatingGroup}
+              disabled={!newGroupName.trim() || creatingGroup || groups.length >= MAX_GROUPS}
               className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-40"
             >
               {creatingGroup ? "Creating…" : "Create"}
             </button>
           </div>
+          {groups.length >= MAX_GROUPS && (
+            <p className="mono uppercase mt-3 text-[10px] tracking-wider text-[var(--brand-red)]">
+              You can be in at most {MAX_GROUPS} groups. Leave one to create another.
+            </p>
+          )}
         </DialogContent>
       </Dialog>
 

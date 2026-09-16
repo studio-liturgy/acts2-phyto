@@ -219,7 +219,7 @@ export function GroupPanelDialog({
               <p className="mono mb-3 text-xs uppercase tracking-wider text-muted-foreground">
                 {confirm === "delete"
                   ? "Delete this group for everyone? Sets return to their owners' personal libraries."
-                  : "Leave this group? Your own sets stay with you, and the group keeps what you shared in."}
+                  : "Leave this group? The sets you shared in are removed from the group (and from its gatherings) and return to your personal library."}
               </p>
               <div className="flex gap-3">
                 <button
