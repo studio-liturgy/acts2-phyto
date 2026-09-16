@@ -4,6 +4,7 @@ import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
 import {
   fetchGroupMembers,
+  fetchMemberGroupSetNames,
   inviteGroupMember,
   removeGroupMember,
   renameGroup,
@@ -14,7 +15,8 @@ import {
 /**
  * Manage a group's roster: the owner invites and removes members and can rename
  * or delete the group; any member can leave. Leaving or being removed keeps your
- * own sets in your personal library, and the group keeps the sets you shared in.
+ * own sets in your personal library and pulls the sets you shared back out of the
+ * group (and its gatherings) with you — no strings attached either way.
  */
 export function GroupPanelDialog({
   open,
@@ -48,6 +50,10 @@ export function GroupPanelDialog({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"leave" | "delete" | null>(null);
+  // Member the owner is about to remove, plus the names of the sets that would
+  // leave the group with them (null = still loading the list).
+  const [removeTarget, setRemoveTarget] = useState<GroupMember | null>(null);
+  const [removeSets, setRemoveSets] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -56,6 +62,8 @@ export function GroupPanelDialog({
     setError(null);
     setDone(null);
     setConfirm(null);
+    setRemoveTarget(null);
+    setRemoveSets(null);
     fetchGroupMembers(group.id).then(setMembers);
   }, [open, group.id, group.name]);
 
@@ -77,9 +85,24 @@ export function GroupPanelDialog({
     await refresh();
   };
 
-  const remove = async (memberEmail: string) => {
-    await removeGroupMember(group.id, memberEmail);
-    setDone(`Removed ${memberEmail}.`);
+  // Step 1: ask to confirm, loading the list of sets that will leave with them.
+  const startRemove = async (m: GroupMember) => {
+    setRemoveTarget(m);
+    setRemoveSets(null);
+    setError(null);
+    setDone(null);
+    const names = m.userId ? await fetchMemberGroupSetNames(group.id, m.userId) : [];
+    setRemoveSets(names);
+  };
+
+  // Step 2: actually remove. Their sets leave the group with them.
+  const confirmRemove = async () => {
+    const m = removeTarget;
+    if (!m) return;
+    await removeGroupMember(group.id, m.email, m.userId);
+    setRemoveTarget(null);
+    setRemoveSets(null);
+    setDone(`Removed ${m.email}.`);
     await refresh();
     onChanged?.();
   };
@@ -194,7 +217,7 @@ export function GroupPanelDialog({
               {isOwner && !m.isMe && (
                 <button
                   type="button"
-                  onClick={() => remove(m.email)}
+                  onClick={() => startRemove(m)}
                   className="mono uppercase rounded-full bg-[var(--brand-red)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-white)] transition hover:opacity-90"
                 >
                   Remove
@@ -203,6 +226,50 @@ export function GroupPanelDialog({
             </li>
           ))}
         </ul>
+
+        {removeTarget && (
+          <div className="mt-4 rounded-2xl border border-[var(--brand-red)] p-4">
+            <p className="mono text-xs uppercase leading-relaxed tracking-wider text-foreground">
+              Remove {removeTarget.email}?{" "}
+              {removeSets === null
+                ? "Checking which sets leave with them…"
+                : removeSets.length === 0
+                  ? "They haven't shared any sets, so nothing else is affected."
+                  : `These ${removeSets.length} set${
+                      removeSets.length === 1 ? "" : "s"
+                    } they shared leave the group (and its gatherings) with them:`}
+            </p>
+            {removeSets && removeSets.length > 0 && (
+              <ul className="mono mt-3 space-y-1 text-xs uppercase tracking-wider text-muted-foreground">
+                {removeSets.map((n, i) => (
+                  <li key={i} className="truncate">
+                    {n}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={confirmRemove}
+                disabled={removeSets === null}
+                className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90 disabled:opacity-40"
+              >
+                Remove
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRemoveTarget(null);
+                  setRemoveSets(null);
+                }}
+                className="mono uppercase flex-1 rounded-full border border-foreground py-2 text-sm transition hover:bg-foreground hover:text-background"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {error && (
           <p className="mono uppercase mt-3 text-[10px] tracking-wider text-[var(--brand-red)]">

@@ -2112,6 +2112,8 @@ export type GroupMember = {
   pending: boolean;
   /** True for the current user's own row. */
   isMe: boolean;
+  /** The claimed member's user id, or null while the invite is still pending. */
+  userId: string | null;
 };
 
 /** The roster of a group (owner + members + pending invitees). */
@@ -2138,7 +2140,33 @@ export async function fetchGroupMembers(groupId: string): Promise<GroupMember[]>
     role: r.role === "admin" ? "admin" : "member",
     pending: !r.user_id,
     isMe: !!session && r.user_id === session.user.id,
+    userId: r.user_id,
   }));
+}
+
+/** The names of the sets a member granted to a group. Used to warn the owner,
+ *  before removing that member, which sets will leave the group with them. */
+export async function fetchMemberGroupSetNames(
+  groupId: string,
+  memberUserId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("group_sets")
+    .select("sets(name)")
+    .eq("group_id", groupId)
+    .eq("owner_id", memberUserId);
+  if (error) {
+    console.error("[sync] fetchMemberGroupSetNames error", error);
+    return [];
+  }
+  type S = { name: string | null };
+  const rows = (data ?? []) as unknown as { sets: S | S[] | null }[];
+  return rows
+    .map((r) => {
+      const s = Array.isArray(r.sets) ? r.sets[0] : r.sets;
+      return s?.name ?? "";
+    })
+    .filter((n) => n.trim());
 }
 
 export type InviteResult = "ok" | "self" | "exists" | "error";
@@ -2186,8 +2214,20 @@ export async function inviteGroupMember(groupId: string, rawEmail: string): Prom
 }
 
 /** Remove a member from a group by email (owner only, enforced by RLS). Their
- *  own sets stay theirs; the grants they made persist, so the group keeps them. */
-export async function removeGroupMember(groupId: string, email: string): Promise<void> {
+ *  contributions leave the group with them, exactly as if they had left: their
+ *  grants are retracted and their sets are stripped from the group's gatherings.
+ *  Their own set copies stay in their personal library (no strings attached).
+ *  Pass their user id so we can find their grants; a pending invitee has none. */
+export async function removeGroupMember(
+  groupId: string,
+  email: string,
+  memberUserId?: string | null,
+): Promise<void> {
+  // Pull their contributions first, while their grants still exist.
+  if (memberUserId) {
+    await removeMemberContributionsFromGroup(groupId, memberUserId);
+    pingGroupsChanged([groupId]);
+  }
   const { error } = await supabase
     .from("group_members")
     .delete()
@@ -2204,14 +2244,31 @@ export async function removeGroupMember(groupId: string, email: string): Promise
 export async function removeMyContributionsFromGroup(groupId: string): Promise<void> {
   const session = getSession();
   if (!session) return;
-  const uid = session.user.id;
+  await pullContributionsFromGroup(groupId, session.user.id);
+}
 
-  // Which of my sets are granted to this group?
+/** Pull a specific member's contributions out of a group: the same retraction
+ *  as {@link removeMyContributionsFromGroup}, applied to someone else. The group
+ *  owner is allowed to delete another member's grants and the group gatherings'
+ *  set rows (both RLS-permitted for the owner), so this runs client-side when
+ *  the owner removes a member. Their own set copies stay in their library. */
+export async function removeMemberContributionsFromGroup(
+  groupId: string,
+  memberUserId: string,
+): Promise<void> {
+  await pullContributionsFromGroup(groupId, memberUserId);
+}
+
+/** Shared core: retract the sets `ownerUid` granted to the group and strip them
+ *  from the group's gatherings. Works for me (self-leave) or for a member the
+ *  group owner is removing. */
+async function pullContributionsFromGroup(groupId: string, ownerUid: string): Promise<void> {
+  // Which of this member's sets are granted to this group?
   const { data: grants } = await supabase
     .from("group_sets")
     .select("set_id")
     .eq("group_id", groupId)
-    .eq("owner_id", uid);
+    .eq("owner_id", ownerUid);
   const mySetIds = ((grants ?? []) as { set_id: string }[]).map((r) => r.set_id);
 
   if (mySetIds.length) {
@@ -2249,13 +2306,13 @@ export async function removeMyContributionsFromGroup(groupId: string): Promise<v
     }
   }
 
-  // Finally retract my set grants: my sets leave the group.
+  // Finally retract the set grants: those sets leave the group.
   const { error: grantErr } = await supabase
     .from("group_sets")
     .delete()
     .eq("group_id", groupId)
-    .eq("owner_id", uid);
-  if (grantErr) console.error("[sync] removeMyContributions grants error", grantErr);
+    .eq("owner_id", ownerUid);
+  if (grantErr) console.error("[sync] pullContributions grants error", grantErr);
 }
 
 /** Leave a group I'm in (deletes only my own membership row). Returns true on
