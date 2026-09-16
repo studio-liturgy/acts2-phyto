@@ -248,8 +248,14 @@ function Presenter() {
   });
   const [dragOverGathering, setDragOverGathering] = useState<string | null>(null);
   const [reorderDragUiIndex, setReorderDragUiIndex] = useState<number | null>(null);
-  const [reorderLiveOrder, setReorderLiveOrder] = useState<string[] | null>(null);
-  const reorderLiveRef = useRef<string[] | null>(null);
+  // Reorder slots carry a STABLE key so a row keeps its identity as the list
+  // reorders under the cursor. Keying by `${id}-${index}` remounted the dragged
+  // element the moment it moved, which killed the native drag (no dragend fired,
+  // so the row stayed greyed and nothing committed).
+  const [reorderLiveOrder, setReorderLiveOrder] = useState<{ key: string; id: string }[] | null>(
+    null,
+  );
+  const reorderLiveRef = useRef<{ key: string; id: string }[] | null>(null);
   const reorderDragIndex = useRef<number | null>(null);
   const [editingGatheringName, setEditingGatheringName] = useState(false);
   const gatheringNameInputRef = useRef<HTMLInputElement>(null);
@@ -431,6 +437,22 @@ function Presenter() {
       return setSortMode === "az" ? sa.name.localeCompare(sb.name) : sb.createdAt - sa.createdAt;
     });
   const filteredGatherings = showAll ? gatheringOrder : [];
+
+  // Commit the live reorder to the gathering and clear the drag state. Called
+  // from both onDrop (fires on the target row) and onDragEnd (fallback); the
+  // ref guard makes the second call a no-op.
+  const commitReorder = () => {
+    if (reorderLiveRef.current && activeGathering) {
+      reorderGatheringSets(
+        activeGathering.id,
+        reorderLiveRef.current.map((s) => s.id),
+      );
+    }
+    reorderLiveRef.current = null;
+    setReorderLiveOrder(null);
+    setReorderDragUiIndex(null);
+    reorderDragIndex.current = null;
+  };
 
   // While inside a gathering, a search also scans the entire catalogue for sets
   // not yet in this gathering, surfaced above the gathering's own sets so they
@@ -949,7 +971,11 @@ function Presenter() {
                           : "No sets yet."}
                     </p>
                   )}
-                  {(reorderLiveOrder ?? filteredSets).map((id, i) => {
+                  {(
+                    reorderLiveOrder ??
+                    filteredSets.map((sid, si) => ({ key: `${sid}#${si}`, id: sid }))
+                  ).map((slot, i) => {
+                    const id = slot.id;
                     const d = sets[id];
                     if (!d) return null;
                     const isActive = id === activeSetId;
@@ -963,7 +989,7 @@ function Presenter() {
                     const isDragging = inGathering && i === reorderDragUiIndex;
                     return (
                       <button
-                        key={`${id}-${i}`}
+                        key={slot.key}
                         draggable
                         onDragStart={(e) => {
                           e.dataTransfer.setData("application/x-set-id", id);
@@ -978,7 +1004,9 @@ function Presenter() {
                           if (!inGathering || from === null || from === i) return;
                           e.preventDefault();
                           e.dataTransfer.dropEffect = "move";
-                          const current = reorderLiveOrder ?? filteredSets;
+                          const current =
+                            reorderLiveOrder ??
+                            filteredSets.map((sid, si) => ({ key: `${sid}#${si}`, id: sid }));
                           const next = [...current];
                           const [moved] = next.splice(from, 1);
                           next.splice(i, 0, moved);
@@ -987,14 +1015,12 @@ function Presenter() {
                           reorderLiveRef.current = next;
                           setReorderLiveOrder(next);
                         }}
-                        onDragEnd={() => {
-                          if (reorderLiveRef.current && activeGathering)
-                            reorderGatheringSets(activeGathering.id, reorderLiveRef.current);
-                          reorderLiveRef.current = null;
-                          setReorderLiveOrder(null);
-                          setReorderDragUiIndex(null);
-                          reorderDragIndex.current = null;
+                        onDrop={(e) => {
+                          if (!inGathering) return;
+                          e.preventDefault();
+                          commitReorder();
                         }}
+                        onDragEnd={commitReorder}
                         onClick={() => {
                           setActiveSetId(id);
                           if (activeGathering) {
