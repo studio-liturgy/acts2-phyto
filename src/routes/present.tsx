@@ -999,7 +999,7 @@ function Presenter() {
                     </span>
                   ) : (
                     <span className="flex items-center justify-between">
-                      <span>Sets</span>
+                      <span>Catalogue</span>
                       <span className="flex items-center gap-1">
                         {kindFilterDots}
                         <button
