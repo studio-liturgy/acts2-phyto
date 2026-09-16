@@ -602,15 +602,6 @@ function Library() {
       {!showLanding && (
         <header className="pt-6 md:pt-10">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6">
-            {activeWorkspace === "personal" && (
-              <Link
-                to="/"
-                search={{ intro: true }}
-                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-              >
-                Intro
-              </Link>
-            )}
             {!isSignedIn && (
               <Link
                 to="/login"
@@ -703,59 +694,71 @@ function Library() {
         </header>
       )}
 
-      {/* Pending group invites: accept to join, decline to dismiss. */}
-      {!showLanding && groupInvites.length > 0 && (
+      {/* Two arrival notifications: pending group invites and sets shared with
+          you. When both are present they split the row 50/50 (same-height
+          halves); a lone one spans the full width. The shared-sets list expands
+          full-width below the row. */}
+      {!showLanding && (groupInvites.length > 0 || inbox.length > 0) && (
         <div className="mx-auto w-full max-w-6xl px-6 pt-4">
-          <ul className="space-y-2">
-            {groupInvites.map((invite) => (
-              <li
-                key={invite.inviteId}
-                className="pill flex items-center gap-4 border border-foreground px-5 py-2"
-              >
-                <span className="mono flex-1 truncate text-xs uppercase tracking-wider">
-                  You've been invited to {invite.groupName}
-                </span>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleAcceptInvite(invite)}
-                    className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-                  >
-                    Accept
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeclineInvite(invite)}
-                    className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-                  >
-                    Decline
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-          {groupLimitMsg && (
-            <p className="mono uppercase mt-2 text-[10px] tracking-wider text-[var(--brand-red)]">
-              {groupLimitMsg}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Incoming shared sets: notification pill just under the header, with the
-          inline list beneath it (no modal). */}
-      {!showLanding && inbox.length > 0 && (
-        <div className="mx-auto w-full max-w-6xl px-6 pt-4">
-          <button
-            type="button"
-            onClick={() => setInboxOpen((v) => !v)}
-            aria-expanded={inboxOpen}
-            className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider text-foreground transition hover:bg-foreground hover:text-background"
-          >
-            <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
-            {inbox.length} set{inbox.length === 1 ? "" : "s"} shared with you
-          </button>
-          {inboxOpen && (
+          {(() => {
+            const both = groupInvites.length > 0 && inbox.length > 0;
+            const half = both ? "min-w-0 flex-1" : "";
+            return (
+              <div className={both ? "flex flex-col gap-2 sm:flex-row sm:items-stretch" : ""}>
+                {groupInvites.length > 0 && (
+                  <div className={half}>
+                    <ul className="space-y-2">
+                      {groupInvites.map((invite) => (
+                        <li
+                          key={invite.inviteId}
+                          className="pill flex items-center gap-4 border border-foreground px-5 py-2"
+                        >
+                          <span className="mono flex-1 truncate text-xs uppercase tracking-wider">
+                            You've been invited to {invite.groupName}
+                          </span>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleAcceptInvite(invite)}
+                              className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeclineInvite(invite)}
+                              className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    {groupLimitMsg && (
+                      <p className="mono uppercase mt-2 text-[10px] tracking-wider text-[var(--brand-red)]">
+                        {groupLimitMsg}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {inbox.length > 0 && (
+                  <div className={half}>
+                    <button
+                      type="button"
+                      onClick={() => setInboxOpen((v) => !v)}
+                      aria-expanded={inboxOpen}
+                      className={`pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider text-foreground transition hover:bg-foreground hover:text-background ${both ? "h-full w-full justify-center" : ""}`}
+                    >
+                      <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
+                      {inbox.length} set{inbox.length === 1 ? "" : "s"} shared with you
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          {inbox.length > 0 && inboxOpen && (
             <div className="mt-3">
               <SharedInboxList
                 shares={inbox}
@@ -1184,9 +1187,6 @@ function Library() {
                 </ul>
               </div>
             )}
-            <p className="mono uppercase mt-10 text-xs text-muted-foreground">
-              Tip: Drag a set into a gathering.
-            </p>
           </section>
         </main>
       )}
