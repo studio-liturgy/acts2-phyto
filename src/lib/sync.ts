@@ -2144,11 +2144,11 @@ export async function fetchGroupMembers(groupId: string): Promise<GroupMember[]>
   }));
 }
 
-/** The names of the sets a member granted to a group. Used to warn the owner,
- *  before removing that member, which sets will leave the group with them.
- *  Done as two plain queries (grants, then set names) rather than a PostgREST
- *  embed, which can silently return null names across the join. */
-export async function fetchMemberGroupSetNames(
+/** The ids of the sets a member granted to a group. Used to warn the owner,
+ *  before removing that member, which sets will leave the group with them. The
+ *  caller resolves names from the local library (the owner has every group set
+ *  synced), which is more reliable than reading the member's sets over the wire. */
+export async function fetchMemberGroupSetIds(
   groupId: string,
   memberUserId: string,
 ): Promise<string[]> {
@@ -2158,23 +2158,10 @@ export async function fetchMemberGroupSetNames(
     .eq("group_id", groupId)
     .eq("owner_id", memberUserId);
   if (error) {
-    console.error("[sync] fetchMemberGroupSetNames grants error", error);
+    console.error("[sync] fetchMemberGroupSetIds error", error);
     return [];
   }
-  const ids = ((grants ?? []) as { set_id: string }[]).map((r) => r.set_id);
-  if (!ids.length) return [];
-  const { data: setsData, error: setsErr } = await supabase
-    .from("sets")
-    .select("name")
-    .in("id", ids);
-  if (setsErr) {
-    console.error("[sync] fetchMemberGroupSetNames sets error", setsErr);
-    // We still know how many sets leave, even if their names didn't come back.
-    return ids.map(() => "");
-  }
-  return ((setsData ?? []) as { name: string | null }[])
-    .map((s) => s?.name ?? "")
-    .filter((n) => n.trim());
+  return ((grants ?? []) as { set_id: string }[]).map((r) => r.set_id);
 }
 
 export type InviteResult = "ok" | "self" | "exists" | "error";

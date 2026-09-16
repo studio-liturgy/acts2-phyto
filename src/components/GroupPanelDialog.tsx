@@ -5,7 +5,7 @@ import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
 import {
   fetchGroupMembers,
-  fetchMemberGroupSetNames,
+  fetchMemberGroupSetIds,
   inviteGroupMember,
   removeGroupMember,
   renameGroup,
@@ -41,6 +41,7 @@ export function GroupPanelDialog({
   const loadGroups = useLibrary((s) => s.loadGroups);
   const leaveGroupById = useLibrary((s) => s.leaveGroupById);
   const deleteGroupById = useLibrary((s) => s.deleteGroupById);
+  const librarySets = useLibrary((s) => s.sets);
   const isOwner = !!session && group.owner_id === session.user.id;
   const isInvite = mode === "invite";
 
@@ -51,10 +52,11 @@ export function GroupPanelDialog({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"leave" | "delete" | null>(null);
-  // Member the owner is about to remove, plus the names of the sets that would
-  // leave the group with them (null = still loading the list).
+  // Member the owner is about to remove, plus the sets that would leave the group
+  // with them (null = still loading; count is authoritative, names are whatever
+  // the local library can resolve).
   const [removeTarget, setRemoveTarget] = useState<GroupMember | null>(null);
-  const [removeSets, setRemoveSets] = useState<string[] | null>(null);
+  const [removeSets, setRemoveSets] = useState<{ count: number; names: string[] } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -87,13 +89,27 @@ export function GroupPanelDialog({
   };
 
   // Step 1: ask to confirm, loading the list of sets that will leave with them.
+  // Only one confirmation is open at a time, so clear a pending delete/leave.
   const startRemove = async (m: GroupMember) => {
+    setConfirm(null);
     setRemoveTarget(m);
     setRemoveSets(null);
     setError(null);
     setDone(null);
-    const names = m.userId ? await fetchMemberGroupSetNames(group.id, m.userId) : [];
-    setRemoveSets(names);
+    const ids = m.userId ? await fetchMemberGroupSetIds(group.id, m.userId) : [];
+    const names = ids
+      .map((id) => librarySets[id]?.name)
+      .filter((n): n is string => !!n && n.trim().length > 0);
+    setRemoveSets({ count: ids.length, names });
+  };
+
+  // Open the delete/leave confirmation, closing any pending member removal.
+  const startDestroy = () => {
+    setRemoveTarget(null);
+    setRemoveSets(null);
+    setError(null);
+    setDone(null);
+    setConfirm(isOwner ? "delete" : "leave");
   };
 
   // Step 2: actually remove. Their sets leave the group with them.
@@ -215,7 +231,7 @@ export function GroupPanelDialog({
                   Admin
                 </span>
               )}
-              {isOwner && !m.isMe && (
+              {isOwner && !m.isMe && removeTarget?.id !== m.id && (
                 <button
                   type="button"
                   onClick={() => startRemove(m)}
@@ -236,15 +252,15 @@ export function GroupPanelDialog({
               Remove {removeTarget.email}?{" "}
               {removeSets === null
                 ? "Checking which sets leave with them…"
-                : removeSets.length === 0
+                : removeSets.count === 0
                   ? "They haven't shared any sets, so nothing else is affected."
-                  : `These ${removeSets.length} set${
-                      removeSets.length === 1 ? "" : "s"
+                  : `These ${removeSets.count} set${
+                      removeSets.count === 1 ? "" : "s"
                     } they shared leave the group (and its gatherings) with them:`}
             </p>
-            {removeSets && removeSets.length > 0 && (
-              <ul className="mono mt-3 space-y-1 text-xs uppercase tracking-wider text-muted-foreground">
-                {removeSets.map((n, i) => (
+            {removeSets && removeSets.names.length > 0 && (
+              <ul className="mono mt-3 list-disc space-y-1 pl-5 text-xs uppercase tracking-wider text-muted-foreground">
+                {removeSets.names.map((n, i) => (
                   <li key={i} className="truncate">
                     {n}
                   </li>
@@ -288,19 +304,19 @@ export function GroupPanelDialog({
             {confirm === null ? (
               <button
                 type="button"
-                onClick={() => setConfirm(isOwner ? "delete" : "leave")}
+                onClick={startDestroy}
                 className="mono uppercase w-full rounded-full bg-[var(--brand-red)] py-2 text-sm tracking-wider text-[var(--brand-white)] transition hover:opacity-90"
               >
                 {isOwner ? "Delete group" : "Leave group"}
               </button>
             ) : (
-              <div>
-                <p className="mono mb-3 text-xs uppercase tracking-wider text-muted-foreground">
+              <div className="rounded-2xl border border-foreground/20 p-4">
+                <p className="mono text-xs uppercase leading-relaxed tracking-wider text-foreground">
                   {confirm === "delete"
                     ? "Delete this group for everyone? Sets return to their owners' personal libraries."
                     : "Leave this group? The sets you shared in are removed from the group (and from its gatherings) and return to your personal library."}
                 </p>
-                <div className="flex gap-3">
+                <div className="mt-4 flex gap-3">
                   <button
                     type="button"
                     onClick={confirm === "delete" ? destroy : leave}
