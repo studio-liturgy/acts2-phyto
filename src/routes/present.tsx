@@ -90,18 +90,18 @@ function kindBadgeBg(kind: SetKind): string {
 }
 
 function kindHoverBg(kind: SetKind): string {
-  if (kind === "song") return "hover:bg-[var(--brand-blue)]/10";
-  if (kind === "scripture") return "hover:bg-[var(--brand-green)]/10";
-  if (kind === "message") return "hover:bg-[var(--brand-green-dark)]/10";
-  if (kind === "media") return "hover:bg-[var(--brand-orange)]/10";
+  if (kind === "song") return "hover:bg-[var(--brand-blue)]/20";
+  if (kind === "scripture") return "hover:bg-[var(--brand-green)]/20";
+  if (kind === "message") return "hover:bg-[var(--brand-green-dark)]/20";
+  if (kind === "media") return "hover:bg-[var(--brand-orange)]/20";
   return "hover:bg-muted/50";
 }
 
 function kindActiveBg(kind: SetKind): string {
-  if (kind === "song") return "bg-[var(--brand-blue)]/10";
-  if (kind === "scripture") return "bg-[var(--brand-green)]/10";
-  if (kind === "message") return "bg-[var(--brand-green-dark)]/10";
-  if (kind === "media") return "bg-[var(--brand-orange)]/10";
+  if (kind === "song") return "bg-[var(--brand-blue)]/20";
+  if (kind === "scripture") return "bg-[var(--brand-green)]/20";
+  if (kind === "message") return "bg-[var(--brand-green-dark)]/20";
+  if (kind === "media") return "bg-[var(--brand-orange)]/20";
   return "bg-muted/50";
 }
 

@@ -164,27 +164,27 @@ function kindChip(kind: KindFilter, active: boolean): string {
   if (kind === "all") {
     return active
       ? "border-foreground bg-foreground text-background"
-      : "border-foreground text-foreground hover:bg-foreground/10";
+      : "border-foreground text-foreground hover:bg-foreground/20";
   }
   if (kind === "song") {
     return active
       ? "border-[var(--brand-blue)] bg-[var(--brand-blue)] text-[var(--brand-white)]"
-      : "border-[var(--brand-blue)] text-[var(--brand-blue)] hover:bg-[var(--brand-blue)]/10";
+      : "border-[var(--brand-blue)] text-[var(--brand-blue)] hover:bg-[var(--brand-blue)]/20";
   }
   if (kind === "scripture") {
     return active
       ? "border-[var(--brand-green)] bg-[var(--brand-green)] text-[var(--brand-white)]"
-      : "border-[var(--brand-green)] text-[var(--brand-green)] hover:bg-[var(--brand-green)]/10";
+      : "border-[var(--brand-green)] text-[var(--brand-green)] hover:bg-[var(--brand-green)]/20";
   }
   if (kind === "media") {
     return active
       ? "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]"
-      : "border-[var(--brand-orange)] text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10";
+      : "border-[var(--brand-orange)] text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20";
   }
   if (kind === "shared" || kind === "personal") {
     return active
       ? "border-[#6b7280] bg-[#6b7280] text-[var(--brand-white)]"
-      : "border-[#6b7280] text-[#6b7280] hover:bg-[#6b7280]/10";
+      : "border-[#6b7280] text-[#6b7280] hover:bg-[#6b7280]/20";
   }
   return "";
 }
