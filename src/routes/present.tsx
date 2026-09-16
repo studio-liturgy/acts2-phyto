@@ -168,6 +168,14 @@ export const Route = createFileRoute("/present")({
   component: Presenter,
 });
 
+// Presenter catalogue kind filter, kept in a session store so it survives moving
+// into and out of a gathering (which re-renders the presenter) instead of
+// resetting to "all" each time.
+type PresenterKind = "all" | "song" | "scripture" | "media";
+const usePresenterKindFilter = create<{ kind: PresenterKind; setKind: (k: PresenterKind) => void }>(
+  (set) => ({ kind: "all", setKind: (kind) => set({ kind }) }),
+);
+
 function Presenter() {
   const { set: setFromUrl, gathering: gatheringFromUrl, view: viewFromUrl } = Route.useSearch();
   const sets = useLibrary((s) => s.sets);
@@ -234,7 +242,8 @@ function Presenter() {
   // Catalogue kind filter (presenter, non-gathering list): coloured dots that
   // narrow to song / scripture / media, like the home catalogue chips. Scripture
   // includes messages, matching the home page.
-  const [kindFilter, setKindFilter] = useState<"all" | "song" | "scripture" | "media">("all");
+  const kindFilter = usePresenterKindFilter((s) => s.kind);
+  const setKindFilter = usePresenterKindFilter((s) => s.setKind);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   // "slides" = the operator grid + output preview (default). "mobile" = a
   // preview of what congregants see on their phones, replacing the slide grid
@@ -963,8 +972,8 @@ function Presenter() {
                     {kindFilterDots}
                   </div>
                   {catalogueResults.length === 0 && (
-                    <p className="mono px-2 text-xs uppercase tracking-wider text-muted-foreground">
-                      No sets in your catalogue match.
+                    <p className="mono mb-4 px-2 text-xs uppercase tracking-wider text-muted-foreground">
+                      No sets in your catalogue match
                     </p>
                   )}
                   <div className="space-y-1">
@@ -1028,11 +1037,11 @@ function Presenter() {
                     <p className="mono uppercase px-2 text-xs tracking-wider text-muted-foreground">
                       {activeGathering
                         ? q
-                          ? "No sets in this gathering match."
-                          : "Gathering is empty. Search above to add a set."
+                          ? "No sets in this gathering match"
+                          : "Gathering is empty. Search above to add a set"
                         : q
-                          ? "No matches."
-                          : "No sets yet."}
+                          ? "No matches"
+                          : "No sets yet"}
                     </p>
                   )}
                   {(
@@ -1266,11 +1275,11 @@ function Presenter() {
             ) : null
           ) : !activeSet ? (
             <div className="mono uppercase flex h-full items-center justify-center text-sm tracking-wider text-muted-foreground">
-              Select a set to begin.
+              Select a set to begin
             </div>
           ) : activeSet.slides.length === 0 ? (
             <div className="mono uppercase flex h-full items-center justify-center gap-2 text-xs tracking-wider text-muted-foreground">
-              This set has no slides.
+              This set has no slides
               <Link
                 to="/set/$setId"
                 params={{ setId: activeSet.id }}
@@ -1366,7 +1375,7 @@ function Presenter() {
                       )}
                     </div>
                     {d.slides.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No slides.</p>
+                      <p className="text-xs text-muted-foreground">No slides</p>
                     ) : (
                       <SlideGridForPresenter
                         phytoSet={d}

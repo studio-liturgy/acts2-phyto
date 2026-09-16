@@ -608,12 +608,12 @@ function Library() {
   };
 
   const emptyCategoryLabel: Record<string, string> = {
-    all: "Nothing in the catalogue yet. Click New to add your first set.",
+    all: "Nothing in the catalogue yet. Click New to add your first set",
     song: "No Songs yet!",
     scripture: "No Scriptures yet!",
     media: "No Media yet!",
     shared: "No shared sets yet!",
-    personal: "You haven't shared any of your own sets into this group yet.",
+    personal: "You haven't shared any of your own sets into this group yet",
   };
 
   // While the post-login account pull runs on a device with an empty library,
@@ -914,11 +914,12 @@ function Library() {
 
           {/* Catalogue */}
           <section>
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              {/* Left: heading + import/export/edit icons */}
-              <div className="flex items-center gap-2">
-                <h2 className="text-4xl md:text-5xl leading-none">Catalogue</h2>
-                <div className="ml-3 flex items-center gap-2">
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+              <h2 className="text-4xl md:text-5xl leading-none">Catalogue</h2>
+              {/* Right: edit actions on one line, filter chips on the next; both
+                  right-aligned, heading stays put on the left. */}
+              <div className="flex flex-1 flex-wrap items-center justify-end gap-x-4 gap-y-3">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   {editMode ? (
                     <>
                       <button
@@ -1062,115 +1063,115 @@ function Library() {
                     onChange={handleImportFileChange}
                   />
                 </div>
-              </div>
-              {/* Right: filter chips + sort + search + new */}
-              <div className="flex flex-wrap items-center gap-2">
-                {(
-                  [
-                    "song",
-                    "scripture",
-                    "media",
-                    ...(activeWorkspace === "personal"
-                      ? (["shared"] as const)
-                      : (["personal"] as const)),
-                  ] as KindFilter[]
-                ).map((k) => (
+                {/* filter chips + sort + search + new */}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {(
+                    [
+                      "song",
+                      "scripture",
+                      "media",
+                      ...(activeWorkspace === "personal"
+                        ? (["shared"] as const)
+                        : (["personal"] as const)),
+                    ] as KindFilter[]
+                  ).map((k) => (
+                    <button
+                      key={k}
+                      // Toggle: clicking the active chip clears back to "all".
+                      onClick={() => setKindFilter(kindFilter === k ? "all" : k)}
+                      className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, kindFilter === k)}`}
+                    >
+                      {k === "song"
+                        ? "Songs"
+                        : k === "scripture"
+                          ? "Scriptures"
+                          : k === "media"
+                            ? "Media"
+                            : k === "personal"
+                              ? "Personal"
+                              : "Shared"}
+                    </button>
+                  ))}
                   <button
-                    key={k}
-                    // Toggle: clicking the active chip clears back to "all".
-                    onClick={() => setKindFilter(kindFilter === k ? "all" : k)}
-                    className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, kindFilter === k)}`}
+                    onClick={() => setSortMode(sortMode === "az" ? "newest" : "az")}
+                    title={`Sort: ${sortLabel[sortMode]}`}
+                    aria-label={`Sort: ${sortLabel[sortMode]}`}
+                    className="mono uppercase flex items-center px-2 py-1.5 text-xs tracking-wider"
                   >
-                    {k === "song"
-                      ? "Songs"
-                      : k === "scripture"
-                        ? "Scriptures"
-                        : k === "media"
-                          ? "Media"
-                          : k === "personal"
-                            ? "Personal"
-                            : "Shared"}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setSortMode(sortMode === "az" ? "newest" : "az")}
-                  title={`Sort: ${sortLabel[sortMode]}`}
-                  aria-label={`Sort: ${sortLabel[sortMode]}`}
-                  className="mono uppercase flex items-center px-2 py-1.5 text-xs tracking-wider"
-                >
-                  {sortMode === "az" ? (
-                    <ArrowDownAZ className="h-4 w-4" />
-                  ) : (
-                    <ArrowDownWideNarrow className="h-4 w-4" />
-                  )}
-                </button>
-                {showCatalogueSearch ? (
-                  <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
-                    <Search className="h-4 w-4" />
-                    <input
-                      autoFocus
-                      value={catalogueFilter}
-                      onChange={(e) => setCatalogueFilter(e.target.value)}
-                      onBlur={() => !catalogueFilter && setShowCatalogueSearch(false)}
-                      placeholder="Search"
-                      className="mono uppercase w-40 bg-transparent text-xs outline-none"
-                    />
-                    {catalogueFilter && (
-                      <button
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => setCatalogueFilter("")}
-                        className="shrink-0 rounded-full p-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                        title="Clear search"
-                        aria-label="Clear search"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                    {sortMode === "az" ? (
+                      <ArrowDownAZ className="h-4 w-4" />
+                    ) : (
+                      <ArrowDownWideNarrow className="h-4 w-4" />
                     )}
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowCatalogueSearch(true)}
-                    className="pill mono uppercase flex items-center gap-2 border border-foreground bg-background px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-                  >
-                    <Search className="h-4 w-4" /> Search
                   </button>
-                )}
-                {!editMode && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90">
-                        <Plus className="h-4 w-4" /> New
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => newSet("song")}
-                        className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
-                      >
-                        New Song
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => newSet("scripture")}
-                        className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
-                      >
-                        New Scripture
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => newSet("media")}
-                        className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
-                      >
-                        New Media
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                  {showCatalogueSearch ? (
+                    <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
+                      <Search className="h-4 w-4" />
+                      <input
+                        autoFocus
+                        value={catalogueFilter}
+                        onChange={(e) => setCatalogueFilter(e.target.value)}
+                        onBlur={() => !catalogueFilter && setShowCatalogueSearch(false)}
+                        placeholder="Search"
+                        className="mono uppercase w-40 bg-transparent text-xs outline-none"
+                      />
+                      {catalogueFilter && (
+                        <button
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => setCatalogueFilter("")}
+                          className="shrink-0 rounded-full p-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                          title="Clear search"
+                          aria-label="Clear search"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowCatalogueSearch(true)}
+                      className="pill mono uppercase flex items-center gap-2 border border-foreground bg-background px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                    >
+                      <Search className="h-4 w-4" /> Search
+                    </button>
+                  )}
+                  {!editMode && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90">
+                          <Plus className="h-4 w-4" /> New
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => newSet("song")}
+                          className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
+                        >
+                          New Song
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => newSet("scripture")}
+                          className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
+                        >
+                          New Scripture
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => newSet("media")}
+                          className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
+                        >
+                          New Media
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               </div>
             </div>
 
             {catalogueRows.length === 0 ? (
               <div className="mono uppercase rounded-3xl border border-foreground p-10 text-center text-sm text-muted-foreground">
                 {catalogueFilter.trim()
-                  ? `Nothing matches "${catalogueFilter}".`
+                  ? `Nothing matches "${catalogueFilter}"`
                   : emptyCategoryLabel[kindFilter]}
               </div>
             ) : (
@@ -1947,7 +1948,7 @@ function GatheringCard({
 
       {setIds.length === 0 ? (
         <p className="mono uppercase rounded-2xl border border-dashed border-muted-foreground p-3 text-center text-xs text-muted-foreground">
-          Drag a set in to add it to this gathering.
+          Drag a set in to add it to this gathering
         </p>
       ) : (
         <ol
