@@ -597,11 +597,6 @@ function SetEditor() {
     }
   };
 
-  const deleteSelected = () => {
-    multiSel.forEach((id) => removeSlide(phytoSet.id, id));
-    setMultiSel(new Set());
-  };
-
   // Uploads a single video file to R2 via the server route, then adds a slide
   // pointing at the returned public URL. Returns false on any failure.
   const uploadVideoFile = async (file: File): Promise<boolean> => {
@@ -714,11 +709,11 @@ function SetEditor() {
       <SetHeader {...headerProps} />
 
       <div className="flex min-h-0 flex-1 divide-x divide-foreground">
-        {/* Left (3/4): import controls, then the slides grid. Mirrors the song and
+        {/* Left (1/2): import controls, then the slides grid. Mirrors the song and
             scripture editors — a shrink-0 controls header over a scrollable body,
             no rounded panel. The whole column is the drop target. */}
         <div
-          className={`flex w-3/4 min-h-0 flex-col overflow-hidden transition ${
+          className={`flex w-1/2 min-h-0 flex-col overflow-hidden transition ${
             fileOver ? "ring-2 ring-inset ring-foreground" : ""
           }`}
           onDragOver={(e) => {
@@ -738,22 +733,6 @@ function SetEditor() {
           }}
         >
           <div className="shrink-0 border-b border-foreground/20 p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="mono text-xs uppercase tracking-wider">
-                Slides ({phytoSet.slides.length})
-                {multiSel.size > 0 && (
-                  <span className="ml-2 text-foreground">· {multiSel.size} selected</span>
-                )}
-              </h2>
-              {multiSel.size > 0 && (
-                <button
-                  onClick={deleteSelected}
-                  className="pill flex items-center gap-1 bg-[var(--brand-red)] px-3 py-1.5 text-xs text-[var(--brand-white)]"
-                >
-                  <Trash2 className="h-3 w-3" /> Delete selected
-                </button>
-              )}
-            </div>
             <div className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-1.5">
               <input
                 value={videoLink}
@@ -834,26 +813,34 @@ function SetEditor() {
           </div>
         </div>
 
-        {/* Right (1/4): the output preview of the selected slide. */}
-        <div className="w-1/4 overflow-y-auto p-6">
-          <div className="mono mb-3 text-xs uppercase tracking-wider">Output preview</div>
-          <div className="overflow-hidden rounded-lg bg-[var(--brand-black)]">
-            <SlideView slide={selected} variant="preview" />
-          </div>
-          {selected?.kind === "video" && (
-            <label className="mt-3 flex cursor-pointer items-center justify-between gap-2 text-xs">
-              <span className="mono uppercase tracking-wider text-muted-foreground">
-                Autoplay when live
-              </span>
-              <input
-                type="checkbox"
-                checked={!!selected.autoplay}
-                onChange={(e) =>
-                  updateSlide(phytoSet.id, selected.id, { autoplay: e.target.checked })
-                }
-                className="h-4 w-4 accent-[var(--brand-orange)]"
-              />
-            </label>
+        {/* Right (1/2): the preview of the selected slide, or a placeholder while
+            the set is still empty (matching the other editors). */}
+        <div className="w-1/2 overflow-y-auto p-6">
+          {selected ? (
+            <>
+              <div className="overflow-hidden rounded-lg bg-[var(--brand-black)]">
+                <SlideView slide={selected} variant="preview" />
+              </div>
+              {selected.kind === "video" && (
+                <label className="mt-3 flex cursor-pointer items-center justify-between gap-2 text-xs">
+                  <span className="mono uppercase tracking-wider text-muted-foreground">
+                    Autoplay when live
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={!!selected.autoplay}
+                    onChange={(e) =>
+                      updateSlide(phytoSet.id, selected.id, { autoplay: e.target.checked })
+                    }
+                    className="h-4 w-4 accent-[var(--brand-orange)]"
+                  />
+                </label>
+              )}
+            </>
+          ) : (
+            <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
+              Slides will appear here as you add media
+            </p>
           )}
         </div>
       </div>
