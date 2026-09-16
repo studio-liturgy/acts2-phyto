@@ -58,6 +58,7 @@ import {
 import { previewText } from "@/lib/set-preview";
 import { SharedInboxList } from "@/components/SharedInboxList";
 import { BulkShareSetsDialog } from "@/components/BulkShareSetsDialog";
+import { ScrollingName } from "@/components/ScrollingName";
 import { GroupPanelDialog } from "@/components/GroupPanelDialog";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
@@ -722,10 +723,15 @@ function Library() {
                           key={invite.inviteId}
                           className="pill flex items-center gap-4 border border-foreground px-5 py-2"
                         >
-                          <span className="mono flex-1 truncate text-xs uppercase tracking-wider">
-                            You've been invited to {invite.groupName}
-                            {invite.invitedByEmail ? ` by ${invite.invitedByEmail}` : ""}
-                          </span>
+                          <ScrollingName
+                            text={`You've been invited to ${invite.groupName}`}
+                            className="mono min-w-0 flex-1 text-xs uppercase tracking-wider"
+                          />
+                          {invite.invitedByEmail && (
+                            <span className="mono hidden whitespace-nowrap text-[10px] uppercase tracking-wider opacity-50 sm:inline">
+                              {invite.invitedByEmail}
+                            </span>
+                          )}
                           <div className="flex shrink-0 items-center gap-2">
                             <button
                               type="button"

@@ -207,7 +207,7 @@ export function ShareSetDialog({
                   onClick={() => revoke(s.id)}
                   title="Revoke access"
                   aria-label="Revoke access"
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-red)] text-[var(--brand-white)] transition hover:opacity-90"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
                 >
                   <X className="h-4 w-4" />
                 </button>

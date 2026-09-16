@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
@@ -218,9 +219,11 @@ export function GroupPanelDialog({
                 <button
                   type="button"
                   onClick={() => startRemove(m)}
-                  className="mono uppercase rounded-full bg-[var(--brand-red)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-white)] transition hover:opacity-90"
+                  title="Remove from group"
+                  aria-label="Remove from group"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
                 >
-                  Remove
+                  <X className="h-4 w-4" />
                 </button>
               )}
             </li>
