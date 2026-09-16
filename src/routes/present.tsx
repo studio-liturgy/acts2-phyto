@@ -956,12 +956,17 @@ function Presenter() {
                 </div>
               )}
 
-              {activeGathering && q && catalogueResults.length > 0 && (
+              {activeGathering && q && (
                 <div className="mb-2">
                   <div className="mono mb-2 flex items-center justify-between px-1 text-[10px] uppercase tracking-wider">
                     <span>Catalogue</span>
                     {kindFilterDots}
                   </div>
+                  {catalogueResults.length === 0 && (
+                    <p className="mono px-2 text-xs uppercase tracking-wider text-muted-foreground">
+                      No sets in your catalogue match.
+                    </p>
+                  )}
                   <div className="space-y-1">
                     {catalogueResults.map((id) => {
                       const d = sets[id];
