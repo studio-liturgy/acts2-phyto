@@ -857,10 +857,32 @@ export async function writeGatheringSetRows(p: Gathering): Promise<boolean> {
 }
 
 export async function applyMerge(
-  diff: SyncDiff,
-  opts: { localPolicy?: "push" | "drop" } = {},
+  diffInput: SyncDiff,
+  opts: { localPolicy?: "push" | "drop"; resurrectDeleted?: boolean } = {},
 ): Promise<void> {
-  const { localPolicy = "push" } = opts;
+  const { localPolicy = "push", resurrectDeleted = false } = opts;
+  // The explicit "Merge" action is purely additive: it never removes a local
+  // item. A set deleted on another device (a tombstone with no remote row) would
+  // normally be dropped here; with resurrectDeleted we instead keep it and push
+  // it back up, so the row exists remotely again — which also makes the stale
+  // tombstone inert (it's only consulted for ids absent from the remote
+  // snapshot). The automatic background merge and Replace keep propagating
+  // deletions; only the user-pressed Merge button resurrects.
+  const diff: SyncDiff =
+    resurrectDeleted &&
+    (diffInput.remotelyDeleted.sets.length || diffInput.remotelyDeleted.gatherings.length)
+      ? {
+          ...diffInput,
+          onlyLocal: {
+            sets: [...diffInput.onlyLocal.sets, ...diffInput.remotelyDeleted.sets],
+            gatherings: [
+              ...diffInput.onlyLocal.gatherings,
+              ...diffInput.remotelyDeleted.gatherings,
+            ],
+          },
+          remotelyDeleted: { sets: [], gatherings: [] },
+        }
+      : diffInput;
   const session = getSession();
   const userId = session?.user.id;
   const deviceId = getDeviceId();
@@ -1423,7 +1445,9 @@ export async function withSyncLock<T>(fn: () => Promise<T>): Promise<T> {
 export async function mergeFromSupabase(): Promise<void> {
   await withSyncLock(async () => {
     const fresh = await diffWithSupabase();
-    if (fresh && hasDifferences(fresh)) await applyMerge(fresh);
+    // The user-pressed Merge is add-only: resurrect anything a tombstone would
+    // otherwise remove rather than deleting the local copy.
+    if (fresh && hasDifferences(fresh)) await applyMerge(fresh, { resurrectDeleted: true });
   });
 }
 
@@ -1465,17 +1489,21 @@ export function previewEffects(diff: SyncDiff, action: SyncAction): SyncEffects 
   const effects: SyncEffects = { local: emptySide(), account: emptySide() };
 
   if (action === "merge") {
-    // Local gains remote-only items and adopts remote versions of conflicts;
-    // remote deletions propagate here (local copies removed).
+    // Merge is add-only: local gains remote-only items and adopts remote versions
+    // of conflicts, but nothing local is removed. The account gains the local-only
+    // items AND anything a tombstone would have deleted (resurrected, pushed up).
     effects.local.added.sets = diff.onlyRemote.sets.map((s) => s.name);
     effects.local.added.gatherings = diff.onlyRemote.gatherings.map((p) => p.name);
     effects.local.updated.sets = diff.modified.sets.map(({ remote }) => remote.name);
     effects.local.updated.gatherings = diff.modified.gatherings.map(({ remote }) => remote.name);
-    effects.local.removed.sets = diff.remotelyDeleted.sets.map((s) => s.name);
-    effects.local.removed.gatherings = diff.remotelyDeleted.gatherings.map((p) => p.name);
-    // Account gains the local-only items (pushed up).
-    effects.account.added.sets = diff.onlyLocal.sets.map((s) => s.name);
-    effects.account.added.gatherings = diff.onlyLocal.gatherings.map((p) => p.name);
+    effects.account.added.sets = [
+      ...diff.onlyLocal.sets.map((s) => s.name),
+      ...diff.remotelyDeleted.sets.map((s) => s.name),
+    ];
+    effects.account.added.gatherings = [
+      ...diff.onlyLocal.gatherings.map((p) => p.name),
+      ...diff.remotelyDeleted.gatherings.map((p) => p.name),
+    ];
   } else if (action === "push") {
     // Account becomes an exact mirror of local: gains local-only items (and
     // resurrects remotely-deleted ones this device still holds), adopts the

@@ -134,8 +134,12 @@ describe("graceful degradation without the deletions table", () => {
   });
 });
 
-describe("mergeFromSupabase deletion propagation (the resurrection bug)", () => {
-  it("deletes tombstoned items locally and never pushes them back", async () => {
+// The explicit Merge button (mergeFromSupabase) is add-only: it NEVER removes a
+// local item. A set deleted on another device is resurrected — kept locally and
+// pushed back up — rather than dropped. Deletion propagation lives only on the
+// automatic path (plain applyMerge) and Replace; see the block below.
+describe("mergeFromSupabase (the Merge button) is add-only: it resurrects deletions", () => {
+  it("keeps tombstoned items locally and pushes them back up", async () => {
     const s = makeSet();
     const g = makeGathering();
     await db.sets.put(s);
@@ -151,10 +155,60 @@ describe("mergeFromSupabase deletion propagation (the resurrection bug)", () => 
 
     await mergeFromSupabase();
 
+    // Still present locally...
+    expect((await db.sets.toArray()).map((x) => x.id)).toEqual([s.id]);
+    expect((await db.gatherings.toArray()).map((x) => x.id)).toEqual([g.id]);
+    // ...and pushed back up (resurrected on the account).
+    expect(supabaseMock.tables["sets"].map((r) => r.id)).toEqual([s.id]);
+    expect(supabaseMock.tables["gatherings"].map((r) => r.id)).toEqual([g.id]);
+  });
+
+  it("keeps a tombstoned set that a gathering references, in setIds and pushed", async () => {
+    const deleted = makeSet({ name: "Deleted On B" });
+    const kept = makeSet({ name: "Still Mine" });
+    const g = makeGathering({ setIds: [deleted.id, kept.id] });
+    await db.sets.bulkPut([deleted, kept]);
+    await db.gatherings.put(g);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: { sets: [], gatherings: [], deletions: [tombstoneRow("set", deleted.id)] },
+    });
+
+    await mergeFromSupabase();
+
+    // Both sets pushed; the gathering keeps referencing both.
+    expect(supabaseMock.tables["sets"].map((r) => r.id).sort()).toEqual(
+      [deleted.id, kept.id].sort(),
+    );
+    expect((await db.gatherings.get(g.id))!.setIds).toEqual([deleted.id, kept.id]);
+  });
+});
+
+// The automatic background merge (plain applyMerge, no resurrectDeleted) still
+// propagates deletions across devices, so a set deleted on one device is removed
+// on the others without a prompt. Only the manual Merge button opts out.
+describe("automatic applyMerge still propagates deletions", () => {
+  it("deletes tombstoned items locally and does not push them back", async () => {
+    const s = makeSet();
+    const g = makeGathering();
+    await db.sets.put(s);
+    await db.gatherings.put(g);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        sets: [],
+        gatherings: [],
+        deletions: [tombstoneRow("set", s.id), tombstoneRow("gathering", g.id)],
+      },
+    });
+
+    const diff = await diffWithSupabase();
+    await applyMerge(diff!);
+
     expect(await db.sets.toArray()).toEqual([]);
     expect(await db.gatherings.toArray()).toEqual([]);
-    expect(supabaseMock.callsFor("sets", "upsert")).toEqual([]);
-    expect(supabaseMock.callsFor("gatherings", "upsert")).toEqual([]);
+    expect(supabaseMock.tables["sets"]).toEqual([]);
+    expect(supabaseMock.tables["gatherings"]).toEqual([]);
   });
 
   it("strips a remotely-deleted set from a pushed only-local gathering's setIds", async () => {
@@ -168,7 +222,8 @@ describe("mergeFromSupabase deletion propagation (the resurrection bug)", () => 
       tables: { sets: [], gatherings: [], deletions: [tombstoneRow("set", deleted.id)] },
     });
 
-    await mergeFromSupabase();
+    const diff = await diffWithSupabase();
+    await applyMerge(diff!);
 
     // The kept set and the gathering were pushed; the deleted set was not, and
     // the gathering's join rows only reference the surviving set.
