@@ -2002,27 +2002,31 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               </div>
             </div>
             <div className="flex flex-col justify-end">
-              <div className="flex items-center gap-2 py-2">
-                <div className="mono text-[10px] uppercase tracking-wider">Verses per slide</div>
-                <NumberStepper
-                  value={versesPer}
-                  onChange={(n) => setVersesPer(Math.min(3, Math.max(1, Math.round(n))))}
-                  min={1}
-                  max={3}
-                  decrementLabel="Fewer verses per slide"
-                  incrementLabel="More verses per slide"
-                />
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="mono text-[10px] uppercase tracking-wider">Verses per slide</div>
+                  <NumberStepper
+                    value={versesPer}
+                    onChange={(n) => setVersesPer(Math.min(3, Math.max(1, Math.round(n))))}
+                    min={1}
+                    max={3}
+                    decrementLabel="Fewer verses per slide"
+                    incrementLabel="More verses per slide"
+                  />
+                </div>
+                <label className="inline-flex cursor-pointer items-center gap-2">
+                  <span className="mono text-[10px] uppercase tracking-wider">
+                    Keep line breaks
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={keepLineBreaks}
+                    onChange={(e) => setKeepLineBreaks(e.target.checked)}
+                  />
+                </label>
               </div>
             </div>
           </div>
-          <label className="mt-3 inline-flex cursor-pointer items-center gap-2">
-            <span className="mono text-[10px] uppercase tracking-wider">Keep line breaks</span>
-            <input
-              type="checkbox"
-              checked={keepLineBreaks}
-              onChange={(e) => setKeepLineBreaks(e.target.checked)}
-            />
-          </label>
           {err && (
             <p className="mono uppercase mt-2 text-xs tracking-wider text-destructive">{err}</p>
           )}

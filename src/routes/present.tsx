@@ -973,7 +973,7 @@ function Presenter() {
                 </div>
                 <div className="space-y-1">
                   {filteredSets.length === 0 && (
-                    <p className="mono px-2 text-xs text-muted-foreground">
+                    <p className="mono uppercase px-2 text-xs tracking-wider text-muted-foreground">
                       {activeGathering
                         ? q
                           ? "No sets in this gathering match."
@@ -1194,7 +1194,7 @@ function Presenter() {
             </div>
           ) : activeGathering ? (
             setList.length === 0 ? (
-              <div className="mono flex h-full items-center justify-center text-sm text-muted-foreground">
+              <div className="mono uppercase flex h-full items-center justify-center text-sm tracking-wider text-muted-foreground">
                 Gathering is empty. Search the sidebar or drag a set here to add one.
               </div>
             ) : null

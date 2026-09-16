@@ -149,7 +149,7 @@ export function ScriptureVerseEditor({
                 e.preventDefault();
                 moveGroup(gi);
               }}
-              className="flex border-b-2"
+              className="flex border-b border-foreground/15"
               style={{ backgroundColor: `color-mix(in oklab, ${tint} 8%, transparent)` }}
             >
               <span
@@ -175,8 +175,11 @@ export function ScriptureVerseEditor({
                   ri += 1;
                   const index = ri;
                   return (
-                    <div key={index} className="border-b last:border-b-0">
-                      <div className="grid divide-x" style={{ gridTemplateColumns: cols }}>
+                    <div key={index} className="border-b border-foreground/15 last:border-b-0">
+                      <div
+                        className="grid divide-x divide-foreground/15"
+                        style={{ gridTemplateColumns: cols }}
+                      >
                         {versions.map((v) => {
                           const selected =
                             !!colSel &&
