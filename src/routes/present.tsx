@@ -231,6 +231,10 @@ function Presenter() {
   };
   const [query, setQuery] = useState("");
   const [setSortMode, setSetSortMode] = useState<"az" | "newest">("az");
+  // Catalogue kind filter (presenter, non-gathering list): coloured dots that
+  // narrow to song / scripture / media, like the home catalogue chips. Scripture
+  // includes messages, matching the home page.
+  const [kindFilter, setKindFilter] = useState<"all" | "song" | "scripture" | "media">("all");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   // "slides" = the operator grid + output preview (default). "mobile" = a
   // preview of what congregants see on their phones, replacing the slide grid
@@ -421,6 +425,16 @@ function Presenter() {
   const q = query.trim().toLowerCase();
   const showAll = !activeGathering;
   const filteredSets = setList
+    .filter((id) => {
+      // Kind filter applies only to the catalogue list, never inside a gathering
+      // (whose order and contents are fixed). Scripture includes messages.
+      if (activeGathering || kindFilter === "all") return true;
+      const s = sets[id];
+      if (!s) return false;
+      return kindFilter === "scripture"
+        ? s.kind === "scripture" || s.kind === "message"
+        : s.kind === kindFilter;
+    })
     .filter((id) => {
       if (!q) return true;
       const s = sets[id];
@@ -945,18 +959,46 @@ function Presenter() {
                   ) : (
                     <span className="flex items-center justify-between">
                       <span>Sets</span>
-                      <button
-                        onClick={() => setSetSortMode(setSortMode === "az" ? "newest" : "az")}
-                        title={`Sort: ${setSortMode === "az" ? "A → Z" : "Newest first"}`}
-                        aria-label={`Sort: ${setSortMode === "az" ? "A → Z" : "Newest first"}`}
-                        className="flex items-center"
-                      >
-                        {setSortMode === "az" ? (
-                          <ArrowDownAZ className="h-3.5 w-3.5" />
-                        ) : (
-                          <ArrowDownWideNarrow className="h-3.5 w-3.5" />
-                        )}
-                      </button>
+                      <span className="flex items-center gap-2">
+                        {(
+                          [
+                            ["song", "var(--brand-blue)"],
+                            ["scripture", "var(--brand-green)"],
+                            ["media", "var(--brand-orange)"],
+                          ] as const
+                        ).map(([k, color]) => {
+                          const active = kindFilter === k;
+                          return (
+                            <button
+                              key={k}
+                              onClick={() => setKindFilter(active ? "all" : k)}
+                              title={active ? "Show all" : `Show ${k}`}
+                              aria-label={active ? "Show all" : `Show ${k}`}
+                              aria-pressed={active}
+                              className={`h-2.5 w-2.5 rounded-full border transition ${
+                                kindFilter !== "all" && !active ? "opacity-30" : ""
+                              }`}
+                              style={{
+                                backgroundColor:
+                                  active || kindFilter === "all" ? color : "transparent",
+                                borderColor: color,
+                              }}
+                            />
+                          );
+                        })}
+                        <button
+                          onClick={() => setSetSortMode(setSortMode === "az" ? "newest" : "az")}
+                          title={`Sort: ${setSortMode === "az" ? "A → Z" : "Newest first"}`}
+                          aria-label={`Sort: ${setSortMode === "az" ? "A → Z" : "Newest first"}`}
+                          className="flex items-center"
+                        >
+                          {setSortMode === "az" ? (
+                            <ArrowDownAZ className="h-3.5 w-3.5" />
+                          ) : (
+                            <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </span>
                     </span>
                   )}
                 </div>
@@ -1006,9 +1048,13 @@ function Presenter() {
                         }}
                         onDragOver={(e) => {
                           const from = reorderDragIndex.current;
-                          if (!inGathering || from === null || from === i) return;
+                          if (!inGathering || from === null) return;
+                          // Always allow the drop (preventDefault on every row,
+                          // even the one being hovered) so onDrop fires instantly
+                          // instead of waiting on the delayed dragend.
                           e.preventDefault();
                           e.dataTransfer.dropEffect = "move";
+                          if (from === i) return;
                           const current =
                             reorderLiveOrder ??
                             filteredSets.map((sid, si) => ({ key: `${sid}#${si}`, id: sid }));
