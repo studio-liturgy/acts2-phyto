@@ -158,7 +158,11 @@ export function GroupPanelDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+      <DialogContent
+        className="gap-0 rounded-3xl p-8"
+        aria-describedby={undefined}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogTitle className="text-2xl font-normal leading-tight">
           {isInvite ? "Invite people" : isOwner ? "Manage group" : group.name}
         </DialogTitle>
