@@ -210,9 +210,9 @@ export function GroupPanelDialog({
                   Pending
                 </span>
               )}
-              {m.isMe && (
+              {m.userId === group.owner_id && (
                 <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                  You
+                  Admin
                 </span>
               )}
               {isOwner && !m.isMe && (

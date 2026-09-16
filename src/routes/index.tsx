@@ -234,6 +234,11 @@ function Library() {
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const activeGroup = groups.find((g) => g.id === activeWorkspace);
+  // A "guest" is a non-admin member viewing a group they joined. They may browse
+  // and share their own sets, but not run library-wide destructive actions on
+  // the shared catalogue (fix duplicates / clear empty / delete / import /
+  // export) — those belong to the group's owner.
+  const isGroupGuest = !!activeGroup && activeGroup.role !== "admin";
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
   // Shown when the 3-group limit blocks creating or accepting.
@@ -899,42 +904,46 @@ function Library() {
                           ? "Deselect all"
                           : "Select all"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowDuplicates(true)}
-                        disabled={duplicateGroups.length === 0}
-                        className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
-                        title={
-                          duplicateGroups.length
-                            ? "Amend sets with duplicate names"
-                            : "No duplicate names"
-                        }
-                      >
-                        Fix duplicates
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowClearEmpty(true)}
-                        disabled={emptySets.length === 0}
-                        className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
-                        title={emptySets.length ? "Clear sets with no slides" : "No empty sets"}
-                      >
-                        Clear empty
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowBulkDelete(true)}
-                        disabled={selectedIds.size === 0}
-                        className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
-                        title={
-                          selectedIds.size
-                            ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
-                            : "Select sets to delete"
-                        }
-                        aria-label="Delete selected sets"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {!isGroupGuest && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setShowDuplicates(true)}
+                            disabled={duplicateGroups.length === 0}
+                            className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                            title={
+                              duplicateGroups.length
+                                ? "Amend sets with duplicate names"
+                                : "No duplicate names"
+                            }
+                          >
+                            Fix duplicates
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowClearEmpty(true)}
+                            disabled={emptySets.length === 0}
+                            className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                            title={emptySets.length ? "Clear sets with no slides" : "No empty sets"}
+                          >
+                            Clear empty
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowBulkDelete(true)}
+                            disabled={selectedIds.size === 0}
+                            className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
+                            title={
+                              selectedIds.size
+                                ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
+                                : "Select sets to delete"
+                            }
+                            aria-label="Delete selected sets"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                       {isSignedIn && (
                         <button
                           type="button"
@@ -954,25 +963,29 @@ function Library() {
                       {/* Import and export live in edit mode only: they're rare,
                           destructive-adjacent operations, and having them on the
                           resting toolbar put a whole-catalogue replace one stray
-                          click away. */}
-                      <button
-                        type="button"
-                        onClick={() => setShowExportConfirm(true)}
-                        className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
-                        title="Export"
-                        aria-label="Export"
-                      >
-                        <Upload className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => importFileRef.current?.click()}
-                        className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
-                        title="Import"
-                        aria-label="Import"
-                      >
-                        <Download className="h-4 w-4" />
-                      </button>
+                          click away. Hidden for group guests. */}
+                      {!isGroupGuest && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setShowExportConfirm(true)}
+                            className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
+                            title="Export"
+                            aria-label="Export"
+                          >
+                            <Upload className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => importFileRef.current?.click()}
+                            className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
+                            title="Import"
+                            aria-label="Import"
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={exitEditMode}
