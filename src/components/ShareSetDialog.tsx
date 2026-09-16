@@ -3,6 +3,7 @@ import { Check, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/authStore";
+import { useLibrary } from "@/lib/store";
 import {
   fetchRecentShareRecipients,
   shareSetToGroup,
@@ -35,9 +36,13 @@ export function ShareSetDialog({
   groups?: MyGroup[];
 }) {
   const session = useAuthStore((s) => s.session);
+  // The set's local group membership seeds the group toggles synchronously, so a
+  // set that's already in a group shows its green check immediately instead of
+  // flashing a + until the group_sets fetch lands.
+  const localGroupIds = useLibrary((s) => s.sets[setId]?.groupIds);
   const [email, setEmail] = useState("");
   const [shares, setShares] = useState<ShareRow[]>([]);
-  const [groupGrants, setGroupGrants] = useState<string[]>([]);
+  const [groupGrants, setGroupGrants] = useState<string[]>(localGroupIds ?? []);
   const [recent, setRecent] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +53,8 @@ export function ShareSetDialog({
     if (!open) return;
     setEmail("");
     setError(null);
+    // Seed from the local copy first (no flash), then reconcile with the server.
+    setGroupGrants(localGroupIds ?? []);
     supabase
       .from("set_shares")
       .select("id, grantee_email")
@@ -61,7 +68,7 @@ export function ShareSetDialog({
         setGroupGrants(((data ?? []) as { group_id: string }[]).map((r) => r.group_id)),
       );
     fetchRecentShareRecipients().then(setRecent);
-  }, [open, setId]);
+  }, [open, setId, localGroupIds]);
 
   const toggleGroup = async (groupId: string) => {
     if (groupGrants.includes(groupId)) {
