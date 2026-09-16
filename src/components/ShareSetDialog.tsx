@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/authStore";
-import { shareSetToGroup, removeSetFromGroup, type MyGroup } from "@/lib/sync";
+import {
+  fetchRecentShareRecipients,
+  shareSetToGroup,
+  removeSetFromGroup,
+  type MyGroup,
+} from "@/lib/sync";
 
 type ShareRow = { id: string; grantee_email: string };
 
@@ -12,6 +17,9 @@ type ShareRow = { id: string; grantee_email: string };
  * by email. Each grant is a `set_shares` row (owner-only insert under RLS). The
  * invite email is best-effort; the copyable /s/<id> link is the same grant, so it
  * works whether the owner lets the app email it or sends it themselves.
+ *
+ * People you've shared with before appear as one-click rows below the email bar,
+ * so you rarely have to retype an address.
  */
 export function ShareSetDialog({
   open,
@@ -30,8 +38,11 @@ export function ShareSetDialog({
   const [email, setEmail] = useState("");
   const [shares, setShares] = useState<ShareRow[]>([]);
   const [groupGrants, setGroupGrants] = useState<string[]>([]);
+  const [recent, setRecent] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const myEmail = (session?.user.email ?? "").toLowerCase();
 
   useEffect(() => {
     if (!open) return;
@@ -49,6 +60,7 @@ export function ShareSetDialog({
       .then(({ data }) =>
         setGroupGrants(((data ?? []) as { group_id: string }[]).map((r) => r.group_id)),
       );
+    fetchRecentShareRecipients().then(setRecent);
   }, [open, setId]);
 
   const toggleGroup = async (groupId: string) => {
@@ -61,28 +73,28 @@ export function ShareSetDialog({
     }
   };
 
-  const share = async () => {
-    const e = email.trim().toLowerCase();
-    if (!e || !session) return;
+  const shareWith = async (raw: string) => {
+    const e = raw.trim().toLowerCase();
+    if (!e || !session || busy) return;
     setBusy(true);
     setError(null);
-    if (e === (session.user.email ?? "").toLowerCase()) {
+    if (e === myEmail) {
       setError("You can't share a set with yourself.");
       setBusy(false);
       return;
     }
-    // Only share with people who already have a phyto account. Resolving the
-    // email also lets us attach the grant to them immediately (no claim needed).
+    // Only share with people who already have an account. Resolving the email
+    // also lets us attach the grant to them immediately (no claim needed).
     const { data: granteeId, error: lookupErr } = await supabase.rpc("user_id_for_email", {
       p_email: e,
     });
     if (lookupErr) {
-      setError("Could not check that email. Try again.");
+      setError("Could not check this email. Try again.");
       setBusy(false);
       return;
     }
     if (!granteeId) {
-      setError("That email doesn't have a phyto account yet.");
+      setError("This email doesn't have an account yet.");
       setBusy(false);
       return;
     }
@@ -100,7 +112,7 @@ export function ShareSetDialog({
     if (insErr || !data) {
       setError(
         insErr?.code === "23505"
-          ? "Already shared with that email."
+          ? "Already shared with this email."
           : "Could not share. Try again.",
       );
       setBusy(false);
@@ -122,6 +134,7 @@ export function ShareSetDialog({
       // Ignore: the person can still be reached via the copyable link.
     }
     setShares((prev) => [...prev, data as ShareRow]);
+    setRecent((prev) => (prev.includes(e) ? prev : [e, ...prev]));
     setEmail("");
     setBusy(false);
   };
@@ -131,12 +144,20 @@ export function ShareSetDialog({
     setShares((prev) => prev.filter((s) => s.id !== id));
   };
 
+  // The people list: everyone I've shared with before, plus anyone already on
+  // this set, as one row each (minus me). A row is a toggle — a green check when
+  // this set is already shared with them (click to revoke), a + otherwise.
+  const shareByEmail = new Map(shares.map((s) => [s.grantee_email.toLowerCase(), s]));
+  const people = [
+    ...new Set([...shares.map((s) => s.grantee_email.toLowerCase()), ...recent]),
+  ].filter((e) => e && e !== myEmail);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-        <DialogTitle className="text-2xl font-normal leading-tight">Share this set!</DialogTitle>
+        <DialogTitle className="text-2xl font-normal leading-tight">Share this set</DialogTitle>
         <p className="mono uppercase mt-2 text-[10px] tracking-wider text-muted-foreground">
-          People and groups you add can view, save, and edit this set with you.
+          Anyone you add can view, save, and edit this set with you.
         </p>
 
         {groups.length > 0 && (
@@ -150,25 +171,12 @@ export function ShareSetDialog({
                 return (
                   <li key={g.id} className="flex items-center gap-2">
                     <span className="mono flex-1 truncate text-sm uppercase">{g.name}</span>
-                    {inGroup ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleGroup(g.id)}
-                        title="Remove from group"
-                        aria-label="Remove from group"
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => toggleGroup(g.id)}
-                        className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-                      >
-                        Add
-                      </button>
-                    )}
+                    <ToggleAddButton
+                      on={inGroup}
+                      onClick={() => toggleGroup(g.id)}
+                      addLabel="Add to group"
+                      onLabel="Remove from group"
+                    />
                   </li>
                 );
               })}
@@ -177,7 +185,7 @@ export function ShareSetDialog({
         )}
 
         <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
-          Share with a person
+          Share
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -185,19 +193,17 @@ export function ShareSetDialog({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") share();
+              if (e.key === "Enter") shareWith(email);
             }}
             placeholder="name@email.com"
             className="mono uppercase flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
           />
-          <button
-            type="button"
-            onClick={share}
+          <ToggleAddButton
+            on={false}
             disabled={busy || !email.trim()}
-            className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-40"
-          >
-            Share
-          </button>
+            onClick={() => shareWith(email)}
+            addLabel="Share with this email"
+          />
         </div>
         {error && (
           <p className="mono uppercase mt-2 text-[10px] tracking-wider text-[var(--brand-red)]">
@@ -205,25 +211,58 @@ export function ShareSetDialog({
           </p>
         )}
 
-        {shares.length > 0 && (
-          <ul className="mt-6 space-y-2">
-            {shares.map((s) => (
-              <li key={s.id} className="flex items-center gap-2">
-                <span className="mono uppercase flex-1 truncate text-sm">{s.grantee_email}</span>
-                <button
-                  type="button"
-                  onClick={() => revoke(s.id)}
-                  title="Revoke access"
-                  aria-label="Revoke access"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
+        {people.length > 0 && (
+          <ul className="mt-4 space-y-2">
+            {people.map((e) => {
+              const row = shareByEmail.get(e);
+              return (
+                <li key={e} className="flex items-center gap-2">
+                  <span className="mono uppercase flex-1 truncate text-sm">{e}</span>
+                  <ToggleAddButton
+                    on={!!row}
+                    disabled={busy && !row}
+                    onClick={() => (row ? revoke(row.id) : shareWith(e))}
+                    addLabel="Share with this person"
+                    onLabel="Sharing (click to revoke)"
+                  />
+                </li>
+              );
+            })}
           </ul>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** A circle icon toggle: a + (outline) when off, a check on green when on. */
+function ToggleAddButton({
+  on,
+  onClick,
+  disabled = false,
+  addLabel = "Add",
+  onLabel = "Added",
+}: {
+  on: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  addLabel?: string;
+  onLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={on ? onLabel : addLabel}
+      aria-label={on ? onLabel : addLabel}
+      className={
+        on
+          ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand-green)] text-[var(--brand-white)] transition hover:opacity-90"
+          : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-foreground text-foreground transition hover:bg-foreground hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+      }
+    >
+      {on ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+    </button>
   );
 }

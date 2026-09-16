@@ -450,8 +450,8 @@ function Library() {
         title: n === 1 ? "Remove this set from the group?" : `Remove ${n} sets from the group?`,
         body:
           n === 1
-            ? "This takes the set out of the group and its gatherings. It stays in its owner's personal library."
-            : "This takes the sets out of the group and its gatherings. They stay in their owners' personal libraries.",
+            ? "This takes the set out of the group and its gatherings. It stays in its owner's personal catalogue."
+            : "This takes the sets out of the group and its gatherings. They stay in their owners' personal catalogues.",
         action: "Remove",
       };
     }
@@ -1537,7 +1537,7 @@ function Library() {
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
           <DialogTitle className="text-2xl font-normal leading-tight">New group</DialogTitle>
           <p className="mono uppercase mt-2 text-[10px] tracking-wider text-muted-foreground">
-            A shared workspace you can invite people into and edit together.
+            Invite people into a group and edit together.
           </p>
           <div className="mt-6 flex items-center gap-2">
             <input

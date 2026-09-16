@@ -161,8 +161,7 @@ export function SharedInboxList({
             Remove this shared set?
           </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            This removes you from “{confirm?.set.name}” completely. You'll lose access, and it won't
-            come back unless the owner shares it with you again.
+            You'll lose access, and it won't come back unless the owner shares it with you again.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
@@ -230,10 +229,10 @@ export function SharedInboxList({
       >
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">
-            Save to your library?
+            Save to your catalogue?
           </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            You're viewing a group, but shared sets are saved to your personal library — only a
+            You're viewing a group, but shared sets are saved to your personal catalogue. Only a
             set's owner can add it to a group.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">

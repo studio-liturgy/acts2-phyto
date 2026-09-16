@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/authStore";
-import type { MyGroup } from "@/lib/sync";
+import { fetchRecentShareRecipients, type MyGroup } from "@/lib/sync";
 
 /**
  * Share several owned sets at once (from the catalogue's edit mode). Add them to a
@@ -76,20 +76,21 @@ export function BulkShareSetsDialog({
       return;
     }
     let cancelled = false;
-    supabase
-      .from("set_shares")
-      .select("grantee_email")
-      .in("set_id", ids)
-      .then(({ data }) => {
-        if (cancelled) return;
-        const counts: Record<string, number> = {};
-        for (const r of (data ?? []) as { grantee_email: string }[]) {
-          const e = r.grantee_email.toLowerCase();
-          counts[e] = (counts[e] ?? 0) + 1;
-        }
-        setPersonCount(counts);
-        setPeople(Object.keys(counts));
-      });
+    Promise.all([
+      supabase.from("set_shares").select("grantee_email").in("set_id", ids),
+      // People I've shared with before (any set) become one-click rows too, even
+      // if none of the selected sets is shared with them yet.
+      fetchRecentShareRecipients(),
+    ]).then(([{ data }, recent]) => {
+      if (cancelled) return;
+      const counts: Record<string, number> = {};
+      for (const r of (data ?? []) as { grantee_email: string }[]) {
+        const e = r.grantee_email.toLowerCase();
+        counts[e] = (counts[e] ?? 0) + 1;
+      }
+      setPersonCount(counts);
+      setPeople([...new Set([...Object.keys(counts), ...recent])]);
+    });
     return () => {
       cancelled = true;
     };
@@ -149,8 +150,8 @@ export function BulkShareSetsDialog({
     const { data: granteeId, error: lookupErr } = await supabase.rpc("user_id_for_email", {
       p_email: e,
     });
-    if (lookupErr) return "Could not check that email. Try again.";
-    if (!granteeId) return "That email doesn't have a phyto account yet.";
+    if (lookupErr) return "Could not check this email. Try again.";
+    if (!granteeId) return "This email doesn't have an account yet.";
     const rows = setIds.map((id) => ({
       set_id: id,
       owner_id: session.user.id,
@@ -228,7 +229,7 @@ export function BulkShareSetsDialog({
     setBusy(false);
     setPeople((p) => (p.includes(e) ? p : [...p, e]));
     setPersonLocalIn((m) => ({ ...m, [e]: true }));
-    setDone(`Shared ${added} set${added === 1 ? "" : "s"} with ${e}. Add another email or close.`);
+    setDone(`Shared ${added} set${added === 1 ? "" : "s"} with ${e}.`);
     setEmail("");
     onShared?.();
   };
@@ -290,7 +291,7 @@ export function BulkShareSetsDialog({
         )}
 
         <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
-          Share with a person
+          Share
         </div>
         <div className="flex items-center gap-2">
           <input

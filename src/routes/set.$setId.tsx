@@ -263,7 +263,7 @@ function SetHeader({
             {removeMode === "remove-shared"
               ? `This removes you from “${phytoSet.name}” completely. You'll lose access, and it won't come back unless the owner shares it with you again.`
               : removeMode === "remove-group"
-                ? "This takes the set out of the group and its gatherings. It stays in your personal library."
+                ? "Remove the set out of the group and its gatherings. It stays in your personal catalogue."
                 : "This cannot be undone."}
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">

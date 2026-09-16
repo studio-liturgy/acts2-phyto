@@ -1698,6 +1698,33 @@ export async function fetchSharedOutSetIds(): Promise<string[]> {
   return [...new Set(((data ?? []) as { set_id: string }[]).map((r) => r.set_id))];
 }
 
+/** Distinct emails I have shared any set with before, most-recent first. Powers
+ *  the one-click "recent people" list in the share dialogs so you don't retype
+ *  an address you've already shared with. */
+export async function fetchRecentShareRecipients(limit = 12): Promise<string[]> {
+  const session = getSession();
+  if (!session) return [];
+  const { data, error } = await supabase
+    .from("set_shares")
+    .select("grantee_email, created_at")
+    .eq("owner_id", session.user.id)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("[sync] fetchRecentShareRecipients error", error);
+    return [];
+  }
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const r of (data ?? []) as { grantee_email: string }[]) {
+    const e = r.grantee_email.toLowerCase();
+    if (seen.has(e)) continue;
+    seen.add(e);
+    out.push(e);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 /** Pull a shared set into my library (the inbox "Save"). Stored with shared:true
  *  (and the owner's email) so it syncs via the collaborative path from now on. */
 export async function saveSharedSet(setId: string, ownerEmail?: string | null): Promise<boolean> {

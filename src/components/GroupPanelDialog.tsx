@@ -86,7 +86,6 @@ export function GroupPanelDialog({
     if (result === "self") return setError("You're already in this group.");
     if (result === "exists") return setError("That person is already invited.");
     if (result === "error") return setError("Could not invite. Try again.");
-    setDone(`Invited ${e}.`);
     setEmail("");
     await refresh();
   };
@@ -269,9 +268,9 @@ export function GroupPanelDialog({
                 ? "Checking which sets leave with them…"
                 : removeSets.count === 0
                   ? "They haven't shared any sets, so nothing else is affected."
-                  : `These ${removeSets.count} set${
+                  : `${removeSets.count} set${
                       removeSets.count === 1 ? "" : "s"
-                    } they shared leave the group (and its gatherings) with them:`}
+                    } they shared leave the group with them:`}
             </p>
             {removeSets && removeSets.names.length > 0 && (
               <ul className="mono mt-3 list-disc space-y-1 pl-5 text-xs uppercase tracking-wider text-muted-foreground">
@@ -328,8 +327,8 @@ export function GroupPanelDialog({
               <div className="rounded-2xl border border-foreground/20 p-4">
                 <p className="mono text-xs uppercase leading-relaxed tracking-wider text-foreground">
                   {confirm === "delete"
-                    ? "Delete this group for everyone? Sets return to their owners' personal libraries."
-                    : "Leave this group? The sets you shared in are removed from the group (and from its gatherings) and return to your personal library."}
+                    ? "Delete this group for everyone? Sets return to their owners' personal catalogues."
+                    : "Leave this group? The sets you shared in are removed from the group and return to your personal catalogue."}
                 </p>
                 <div className="mt-4 flex gap-3">
                   <button
