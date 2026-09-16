@@ -17,6 +17,9 @@ export function Footer({ className }: { className?: string }) {
     >
       <div className="mx-auto grid max-w-6xl grid-cols-3 items-center gap-4 px-6 py-8">
         <nav className="flex items-center gap-6 text-xs">
+          <Link to="/" search={{ intro: true }} className={linkCls}>
+            Intro
+          </Link>
           <a
             href="https://www.instagram.com/phyto.live"
             target="_blank"
@@ -30,9 +33,6 @@ export function Footer({ className }: { className?: string }) {
           </a>
           <Link to="/feedback" className={linkCls}>
             Feedback
-          </Link>
-          <Link to="/contribute" className={linkCls}>
-            Contribute
           </Link>
         </nav>
         <div className="flex justify-center">
