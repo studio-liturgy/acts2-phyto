@@ -230,6 +230,9 @@ function Library() {
   const [groupLimitMsg, setGroupLimitMsg] = useState<string | null>(null);
   // After creating a group, offer to share the whole personal catalogue into it.
   const [catalogueShareGroupId, setCatalogueShareGroupId] = useState<string | null>(null);
+  // Last step of creating a group: invite people into the fresh group.
+  const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
+  const inviteGroup = groups.find((g) => g.id === inviteGroupId);
   const activeWorkspaceLabel =
     activeWorkspace === "personal"
       ? "Personal"
@@ -1494,7 +1497,10 @@ function Library() {
               onClick={async () => {
                 const gid = catalogueShareGroupId;
                 setCatalogueShareGroupId(null);
-                if (gid) await shareCatalogueToGroup(gid);
+                if (gid) {
+                  await shareCatalogueToGroup(gid);
+                  setInviteGroupId(gid);
+                }
               }}
               className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
             >
@@ -1502,7 +1508,11 @@ function Library() {
             </button>
             <button
               type="button"
-              onClick={() => setCatalogueShareGroupId(null)}
+              onClick={() => {
+                const gid = catalogueShareGroupId;
+                setCatalogueShareGroupId(null);
+                if (gid) setInviteGroupId(gid);
+              }}
               className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
             >
               Not now
@@ -1510,6 +1520,19 @@ function Library() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Final step of creating a group: invite people into it. */}
+      {inviteGroup && (
+        <GroupPanelDialog
+          open={inviteGroupId !== null}
+          onOpenChange={(o) => {
+            if (!o) setInviteGroupId(null);
+          }}
+          group={inviteGroup}
+          onChanged={loadGroups}
+          mode="invite"
+        />
+      )}
     </div>
   );
 }

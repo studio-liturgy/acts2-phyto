@@ -21,17 +21,25 @@ export function GroupPanelDialog({
   onOpenChange,
   group,
   onChanged,
+  mode = "manage",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   group: MyGroup;
   onChanged?: () => void;
+  /**
+   * "manage" is the full roster panel. "invite" is the pared-down step shown
+   * right after a group is created: same invite + member list, but no renaming
+   * and no delete/leave — you can't tear down a group you just made here.
+   */
+  mode?: "manage" | "invite";
 }) {
   const session = useAuthStore((s) => s.session);
   const loadGroups = useLibrary((s) => s.loadGroups);
   const leaveGroupById = useLibrary((s) => s.leaveGroupById);
   const deleteGroupById = useLibrary((s) => s.deleteGroupById);
   const isOwner = !!session && group.owner_id === session.user.id;
+  const isInvite = mode === "invite";
 
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [name, setName] = useState(group.name);
@@ -109,10 +117,10 @@ export function GroupPanelDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
         <DialogTitle className="text-2xl font-normal leading-tight">
-          {isOwner ? "Manage group" : group.name}
+          {isInvite ? "Invite people" : isOwner ? "Manage group" : group.name}
         </DialogTitle>
 
-        {isOwner && (
+        {isOwner && !isInvite && (
           <div className="mt-6">
             <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
               Name
@@ -136,6 +144,34 @@ export function GroupPanelDialog({
               </button>
             </div>
           </div>
+        )}
+
+        {isOwner && (
+          <>
+            <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
+              Invite someone
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") invite();
+                }}
+                placeholder="name@email.com"
+                className="mono uppercase flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
+              />
+              <button
+                type="button"
+                onClick={invite}
+                disabled={busy || !email.trim()}
+                className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-40"
+              >
+                Invite
+              </button>
+            </div>
+          </>
         )}
 
         <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -168,34 +204,6 @@ export function GroupPanelDialog({
           ))}
         </ul>
 
-        {isOwner && (
-          <>
-            <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
-              Invite someone
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") invite();
-                }}
-                placeholder="name@email.com"
-                className="mono uppercase flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
-              />
-              <button
-                type="button"
-                onClick={invite}
-                disabled={busy || !email.trim()}
-                className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-40"
-              >
-                Invite
-              </button>
-            </div>
-          </>
-        )}
-
         {error && (
           <p className="mono uppercase mt-3 text-[10px] tracking-wider text-[var(--brand-red)]">
             {error}
@@ -205,41 +213,43 @@ export function GroupPanelDialog({
           <p className="mono mt-3 text-xs uppercase tracking-wider text-muted-foreground">{done}</p>
         )}
 
-        <div className="mt-8">
-          {confirm === null ? (
-            <button
-              type="button"
-              onClick={() => setConfirm(isOwner ? "delete" : "leave")}
-              className="mono uppercase w-full rounded-full bg-[var(--brand-red)] py-2 text-sm tracking-wider text-[var(--brand-white)] transition hover:opacity-90"
-            >
-              {isOwner ? "Delete group" : "Leave group"}
-            </button>
-          ) : (
-            <div>
-              <p className="mono mb-3 text-xs uppercase tracking-wider text-muted-foreground">
-                {confirm === "delete"
-                  ? "Delete this group for everyone? Sets return to their owners' personal libraries."
-                  : "Leave this group? The sets you shared in are removed from the group (and from its gatherings) and return to your personal library."}
-              </p>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={confirm === "delete" ? destroy : leave}
-                  className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
-                >
-                  {confirm === "delete" ? "Delete" : "Leave"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirm(null)}
-                  className="mono uppercase flex-1 rounded-full border border-foreground py-2 text-sm transition hover:bg-foreground hover:text-background"
-                >
-                  Cancel
-                </button>
+        {!isInvite && (
+          <div className="mt-8">
+            {confirm === null ? (
+              <button
+                type="button"
+                onClick={() => setConfirm(isOwner ? "delete" : "leave")}
+                className="mono uppercase w-full rounded-full bg-[var(--brand-red)] py-2 text-sm tracking-wider text-[var(--brand-white)] transition hover:opacity-90"
+              >
+                {isOwner ? "Delete group" : "Leave group"}
+              </button>
+            ) : (
+              <div>
+                <p className="mono mb-3 text-xs uppercase tracking-wider text-muted-foreground">
+                  {confirm === "delete"
+                    ? "Delete this group for everyone? Sets return to their owners' personal libraries."
+                    : "Leave this group? The sets you shared in are removed from the group (and from its gatherings) and return to your personal library."}
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={confirm === "delete" ? destroy : leave}
+                    className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+                  >
+                    {confirm === "delete" ? "Delete" : "Leave"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirm(null)}
+                    className="mono uppercase flex-1 rounded-full border border-foreground py-2 text-sm transition hover:bg-foreground hover:text-background"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

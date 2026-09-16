@@ -1,6 +1,7 @@
 import type { Slide, SetTemplate } from "@/lib/types";
 import { stripChords } from "@/lib/chords";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { STAGE_H, STAGE_W, fitOrigin, fitScale } from "@/lib/slide-fit";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
   slide?: Slide | null;
@@ -241,10 +242,6 @@ function PlayGlyph() {
   );
 }
 
-// Canonical stage size — all variants render at this size, then scale-to-fit.
-const STAGE_W = 1920;
-const STAGE_H = 1080;
-
 /**
  * Renders a slide at a fixed 1920x1080 canvas and uses a CSS transform to
  * scale-to-fit any container. Guarantees identical wrapping/layout across
@@ -273,6 +270,35 @@ export function SlideView({
       if (w > 0 && h > 0) setScale(Math.min(w / STAGE_W, h / STAGE_H));
     });
     ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Shrink-to-fit. The stage box is overflow-hidden and text size is a fixed
+  // multiple of fontScale, so turning the font size up (or a long verse) would
+  // clip off the top and bottom. Measure the content against the space
+  // available and scale it down to suit.
+  //
+  // The measurement is transform-independent (scrollHeight is a layout value),
+  // so applying the result cannot change it and there is no feedback loop.
+  // Both observers matter: the content one catches text and webfont reflow,
+  // the box one catches the container being resized.
+  const fitBoxRef = useRef<HTMLDivElement | null>(null);
+  const fitContentRef = useRef<HTMLDivElement | null>(null);
+  const [fit, setFit] = useState(1);
+
+  useLayoutEffect(() => {
+    const box = fitBoxRef.current;
+    const content = fitContentRef.current;
+    if (!box || !content) return;
+    const measure = () => {
+      const style = getComputedStyle(box);
+      const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      setFit(fitScale(content.scrollHeight, box.clientHeight - padY));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(content);
+    ro.observe(box);
     return () => ro.disconnect();
   }, []);
 
@@ -342,42 +368,53 @@ export function SlideView({
       >
         {slide?.imageUrl && hasText ? <div className="absolute inset-0 bg-black/40" /> : null}
         <div
+          ref={fitBoxRef}
           className={`relative flex h-full w-full flex-col px-24 py-20 ${positionClass} ${alignClass}`}
         >
-          {slide?.kind === "point" ? (
-            <PointBody slide={slide} fontScale={fontScale} />
-          ) : (
-            <>
-              {slide?.title && (
-                <div
-                  className="mb-10 font-semibold leading-tight"
-                  style={{ fontSize: `${4.5 * fontScale}rem` }}
-                >
-                  {slide.title}
-                </div>
-              )}
-              {slide?.reference && slide.kind === "scripture" && refAbove && (
-                <div className="mb-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
-                  {slide.reference}
-                </div>
-              )}
-              {displayLines.map((l, i) => (
-                <div
-                  key={i}
-                  className="font-medium leading-snug"
-                  style={{ fontSize: `${3.75 * fontScale}rem`, textTransform: lyricCase }}
-                >
-                  {l}
-                </div>
-              ))}
-              {slide?.reference && slide.kind === "scripture" && !refAbove && (
-                <div className="mt-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
-                  {slide.reference}
-                </div>
-              )}
-              {!slide && <div className={`text-3xl ${placeholderText}`}>No slide selected</div>}
-            </>
-          )}
+          <div
+            ref={fitContentRef}
+            className={`flex w-full flex-col ${alignClass}`}
+            style={
+              fit < 1
+                ? { transform: `scale(${fit})`, transformOrigin: fitOrigin(template?.position) }
+                : undefined
+            }
+          >
+            {slide?.kind === "point" ? (
+              <PointBody slide={slide} fontScale={fontScale} />
+            ) : (
+              <>
+                {slide?.title && (
+                  <div
+                    className="mb-10 font-semibold leading-tight"
+                    style={{ fontSize: `${4.5 * fontScale}rem` }}
+                  >
+                    {slide.title}
+                  </div>
+                )}
+                {slide?.reference && slide.kind === "scripture" && refAbove && (
+                  <div className="mb-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
+                    {slide.reference}
+                  </div>
+                )}
+                {displayLines.map((l, i) => (
+                  <div
+                    key={i}
+                    className="font-medium leading-snug"
+                    style={{ fontSize: `${3.75 * fontScale}rem`, textTransform: lyricCase }}
+                  >
+                    {l}
+                  </div>
+                ))}
+                {slide?.reference && slide.kind === "scripture" && !refAbove && (
+                  <div className="mt-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
+                    {slide.reference}
+                  </div>
+                )}
+                {!slide && <div className={`text-3xl ${placeholderText}`}>No slide selected</div>}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
