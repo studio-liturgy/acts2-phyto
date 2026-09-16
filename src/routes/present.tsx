@@ -1100,7 +1100,9 @@ function Presenter() {
                       centered phone so its presence never shifts the phone.
                       Toggling reuses the same hiding as slides mode, so the
                       preview, phones and slides all agree. */}
-                  {activeSet?.kind === "song" &&
+                  {(activeSet?.kind === "song" ||
+                    activeSet?.kind === "scripture" ||
+                    activeSet?.kind === "message") &&
                     (() => {
                       const groups = groupSlides(activeSet.slides);
                       // No visibility toggles with a single section: hiding the
@@ -1217,14 +1219,20 @@ function Presenter() {
               {setList.map((id, i) => {
                 const d = sets[id];
                 if (!d) return null;
-                const canHide = d.kind === "song";
+                const sectionGroups = groupSlides(d.slides);
+                // Songs, scriptures and messages can hide sections in a gathering.
+                // A set with a single section has nothing to hide (hiding the only
+                // section is disallowed), so no visibility icon shows.
+                const canHide =
+                  (d.kind === "song" || d.kind === "scripture" || d.kind === "message") &&
+                  sectionGroups.length > 1;
                 const hiddenKeys = hiddenBySet[id] ?? [];
                 // Count only keys that still match a current section group, so a
                 // stale key left over from a prior edit never shows a phantom
                 // "hidden" badge.
                 const activeHiddenCount = canHide
                   ? (() => {
-                      const groupKeys = new Set(groupSlides(d.slides).map((g) => g.key));
+                      const groupKeys = new Set(sectionGroups.map((g) => g.key));
                       return hiddenKeys.filter((k) => groupKeys.has(k)).length;
                     })()
                   : 0;
@@ -1861,7 +1869,8 @@ function SlideGridForPresenter({
   manageMode?: boolean;
   onToggleSection?: (sectionKey: string, clientX: number, clientY: number) => void;
 }) {
-  const useSections = phytoSet.kind === "song" || phytoSet.kind === "scripture";
+  const useSections =
+    phytoSet.kind === "song" || phytoSet.kind === "scripture" || phytoSet.kind === "message";
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
