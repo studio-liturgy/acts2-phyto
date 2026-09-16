@@ -927,6 +927,15 @@ function Library() {
                     <>
                       <button
                         type="button"
+                        onClick={exitEditMode}
+                        className="pill mono uppercase flex items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+                        title="Done editing"
+                        aria-label="Done editing"
+                      >
+                        Done
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => {
                           const ids = catalogueRows.map((d) => d.id);
                           const allSelected =
@@ -1037,15 +1046,6 @@ function Library() {
                           </button>
                         </>
                       )}
-                      <button
-                        type="button"
-                        onClick={exitEditMode}
-                        className="pill mono uppercase flex items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-                        title="Done editing"
-                        aria-label="Done editing"
-                      >
-                        Done
-                      </button>
                     </>
                   ) : (
                     <button
