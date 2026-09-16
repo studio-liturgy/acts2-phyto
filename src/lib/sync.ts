@@ -1807,7 +1807,12 @@ export async function fetchMyGroups(): Promise<MyGroup[]> {
   return out;
 }
 
-export type GroupInvite = { inviteId: string; groupId: string; groupName: string };
+export type GroupInvite = {
+  inviteId: string;
+  groupId: string;
+  groupName: string;
+  invitedByEmail: string | null;
+};
 
 /** Pending group invites addressed to my email that I haven't accepted yet
  *  (user_id still NULL) — the "you've been invited" inbox, mirroring set shares.
@@ -1818,7 +1823,7 @@ export async function fetchGroupInvites(): Promise<GroupInvite[]> {
   if (!email) return [];
   const { data, error } = await supabase
     .from("group_members")
-    .select("id, group_id, groups(name)")
+    .select("id, group_id, added_by_email, groups(name)")
     .eq("email", email)
     .is("user_id", null);
   if (error) {
@@ -1829,12 +1834,18 @@ export async function fetchGroupInvites(): Promise<GroupInvite[]> {
   const rows = (data ?? []) as unknown as {
     id: string;
     group_id: string;
+    added_by_email: string | null;
     groups: G | G[] | null;
   }[];
   const out: GroupInvite[] = [];
   for (const r of rows) {
     const g = Array.isArray(r.groups) ? r.groups[0] : r.groups;
-    out.push({ inviteId: r.id, groupId: r.group_id, groupName: g?.name ?? "a group" });
+    out.push({
+      inviteId: r.id,
+      groupId: r.group_id,
+      groupName: g?.name ?? "a group",
+      invitedByEmail: r.added_by_email ?? null,
+    });
   }
   return out;
 }
@@ -2149,6 +2160,7 @@ export async function inviteGroupMember(groupId: string, rawEmail: string): Prom
       email,
       role: "member",
       added_by: session.user.id,
+      added_by_email: session.user.email ?? null,
       user_id: null,
     },
     { onConflict: "group_id,email", ignoreDuplicates: true, count: "exact" },

@@ -146,6 +146,15 @@ function kindBg(kind: SetKind | string): string {
   return "bg-muted text-foreground";
 }
 
+/** Category colour for a status dot (song blue, media orange, etc). */
+function kindDotColor(kind: SetKind | string): string {
+  if (kind === "song") return "var(--brand-blue)";
+  if (kind === "scripture") return "var(--brand-green)";
+  if (kind === "message") return "var(--brand-green-dark)";
+  if (kind === "media") return "var(--brand-orange)";
+  return "var(--brand-red)";
+}
+
 /** Filter chip: filled when active or hovered, outline when idle. */
 function kindChip(kind: KindFilter, active: boolean): string {
   if (kind === "all") {
@@ -715,6 +724,7 @@ function Library() {
                         >
                           <span className="mono flex-1 truncate text-xs uppercase tracking-wider">
                             You've been invited to {invite.groupName}
+                            {invite.invitedByEmail ? ` by ${invite.invitedByEmail}` : ""}
                           </span>
                           <div className="flex shrink-0 items-center gap-2">
                             <button
@@ -742,19 +752,30 @@ function Library() {
                     )}
                   </div>
                 )}
-                {inbox.length > 0 && (
-                  <div className={half}>
-                    <button
-                      type="button"
-                      onClick={() => setInboxOpen((v) => !v)}
-                      aria-expanded={inboxOpen}
-                      className={`pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider text-foreground transition hover:bg-foreground hover:text-background ${both ? "h-full w-full justify-center" : ""}`}
-                    >
-                      <span className="h-2 w-2 rounded-full bg-[var(--brand-red)]" />
-                      {inbox.length} set{inbox.length === 1 ? "" : "s"} shared with you
-                    </button>
-                  </div>
-                )}
+                {inbox.length > 0 &&
+                  (() => {
+                    const kinds = new Set(inbox.map((s) => s.set.kind));
+                    const dotColor =
+                      kinds.size === 1 ? kindDotColor([...kinds][0]) : "var(--brand-red)";
+                    return (
+                      <div className={half}>
+                        <button
+                          type="button"
+                          onClick={() => setInboxOpen((v) => !v)}
+                          aria-expanded={inboxOpen}
+                          className="pill mono uppercase flex h-full w-full items-center gap-4 border border-foreground px-5 py-2 text-xs tracking-wider text-foreground transition hover:bg-foreground hover:text-background"
+                        >
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: dotColor }}
+                          />
+                          <span className="flex-1 text-left">
+                            {inbox.length} set{inbox.length === 1 ? "" : "s"} shared with you
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })()}
               </div>
             );
           })()}
