@@ -1067,7 +1067,6 @@ function Library() {
               <div className="flex flex-wrap items-center gap-2">
                 {(
                   [
-                    "all",
                     "song",
                     "scripture",
                     "media",
@@ -1078,20 +1077,19 @@ function Library() {
                 ).map((k) => (
                   <button
                     key={k}
-                    onClick={() => setKindFilter(k)}
+                    // Toggle: clicking the active chip clears back to "all".
+                    onClick={() => setKindFilter(kindFilter === k ? "all" : k)}
                     className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, kindFilter === k)}`}
                   >
-                    {k === "all"
-                      ? "All"
-                      : k === "song"
-                        ? "Songs"
-                        : k === "scripture"
-                          ? "Scriptures"
-                          : k === "media"
-                            ? "Media"
-                            : k === "personal"
-                              ? "Personal"
-                              : "Shared"}
+                    {k === "song"
+                      ? "Songs"
+                      : k === "scripture"
+                        ? "Scriptures"
+                        : k === "media"
+                          ? "Media"
+                          : k === "personal"
+                            ? "Personal"
+                            : "Shared"}
                   </button>
                 ))}
                 <button
