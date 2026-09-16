@@ -453,6 +453,43 @@ function Presenter() {
     });
   const filteredGatherings = showAll ? gatheringOrder : [];
 
+  // Coloured kind-filter dots (song / scripture / media), reused in the Sets
+  // header and the in-gathering Catalogue search header. Tight cluster; each dot
+  // has a padded hit area. Clicking the active one clears back to all.
+  const kindFilterDots = (
+    <span className="flex items-center">
+      {(
+        [
+          ["song", "var(--brand-blue)"],
+          ["scripture", "var(--brand-green)"],
+          ["media", "var(--brand-orange)"],
+        ] as const
+      ).map(([k, color]) => {
+        const active = kindFilter === k;
+        return (
+          <button
+            key={k}
+            onClick={() => setKindFilter(active ? "all" : k)}
+            title={active ? "Show all" : `Show ${k}`}
+            aria-label={active ? "Show all" : `Show ${k}`}
+            aria-pressed={active}
+            className={`flex items-center justify-center rounded-full p-1 transition ${
+              kindFilter !== "all" && !active ? "opacity-30" : ""
+            }`}
+          >
+            <span
+              className="h-3 w-3 rounded-full border"
+              style={{
+                backgroundColor: active || kindFilter === "all" ? color : "transparent",
+                borderColor: color,
+              }}
+            />
+          </button>
+        );
+      })}
+    </span>
+  );
+
   // Commit the live reorder to the gathering and clear the drag state. Called
   // from both onDrop (fires on the target row) and onDragEnd (fallback); the
   // ref guard makes the second call a no-op.
@@ -478,6 +515,13 @@ function Presenter() {
           if (activeGathering.setIds.includes(id)) return false;
           const s = sets[id];
           if (!s) return false;
+          if (kindFilter !== "all") {
+            const kindOk =
+              kindFilter === "scripture"
+                ? s.kind === "scripture" || s.kind === "message"
+                : s.kind === kindFilter;
+            if (!kindOk) return false;
+          }
           if (s.name.toLowerCase().includes(q)) return true;
           return setMatchesLyric(s, q);
         })
@@ -914,8 +958,9 @@ function Presenter() {
 
               {activeGathering && q && catalogueResults.length > 0 && (
                 <div className="mb-2">
-                  <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">
-                    Catalogue
+                  <div className="mono mb-2 flex items-center justify-between px-1 text-[10px] uppercase tracking-wider">
+                    <span>Catalogue</span>
+                    {kindFilterDots}
                   </div>
                   <div className="space-y-1">
                     {catalogueResults.map((id) => {
@@ -940,10 +985,6 @@ function Presenter() {
                       );
                     })}
                   </div>
-                  {/* Thin line marking the boundary between catalogue matches
-                      above and this gathering's own sets below — mirrors the
-                      local/online divider in the set-editor song search. */}
-                  <div className="mx-2 mt-2 h-px bg-foreground" />
                 </div>
               )}
 
@@ -959,37 +1000,8 @@ function Presenter() {
                   ) : (
                     <span className="flex items-center justify-between">
                       <span>Sets</span>
-                      <span className="flex items-center gap-2">
-                        {(
-                          [
-                            ["song", "var(--brand-blue)"],
-                            ["scripture", "var(--brand-green)"],
-                            ["media", "var(--brand-orange)"],
-                          ] as const
-                        ).map(([k, color]) => {
-                          const active = kindFilter === k;
-                          return (
-                            <button
-                              key={k}
-                              onClick={() => setKindFilter(active ? "all" : k)}
-                              title={active ? "Show all" : `Show ${k}`}
-                              aria-label={active ? "Show all" : `Show ${k}`}
-                              aria-pressed={active}
-                              className={`flex items-center justify-center rounded-full p-1.5 transition ${
-                                kindFilter !== "all" && !active ? "opacity-30" : ""
-                              }`}
-                            >
-                              <span
-                                className="h-3 w-3 rounded-full border"
-                                style={{
-                                  backgroundColor:
-                                    active || kindFilter === "all" ? color : "transparent",
-                                  borderColor: color,
-                                }}
-                              />
-                            </button>
-                          );
-                        })}
+                      <span className="flex items-center gap-1">
+                        {kindFilterDots}
                         <button
                           onClick={() => setSetSortMode(setSortMode === "az" ? "newest" : "az")}
                           title={`Sort: ${setSortMode === "az" ? "A → Z" : "Newest first"}`}
