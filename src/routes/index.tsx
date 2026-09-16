@@ -134,7 +134,7 @@ export const Route = createFileRoute("/")({
 const SET_DRAG_TYPE = "application/x-stage-set-id";
 
 type SortMode = "az" | "newest";
-type KindFilter = "all" | "shared" | SetKind;
+type KindFilter = "all" | "shared" | "personal" | SetKind;
 
 // A user can belong to at most this many groups.
 const MAX_GROUPS = 3;
@@ -178,7 +178,7 @@ function kindChip(kind: KindFilter, active: boolean): string {
       ? "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]"
       : "border-[var(--brand-orange)] text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-[var(--brand-white)]";
   }
-  if (kind === "shared") {
+  if (kind === "shared" || kind === "personal") {
     return active
       ? "border-[#6b7280] bg-[#6b7280] text-[var(--brand-white)]"
       : "border-[#6b7280] text-[#6b7280] hover:bg-[#6b7280] hover:text-[var(--brand-white)]";
@@ -571,10 +571,14 @@ function Library() {
           ? true
           : kindFilter === "shared"
             ? !!d.shared || sharedOutIds.has(d.id) || (d.groupIds?.length ?? 0) > 0
-            : // A message is a scripture variant, so it shows under Scripture too.
-              kindFilter === "scripture"
-              ? d.kind === "scripture" || d.kind === "message"
-              : d.kind === kindFilter,
+            : // In a group, "Personal" narrows to your own contributions (foreign
+              // group sets carry `shared`).
+              kindFilter === "personal"
+              ? !d.shared
+              : // A message is a scripture variant, so it shows under Scripture too.
+                kindFilter === "scripture"
+                ? d.kind === "scripture" || d.kind === "message"
+                : d.kind === kindFilter,
       )
       .filter(
         (d) =>
@@ -609,6 +613,7 @@ function Library() {
     scripture: "No Scriptures yet!",
     media: "No Media yet!",
     shared: "No shared sets yet!",
+    personal: "You haven't shared any of your own sets into this group yet.",
   };
 
   // While the post-login account pull runs on a device with an empty library,
@@ -1066,7 +1071,9 @@ function Library() {
                     "song",
                     "scripture",
                     "media",
-                    ...(activeWorkspace === "personal" ? (["shared"] as const) : []),
+                    ...(activeWorkspace === "personal"
+                      ? (["shared"] as const)
+                      : (["personal"] as const)),
                   ] as KindFilter[]
                 ).map((k) => (
                   <button
@@ -1082,7 +1089,9 @@ function Library() {
                           ? "Scriptures"
                           : k === "media"
                             ? "Media"
-                            : "Shared"}
+                            : k === "personal"
+                              ? "Personal"
+                              : "Shared"}
                   </button>
                 ))}
                 <button
