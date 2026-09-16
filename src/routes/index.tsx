@@ -921,7 +921,7 @@ function Library() {
               <h2 className="text-4xl md:text-5xl leading-none">Catalogue</h2>
               {/* Right: edit actions on one line, filter chips on the next; both
                   right-aligned, heading stays put on the left. */}
-              <div className="flex flex-1 flex-wrap items-center justify-end gap-x-4 gap-y-3">
+              <div className="flex flex-1 flex-wrap items-center justify-end gap-x-2 gap-y-3">
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {editMode ? (
                     <>
