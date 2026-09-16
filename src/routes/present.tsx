@@ -975,15 +975,19 @@ function Presenter() {
                               title={active ? "Show all" : `Show ${k}`}
                               aria-label={active ? "Show all" : `Show ${k}`}
                               aria-pressed={active}
-                              className={`h-2.5 w-2.5 rounded-full border transition ${
+                              className={`flex items-center justify-center rounded-full p-1.5 transition ${
                                 kindFilter !== "all" && !active ? "opacity-30" : ""
                               }`}
-                              style={{
-                                backgroundColor:
-                                  active || kindFilter === "all" ? color : "transparent",
-                                borderColor: color,
-                              }}
-                            />
+                            >
+                              <span
+                                className="h-3 w-3 rounded-full border"
+                                style={{
+                                  backgroundColor:
+                                    active || kindFilter === "all" ? color : "transparent",
+                                  borderColor: color,
+                                }}
+                              />
+                            </button>
                           );
                         })}
                         <button

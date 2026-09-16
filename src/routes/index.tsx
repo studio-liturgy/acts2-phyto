@@ -1791,8 +1791,12 @@ function GatheringCard({
   // Index (position) of the row being reordered — not a set id, since a set can
   // appear more than once in the gathering.
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const [liveOrder, setLiveOrder] = useState<string[] | null>(null);
-  const liveOrderRef = useRef<string[] | null>(null);
+  // Live order carries a STABLE key per row so the dragged element keeps its
+  // identity as the list reorders under the cursor. A positional key (`id-i`)
+  // remounted the dragged node on every move, so dragend never fired and the
+  // drag outline stayed stuck when you released outside the list.
+  const [liveOrder, setLiveOrder] = useState<{ key: string; id: string }[] | null>(null);
+  const liveOrderRef = useRef<{ key: string; id: string }[] | null>(null);
   const [dropActive, setDropActive] = useState(false);
   const [addQuery, setAddQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
@@ -1952,77 +1956,88 @@ function GatheringCard({
           className="flex flex-col gap-1"
           onDrop={(e) => {
             e.preventDefault();
-            if (liveOrderRef.current) onReorder(liveOrderRef.current);
+            if (liveOrderRef.current) onReorder(liveOrderRef.current.map((s) => s.id));
             liveOrderRef.current = null;
             setDraggingIndex(null);
             setLiveOrder(null);
             dragIndex.current = null;
           }}
         >
-          {(liveOrder ?? setIds).map((id, i) => {
-            const d = nameLookup[id];
-            // Identify list items by POSITION, not set id: the same set can appear
-            // more than once in a gathering, so id-based lookups (indexOf) would
-            // move or remove the wrong copy.
-            const isDragging = i === draggingIndex;
-            return (
-              <li
-                key={`${id}-${i}`}
-                draggable={editMode}
-                onDragStart={(e) => {
-                  setDraggingIndex(i);
-                  dragIndex.current = i;
-                  e.dataTransfer.effectAllowed = "move";
-                  hideDragGhost(e);
-                }}
-                onDragEnd={() => {
-                  if (liveOrderRef.current) onReorder(liveOrderRef.current);
-                  liveOrderRef.current = null;
-                  setDraggingIndex(null);
-                  setLiveOrder(null);
-                  dragIndex.current = null;
-                }}
-                onDragOver={(e) => {
-                  const from = dragIndex.current;
-                  if (from === null || from === i) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const currentOrder = liveOrder ?? setIds;
-                  const next = [...currentOrder];
-                  const [moved] = next.splice(from, 1);
-                  next.splice(i, 0, moved);
-                  dragIndex.current = i;
-                  setDraggingIndex(i);
-                  liveOrderRef.current = next;
-                  setLiveOrder(next);
-                }}
-                className={`pill flex items-center gap-3 px-4 py-1.5 text-sm transition ${kindBg(d?.kind ?? "mixed")} ${
-                  isDragging ? "ring-2 ring-foreground" : ""
-                }`}
-              >
-                {editMode && <DotsGrip className="cursor-grab opacity-80" />}
-                <span draggable={false} className="flex-1 truncate">
-                  {d?.name ?? "(missing)"}
-                </span>
-                <span
-                  draggable={false}
-                  className="mono text-[10px] uppercase tracking-wider opacity-90"
+          {(liveOrder ?? setIds.map((sid, si) => ({ key: `${sid}#${si}`, id: sid }))).map(
+            (slot, i) => {
+              const id = slot.id;
+              const d = nameLookup[id];
+              // Identify list items by POSITION, not set id: the same set can appear
+              // more than once in a gathering, so id-based lookups (indexOf) would
+              // move or remove the wrong copy.
+              const isDragging = i === draggingIndex;
+              const commit = () => {
+                if (liveOrderRef.current) onReorder(liveOrderRef.current.map((s) => s.id));
+                liveOrderRef.current = null;
+                setDraggingIndex(null);
+                setLiveOrder(null);
+                dragIndex.current = null;
+              };
+              return (
+                <li
+                  key={slot.key}
+                  draggable={editMode}
+                  onDragStart={(e) => {
+                    setDraggingIndex(i);
+                    dragIndex.current = i;
+                    e.dataTransfer.effectAllowed = "move";
+                    hideDragGhost(e);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    commit();
+                  }}
+                  onDragEnd={commit}
+                  onDragOver={(e) => {
+                    const from = dragIndex.current;
+                    if (from === null) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (from === i) return;
+                    const currentOrder =
+                      liveOrder ?? setIds.map((sid, si) => ({ key: `${sid}#${si}`, id: sid }));
+                    const next = [...currentOrder];
+                    const [moved] = next.splice(from, 1);
+                    next.splice(i, 0, moved);
+                    dragIndex.current = i;
+                    setDraggingIndex(i);
+                    liveOrderRef.current = next;
+                    setLiveOrder(next);
+                  }}
+                  className={`pill flex items-center gap-3 px-4 py-1.5 text-sm transition ${kindBg(d?.kind ?? "mixed")} ${
+                    isDragging ? "ring-2 ring-foreground" : ""
+                  }`}
                 >
-                  {d?.kind}
-                </span>
-                {editMode && (
-                  <button
+                  {editMode && <DotsGrip className="cursor-grab opacity-80" />}
+                  <span draggable={false} className="flex-1 truncate">
+                    {d?.name ?? "(missing)"}
+                  </span>
+                  <span
                     draggable={false}
-                    onClick={() => onRemoveAt(i)}
-                    className="rounded-full p-0.5 transition hover:bg-white/25"
-                    aria-label="Remove from gathering"
+                    className="mono text-[10px] uppercase tracking-wider opacity-90"
                   >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </li>
-            );
-          })}
+                    {d?.kind}
+                  </span>
+                  {editMode && (
+                    <button
+                      draggable={false}
+                      onClick={() => onRemoveAt(i)}
+                      className="rounded-full p-0.5 transition hover:bg-white/25"
+                      aria-label="Remove from gathering"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </li>
+              );
+            },
+          )}
         </ol>
       )}
 
