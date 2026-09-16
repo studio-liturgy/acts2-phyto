@@ -531,8 +531,12 @@ function Library() {
     inbox.length === 0 &&
     groupInvites.length === 0;
   // The first-time landing is only for the personal library; an empty group shows
-  // the normal (empty) catalogue, not the intro.
-  const showLanding = activeWorkspace === "personal" && (isEmpty || !!intro);
+  // the normal (empty) catalogue, not the intro. It also never auto-shows for
+  // someone who already belongs to a group — they aren't a brand-new user even
+  // if their personal catalogue happens to be empty. The explicit Intro link
+  // (?intro) still opens it for anyone.
+  const showLanding =
+    activeWorkspace === "personal" && (!!intro || (isEmpty && groups.length === 0));
 
   // The live gathering always leads, regardless of creation order.
   const gatheringDisplayOrder = useMemo(
@@ -579,7 +583,10 @@ function Library() {
           d.slides.some((slide) =>
             slide.lines?.some((line) => stripChords(line).toLowerCase().includes(q)),
           ),
-      );
+      )
+      // A group guest editing sees only their own sets (foreign group sets carry
+      // `shared`), so they can't select or remove other members' contributions.
+      .filter((d) => !(isGroupGuest && editMode) || !d.shared);
     rows = [...rows].sort((a, b) => {
       switch (sortMode) {
         case "az":
@@ -589,7 +596,7 @@ function Library() {
       }
     });
     return rows;
-  }, [order, sets, catalogueFilter, sortMode, kindFilter, sharedOutIds]);
+  }, [order, sets, catalogueFilter, sortMode, kindFilter, sharedOutIds, isGroupGuest, editMode]);
 
   const sortLabel: Record<SortMode, string> = {
     az: "A → Z",
@@ -944,40 +951,41 @@ function Library() {
                         </button>
                       )}
                       {!isGroupGuest && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => setShowClearEmpty(true)}
-                            disabled={emptySets.length === 0}
-                            className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
-                            title={emptySets.length ? "Clear sets with no slides" : "No empty sets"}
-                          >
-                            Clear empty
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowBulkDelete(true)}
-                            disabled={selectedIds.size === 0}
-                            className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
-                            title={
-                              activeGroup
-                                ? selectedIds.size
-                                  ? `Remove ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"} from the group`
-                                  : "Select sets to remove from the group"
-                                : selectedIds.size
-                                  ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
-                                  : "Select sets to delete"
-                            }
-                            aria-label={
-                              activeGroup
-                                ? "Remove selected sets from the group"
-                                : "Delete selected sets"
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </>
+                        <button
+                          type="button"
+                          onClick={() => setShowClearEmpty(true)}
+                          disabled={emptySets.length === 0}
+                          className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                          title={emptySets.length ? "Clear sets with no slides" : "No empty sets"}
+                        >
+                          Clear empty
+                        </button>
                       )}
+                      {/* The trash shows for everyone editing — including a group
+                          guest, who now only sees their own sets and so can only
+                          remove their own contributions from the group. */}
+                      <button
+                        type="button"
+                        onClick={() => setShowBulkDelete(true)}
+                        disabled={selectedIds.size === 0}
+                        className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
+                        title={
+                          activeGroup
+                            ? selectedIds.size
+                              ? `Remove ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"} from the group`
+                              : "Select sets to remove from the group"
+                            : selectedIds.size
+                              ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
+                              : "Select sets to delete"
+                        }
+                        aria-label={
+                          activeGroup
+                            ? "Remove selected sets from the group"
+                            : "Delete selected sets"
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                       {isSignedIn && (
                         <button
                           type="button"
