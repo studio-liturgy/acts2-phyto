@@ -1029,9 +1029,14 @@ function Library() {
                           <button
                             type="button"
                             onClick={() => setShowExportConfirm(true)}
-                            className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
-                            title="Export"
-                            aria-label="Export"
+                            disabled={selectedIds.size === 0}
+                            className="pill flex h-10 w-10 items-center justify-center transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                            title={
+                              selectedIds.size
+                                ? `Export ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
+                                : "Select sets to export"
+                            }
+                            aria-label="Export selected sets"
                           >
                             <Upload className="h-4 w-4" />
                           </button>
@@ -1328,14 +1333,15 @@ function Library() {
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">Export</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            This will download all your sets as a .phyto file.
+            This will download the {selectedIds.size} selected set
+            {selectedIds.size === 1 ? "" : "s"} as a .phyto file.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
               type="button"
               onClick={() => {
                 setShowExportConfirm(false);
-                exportCatalogue();
+                exportCatalogue([...selectedIds]);
               }}
               className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
             >

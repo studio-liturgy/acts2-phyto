@@ -55,8 +55,13 @@ export function migratePhytoFile(data: Record<string, unknown>): PhytoFileV2 {
 // Export
 // ---------------------------------------------------------------------------
 
-export async function exportCatalogue(): Promise<void> {
-  const [sets, gatherings] = await Promise.all([db.sets.toArray(), db.gatherings.toArray()]);
+export async function exportCatalogue(setIds?: string[]): Promise<void> {
+  const allSets = await db.sets.toArray();
+  // When a selection is given, export just those sets and no gatherings (a
+  // gathering could reference sets outside the selection, which wouldn't import
+  // cleanly). Otherwise export the whole library, gatherings included.
+  const sets = setIds ? allSets.filter((s) => setIds.includes(s.id)) : allSets;
+  const gatherings = setIds ? [] : await db.gatherings.toArray();
 
   const payload: PhytoFile = {
     version: 2,
