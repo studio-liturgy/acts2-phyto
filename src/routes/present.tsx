@@ -66,6 +66,7 @@ import {
 } from "@/lib/chords";
 import { create } from "zustand";
 import { groupSlides, hiddenSlideIds } from "@/lib/sections";
+import { hideDragGhost } from "@/components/DragBits";
 import {
   PhoneViewer,
   ViewerSettings,
@@ -995,6 +996,10 @@ function Presenter() {
                           e.dataTransfer.setData("application/x-set-id", id);
                           e.dataTransfer.effectAllowed = inGathering ? "move" : "copy";
                           if (inGathering) {
+                            // Hide the native drag image so there's no ghost that
+                            // snaps back to the origin on drop — the live-reordering
+                            // rows are the only feedback we want.
+                            hideDragGhost(e);
                             setReorderDragUiIndex(i);
                             reorderDragIndex.current = i;
                           }
