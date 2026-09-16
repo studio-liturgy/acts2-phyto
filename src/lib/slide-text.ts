@@ -97,6 +97,21 @@ export function parseScriptureFromText(text: string, versesPer: number): Slide[]
       });
     }
   }
+
+  // Stamp importIndex by reference so the message block editor groups verses
+  // exactly as the right-hand preview splits them: a new reference opens a new
+  // import, and same-reference verses stay together. Derived from the reference
+  // sequence (not header positions) so it survives the text round-trip. Without
+  // it every passage collapses into import 0 and the editor merges unrelated
+  // verses into one block.
+  let importIndex = -1;
+  let prevRef: string | undefined;
+  for (const s of slides) {
+    if (importIndex < 0 || s.reference !== prevRef) importIndex += 1;
+    s.importIndex = importIndex;
+    prevRef = s.reference;
+  }
+
   return slides;
 }
 

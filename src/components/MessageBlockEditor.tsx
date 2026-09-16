@@ -12,15 +12,24 @@ type Block =
   | { kind: "element"; key: string; slide: Slide };
 
 /** Group a message's slides into blocks in their stored order: consecutive
- *  scripture verses of one import become one block; each point/image is its own. */
+ *  scripture verses of one import become one block; each point/image is its own.
+ *  Verses join the running block when they share its import — by importIndex when
+ *  present, otherwise by reference, so passages imported before importIndex
+ *  existed still split by passage instead of collapsing into one block. */
 function toBlocks(slides: Slide[]): Block[] {
   const blocks: Block[] = [];
   for (const s of slides) {
     if (s.kind === "scripture") {
       const idx = s.importIndex ?? 0;
       const last = blocks[blocks.length - 1];
-      if (last && last.kind === "import" && last.idx === idx) last.slides.push(s);
-      else blocks.push({ kind: "import", idx, key: `import-${idx}`, slides: [s] });
+      const lastVerse = last?.kind === "import" ? last.slides[last.slides.length - 1] : undefined;
+      const sameImport =
+        !!lastVerse &&
+        (s.importIndex !== undefined && lastVerse.importIndex !== undefined
+          ? lastVerse.importIndex === s.importIndex
+          : (lastVerse.reference ?? "") === (s.reference ?? ""));
+      if (last && last.kind === "import" && sameImport) last.slides.push(s);
+      else blocks.push({ kind: "import", idx, key: `import-${s.id}`, slides: [s] });
     } else {
       blocks.push({ kind: "element", key: s.id, slide: s });
     }
