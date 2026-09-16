@@ -710,30 +710,34 @@ function SetEditor() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       <SetHeader {...headerProps} />
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 md:px-10 lg:grid-cols-[1fr_340px]">
-        <div>
-          {/* Merged import + slides panel */}
-          <section
-            className={`rounded-3xl border bg-background p-5 transition ${fileOver ? "border-foreground ring-2 ring-foreground" : "border-foreground"}`}
-            onDragOver={(e) => {
-              if (e.dataTransfer.types.includes("Files")) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "copy";
-                setFileOver(true);
-              }
-            }}
-            onDragLeave={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) setFileOver(false);
-            }}
-            onDrop={(e) => {
+      <div className="flex min-h-0 flex-1 divide-x divide-foreground">
+        {/* Left (3/4): import controls, then the slides grid. Mirrors the song and
+            scripture editors — a shrink-0 controls header over a scrollable body,
+            no rounded panel. The whole column is the drop target. */}
+        <div
+          className={`flex w-3/4 min-h-0 flex-col overflow-hidden transition ${
+            fileOver ? "ring-2 ring-inset ring-foreground" : ""
+          }`}
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes("Files")) {
               e.preventDefault();
-              setFileOver(false);
-              if (e.dataTransfer.files?.length) handleMediaFiles(e.dataTransfer.files);
-            }}
-          >
+              e.dataTransfer.dropEffect = "copy";
+              setFileOver(true);
+            }
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) setFileOver(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setFileOver(false);
+            if (e.dataTransfer.files?.length) handleMediaFiles(e.dataTransfer.files);
+          }}
+        >
+          <div className="shrink-0 border-b border-foreground/20 p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="mono text-xs uppercase tracking-wider">
                 Slides ({phytoSet.slides.length})
@@ -741,47 +745,44 @@ function SetEditor() {
                   <span className="ml-2 text-foreground">· {multiSel.size} selected</span>
                 )}
               </h2>
-              <div className="flex items-center gap-2">
-                {multiSel.size > 0 && (
-                  <button
-                    onClick={deleteSelected}
-                    className="pill flex items-center gap-1 bg-[var(--brand-red)] px-3 py-1.5 text-xs text-[var(--brand-white)]"
-                  >
-                    <Trash2 className="h-3 w-3" /> Delete selected
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="mb-3 flex flex-col gap-1">
-              <div className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-1.5">
-                <input
-                  value={videoLink}
-                  onChange={(e) => setVideoLink(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addVideoLink();
-                    }
-                  }}
-                  placeholder="PASTE A YOUTUBE OR VIDEO LINK"
-                  className="mono w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                />
+              {multiSel.size > 0 && (
                 <button
-                  onClick={addVideoLink}
-                  disabled={!videoLink.trim()}
-                  className="flex items-center transition disabled:opacity-20"
-                  aria-label="Add video link"
+                  onClick={deleteSelected}
+                  className="pill flex items-center gap-1 bg-[var(--brand-red)] px-3 py-1.5 text-xs text-[var(--brand-white)]"
                 >
-                  <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
+                  <Trash2 className="h-3 w-3" /> Delete selected
                 </button>
-              </div>
-              {videoErr && <p className="text-xs text-destructive">{videoErr}</p>}
+              )}
             </div>
+            <div className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-1.5">
+              <input
+                value={videoLink}
+                onChange={(e) => setVideoLink(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addVideoLink();
+                  }
+                }}
+                placeholder="PASTE A YOUTUBE OR VIDEO LINK"
+                className="mono w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+              />
+              <button
+                onClick={addVideoLink}
+                disabled={!videoLink.trim()}
+                className="flex items-center transition disabled:opacity-20"
+                aria-label="Add video link"
+              >
+                <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
+              </button>
+            </div>
+            {videoErr && <p className="mt-1 text-xs text-destructive">{videoErr}</p>}
+          </div>
 
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {phytoSet.slides.length === 0 ? (
               <label
-                className={`mono flex h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-xs uppercase tracking-wider transition ${
+                className={`mono flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-xs uppercase tracking-wider transition ${
                   converting || uploading
                     ? "cursor-wait border-foreground/30 text-muted-foreground"
                     : fileOver
@@ -812,7 +813,7 @@ function SetEditor() {
                 />
               </label>
             ) : (
-              <div className="max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
+              <>
                 {(fileOver || uploading) && (
                   <p className="mono mb-3 text-center text-xs uppercase tracking-wider text-muted-foreground">
                     {uploading ? "Uploading…" : "Drop to add media"}
@@ -828,34 +829,33 @@ function SetEditor() {
                   dense={dense}
                   kind={phytoSet.kind}
                 />
-              </div>
-            )}
-          </section>
-        </div>
-
-        <aside className="space-y-5">
-          <div>
-            <div className="mono mb-3 text-xs uppercase tracking-wider">Preview</div>
-            <div className="overflow-hidden rounded-lg bg-[var(--brand-black)]">
-              <SlideView slide={selected} variant="preview" />
-            </div>
-            {selected?.kind === "video" && (
-              <label className="mt-3 flex cursor-pointer items-center justify-between gap-2 text-xs">
-                <span className="mono uppercase tracking-wider text-muted-foreground">
-                  Autoplay when live
-                </span>
-                <input
-                  type="checkbox"
-                  checked={!!selected.autoplay}
-                  onChange={(e) =>
-                    updateSlide(phytoSet.id, selected.id, { autoplay: e.target.checked })
-                  }
-                  className="h-4 w-4 accent-[var(--brand-orange)]"
-                />
-              </label>
+              </>
             )}
           </div>
-        </aside>
+        </div>
+
+        {/* Right (1/4): the output preview of the selected slide. */}
+        <div className="w-1/4 overflow-y-auto p-6">
+          <div className="mono mb-3 text-xs uppercase tracking-wider">Output preview</div>
+          <div className="overflow-hidden rounded-lg bg-[var(--brand-black)]">
+            <SlideView slide={selected} variant="preview" />
+          </div>
+          {selected?.kind === "video" && (
+            <label className="mt-3 flex cursor-pointer items-center justify-between gap-2 text-xs">
+              <span className="mono uppercase tracking-wider text-muted-foreground">
+                Autoplay when live
+              </span>
+              <input
+                type="checkbox"
+                checked={!!selected.autoplay}
+                onChange={(e) =>
+                  updateSlide(phytoSet.id, selected.id, { autoplay: e.target.checked })
+                }
+                className="h-4 w-4 accent-[var(--brand-orange)]"
+              />
+            </label>
+          )}
+        </div>
       </div>
 
       <AlertDialog open={showFileSizeDialog} onOpenChange={setShowFileSizeDialog}>
