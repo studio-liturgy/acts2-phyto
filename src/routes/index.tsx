@@ -410,11 +410,15 @@ function Library() {
 
   const emptySets = useMemo(() => allSets.filter((d) => d.slides.length === 0), [allSets]);
 
-  // Group sets that share a name (case-insensitive, trimmed) so duplicates can be merged down.
+  // Group sets that share a name (case-insensitive, trimmed) so duplicates can be
+  // merged down. Only purely-personal sets are eligible: a set shared with you,
+  // or one of yours shared out (to a group or a person), is left alone — a shared
+  // copy and a personal copy of the same name are deliberately not "duplicates".
   const duplicateGroups = useMemo(() => {
     const groups = new Map<string, PhytoSet[]>();
     for (const d of allSets) {
-      if (d.shared) continue; // only dedupe your own sets, not ones shared with you
+      const sharedOut = sharedOutIds.has(d.id) || (d.groupIds?.length ?? 0) > 0;
+      if (d.shared || sharedOut) continue;
       const key = d.name.trim().toLowerCase();
       const list = groups.get(key);
       if (list) list.push(d);
@@ -423,7 +427,7 @@ function Library() {
     return [...groups.entries()]
       .filter(([, list]) => list.length > 1)
       .map(([key, list]) => ({ key, name: list[0].name, sets: list }));
-  }, [allSets]);
+  }, [allSets, sharedOutIds]);
 
   const selectedSets = useMemo(
     () => allSets.filter((d) => selectedIds.has(d.id)),
@@ -434,10 +438,23 @@ function Library() {
   const ownedSelectedSets = useMemo(() => selectedSets.filter((d) => !d.shared), [selectedSets]);
   const ownedSelectedIds = useMemo(() => ownedSelectedSets.map((d) => d.id), [ownedSelectedSets]);
 
-  // Bulk-delete confirm copy. Removing a set shared WITH you only drops your
-  // access (matching the set editor's wording), while deleting your OWN set is
-  // permanent, so the dialog adapts to what's in the selection.
+  // Bulk-delete confirm copy. In a group workspace you never delete anything:
+  // the trash retracts the selected sets from the group, and their owners keep
+  // their personal copies. In your personal library, removing a set shared WITH
+  // you only drops your access (matching the set editor's wording), while
+  // deleting your OWN set is permanent, so the dialog adapts to the selection.
   const bulkDeleteCopy = useMemo(() => {
+    if (activeGroup) {
+      const n = selectedSets.length;
+      return {
+        title: n === 1 ? "Remove this set from the group?" : `Remove ${n} sets from the group?`,
+        body:
+          n === 1
+            ? "This takes the set out of the group and its gatherings. It stays in its owner's personal library."
+            : "This takes the sets out of the group and its gatherings. They stay in their owners' personal libraries.",
+        action: "Remove",
+      };
+    }
     const sharedSel = selectedSets.filter((d) => d.shared);
     const owned = selectedSets.length - sharedSel.length;
     const shared = sharedSel.length;
@@ -463,10 +480,15 @@ function Library() {
       body: "Your own sets are permanently deleted (this cannot be undone). Sets shared with you are only removed from your library: you'll lose access unless their owners share them again.",
       action: "Delete",
     };
-  }, [selectedSets]);
+  }, [selectedSets, activeGroup]);
 
   const handleBulkDelete = async () => {
-    await deleteSets([...selectedIds]);
+    if (activeGroup) {
+      // In a group, the trash retracts sets from the group rather than deleting.
+      await Promise.all([...selectedIds].map((id) => unshareSetFromGroup(id, activeGroup.id)));
+    } else {
+      await deleteSets([...selectedIds]);
+    }
     setShowBulkDelete(false);
     setSelectedIds(new Set());
   };
@@ -904,21 +926,25 @@ function Library() {
                           ? "Deselect all"
                           : "Select all"}
                       </button>
+                      {/* Fix duplicates is personal-library only: a group's shared
+                          catalogue isn't yours to dedupe. */}
+                      {!isGroupGuest && !activeGroup && (
+                        <button
+                          type="button"
+                          onClick={() => setShowDuplicates(true)}
+                          disabled={duplicateGroups.length === 0}
+                          className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                          title={
+                            duplicateGroups.length
+                              ? "Amend sets with duplicate names"
+                              : "No duplicate names"
+                          }
+                        >
+                          Fix duplicates
+                        </button>
+                      )}
                       {!isGroupGuest && (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => setShowDuplicates(true)}
-                            disabled={duplicateGroups.length === 0}
-                            className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
-                            title={
-                              duplicateGroups.length
-                                ? "Amend sets with duplicate names"
-                                : "No duplicate names"
-                            }
-                          >
-                            Fix duplicates
-                          </button>
                           <button
                             type="button"
                             onClick={() => setShowClearEmpty(true)}
@@ -934,11 +960,19 @@ function Library() {
                             disabled={selectedIds.size === 0}
                             className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
                             title={
-                              selectedIds.size
-                                ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
-                                : "Select sets to delete"
+                              activeGroup
+                                ? selectedIds.size
+                                  ? `Remove ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"} from the group`
+                                  : "Select sets to remove from the group"
+                                : selectedIds.size
+                                  ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
+                                  : "Select sets to delete"
                             }
-                            aria-label="Delete selected sets"
+                            aria-label={
+                              activeGroup
+                                ? "Remove selected sets from the group"
+                                : "Delete selected sets"
+                            }
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
