@@ -51,6 +51,8 @@ export function GroupPanelDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  // Rename feedback lives under the name box, not with the shared status line.
+  const [nameDone, setNameDone] = useState(false);
   const [confirm, setConfirm] = useState<"leave" | "delete" | null>(null);
   // Member the owner is about to remove, plus the sets that would leave the group
   // with them (null = still loading; count is authoritative, names are whatever
@@ -67,6 +69,7 @@ export function GroupPanelDialog({
     setConfirm(null);
     setRemoveTarget(null);
     setRemoveSets(null);
+    setNameDone(false);
     fetchGroupMembers(group.id).then(setMembers);
   }, [open, group.id, group.name]);
 
@@ -129,7 +132,7 @@ export function GroupPanelDialog({
     if (!n || n === group.name) return;
     await renameGroup(group.id, n);
     await loadGroups();
-    setDone("Group renamed.");
+    setNameDone(true);
     onChanged?.();
   };
 
@@ -168,7 +171,10 @@ export function GroupPanelDialog({
             <div className="flex items-center gap-2">
               <input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setNameDone(false);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") saveName();
                 }}
@@ -183,13 +189,18 @@ export function GroupPanelDialog({
                 Rename
               </button>
             </div>
+            {nameDone && (
+              <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                Group renamed.
+              </p>
+            )}
           </div>
         )}
 
         {isOwner && (
           <>
             <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
-              Invite someone
+              Invite
             </div>
             <div className="flex items-center gap-2">
               <input
