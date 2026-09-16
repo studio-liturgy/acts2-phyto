@@ -215,6 +215,13 @@ function Presenter() {
     if (gatheringFromUrl) loadGatheringHiddenSections(gatheringFromUrl);
   }, [gatheringFromUrl]);
 
+  // Reset the catalogue kind filter to "all" whenever you switch view (into a
+  // gathering, back to the general list, or between gatherings), so a filter
+  // set in one view never carries over to the next.
+  useEffect(() => {
+    setKindFilter("all");
+  }, [gatheringFromUrl, setKindFilter]);
+
   const activeGathering = gatheringFromUrl ? gatherings[gatheringFromUrl] : null;
 
   const setList = activeGathering ? activeGathering.setIds.filter((id) => sets[id]) : order;
