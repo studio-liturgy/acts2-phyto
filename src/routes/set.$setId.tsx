@@ -162,6 +162,19 @@ function SetHeader({
   const [showShareDialog, setShowShareDialog] = useState(false);
   const isSignedIn = useIsSignedIn();
   const groups = useLibrary((s) => s.groups);
+  const activeWorkspace = useLibrary((s) => s.activeWorkspace);
+  const unshareSetFromGroup = useLibrary((s) => s.unshareSetFromGroup);
+  // What the destructive action means here:
+  //   "remove-shared" — a set shared WITH me: drop my access.
+  //   "remove-group"  — my own set, viewed in a group: retract it from the group
+  //                     (it stays in my personal library). Never a real delete.
+  //   "delete"        — my own set in my personal library: gone for good.
+  const inActiveGroup =
+    !phytoSet.shared &&
+    activeWorkspace !== "personal" &&
+    (phytoSet.groupIds?.includes(activeWorkspace) ?? false);
+  const removeMode = phytoSet.shared ? "remove-shared" : inActiveGroup ? "remove-group" : "delete";
+  const removeLabel = removeMode === "delete" ? "Delete" : "Remove";
   const nameBeforeEditRef = useRef(phytoSet.name);
   const commitName = () => {
     if (!phytoSet.name.trim()) {
@@ -234,29 +247,39 @@ function SetHeader({
           onClick={() => setShowDeleteSetDialog(true)}
           className="mono uppercase pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-xs text-[var(--brand-white)] transition hover:opacity-90"
         >
-          {phytoSet.shared ? "Remove" : "Delete"}
+          {removeLabel}
         </button>
       )}
       <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">
-            {phytoSet.shared ? "Remove this shared set?" : "Delete this set?"}
+            {removeMode === "remove-shared"
+              ? "Remove this shared set?"
+              : removeMode === "remove-group"
+                ? "Remove this set from the group?"
+                : "Delete this set?"}
           </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            {phytoSet.shared
+            {removeMode === "remove-shared"
               ? `This removes you from “${phytoSet.name}” completely. You'll lose access, and it won't come back unless the owner shares it with you again.`
-              : "This cannot be undone."}
+              : removeMode === "remove-group"
+                ? "This takes the set out of the group and its gatherings. It stays in your personal library."
+                : "This cannot be undone."}
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
               type="button"
               onClick={() => {
-                deleteSet(phytoSet.id);
+                if (removeMode === "remove-group") {
+                  unshareSetFromGroup(phytoSet.id, activeWorkspace);
+                } else {
+                  deleteSet(phytoSet.id);
+                }
                 navigate({ to: redirectTo ?? "/" });
               }}
               className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
             >
-              {phytoSet.shared ? "Remove" : "Delete"}
+              {removeLabel}
             </button>
             <button
               type="button"
