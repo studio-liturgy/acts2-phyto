@@ -982,6 +982,52 @@ function Library() {
                       {/* The trash shows for everyone editing — including a group
                           guest, who now only sees their own sets and so can only
                           remove their own contributions from the group. */}
+                      {/* Icon actions, left to right: share, import, export,
+                          delete. Import/export are edit-mode only (rare,
+                          destructive-adjacent) and hidden for group guests. */}
+                      {isSignedIn && (
+                        <button
+                          type="button"
+                          onClick={() => setShowBulkShare(true)}
+                          disabled={ownedSelectedIds.length === 0}
+                          className="pill flex h-10 w-10 items-center justify-center transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                          title={
+                            ownedSelectedIds.length
+                              ? `Share ${ownedSelectedIds.length} selected set${ownedSelectedIds.length === 1 ? "" : "s"}`
+                              : "Select your own sets to share"
+                          }
+                          aria-label="Share selected sets"
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </button>
+                      )}
+                      {!isGroupGuest && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => importFileRef.current?.click()}
+                            className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
+                            title="Import"
+                            aria-label="Import"
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowExportConfirm(true)}
+                            disabled={selectedIds.size === 0}
+                            className="pill flex h-10 w-10 items-center justify-center transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                            title={
+                              selectedIds.size
+                                ? `Export ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
+                                : "Select sets to export"
+                            }
+                            aria-label="Export selected sets"
+                          >
+                            <Upload className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={() => setShowBulkDelete(true)}
@@ -1004,53 +1050,6 @@ function Library() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
-                      {isSignedIn && (
-                        <button
-                          type="button"
-                          onClick={() => setShowBulkShare(true)}
-                          disabled={ownedSelectedIds.length === 0}
-                          className="pill flex h-10 w-10 items-center justify-center transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
-                          title={
-                            ownedSelectedIds.length
-                              ? `Share ${ownedSelectedIds.length} selected set${ownedSelectedIds.length === 1 ? "" : "s"}`
-                              : "Select your own sets to share"
-                          }
-                          aria-label="Share selected sets"
-                        >
-                          <Share2 className="h-4 w-4" />
-                        </button>
-                      )}
-                      {/* Import and export live in edit mode only: they're rare,
-                          destructive-adjacent operations, and having them on the
-                          resting toolbar put a whole-catalogue replace one stray
-                          click away. Hidden for group guests. */}
-                      {!isGroupGuest && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => setShowExportConfirm(true)}
-                            disabled={selectedIds.size === 0}
-                            className="pill flex h-10 w-10 items-center justify-center transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
-                            title={
-                              selectedIds.size
-                                ? `Export ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
-                                : "Select sets to export"
-                            }
-                            aria-label="Export selected sets"
-                          >
-                            <Upload className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => importFileRef.current?.click()}
-                            className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
-                            title="Import"
-                            aria-label="Import"
-                          >
-                            <Download className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
                     </>
                   ) : (
                     <button
