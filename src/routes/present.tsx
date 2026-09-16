@@ -136,7 +136,7 @@ function KindBadge({ kind, abbrev = false }: { kind: SetKind; abbrev?: boolean }
 function KindDot({ kind }: { kind: SetKind }) {
   return (
     <span
-      className="h-2 w-2 shrink-0 rounded-full"
+      className="h-3 w-3 shrink-0 rounded-full"
       style={{ backgroundColor: kindLiveColor(kind) }}
       title={kind === "mixed" ? "Mixed" : kind}
       aria-label={kind}
@@ -954,7 +954,7 @@ function Presenter() {
                           <span className="truncate">{p.name}</span>
                           {isLiveNow(p) && pid !== gatheringFromUrl && (
                             <span
-                              className="h-2 w-2 shrink-0 rounded-full bg-[var(--brand-red)]"
+                              className="h-3 w-3 shrink-0 rounded-full bg-[var(--brand-red)]"
                               title="Live"
                             />
                           )}
