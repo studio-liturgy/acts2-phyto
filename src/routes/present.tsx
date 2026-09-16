@@ -972,7 +972,7 @@ function Presenter() {
                     {kindFilterDots}
                   </div>
                   {catalogueResults.length === 0 && (
-                    <p className="mono mb-4 px-2 text-xs uppercase tracking-wider text-muted-foreground">
+                    <p className="mono mb-4 px-2 text-[10px] uppercase text-muted-foreground">
                       No sets in your catalogue match
                     </p>
                   )}
@@ -1034,7 +1034,7 @@ function Presenter() {
                 </div>
                 <div className="space-y-1">
                   {filteredSets.length === 0 && (
-                    <p className="mono uppercase px-2 text-xs tracking-wider text-muted-foreground">
+                    <p className="mono uppercase px-2 text-[10px] text-muted-foreground">
                       {activeGathering
                         ? q
                           ? "No sets in this gathering match"
@@ -1269,12 +1269,12 @@ function Presenter() {
             </div>
           ) : activeGathering ? (
             setList.length === 0 ? (
-              <div className="mono uppercase flex h-full items-center justify-center text-sm tracking-wider text-muted-foreground">
+              <div className="mono uppercase flex h-full items-center justify-center text-xs tracking-wider text-muted-foreground">
                 Gathering is empty. Search the sidebar or drag a set here to add one.
               </div>
             ) : null
           ) : !activeSet ? (
-            <div className="mono uppercase flex h-full items-center justify-center text-sm tracking-wider text-muted-foreground">
+            <div className="mono uppercase flex h-full items-center justify-center text-xs tracking-wider text-muted-foreground">
               Select a set to begin
             </div>
           ) : activeSet.slides.length === 0 ? (
@@ -1375,7 +1375,9 @@ function Presenter() {
                       )}
                     </div>
                     {d.slides.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No slides</p>
+                      <p className="mono uppercase text-xs tracking-wider text-muted-foreground">
+                        No slides
+                      </p>
                     ) : (
                       <SlideGridForPresenter
                         phytoSet={d}
