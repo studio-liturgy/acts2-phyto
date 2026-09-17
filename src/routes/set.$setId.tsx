@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
+import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
 import { parseYouTubeId } from "@/lib/parsers";
 import { applyDividers } from "@/lib/apply-dividers";
 import { supabase } from "@/lib/supabase";
@@ -816,6 +817,9 @@ function SetEditor() {
         {/* Right (1/2): the preview of the selected slide, or a placeholder while
             the set is still empty (matching the other editors). */}
         <div className="w-1/2 overflow-y-auto p-6">
+          <div className="mb-4">
+            <MediaTemplateEditor setId={phytoSet.id} />
+          </div>
           {selected ? (
             <>
               <div className="overflow-hidden rounded-lg bg-[var(--brand-black)]">
