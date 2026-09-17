@@ -6,7 +6,7 @@ import { useAccountPull, useSyncStatus } from "@/hooks/use-sync-status";
 import { exportCatalogue, importCatalogue } from "@/lib/catalogue-io";
 import { APP_NAME } from "@/lib/appConfig";
 import { isLiveNow } from "@/lib/live-session";
-import type { SlugError } from "@/lib/slug";
+import { useAccountSlug } from "@/hooks/use-account-slug";
 import { stripChords } from "@/lib/chords";
 import {
   AlertDialog,
@@ -206,7 +206,6 @@ function Library() {
     gatheringOrder = [],
     createGathering,
     renameGathering,
-    setGatheringSlug,
     deleteGathering,
     addSetToGathering,
     removeSetFromGathering,
@@ -562,6 +561,14 @@ function Library() {
   const primaryGathering = gatheringDisplayOrder.length
     ? gatherings[gatheringDisplayOrder[0]]
     : null;
+  // The persistent per-account/per-group share URL. Provisioned/loaded when the
+  // dialog opens; falls back to the gathering's own token if the account slug
+  // can't be reached (signed out, or the migration isn't applied yet).
+  const primaryShare = useAccountSlug({
+    scope: { groupId: primaryGathering?.group_id ?? null },
+    seed: primaryGathering?.share_token ?? "",
+    enabled: showGatheringShare,
+  });
 
   // Switching workspace resets the home view: search, filter, edit modes.
   useEffect(() => {
@@ -870,8 +877,8 @@ function Library() {
           {/* Gatherings */}
           <section className="mb-24">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <h2 className="text-4xl md:text-5xl">Gatherings</h2>
+              <h2 className="text-4xl md:text-5xl">Gatherings</h2>
+              <div className="flex items-center gap-2 pl-[80px]">
                 {isSignedIn && primaryGathering?.share_token && (
                   <button
                     type="button"
@@ -883,8 +890,6 @@ function Library() {
                     <Share2 className="h-4 w-4" />
                   </button>
                 )}
-              </div>
-              <div className="flex items-center gap-2 pl-[80px]">
                 <button
                   onClick={createNewGathering}
                   className="pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
@@ -927,7 +932,7 @@ function Library() {
                         isSignedIn ? goLive(pid) : (setShowGoLivePrompt(true), Promise.resolve())
                       }
                       onEndSession={() => endSession(pid)}
-                      onSlugSave={p.shared ? undefined : (slug) => setGatheringSlug(pid, slug)}
+                      groupId={p.group_id ?? null}
                       className={gatheringDisplayOrder.length > 2 ? "w-[450px] shrink-0" : ""}
                       editMode={editingGatheringId === pid}
                       onEditModeChange={(v) => setEditingGatheringId(v ? pid : null)}
@@ -945,14 +950,14 @@ function Library() {
             <ShareGatheringDialog
               open={showGatheringShare}
               onOpenChange={setShowGatheringShare}
-              shareUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/g/${primaryGathering.share_token}`}
+              shareUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/g/${primaryShare.slug}`}
               gatheringName={primaryGathering.name}
               isLive={primaryGathering.is_live === null ? null : isLiveNow(primaryGathering)}
-              slug={primaryGathering.share_token}
+              slug={primaryShare.slug}
               onSlugSave={
-                primaryGathering.shared
-                  ? undefined
-                  : (slug) => setGatheringSlug(primaryGathering.id, slug)
+                !primaryGathering.shared && primaryShare.canCustomize
+                  ? primaryShare.save
+                  : undefined
               }
             />
           )}
@@ -1808,9 +1813,9 @@ function GatheringCard({
   gatheringId,
   isLive,
   shareToken,
+  groupId,
   onGoLive,
   onEndSession,
-  onSlugSave,
   className = "",
   editMode,
   onEditModeChange,
@@ -1821,10 +1826,9 @@ function GatheringCard({
   setIds: string[];
   isLive: boolean | null;
   shareToken: string;
-  /** Provided only for gatherings the viewer owns; enables the custom-link editor. */
-  onSlugSave?: (
-    slug: string,
-  ) => Promise<{ ok: true } | { ok: false; reason: SlugError | "taken" | "offline" }>;
+  /** The gathering's workspace: null for personal, else the group id. Selects the
+   *  scope whose persistent share URL the go-live hand-out shows. */
+  groupId: string | null;
   allSets: { id: string; name: string; kind: SetKind }[];
   onRename: (name: string) => void;
   onDelete: () => void;
@@ -1863,7 +1867,14 @@ function GatheringCard({
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [isGoingLive, setIsGoingLive] = useState(false);
-  const shareUrl = `${window.location.origin}/g/${shareToken}`;
+  // The go-live hand-out shows the account/group's persistent URL (read-only
+  // here — customization lives in the section-level Share dialog).
+  const cardShare = useAccountSlug({
+    scope: { groupId },
+    seed: shareToken,
+    enabled: showShareDialog,
+  });
+  const shareUrl = `${window.location.origin}/g/${cardShare.slug}`;
 
   const nameLookup = useMemo(() => Object.fromEntries(allSets.map((d) => [d.id, d])), [allSets]);
 
@@ -1911,7 +1922,7 @@ function GatheringCard({
         dropActive ? "border-2 p-[19px]" : "border p-5"
       } ${className}`}
     >
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex items-center gap-1">
         {editingName && editMode ? (
           <Input
             autoFocus
@@ -2124,15 +2135,14 @@ function GatheringCard({
         </div>
       )}
 
-      {/* Share dialog */}
+      {/* Share dialog (opened by go-live to hand out the link; read-only URL —
+          customization lives in the section-level Share dialog). */}
       <ShareGatheringDialog
         open={showShareDialog}
         onOpenChange={setShowShareDialog}
         shareUrl={shareUrl}
         gatheringName={name}
         isLive={isLive}
-        slug={shareToken}
-        onSlugSave={onSlugSave}
       />
 
       {/* Go Live confirmation dialog */}

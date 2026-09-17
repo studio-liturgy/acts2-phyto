@@ -19,6 +19,7 @@ import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
+import { useAccountSlug } from "@/hooks/use-account-slug";
 import { NumberStepper } from "@/components/NumberStepper";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -187,7 +188,6 @@ function Presenter() {
   const removeSetFromGathering = useLibrary((s) => s.removeSetFromGathering);
   const reorderGatheringSets = useLibrary((s) => s.reorderGatheringSets);
   const renameGathering = useLibrary((s) => s.renameGathering);
-  const setGatheringSlug = useLibrary((s) => s.setGatheringSlug);
   const createSet = useLibrary((s) => s.createSet);
   const createGathering = useLibrary((s) => s.createGathering);
   const pushHiddenSections = useLibrary((s) => s.pushHiddenSections);
@@ -338,7 +338,14 @@ function Presenter() {
   const [showDeleteGatheringDialog, setShowDeleteGatheringDialog] = useState(false);
   const [isGoingLive, setIsGoingLive] = useState(false);
   const activeShareToken = activeGathering?.share_token ?? null;
-  const shareUrl = activeShareToken ? `${window.location.origin}/g/${activeShareToken}` : "";
+  // Persistent per-account/per-group share URL (follows go-live). Provisioned/
+  // loaded when the dialog opens; falls back to the gathering token otherwise.
+  const share = useAccountSlug({
+    scope: { groupId: activeGathering?.group_id ?? null },
+    seed: activeShareToken ?? "",
+    enabled: showShareDialog,
+  });
+  const shareUrl = activeShareToken ? `${window.location.origin}/g/${share.slug}` : "";
 
   useEffect(() => {
     if (setFromUrl) setActiveSetId(setFromUrl);
@@ -1545,11 +1552,9 @@ function Presenter() {
             ? null
             : isLiveNow(activeGathering)
         }
-        slug={activeShareToken ?? undefined}
+        slug={share.slug}
         onSlugSave={
-          activeGathering && !activeGathering.shared
-            ? (slug) => setGatheringSlug(activeGathering.id, slug)
-            : undefined
+          activeGathering && !activeGathering.shared && share.canCustomize ? share.save : undefined
         }
       />
 

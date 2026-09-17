@@ -71,6 +71,11 @@ export function ShareGatheringDialog({
       setSlugError(slugErrorMessage(res.reason));
     }
   };
+  const cancelEdit = () => {
+    setEditingSlug(false);
+    setDraftSlug(slug ?? "");
+    setSlugError(null);
+  };
   const [qrFg, setQrFg] = useState("#212121");
   const [qrBg, setQrBg] = useState("#ffffff");
   const [qrTransparent, setQrTransparent] = useState(false);
@@ -129,75 +134,76 @@ export function ShareGatheringDialog({
 
         <div className="mt-6 flex items-center gap-2">
           <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
-            <span className="flex-1 truncate px-4 font-mono uppercase text-sm text-muted-foreground">
-              {shareUrl}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(shareUrl);
-                setCopiedShare(true);
-                setTimeout(() => setCopiedShare(false), 2000);
-              }}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
-              aria-label="Copy URL"
-            >
-              <span className="transition-all duration-300">
-                {copiedShare ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </span>
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowShareQr((v) => !v)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
-            aria-label="QR Code"
-          >
-            <QrCode className="h-4 w-4" />
-          </button>
-        </div>
-
-        {editable &&
-          (editingSlug ? (
-            <div className="mt-3 flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
-                  <span className="pl-4 font-mono text-sm text-muted-foreground">/g/</span>
-                  <input
-                    autoFocus
-                    value={draftSlug}
-                    onChange={(e) => {
-                      setDraftSlug(e.target.value);
-                      setSlugError(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveSlug();
-                      if (e.key === "Escape") setEditingSlug(false);
-                    }}
-                    disabled={savingSlug}
-                    className="flex-1 bg-transparent py-2 pr-3 font-mono text-sm lowercase text-foreground outline-none"
-                    placeholder="my-gathering"
-                  />
-                </div>
+            {editingSlug ? (
+              <>
+                <span className="pl-4 font-mono uppercase text-sm text-muted-foreground">/g/</span>
+                <input
+                  autoFocus
+                  value={draftSlug}
+                  onChange={(e) => {
+                    setDraftSlug(e.target.value);
+                    setSlugError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveSlug();
+                    if (e.key === "Escape") cancelEdit();
+                  }}
+                  disabled={savingSlug}
+                  className="flex-1 bg-transparent py-2 pr-3 font-mono text-sm lowercase text-foreground outline-none"
+                  placeholder="my-gathering"
+                />
                 <button
                   type="button"
                   onClick={saveSlug}
                   disabled={savingSlug}
-                  className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-50"
+                  className="mono uppercase flex h-10 items-center rounded-full bg-foreground px-5 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-50"
                 >
                   {savingSlug ? "Saving" : "Save"}
                 </button>
-              </div>
-              {slugError ? (
-                <p className="mono px-4 text-[10px] uppercase tracking-wider text-destructive">
-                  {slugError}
-                </p>
-              ) : (
-                <p className="mono px-4 text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Preview: /g/{normalizedDraft || "…"}
-                </p>
-              )}
-            </div>
+              </>
+            ) : (
+              <>
+                <span className="flex-1 truncate px-4 font-mono uppercase text-sm text-muted-foreground">
+                  {shareUrl}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(shareUrl);
+                    setCopiedShare(true);
+                    setTimeout(() => setCopiedShare(false), 2000);
+                  }}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
+                  aria-label="Copy URL"
+                >
+                  <span className="transition-all duration-300">
+                    {copiedShare ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </span>
+                </button>
+              </>
+            )}
+          </div>
+          {!editingSlug && (
+            <button
+              type="button"
+              onClick={() => setShowShareQr((v) => !v)}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
+              aria-label="QR Code"
+            >
+              <QrCode className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {editable &&
+          (editingSlug ? (
+            <p
+              className={`mono mt-2 px-4 text-[10px] uppercase tracking-wider ${
+                slugError ? "text-destructive" : "text-muted-foreground"
+              }`}
+            >
+              {slugError || `Preview: /g/${normalizedDraft || "…"}`}
+            </p>
           ) : (
             <button
               type="button"

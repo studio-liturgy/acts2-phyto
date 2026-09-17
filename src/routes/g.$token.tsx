@@ -83,39 +83,57 @@ function toGatheringRow(data: Record<string, unknown>): GatheringRow {
   };
 }
 
-/** Resolve a retired slug to its gathering id via the alias table. Best-effort:
- *  if the table doesn't exist yet (migration deferred) or the token isn't an
- *  alias, returns null and the caller falls through to "not found" — a hard
- *  cutover, exactly as before aliases existed. */
-async function resolveAlias(token: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from("gathering_aliases")
-    .select("gathering_id")
-    .eq("token", token)
-    .maybeSingle();
-  if (error || !data) return null;
-  return (data.gathering_id as string) ?? null;
+/** What a /g/<token> lookup resolved to:
+ *  - "gathering": a specific gathering row to drive the live/ended/not-live flow.
+ *  - "waiting":   the token is a real account/group slug, but nothing is live in
+ *                 that scope right now → a generic waiting page.
+ *  - null:        the token matches nothing. */
+type Resolution = { kind: "gathering"; row: GatheringRow } | { kind: "waiting" } | null;
+
+/** The one live gathering in a scope ("one live per scope"), or null. Anon can
+ *  read gatherings via the public share_token policy, so this works logged-out. */
+async function fetchLiveInScope(scope: {
+  user_id: string | null;
+  group_id: string | null;
+}): Promise<GatheringRow | null> {
+  const base = supabase.from("gatherings").select(GATHERING_COLS);
+  const query = scope.group_id
+    ? base.eq("group_id", scope.group_id)
+    : base.eq("user_id", scope.user_id as string).is("group_id", null);
+  const { data } = await query;
+  if (!data?.length) return null;
+  const rows = (data as Record<string, unknown>[]).map(toGatheringRow);
+  // isLiveNow honours the 24h auto-expiry, so a stale is_live=true row is ignored.
+  return rows.find((r) => isLiveNow(r)) ?? null;
 }
 
-async function fetchGathering(token: string): Promise<GatheringRow | null> {
-  // Live share_tokens always win: look up the gathering directly first, so a
-  // slug someone reclaimed never gets shadowed by another gathering's old alias.
+async function resolveToken(token: string): Promise<Resolution> {
+  // 1. Account/group slug → whichever gathering is live in that scope, so the URL
+  //    is persistent and follows go-live. Retired slugs resolve the same way, so
+  //    old links keep working. Best-effort: if the table doesn't exist yet
+  //    (migration not applied), skip to the legacy path below.
+  const { data: slugRow } = await supabase
+    .from("account_slugs")
+    .select("user_id, group_id")
+    .eq("slug", token)
+    .maybeSingle();
+  if (slugRow) {
+    const live = await fetchLiveInScope(
+      slugRow as { user_id: string | null; group_id: string | null },
+    );
+    return live ? { kind: "gathering", row: live } : { kind: "waiting" };
+  }
+
+  // 2. Legacy direct link: a gathering's own share_token. Keeps every link shared
+  //    before this change resolving.
   const { data } = await supabase
     .from("gatherings")
     .select(GATHERING_COLS)
     .eq("share_token", token)
     .maybeSingle();
-  if (data) return toGatheringRow(data as Record<string, unknown>);
+  if (data) return { kind: "gathering", row: toGatheringRow(data as Record<string, unknown>) };
 
-  // Fall back to a retired slug (an old link/QR for a gathering since renamed).
-  const aliasId = await resolveAlias(token);
-  if (!aliasId) return null;
-  const { data: byId } = await supabase
-    .from("gatherings")
-    .select(GATHERING_COLS)
-    .eq("id", aliasId)
-    .maybeSingle();
-  return byId ? toGatheringRow(byId as Record<string, unknown>) : null;
+  return null;
 }
 
 async function fetchViewerSets(gatheringId: string): Promise<ViewerSet[]> {
@@ -179,15 +197,30 @@ function GatheringViewer() {
     const poll = async () => {
       if (stoppedRef.current) return;
 
-      const g = await fetchGathering(token);
+      const res = await resolveToken(token);
       if (stoppedRef.current) return;
 
-      if (!g) {
+      if (!res) {
         setStatus("not-found");
         stoppedRef.current = true;
         return;
       }
 
+      // The slug is valid but nothing is live in its scope. If a session was live
+      // and just ended, show "ended"; otherwise the generic waiting page.
+      if (res.kind === "waiting") {
+        const wasLive = prevLiveRef.current;
+        prevLiveRef.current = false;
+        if (wasLive === true) {
+          setStatus("ended");
+          stoppedRef.current = true;
+          return;
+        }
+        setStatus("not-live");
+        return;
+      }
+
+      const g = res.row;
       setGatheringName(g.title);
 
       // A session auto-ends 24h after it started, so an abandoned gathering

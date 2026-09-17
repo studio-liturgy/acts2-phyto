@@ -1287,33 +1287,11 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
               pushedGatherings.push(p);
               if (rowData?.length) savedGatherings.push(...(rowData as Record<string, unknown>[]));
             } else if (rowErr.code === "23505") {
-              // A share_token collision. Historically this only meant a stranded
-              // duplicate (same token, DIFFERENT id, already synced) — safe to
-              // drop. But custom slugs add a second cause: an ESTABLISHED
-              // gathering whose owner just picked a slug another account already
-              // holds. Dropping THAT would delete real data. Distinguish by
-              // whether this id already exists remotely: if it does, the row is
-              // established, so keep it and fail the push (re-queues; the stale
-              // dirty slug clears when the owner picks an available one). Only a
-              // row that never landed remotely is a true stranded duplicate.
-              const { data: existing } = await supabase
-                .from("gatherings")
-                .select("id")
-                .eq("id", p.id)
-                .limit(1);
-              if (existing && existing.length) {
-                console.error(
-                  "[sync] pushToSupabase: slug taken for established gathering — keeping local copy:",
-                  p.id,
-                );
-                ok = false;
-              } else {
-                console.warn(
-                  "[sync] pushToSupabase: dropping stranded duplicate gathering (token collision):",
-                  p.id,
-                );
-                await db.gatherings.delete(p.id);
-              }
+              console.warn(
+                "[sync] pushToSupabase: dropping stranded duplicate gathering (token collision):",
+                p.id,
+              );
+              await db.gatherings.delete(p.id);
             } else if (rowErr.code === "42501") {
               // Id owned by ANOTHER account (imported .phyto with gatherings, or
               // a different account once used this browser): the conflict-update

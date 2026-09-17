@@ -22,7 +22,6 @@ import {
 } from "./sync";
 import { isLiveNow, type LiveWindow } from "./live-session";
 import { isInlineImage } from "./image-upload";
-import { normalizeSlug, validateSlug } from "./slug";
 import { hasInlineImages, migrateSetImagesToR2 } from "./migrate-images";
 
 function uid() {
@@ -257,16 +256,6 @@ interface LibraryState {
   reorderSlides: (setId: string, ids: string[]) => void;
   createGathering: (name: string) => string;
   renameGathering: (id: string, name: string) => void;
-  /** Set a custom URL slug (share_token) for a gathering. Validates the slug and
-   *  checks global availability against Supabase before committing, so the
-   *  unique-constraint collision path never has to delete the row. Returns a
-   *  result the UI turns into inline feedback. */
-  setGatheringSlug: (
-    id: string,
-    slug: string,
-  ) => Promise<
-    { ok: true } | { ok: false; reason: import("./slug").SlugError | "taken" | "offline" }
-  >;
   deleteGathering: (id: string) => void;
   addSetToGathering: (gatheringId: string, setId: string) => void;
   removeSetFromGathering: (gatheringId: string, setIdOrIndex: string | number) => void;
@@ -759,59 +748,6 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       db.gatherings.put(updated).then(() => schedulePush({ gathering: id }));
       return { gatherings: { ...s.gatherings, [id]: updated } };
     }),
-
-  setGatheringSlug: async (id, rawSlug) => {
-    const p = get().gatherings[id];
-    if (!p) return { ok: false, reason: "offline" as const };
-
-    const slug = normalizeSlug(rawSlug);
-    const check = validateSlug(slug);
-    if (!check.ok) return check;
-    // No-op: unchanged slug is a success (the pill just closes) with no push.
-    if (slug === p.share_token) return { ok: true as const };
-
-    // Availability check. The share_token unique constraint is GLOBAL, so a slug
-    // taken by ANY account (including one under a different id of ours) is a
-    // conflict. Doing this here — before we write — keeps the sync layer's 23505
-    // path from ever firing on a deliberate edit. Signed-out users can't reach
-    // Supabase, so slugs can only be claimed while signed in.
-    const session = useAuthStore.getState().session;
-    if (!session) return { ok: false, reason: "offline" as const };
-    const { data, error } = await supabase
-      .from("gatherings")
-      .select("id")
-      .eq("share_token", slug)
-      .neq("id", id)
-      .limit(1);
-    if (error) {
-      console.error("[setGatheringSlug] availability check failed:", error);
-      return { ok: false, reason: "offline" as const };
-    }
-    if (data && data.length) return { ok: false, reason: "taken" as const };
-
-    // Retire the OLD token as an alias so links/QRs already handed out keep
-    // resolving (the public viewer falls back to gathering_aliases). Best-effort:
-    // the alias table may not exist yet (migration deferred), in which case a
-    // slug change is simply a hard cutover, exactly as before. Also drop any
-    // alias for the NEW token — now a live slug, it must not shadow itself.
-    const oldToken = p.share_token;
-    void supabase
-      .from("gathering_aliases")
-      .upsert(
-        { token: oldToken, gathering_id: id, user_id: session.user.id },
-        { onConflict: "token" },
-      )
-      .then(({ error }) => {
-        if (error) console.warn("[setGatheringSlug] alias write skipped:", error.message);
-      });
-    void supabase.from("gathering_aliases").delete().eq("token", slug);
-
-    const updated = { ...p, share_token: slug, updatedAt: Date.now() };
-    set((s) => ({ gatherings: { ...s.gatherings, [id]: updated } }));
-    await db.gatherings.put(updated);
-    schedulePush({ gathering: id });
-    return { ok: true as const };
-  },
 
   deleteGathering: async (id) => {
     // A foreign group gathering is a shared resource: deleting it removes it for

@@ -286,38 +286,60 @@ create policy "gatherings: public select by share_token"
   using (share_token is not null);
 
 -- ============================================================
--- Table: gathering_aliases
--- Retired share_tokens, so a link/QR handed out before the owner
--- customized the slug still resolves. Live share_tokens win over
--- an alias (the viewer looks up gatherings first). See migration
--- 2026-09-17-gathering-aliases.sql.
+-- Table: account_slugs
+-- One persistent share URL per account (personal) or per group.
+-- /g/<slug> resolves slug -> account/group -> whichever gathering
+-- is currently live in that scope, so the URL follows go-live.
+-- Retired slugs linger (is_current = false) as free aliases, since
+-- resolution is identical for current and retired slugs. See
+-- migration 2026-09-17-account-slugs.sql.
 -- ============================================================
-create table if not exists gathering_aliases (
-  token        text        primary key,
-  gathering_id uuid        references gatherings on delete cascade not null,
-  user_id      uuid        references auth.users not null,
-  created_at   timestamptz not null default now()
+create table if not exists account_slugs (
+  slug        text        primary key,
+  user_id     uuid        references auth.users on delete cascade,
+  group_id    uuid        references groups     on delete cascade,
+  is_current  boolean     not null default true,
+  created_at  timestamptz not null default now(),
+  constraint account_slugs_one_scope check ((user_id is null) <> (group_id is null))
 );
 
-alter table gathering_aliases enable row level security;
+create unique index if not exists account_slugs_user_current
+  on account_slugs (user_id) where is_current and group_id is null;
+create unique index if not exists account_slugs_group_current
+  on account_slugs (group_id) where is_current and group_id is not null;
+create index if not exists account_slugs_user_idx on account_slugs (user_id);
+create index if not exists account_slugs_group_idx on account_slugs (group_id);
 
--- Unauthenticated viewers resolve an old link, so aliases are public-read.
-create policy "gathering_aliases: public select"
-  on gathering_aliases for select
+alter table account_slugs enable row level security;
+
+-- Unauthenticated viewers resolve a slug to its account, so slugs are public-read.
+create policy "account_slugs: public select"
+  on account_slugs for select
   using (true);
 
-create policy "gathering_aliases: owner insert"
-  on gathering_aliases for insert
-  with check (user_id = auth.uid());
+-- Personal slugs: the account owner manages their own.
+create policy "account_slugs: personal insert"
+  on account_slugs for insert
+  with check (user_id = auth.uid() and group_id is null);
+create policy "account_slugs: personal update"
+  on account_slugs for update
+  using (user_id = auth.uid() and group_id is null)
+  with check (user_id = auth.uid() and group_id is null);
+create policy "account_slugs: personal delete"
+  on account_slugs for delete
+  using (user_id = auth.uid() and group_id is null);
 
-create policy "gathering_aliases: owner update"
-  on gathering_aliases for update
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
-
-create policy "gathering_aliases: owner delete"
-  on gathering_aliases for delete
-  using (user_id = auth.uid());
+-- Group slugs: a group owner manages the group's shared URL.
+create policy "account_slugs: group insert"
+  on account_slugs for insert
+  with check (group_id is not null and is_group_owner(group_id, auth.uid()));
+create policy "account_slugs: group update"
+  on account_slugs for update
+  using (group_id is not null and is_group_owner(group_id, auth.uid()))
+  with check (group_id is not null and is_group_owner(group_id, auth.uid()));
+create policy "account_slugs: group delete"
+  on account_slugs for delete
+  using (group_id is not null and is_group_owner(group_id, auth.uid()));
 
 -- ============================================================
 -- Table: gathering_sets
