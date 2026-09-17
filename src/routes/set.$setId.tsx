@@ -756,7 +756,11 @@ function SetEditor() {
                 <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
               </button>
             </div>
-            {videoErr && <p className="mt-1 text-xs text-destructive">{videoErr}</p>}
+            {videoErr && (
+              <p className="mono uppercase mt-1 text-[10px] tracking-wider text-[var(--brand-red)]">
+                {videoErr}
+              </p>
+            )}
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
