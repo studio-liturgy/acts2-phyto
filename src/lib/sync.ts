@@ -1205,38 +1205,23 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
     }
 
     if (sharedSets.length) {
-      // Collaborative edits to sets shared with me: toSupabaseSetShared omits
-      // user_id/group_id so the owner's ownership survives; RLS admits me via the
-      // set_share grant. Same batch-then-per-row resilience as the owner path.
+      // Collaborative edits to sets shared with me. These rows ALREADY exist
+      // remotely (owned by another member), so this is an UPDATE keyed on id,
+      // never an upsert — an insert would carry a null user_id (toSupabaseSetShared
+      // omits it so the owner's ownership survives) and be rejected by RLS (42501),
+      // which then reschedules forever. A row I can't write (share revoked, or it
+      // was deleted) simply matches zero rows with NO error; refreshSharedSets
+      // reconciles my local copy afterwards. Mirrors the shared-gatherings path.
       const savedShared: Record<string, unknown>[] = [];
-      for (let i = 0; i < sharedSets.length; i += SET_BATCH_SIZE) {
-        const chunk = sharedSets.slice(i, i + SET_BATCH_SIZE);
-        const { data, error } = await supabase
-          .from("sets")
-          .upsert(
-            chunk.map((s) => toSupabaseSetShared(s, deviceId)),
-            { onConflict: "id" },
-          )
-          .select();
-        if (!error) {
-          savedShared.push(...((data ?? []) as Record<string, unknown>[]));
-          continue;
-        }
-        console.warn(
-          "[sync] pushToSupabase: shared sets batch upsert failed, retrying per-row",
-          error,
-        );
-        for (const s of chunk) {
-          const { data: rowData, error: rowErr } = await supabase
-            .from("sets")
-            .upsert([toSupabaseSetShared(s, deviceId)], { onConflict: "id" })
-            .select();
-          if (rowErr) {
-            console.error("[sync] pushToSupabase: shared set upsert error", s.id, rowErr);
-            ok = false;
-          } else if (rowData?.length) {
-            savedShared.push(...(rowData as Record<string, unknown>[]));
-          }
+      for (const s of sharedSets) {
+        const { id: _id, ...patch } = toSupabaseSetShared(s, deviceId);
+        const { data, error } = await supabase.from("sets").update(patch).eq("id", s.id).select();
+        if (error) {
+          // Permanent (RLS) errors must NOT set ok=false, or the dirty-id retry
+          // in store.ts loops. Log and move on; refreshSharedSets is the safety net.
+          console.error("[sync] pushToSupabase: shared set update error", s.id, error);
+        } else if (data?.length) {
+          savedShared.push(...(data as Record<string, unknown>[]));
         }
       }
       for (const row of savedShared) {
