@@ -66,7 +66,11 @@ export function AddElementBar({ setId }: { setId: string }) {
 
   return (
     <div className="space-y-2">
-      {err && <p className="text-center text-[10px] text-destructive">{err}</p>}
+      {err && (
+        <p className="mono uppercase text-center text-[10px] tracking-wider text-destructive">
+          {err}
+        </p>
+      )}
       <div className="flex flex-wrap justify-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
