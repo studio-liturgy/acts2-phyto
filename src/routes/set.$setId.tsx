@@ -796,6 +796,27 @@ function SetEditor() {
                     {uploading ? "Uploading…" : "Drop to add media"}
                   </p>
                 )}
+                <div className="mb-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Drop a divider after the selected slide (or the last one).
+                      const targetId =
+                        selected?.id ?? phytoSet.slides[phytoSet.slides.length - 1]?.id;
+                      if (!targetId) return;
+                      updateSet(phytoSet.id, {
+                        slides: phytoSet.slides.map((sl) =>
+                          sl.id === targetId && sl.sectionAfter === undefined
+                            ? { ...sl, sectionAfter: "" }
+                            : sl,
+                        ),
+                      });
+                    }}
+                    className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                  >
+                    <Plus className="h-4 w-4" /> Add section
+                  </button>
+                </div>
                 <SlideGrid
                   slides={phytoSet.slides}
                   selectedId={selected?.id ?? null}
@@ -809,6 +830,20 @@ function SetEditor() {
                         sl.id === id
                           ? { ...sl, imageFit: sl.imageFit === "cover" ? "contain" : "cover" }
                           : sl,
+                      ),
+                    })
+                  }
+                  onRenameDivider={(id, name) =>
+                    updateSet(phytoSet.id, {
+                      slides: phytoSet.slides.map((sl) =>
+                        sl.id === id ? { ...sl, sectionAfter: name } : sl,
+                      ),
+                    })
+                  }
+                  onRemoveDivider={(id) =>
+                    updateSet(phytoSet.id, {
+                      slides: phytoSet.slides.map((sl) =>
+                        sl.id === id ? { ...sl, sectionAfter: undefined } : sl,
                       ),
                     })
                   }
@@ -937,6 +972,8 @@ function SlideGrid({
   onRemove,
   onReorder,
   onToggleFit,
+  onRenameDivider,
+  onRemoveDivider,
   dense,
   kind,
 }: {
@@ -948,6 +985,10 @@ function SlideGrid({
   onReorder: (ids: string[]) => void;
   /** Toggle an image slide's contain/cover fit (media only). */
   onToggleFit?: (id: string) => void;
+  /** Rename the section divider that sits after slide `id` (media only). */
+  onRenameDivider?: (id: string, name: string) => void;
+  /** Remove the section divider that sits after slide `id` (media only). */
+  onRemoveDivider?: (id: string) => void;
   dense?: boolean;
   kind?: SetKind;
 }) {
@@ -987,68 +1028,95 @@ function SlideGrid({
             ? { borderColor: `color-mix(in oklab, ${selColor} 60%, transparent)` }
             : undefined;
         return (
-          <div
-            key={s.id}
-            draggable
-            onDragStart={(e) => {
-              setDraggingId(s.id);
-              dragIndex.current = i;
-              e.dataTransfer.effectAllowed = "move";
-            }}
-            onDragOver={(e) => {
-              if (dragIndex.current === null) return;
-              e.preventDefault();
-              e.stopPropagation();
-              const current = liveOrder ?? slides;
-              const fromIdx = current.findIndex((x) => x.id === draggingId);
-              if (fromIdx === i || fromIdx === -1) return;
-              const next = [...current];
-              const [moved] = next.splice(fromIdx, 1);
-              next.splice(i, 0, moved);
-              liveOrderRef.current = next;
-              setLiveOrder(next);
-            }}
-            onDragEnd={commitOrder}
-            onClick={(e) => onSelect(s.id, e)}
-            style={borderStyle}
-            className={`group relative cursor-grab overflow-hidden rounded-md border-2 transition ${
-              isDragging ? "opacity-50" : ""
-            } ${isSelected || inMulti ? "" : "border-transparent hover:border-muted-foreground"}`}
-          >
-            <SlideView slide={s} variant="thumb" />
-            <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
-              {i + 1}
-            </div>
-            <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100">
-              {s.kind === "image" && onToggleFit && (
+          <Fragment key={s.id}>
+            <div
+              draggable
+              onDragStart={(e) => {
+                setDraggingId(s.id);
+                dragIndex.current = i;
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(e) => {
+                if (dragIndex.current === null) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const current = liveOrder ?? slides;
+                const fromIdx = current.findIndex((x) => x.id === draggingId);
+                if (fromIdx === i || fromIdx === -1) return;
+                const next = [...current];
+                const [moved] = next.splice(fromIdx, 1);
+                next.splice(i, 0, moved);
+                liveOrderRef.current = next;
+                setLiveOrder(next);
+              }}
+              onDragEnd={commitOrder}
+              onClick={(e) => onSelect(s.id, e)}
+              style={borderStyle}
+              className={`group relative cursor-grab overflow-hidden rounded-md border-2 transition ${
+                isDragging ? "opacity-50" : ""
+              } ${isSelected || inMulti ? "" : "border-transparent hover:border-muted-foreground"}`}
+            >
+              <SlideView slide={s} variant="thumb" />
+              <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
+                {i + 1}
+              </div>
+              <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100">
+                {s.kind === "image" && onToggleFit && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFit(s.id);
+                    }}
+                    className="rounded-full bg-black/60 p-1 text-white"
+                    aria-label={
+                      s.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"
+                    }
+                    title={s.imageFit === "cover" ? "Fit image" : "Fill frame"}
+                  >
+                    {s.imageFit === "cover" ? (
+                      <Minimize2 className="h-3 w-3" />
+                    ) : (
+                      <Maximize2 className="h-3 w-3" />
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onToggleFit(s.id);
+                    onRemove(s.id);
                   }}
                   className="rounded-full bg-black/60 p-1 text-white"
-                  aria-label={s.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"}
-                  title={s.imageFit === "cover" ? "Fit image" : "Fill frame"}
+                  aria-label="Remove slide"
                 >
-                  {s.imageFit === "cover" ? (
-                    <Minimize2 className="h-3 w-3" />
-                  ) : (
-                    <Maximize2 className="h-3 w-3" />
-                  )}
+                  <Trash2 className="h-3 w-3" />
                 </button>
-              )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemove(s.id);
-                }}
-                className="rounded-full bg-black/60 p-1 text-white"
-                aria-label="Remove slide"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
+              </div>
             </div>
-          </div>
+            {s.sectionAfter !== undefined && (
+              <div className="col-span-full my-1 flex items-center gap-2">
+                <span className="h-px flex-1 bg-foreground/20" />
+                <input
+                  value={s.sectionAfter}
+                  onChange={(e) => onRenameDivider?.(s.id, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder="Section name"
+                  className="mono w-40 bg-transparent text-center text-[10px] uppercase tracking-wider text-muted-foreground outline-none placeholder:text-muted-foreground/50"
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveDivider?.(s.id);
+                  }}
+                  className="text-muted-foreground transition hover:text-foreground"
+                  aria-label="Remove section"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+                <span className="h-px flex-1 bg-foreground/20" />
+              </div>
+            )}
+          </Fragment>
         );
       })}
     </div>

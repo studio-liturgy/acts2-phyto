@@ -27,6 +27,11 @@ export interface Slide {
    *  "contain" (default) shows the whole image; "cover" fills the frame. Both
    *  preserve aspect ratio — the image is never stretched. Toggled per image. */
   imageFit?: "contain" | "cover";
+  /** Media-only: when a string is present, a section divider labelled with it is
+   *  shown immediately AFTER this slide in the media editor, starting a new visual
+   *  section for the slides that follow. Purely an editor aid — projection ignores
+   *  it entirely (the slides play exactly as before). */
+  sectionAfter?: string;
   /** Video-only: where the media comes from. */
   videoSource?: VideoSource;
   /** Video-only: R2 public URL ("file") or direct external URL ("url"). */
