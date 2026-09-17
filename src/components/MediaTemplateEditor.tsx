@@ -47,14 +47,18 @@ export function MediaPlaybackControls({ setId }: { setId: string }) {
           <span className="text-xs text-muted-foreground">s</span>
         </div>
       </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="mono text-[10px] uppercase tracking-wider">Loop</span>
-        <input
-          type="checkbox"
-          checked={!!phytoSet.loop}
-          onChange={(e) => updateSet(setId, { loop: e.target.checked })}
-        />
-      </div>
+      {/* Loop only makes sense alongside auto advance (it restarts the set once
+          it reaches the end), so it's only offered when auto advance is on. */}
+      {auto > 0 && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="mono text-[10px] uppercase tracking-wider">Loop</span>
+          <input
+            type="checkbox"
+            checked={!!phytoSet.loop}
+            onChange={(e) => updateSet(setId, { loop: e.target.checked })}
+          />
+        </div>
+      )}
       <Dialog open={autoplayNotice} onOpenChange={setAutoplayNotice}>
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
           <DialogTitle className="text-2xl font-normal leading-tight">
