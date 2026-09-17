@@ -195,22 +195,11 @@ export function ShareGatheringDialog({
           )}
         </div>
 
-        {editable &&
-          (editingSlug ? (
-            slugError ? (
-              <p className="mono mt-2 px-4 text-[10px] uppercase tracking-wider text-destructive">
-                {slugError}
-              </p>
-            ) : null
-          ) : (
-            <button
-              type="button"
-              onClick={() => setEditingSlug(true)}
-              className="mono mt-2 self-start px-1 text-[10px] uppercase tracking-wider text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
-            >
-              Customize link
-            </button>
-          ))}
+        {editable && editingSlug && slugError && (
+          <p className="mono mt-2 px-4 text-[10px] uppercase tracking-wider text-destructive">
+            {slugError}
+          </p>
+        )}
 
         {showShareQr && (
           <div className="mt-4 flex flex-col items-center gap-3">
@@ -333,11 +322,26 @@ export function ShareGatheringDialog({
           </div>
         )}
 
-        {!isLive && (
-          <p className="mono uppercase mt-6 whitespace-nowrap text-[10px] tracking-wider text-muted-foreground">
-            Once live, this gathering will be accessible via this link.
-          </p>
-        )}
+        <div className="mt-6 flex flex-col items-start gap-2">
+          {isLive ? (
+            <p className="mono uppercase text-[10px] tracking-wider text-muted-foreground">
+              Sharing <span className="text-foreground">{gatheringName}</span>, live now.
+            </p>
+          ) : (
+            <p className="mono uppercase whitespace-nowrap text-[10px] tracking-wider text-muted-foreground">
+              Once live, this gathering will be accessible via this link.
+            </p>
+          )}
+          {editable && !editingSlug && (
+            <button
+              type="button"
+              onClick={() => setEditingSlug(true)}
+              className="mono text-[10px] uppercase tracking-wider text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
+            >
+              Customize link
+            </button>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
