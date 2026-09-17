@@ -117,7 +117,11 @@ export function AddElementBar({ setId }: { setId: string }) {
  */
 export function MessageElements({ setId, hasVerses }: { setId: string; hasVerses: boolean }) {
   return (
-    <div className="space-y-3 border-t border-foreground/20 p-4">
+    // The top border only separates the add-bar from verses ABOVE it. When the
+    // set is empty there are no verses, so it would sit directly against the
+    // importer's own bottom border — two lines reading as one thick rule. Drop it
+    // in that case so the empty state shows a single thin line like the song set.
+    <div className={`space-y-3 p-4 ${hasVerses ? "border-t border-foreground/20" : ""}`}>
       {!hasVerses && (
         <p className="mono text-center text-[10px] uppercase leading-relaxed tracking-wider opacity-50">
           Import a passage above, or add an image or a point to build a message.

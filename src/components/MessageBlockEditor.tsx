@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Maximize2, Minimize2, Trash2 } from "lucide-react";
 import { DotsGrip, hideDragGhost } from "@/components/DragBits";
 import { AutoTextarea, BlockFrame, ElementCard, AddElementBar } from "@/components/MessageElements";
+import { SlideView } from "@/components/SlideView";
 import { useLibrary } from "@/lib/store";
 import type { Slide } from "@/lib/types";
 
@@ -166,58 +168,127 @@ export function MessageBlockEditor({ setId, versions }: { setId: string; version
     tints.push(TINTS[colorIndex % TINTS.length]);
   }
 
+  const dragProps = (i: number) => ({
+    onDragStart: (e: React.DragEvent) => {
+      dragFrom.current = i;
+      hideDragGhost(e);
+    },
+    onDragEnd: commitOrder,
+    onDragOver: (e: React.DragEvent) => {
+      if (dragFrom.current === null) return;
+      e.preventDefault();
+      dragOver(i);
+    },
+  });
+
+  // Render blocks in order, but coalesce a run of consecutive IMAGE blocks into a
+  // single 2-up grid of 16:9 thumbnails (matching the media set editor and the
+  // projected proportions) instead of one full-width card each. Points and
+  // imports keep the stacked card layout.
+  const rows: React.ReactNode[] = [];
+  for (let i = 0; i < blocks.length; ) {
+    const b = blocks[i];
+    if (b.kind === "element" && b.slide.kind === "image") {
+      const run: { slide: Slide; key: string; i: number }[] = [];
+      while (i < blocks.length) {
+        const bi = blocks[i];
+        if (bi.kind !== "element" || bi.slide.kind !== "image") break;
+        run.push({ slide: bi.slide, key: bi.key, i });
+        i += 1;
+      }
+      rows.push(
+        <div
+          key={`images-${run[0].key}`}
+          className="grid grid-cols-2 gap-2 p-3"
+          style={{ backgroundColor: `color-mix(in oklab, ${tints[run[0].i]} 8%, transparent)` }}
+        >
+          {run.map(({ slide, key, i: bi }) => {
+            const dp = dragProps(bi);
+            return (
+              <div
+                key={key}
+                draggable
+                onDragStart={dp.onDragStart}
+                onDragEnd={dp.onDragEnd}
+                onDragOver={dp.onDragOver}
+                className="group relative aspect-video cursor-grab overflow-hidden rounded-md border border-foreground/10"
+              >
+                <SlideView slide={slide} variant="thumb" />
+                <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateSlide(setId, slide.id, {
+                        imageFit: slide.imageFit === "cover" ? "contain" : "cover",
+                      })
+                    }
+                    className="rounded-full bg-black/60 p-1 text-white"
+                    aria-label={
+                      slide.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"
+                    }
+                    title={slide.imageFit === "cover" ? "Fit image" : "Fill frame"}
+                  >
+                    {slide.imageFit === "cover" ? (
+                      <Minimize2 className="h-3 w-3" />
+                    ) : (
+                      <Maximize2 className="h-3 w-3" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeSlide(setId, slide.id)}
+                    className="rounded-full bg-black/60 p-1 text-white"
+                    aria-label="Remove image"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>,
+      );
+      continue;
+    }
+
+    const grip = <Grip onDragStart={dragProps(i).onDragStart} onDragEnd={commitOrder} />;
+    rows.push(
+      <div key={b.key} onDragOver={dragProps(i).onDragOver}>
+        {b.kind === "import" ? (
+          <ImportBlock
+            versions={versions}
+            slides={b.slides}
+            tint={tints[i]}
+            grip={grip}
+            seqOf={(id) => verseSeq.get(id)}
+            colSel={colSel}
+            onCellMouseDown={onCellMouseDown}
+            onEdit={(slide, v, val) => {
+              const patch: Partial<Slide> = {
+                linesByVersion: { ...(slide.linesByVersion ?? {}), [v]: val },
+              };
+              if (v === versions[0]) patch.lines = [val];
+              updateSlide(setId, slide.id, patch);
+            }}
+            onRemove={() => removeBlock(b)}
+          />
+        ) : (
+          <ElementCard
+            slide={b.slide}
+            onChange={(patch) => updateSlide(setId, b.slide.id, patch)}
+            onRemove={() => removeBlock(b)}
+            grip={grip}
+            tint={tints[i]}
+          />
+        )}
+      </div>,
+    );
+    i += 1;
+  }
+
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      {blocks.map((b, i) => {
-        const grip = (
-          <Grip
-            onDragStart={(e) => {
-              dragFrom.current = i;
-              hideDragGhost(e);
-            }}
-            onDragEnd={commitOrder}
-          />
-        );
-        return (
-          <div
-            key={b.key}
-            onDragOver={(e) => {
-              if (dragFrom.current === null) return;
-              e.preventDefault();
-              dragOver(i);
-            }}
-          >
-            {b.kind === "import" ? (
-              <ImportBlock
-                versions={versions}
-                slides={b.slides}
-                tint={tints[i]}
-                grip={grip}
-                seqOf={(id) => verseSeq.get(id)}
-                colSel={colSel}
-                onCellMouseDown={onCellMouseDown}
-                onEdit={(slide, v, val) => {
-                  const patch: Partial<Slide> = {
-                    linesByVersion: { ...(slide.linesByVersion ?? {}), [v]: val },
-                  };
-                  if (v === versions[0]) patch.lines = [val];
-                  updateSlide(setId, slide.id, patch);
-                }}
-                onRemove={() => removeBlock(b)}
-              />
-            ) : (
-              <ElementCard
-                slide={b.slide}
-                onChange={(patch) => updateSlide(setId, b.slide.id, patch)}
-                onRemove={() => removeBlock(b)}
-                grip={grip}
-                tint={tints[i]}
-              />
-            )}
-          </div>
-        );
-      })}
-
+      {rows}
       <div className="p-4">
         <AddElementBar setId={setId} />
       </div>
