@@ -121,18 +121,23 @@ export function ScriptureVerseEditor({
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      {/* Version titles, aligned to each column with a centred divider. */}
-      <div className="mono sticky top-0 z-10 flex border-b bg-background">
-        <span style={{ width: GRAB }} />
-        <div className="grid flex-1 divide-x" style={{ gridTemplateColumns: cols }}>
-          {versions.map((v) => (
-            <div key={v} className="px-3 py-1 text-[10px] uppercase tracking-wider opacity-60">
-              {v === "_" ? "Verses" : v}
-            </div>
-          ))}
+      {/* Version titles, aligned to each column with a centred divider. Hidden
+          while the only "version" is the unnamed placeholder — there are no real
+          Bible versions to label yet, so the lone "Verses" header is just noise.
+          It reappears automatically once named versions exist. */}
+      {!(versions.length === 1 && versions[0] === "_") && (
+        <div className="mono sticky top-0 z-10 flex border-b bg-background">
+          <span style={{ width: GRAB }} />
+          <div className="grid flex-1 divide-x" style={{ gridTemplateColumns: cols }}>
+            {versions.map((v) => (
+              <div key={v} className="px-3 py-1 text-[10px] uppercase tracking-wider opacity-60">
+                {v}
+              </div>
+            ))}
+          </div>
+          <span style={{ width: DEL }} />
         </div>
-        <span style={{ width: DEL }} />
-      </div>
+      )}
 
       {groups.length === 0 ? (
         <p className="mono px-5 py-6 text-center text-xs uppercase tracking-wider opacity-50">

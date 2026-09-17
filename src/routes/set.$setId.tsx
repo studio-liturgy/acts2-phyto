@@ -68,7 +68,6 @@ import {
   ArrowUpRight,
   Plus,
   Trash2,
-  GripVertical,
   Search,
   Loader2,
   ChevronDown,
@@ -405,7 +404,7 @@ function SetEditor() {
         <div className="text-center">
           <p className="text-muted-foreground">Set not found.</p>
           <Link to="/" className="mt-3 inline-block underline">
-            Back to library
+            Back to catalogue
           </Link>
         </div>
       </div>
@@ -578,24 +577,12 @@ function SetEditor() {
   // Media: merged import + slides panel
   const dense = phytoSet.slides.length > 20;
 
-  const handleSelect = (id: string, e?: React.MouseEvent) => {
+  // Single-select only: modifier-click no longer extends a selection (multi-select
+  // was removed from the media editor). multiSel always mirrors the one selection
+  // so the existing Delete-key and highlight paths keep working unchanged.
+  const handleSelect = (id: string) => {
     setSelectedId(id);
-    if (e && (e.metaKey || e.ctrlKey)) {
-      setMultiSel((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      });
-    } else if (e && e.shiftKey && selected) {
-      const ids = phytoSet.slides.map((s) => s.id);
-      const a = ids.indexOf(selected.id);
-      const b = ids.indexOf(id);
-      const [lo, hi] = a < b ? [a, b] : [b, a];
-      setMultiSel(new Set(ids.slice(lo, hi + 1)));
-    } else {
-      setMultiSel(new Set([id]));
-    }
+    setMultiSel(new Set([id]));
   };
 
   // Uploads a single video file to R2 via the server route, then adds a slide
@@ -1012,7 +999,7 @@ function SlideGrid({
           >
             <SlideView slide={s} variant="thumb" />
             <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
-              <GripVertical className="h-3 w-3" /> {i + 1}
+              {i + 1}
             </div>
             <button
               onClick={(e) => {

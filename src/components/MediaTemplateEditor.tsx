@@ -23,7 +23,14 @@ export function MediaPlaybackControls({ setId }: { setId: string }) {
           <NumberStepper
             value={auto / 1000}
             onChange={(seconds) => {
-              const ms = seconds > 0 ? Math.round(seconds * 1000) : 0;
+              // Sequence is OFF, then 2s, 3s, 4s… in whole-second steps. Turning
+              // it on from OFF starts at 2s; stepping below 2s turns it back OFF.
+              let next: number;
+              if (seconds <= 0) next = 0;
+              else if (auto === 0) next = 2;
+              else if (seconds < 2) next = 0;
+              else next = Math.round(seconds);
+              const ms = next * 1000;
               const patch: Partial<PhytoSet> = { autoAdvanceMs: ms };
               // Auto advance relies on videos playing on their own, so turning it
               // on flips every video slide to autoplay. Tell the operator.
@@ -36,7 +43,7 @@ export function MediaPlaybackControls({ setId }: { setId: string }) {
               updateSet(setId, patch);
             }}
             min={0}
-            step={0.5}
+            step={1}
             // Zero is "no auto advance" rather than a zero-second wait, so it
             // reads as OFF instead of a number the operator might trust.
             format={(n) => (n === 0 ? "OFF" : String(n))}
