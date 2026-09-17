@@ -149,7 +149,7 @@ export function ShareGatheringDialog({
                     if (e.key === "Escape") cancelEdit();
                   }}
                   disabled={savingSlug}
-                  className="flex-1 bg-transparent py-2 pr-3 font-mono text-sm lowercase text-foreground outline-none"
+                  className="flex-1 bg-transparent py-2 pr-3 font-mono text-sm uppercase text-foreground outline-none"
                   placeholder="my-gathering"
                 />
                 <button
@@ -197,13 +197,11 @@ export function ShareGatheringDialog({
 
         {editable &&
           (editingSlug ? (
-            <p
-              className={`mono mt-2 px-4 text-[10px] uppercase tracking-wider ${
-                slugError ? "text-destructive" : "text-muted-foreground"
-              }`}
-            >
-              {slugError || `Preview: /g/${normalizedDraft || "…"}`}
-            </p>
+            slugError ? (
+              <p className="mono mt-2 px-4 text-[10px] uppercase tracking-wider text-destructive">
+                {slugError}
+              </p>
+            ) : null
           ) : (
             <button
               type="button"
