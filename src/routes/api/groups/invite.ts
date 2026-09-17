@@ -76,10 +76,14 @@ export const Route = createFileRoute("/api/groups/invite")({
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light only" />
+    <meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no" />
     <title>You were invited to a group | phyto</title>
     <style>
       @font-face { font-family: 'Space Mono'; src: url('https://phyto.live/fonts/SpaceMono-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }
       @media only screen and (max-width:600px) { .h1 { font-size:34px !important; } }
+      /* Apple Mail auto-detects emails/dates and re-styles them as blue links,
+         which is illegible on the blue ground. Force them to inherit our text. */
+      a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; font-size: inherit !important; font-family: inherit !important; font-weight: inherit !important; line-height: inherit !important; }
     </style>
   </head>
   <body style="margin:0;padding:0;background:#2E7299;font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.03em;">
