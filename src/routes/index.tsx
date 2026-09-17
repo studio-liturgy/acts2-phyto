@@ -6,6 +6,7 @@ import { useAccountPull, useSyncStatus } from "@/hooks/use-sync-status";
 import { exportCatalogue, importCatalogue } from "@/lib/catalogue-io";
 import { APP_NAME } from "@/lib/appConfig";
 import { isLiveNow } from "@/lib/live-session";
+import type { SlugError } from "@/lib/slug";
 import { stripChords } from "@/lib/chords";
 import {
   AlertDialog,
@@ -205,6 +206,7 @@ function Library() {
     gatheringOrder = [],
     createGathering,
     renameGathering,
+    setGatheringSlug,
     deleteGathering,
     addSetToGathering,
     removeSetFromGathering,
@@ -480,7 +482,7 @@ function Library() {
     }
     return {
       title: `Delete ${owned} and remove ${shared} set${selectedSets.length === 1 ? "" : "s"}?`,
-      body: "Your own sets are permanently deleted (this cannot be undone). Sets shared with you are only removed from your library: you'll lose access unless their owners share them again.",
+      body: "Your own sets are permanently deleted (this cannot be undone). Sets shared with you are only removed from your catalogue: you'll lose access unless their owners share them again.",
       action: "Delete",
     };
   }, [selectedSets, activeGroup]);
@@ -552,6 +554,14 @@ function Library() {
 
   // Only one gathering card can be in edit mode at a time.
   const [editingGatheringId, setEditingGatheringId] = useState<string | null>(null);
+
+  // The Share control now lives beside the section title (one gathering per
+  // workspace), targeting the primary gathering — the live one leads, else the
+  // most recent. `gatheringDisplayOrder` is already workspace-scoped.
+  const [showGatheringShare, setShowGatheringShare] = useState(false);
+  const primaryGathering = gatheringDisplayOrder.length
+    ? gatherings[gatheringDisplayOrder[0]]
+    : null;
 
   // Switching workspace resets the home view: search, filter, edit modes.
   useEffect(() => {
@@ -629,7 +639,7 @@ function Library() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 text-foreground">
         <span className="h-4 w-4 animate-pulse rounded-full bg-[var(--brand-blue)]" />
-        <h1 className="mono mt-6 text-sm uppercase tracking-wider">Loading your library</h1>
+        <h1 className="mono mt-6 text-sm uppercase tracking-wider">Loading your catalogue</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {total > 0 ? `Downloading ${clampedDone} of ${total} sets` : "Checking your account"}
         </p>
@@ -667,7 +677,7 @@ function Library() {
                 <DropdownMenuTrigger asChild>
                   <button
                     className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-                    title="Switch workspace"
+                    title="Switch group"
                   >
                     {activeWorkspaceLabel}
                     <ChevronDown className="h-3.5 w-3.5" />
@@ -860,7 +870,20 @@ function Library() {
           {/* Gatherings */}
           <section className="mb-24">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-4xl md:text-5xl">Gatherings</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-4xl md:text-5xl">Gatherings</h2>
+                {isSignedIn && primaryGathering?.share_token && (
+                  <button
+                    type="button"
+                    onClick={() => setShowGatheringShare(true)}
+                    className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
+                    title="Share gathering"
+                    aria-label="Share gathering"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-2 pl-[80px]">
                 <button
                   onClick={createNewGathering}
@@ -904,6 +927,7 @@ function Library() {
                         isSignedIn ? goLive(pid) : (setShowGoLivePrompt(true), Promise.resolve())
                       }
                       onEndSession={() => endSession(pid)}
+                      onSlugSave={p.shared ? undefined : (slug) => setGatheringSlug(pid, slug)}
                       className={gatheringDisplayOrder.length > 2 ? "w-[450px] shrink-0" : ""}
                       editMode={editingGatheringId === pid}
                       onEditModeChange={(v) => setEditingGatheringId(v ? pid : null)}
@@ -914,6 +938,24 @@ function Library() {
               </div>
             )}
           </section>
+
+          {/* Section-level share for the primary gathering (button sits by the
+              "Gatherings" title). */}
+          {primaryGathering && (
+            <ShareGatheringDialog
+              open={showGatheringShare}
+              onOpenChange={setShowGatheringShare}
+              shareUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/g/${primaryGathering.share_token}`}
+              gatheringName={primaryGathering.name}
+              isLive={primaryGathering.is_live === null ? null : isLiveNow(primaryGathering)}
+              slug={primaryGathering.share_token}
+              onSlugSave={
+                primaryGathering.shared
+                  ? undefined
+                  : (slug) => setGatheringSlug(primaryGathering.id, slug)
+              }
+            />
+          )}
 
           {/* Catalogue */}
           <section>
@@ -1768,6 +1810,7 @@ function GatheringCard({
   shareToken,
   onGoLive,
   onEndSession,
+  onSlugSave,
   className = "",
   editMode,
   onEditModeChange,
@@ -1778,6 +1821,10 @@ function GatheringCard({
   setIds: string[];
   isLive: boolean | null;
   shareToken: string;
+  /** Provided only for gatherings the viewer owns; enables the custom-link editor. */
+  onSlugSave?: (
+    slug: string,
+  ) => Promise<{ ok: true } | { ok: false; reason: SlugError | "taken" | "offline" }>;
   allSets: { id: string; name: string; kind: SetKind }[];
   onRename: (name: string) => void;
   onDelete: () => void;
@@ -1909,17 +1956,6 @@ function GatheringCard({
             >
               <ArrowUpRight className="h-4 w-4" />
             </Link>
-            {isSignedIn && shareToken && (
-              <button
-                type="button"
-                onClick={() => setShowShareDialog(true)}
-                className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
-                title="Share gathering"
-                aria-label="Share gathering"
-              >
-                <Share2 className="h-4 w-4" />
-              </button>
-            )}
             {isSignedIn &&
               (isLive ? (
                 <button
@@ -2095,6 +2131,8 @@ function GatheringCard({
         shareUrl={shareUrl}
         gatheringName={name}
         isLive={isLive}
+        slug={shareToken}
+        onSlugSave={onSlugSave}
       />
 
       {/* Go Live confirmation dialog */}

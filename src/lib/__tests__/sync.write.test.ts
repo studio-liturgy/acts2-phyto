@@ -158,4 +158,25 @@ describe("42501 re-ID guard (regression 54618ca)", () => {
     expect(await db.gatherings.get(stranded.id)).toBeUndefined();
     expect(await db.gatherings.get(keeper.id)).toBeDefined();
   });
+
+  it("pushToSupabase keeps an ESTABLISHED gathering on 23505 (custom-slug collision)", async () => {
+    // A gathering that already exists remotely under THIS id — the owner just
+    // renamed its slug to one another account holds. The 23505 must NOT delete
+    // it (that would be real data loss); the push fails so it re-queues instead.
+    const established = makeGathering();
+    await db.gatherings.bulkPut([established]);
+    supabaseMock.configure({
+      session: fakeSession,
+      // Seed the remote row so the guard's id-existence check finds it.
+      tables: { gatherings: [{ id: established.id, share_token: established.share_token }] },
+      errors: [
+        { table: "gatherings", op: "upsert", error: { message: "batch failed" } },
+        { table: "gatherings", op: "upsert", error: { code: "23505", message: "dup" } },
+      ],
+    });
+
+    // Push reports failure (re-queues) and the local row is preserved.
+    expect(await pushToSupabase({ setIds: [], gatheringIds: [established.id] })).toBe(false);
+    expect(await db.gatherings.get(established.id)).toBeDefined();
+  });
 });

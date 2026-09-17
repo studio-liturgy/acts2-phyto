@@ -1,7 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Copy, Check, QrCode } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { normalizeSlug, slugErrorMessage, validateSlug, type SlugError } from "@/lib/slug";
+
+type SlugSaveResult = { ok: true } | { ok: false; reason: SlugError | "taken" | "offline" };
 
 /**
  * Share-a-gathering dialog: copyable link plus an optional, fully customizable QR
@@ -16,15 +19,58 @@ export function ShareGatheringDialog({
   shareUrl,
   gatheringName,
   isLive,
+  slug,
+  onSlugSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   shareUrl: string;
   gatheringName: string;
   isLive: boolean | null;
+  /** Current URL slug (share_token). Required to enable the custom-link editor. */
+  slug?: string;
+  /** Provided only when the viewer may customize the link (the owner). Absent =
+   *  the slug is shown as a static, read-only part of the URL. */
+  onSlugSave?: (slug: string) => Promise<SlugSaveResult>;
 }) {
   const [showShareQr, setShowShareQr] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
+  const editable = !!onSlugSave && slug !== undefined;
+  const [editingSlug, setEditingSlug] = useState(false);
+  const [draftSlug, setDraftSlug] = useState(slug ?? "");
+  const [savingSlug, setSavingSlug] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
+  // Re-seed the draft whenever the live slug changes (a successful save, or a
+  // different gathering opening the dialog) and drop any stale editing state.
+  useEffect(() => {
+    setDraftSlug(slug ?? "");
+    setEditingSlug(false);
+    setSlugError(null);
+  }, [slug, open]);
+
+  const normalizedDraft = normalizeSlug(draftSlug);
+
+  const saveSlug = async () => {
+    if (!onSlugSave) return;
+    const check = validateSlug(normalizedDraft);
+    if (!check.ok) {
+      setSlugError(slugErrorMessage(check.reason));
+      return;
+    }
+    setSavingSlug(true);
+    setSlugError(null);
+    const res = await onSlugSave(normalizedDraft);
+    setSavingSlug(false);
+    if (res.ok) {
+      setEditingSlug(false);
+    } else if (res.reason === "taken") {
+      setSlugError("That link is already taken. Try another.");
+    } else if (res.reason === "offline") {
+      setSlugError("Sign in to customize the link.");
+    } else {
+      setSlugError(slugErrorMessage(res.reason));
+    }
+  };
   const [qrFg, setQrFg] = useState("#212121");
   const [qrBg, setQrBg] = useState("#ffffff");
   const [qrTransparent, setQrTransparent] = useState(false);
@@ -110,6 +156,57 @@ export function ShareGatheringDialog({
             <QrCode className="h-4 w-4" />
           </button>
         </div>
+
+        {editable &&
+          (editingSlug ? (
+            <div className="mt-3 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
+                  <span className="pl-4 font-mono text-sm text-muted-foreground">/g/</span>
+                  <input
+                    autoFocus
+                    value={draftSlug}
+                    onChange={(e) => {
+                      setDraftSlug(e.target.value);
+                      setSlugError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveSlug();
+                      if (e.key === "Escape") setEditingSlug(false);
+                    }}
+                    disabled={savingSlug}
+                    className="flex-1 bg-transparent py-2 pr-3 font-mono text-sm lowercase text-foreground outline-none"
+                    placeholder="my-gathering"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={saveSlug}
+                  disabled={savingSlug}
+                  className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {savingSlug ? "Saving" : "Save"}
+                </button>
+              </div>
+              {slugError ? (
+                <p className="mono px-4 text-[10px] uppercase tracking-wider text-destructive">
+                  {slugError}
+                </p>
+              ) : (
+                <p className="mono px-4 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Preview: /g/{normalizedDraft || "…"}
+                </p>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingSlug(true)}
+              className="mono mt-2 self-start px-1 text-[10px] uppercase tracking-wider text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
+            >
+              Customize link
+            </button>
+          ))}
 
         {showShareQr && (
           <div className="mt-4 flex flex-col items-center gap-3">

@@ -71,18 +71,51 @@ export const Route = createFileRoute("/g/$token")({
 // Supabase fetchers — no auth required
 // ---------------------------------------------------------------------------
 
-async function fetchGathering(token: string): Promise<GatheringRow | null> {
-  const { data } = await supabase
-    .from("gatherings")
-    .select("id, title, share_token, is_live, live_started_at, hidden_sections")
-    .eq("share_token", token)
-    .maybeSingle();
-  if (!data) return null;
+const GATHERING_COLS = "id, title, share_token, is_live, live_started_at, hidden_sections";
+
+function toGatheringRow(data: Record<string, unknown>): GatheringRow {
   return {
-    ...(data as Omit<GatheringRow, "live_started_at" | "hidden_sections">),
-    live_started_at: data.live_started_at ? new Date(data.live_started_at).getTime() : null,
+    ...(data as unknown as Omit<GatheringRow, "live_started_at" | "hidden_sections">),
+    live_started_at: data.live_started_at
+      ? new Date(data.live_started_at as string).getTime()
+      : null,
     hidden_sections: (data.hidden_sections as Record<string, string[]>) ?? {},
   };
+}
+
+/** Resolve a retired slug to its gathering id via the alias table. Best-effort:
+ *  if the table doesn't exist yet (migration deferred) or the token isn't an
+ *  alias, returns null and the caller falls through to "not found" — a hard
+ *  cutover, exactly as before aliases existed. */
+async function resolveAlias(token: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("gathering_aliases")
+    .select("gathering_id")
+    .eq("token", token)
+    .maybeSingle();
+  if (error || !data) return null;
+  return (data.gathering_id as string) ?? null;
+}
+
+async function fetchGathering(token: string): Promise<GatheringRow | null> {
+  // Live share_tokens always win: look up the gathering directly first, so a
+  // slug someone reclaimed never gets shadowed by another gathering's old alias.
+  const { data } = await supabase
+    .from("gatherings")
+    .select(GATHERING_COLS)
+    .eq("share_token", token)
+    .maybeSingle();
+  if (data) return toGatheringRow(data as Record<string, unknown>);
+
+  // Fall back to a retired slug (an old link/QR for a gathering since renamed).
+  const aliasId = await resolveAlias(token);
+  if (!aliasId) return null;
+  const { data: byId } = await supabase
+    .from("gatherings")
+    .select(GATHERING_COLS)
+    .eq("id", aliasId)
+    .maybeSingle();
+  return byId ? toGatheringRow(byId as Record<string, unknown>) : null;
 }
 
 async function fetchViewerSets(gatheringId: string): Promise<ViewerSet[]> {

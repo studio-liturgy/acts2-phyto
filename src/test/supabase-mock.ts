@@ -25,7 +25,7 @@ export type RecordedCall = {
   table: string;
   op: Op;
   rows?: Row[];
-  filters: { kind: "eq" | "in" | "gte"; column: string; value: unknown }[];
+  filters: { kind: "eq" | "neq" | "in" | "gte"; column: string; value: unknown }[];
 };
 
 type MockConfig = {
@@ -40,6 +40,7 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
   private returning = false;
   private orderBy: string | undefined;
   private rangeArg: [number, number] | undefined;
+  private limitArg: number | undefined;
   private readonly call: RecordedCall;
 
   constructor(
@@ -67,6 +68,10 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
     this.call.filters.push({ kind: "eq", column, value });
     return this;
   }
+  neq(column: string, value: unknown) {
+    this.call.filters.push({ kind: "neq", column, value });
+    return this;
+  }
   in(column: string, value: unknown[]) {
     this.call.filters.push({ kind: "in", column, value });
     return this;
@@ -83,6 +88,10 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
     this.rangeArg = [from, to];
     return this;
   }
+  limit(n: number) {
+    this.limitArg = n;
+    return this;
+  }
 
   then<R1, R2>(
     onfulfilled?: (value: { data: Row[] | null; error: Row | null }) => R1 | PromiseLike<R1>,
@@ -95,6 +104,7 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
     return this.call.filters.every((f) => {
       const v = row[f.column];
       if (f.kind === "eq") return v === f.value;
+      if (f.kind === "neq") return v !== f.value;
       if (f.kind === "in") return (f.value as unknown[]).includes(v);
       return typeof v === "number" && v >= (f.value as number);
     });
@@ -130,6 +140,7 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
       rows = [...rows].sort((a, b) => String(a[col]).localeCompare(String(b[col])));
     }
     if (this.rangeArg) rows = rows.slice(this.rangeArg[0], this.rangeArg[1] + 1);
+    if (this.limitArg !== undefined) rows = rows.slice(0, this.limitArg);
     return { data: rows.map((r) => ({ ...r })), error: null };
   }
 }

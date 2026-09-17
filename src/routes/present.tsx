@@ -187,6 +187,7 @@ function Presenter() {
   const removeSetFromGathering = useLibrary((s) => s.removeSetFromGathering);
   const reorderGatheringSets = useLibrary((s) => s.reorderGatheringSets);
   const renameGathering = useLibrary((s) => s.renameGathering);
+  const setGatheringSlug = useLibrary((s) => s.setGatheringSlug);
   const createSet = useLibrary((s) => s.createSet);
   const createGathering = useLibrary((s) => s.createGathering);
   const pushHiddenSections = useLibrary((s) => s.pushHiddenSections);
@@ -1543,6 +1544,12 @@ function Presenter() {
           activeGathering == null || activeGathering.is_live === null
             ? null
             : isLiveNow(activeGathering)
+        }
+        slug={activeShareToken ?? undefined}
+        onSlugSave={
+          activeGathering && !activeGathering.shared
+            ? (slug) => setGatheringSlug(activeGathering.id, slug)
+            : undefined
         }
       />
 

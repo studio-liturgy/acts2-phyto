@@ -286,6 +286,40 @@ create policy "gatherings: public select by share_token"
   using (share_token is not null);
 
 -- ============================================================
+-- Table: gathering_aliases
+-- Retired share_tokens, so a link/QR handed out before the owner
+-- customized the slug still resolves. Live share_tokens win over
+-- an alias (the viewer looks up gatherings first). See migration
+-- 2026-09-17-gathering-aliases.sql.
+-- ============================================================
+create table if not exists gathering_aliases (
+  token        text        primary key,
+  gathering_id uuid        references gatherings on delete cascade not null,
+  user_id      uuid        references auth.users not null,
+  created_at   timestamptz not null default now()
+);
+
+alter table gathering_aliases enable row level security;
+
+-- Unauthenticated viewers resolve an old link, so aliases are public-read.
+create policy "gathering_aliases: public select"
+  on gathering_aliases for select
+  using (true);
+
+create policy "gathering_aliases: owner insert"
+  on gathering_aliases for insert
+  with check (user_id = auth.uid());
+
+create policy "gathering_aliases: owner update"
+  on gathering_aliases for update
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create policy "gathering_aliases: owner delete"
+  on gathering_aliases for delete
+  using (user_id = auth.uid());
+
+-- ============================================================
 -- Table: gathering_sets
 -- Ordered join table linking sets into a gathering.
 -- ============================================================
