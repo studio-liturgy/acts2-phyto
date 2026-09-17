@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Maximize2, Minimize2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -252,12 +252,27 @@ export function ElementCard({
   return (
     <BlockFrame label={label} grip={grip} onRemove={onRemove} tint={tint}>
       {slide.kind === "image" ? (
-        <div className="px-3 py-2">
+        <div className="relative px-3 py-2">
           <img
             src={slide.imageUrl}
             alt=""
-            className="max-h-40 w-full rounded border border-foreground/10 object-contain"
+            className={`max-h-40 w-full rounded border border-foreground/10 ${
+              slide.imageFit === "cover" ? "object-cover" : "object-contain"
+            }`}
           />
+          <button
+            type="button"
+            onClick={() => onChange({ imageFit: slide.imageFit === "cover" ? "contain" : "cover" })}
+            className="absolute right-4 top-3 rounded-full bg-black/60 p-1 text-white transition hover:opacity-90"
+            aria-label={slide.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"}
+            title={slide.imageFit === "cover" ? "Fit image" : "Fill frame"}
+          >
+            {slide.imageFit === "cover" ? (
+              <Minimize2 className="h-3 w-3" />
+            ) : (
+              <Maximize2 className="h-3 w-3" />
+            )}
+          </button>
         </div>
       ) : slide.pointType === "quote" ? (
         <>

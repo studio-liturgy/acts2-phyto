@@ -315,7 +315,8 @@ export function SlideView({
   const bg = slide?.imageUrl
     ? {
         backgroundImage: `url(${slide.imageUrl})`,
-        backgroundSize: imageFit,
+        // A per-slide fit (toggled in the editor) wins over the caller default.
+        backgroundSize: slide.imageFit ?? imageFit,
         backgroundRepeat: "no-repeat" as const,
         backgroundPosition: "center",
       }

@@ -68,6 +68,8 @@ import {
   ArrowUpRight,
   Plus,
   Trash2,
+  Maximize2,
+  Minimize2,
   Search,
   Loader2,
   ChevronDown,
@@ -797,6 +799,15 @@ function SetEditor() {
                   onSelect={handleSelect}
                   onRemove={(id) => removeSlide(phytoSet.id, id)}
                   onReorder={(ids) => reorderSlides(phytoSet.id, ids)}
+                  onToggleFit={(id) =>
+                    updateSet(phytoSet.id, {
+                      slides: phytoSet.slides.map((sl) =>
+                        sl.id === id
+                          ? { ...sl, imageFit: sl.imageFit === "cover" ? "contain" : "cover" }
+                          : sl,
+                      ),
+                    })
+                  }
                   dense={dense}
                   kind={phytoSet.kind}
                 />
@@ -921,6 +932,7 @@ function SlideGrid({
   onSelect,
   onRemove,
   onReorder,
+  onToggleFit,
   dense,
   kind,
 }: {
@@ -930,6 +942,8 @@ function SlideGrid({
   onSelect: (id: string, e?: React.MouseEvent) => void;
   onRemove: (id: string) => void;
   onReorder: (ids: string[]) => void;
+  /** Toggle an image slide's contain/cover fit (media only). */
+  onToggleFit?: (id: string) => void;
   dense?: boolean;
   kind?: SetKind;
 }) {
@@ -1001,16 +1015,35 @@ function SlideGrid({
             <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
               {i + 1}
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove(s.id);
-              }}
-              className="absolute right-1.5 top-1.5 rounded-full bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
-              aria-label="Remove slide"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
+            <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100">
+              {s.kind === "image" && onToggleFit && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFit(s.id);
+                  }}
+                  className="rounded-full bg-black/60 p-1 text-white"
+                  aria-label={s.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"}
+                  title={s.imageFit === "cover" ? "Fit image" : "Fill frame"}
+                >
+                  {s.imageFit === "cover" ? (
+                    <Minimize2 className="h-3 w-3" />
+                  ) : (
+                    <Maximize2 className="h-3 w-3" />
+                  )}
+                </button>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove(s.id);
+                }}
+                className="rounded-full bg-black/60 p-1 text-white"
+                aria-label="Remove slide"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         );
       })}

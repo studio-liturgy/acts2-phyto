@@ -23,6 +23,10 @@ export interface Slide {
   section?: string;
   /** data URL or external URL for an image slide / background */
   imageUrl?: string;
+  /** Image slides (media) and message images: how the image fills its frame.
+   *  "contain" (default) shows the whole image; "cover" fills the frame. Both
+   *  preserve aspect ratio — the image is never stretched. Toggled per image. */
+  imageFit?: "contain" | "cover";
   /** Video-only: where the media comes from. */
   videoSource?: VideoSource;
   /** Video-only: R2 public URL ("file") or direct external URL ("url"). */
