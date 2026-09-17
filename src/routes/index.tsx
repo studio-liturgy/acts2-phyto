@@ -2135,14 +2135,15 @@ function GatheringCard({
         </div>
       )}
 
-      {/* Share dialog (opened by go-live to hand out the link; read-only URL —
-          customization lives in the section-level Share dialog). */}
+      {/* Share dialog (opened by go-live to hand out the link). */}
       <ShareGatheringDialog
         open={showShareDialog}
         onOpenChange={setShowShareDialog}
         shareUrl={shareUrl}
         gatheringName={name}
         isLive={isLive}
+        slug={cardShare.slug}
+        onSlugSave={canDelete && cardShare.canCustomize ? cardShare.save : undefined}
       />
 
       {/* Go Live confirmation dialog */}

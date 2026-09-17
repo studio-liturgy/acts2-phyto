@@ -327,7 +327,7 @@ export function ShareGatheringDialog({
             </p>
           ) : (
             <p className="mono uppercase text-[10px] tracking-wider text-muted-foreground">
-              Whatever you take live will be accessible at this link.
+              Whatever gathering goes live will be accessible at this link.
             </p>
           )}
           {editable && !editingSlug && (
