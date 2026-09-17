@@ -950,7 +950,11 @@ function Library() {
             <ShareGatheringDialog
               open={showGatheringShare}
               onOpenChange={setShowGatheringShare}
-              shareUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/g/${primaryShare.slug}`}
+              shareUrl={
+                primaryShare.slug
+                  ? `${typeof window !== "undefined" ? window.location.origin : ""}/g/${primaryShare.slug}`
+                  : ""
+              }
               gatheringName={primaryGathering.name}
               isLive={primaryGathering.is_live === null ? null : isLiveNow(primaryGathering)}
               slug={primaryShare.slug}
@@ -1874,7 +1878,7 @@ function GatheringCard({
     seed: shareToken,
     enabled: showShareDialog,
   });
-  const shareUrl = `${window.location.origin}/g/${cardShare.slug}`;
+  const shareUrl = cardShare.slug ? `${window.location.origin}/g/${cardShare.slug}` : "";
 
   const nameLookup = useMemo(() => Object.fromEntries(allSets.map((d) => [d.id, d])), [allSets]);
 

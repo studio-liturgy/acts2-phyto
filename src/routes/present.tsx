@@ -345,7 +345,7 @@ function Presenter() {
     seed: activeShareToken ?? "",
     enabled: showShareDialog,
   });
-  const shareUrl = activeShareToken ? `${window.location.origin}/g/${share.slug}` : "";
+  const shareUrl = share.slug ? `${window.location.origin}/g/${share.slug}` : "";
 
   useEffect(() => {
     if (setFromUrl) setActiveSetId(setFromUrl);
