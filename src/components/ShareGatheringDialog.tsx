@@ -128,9 +128,7 @@ export function ShareGatheringDialog({
       }}
     >
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-        <DialogTitle className="text-2xl font-normal leading-tight">
-          Share this gathering!
-        </DialogTitle>
+        <DialogTitle className="text-2xl font-normal leading-tight">Share your link!</DialogTitle>
 
         <div className="mt-6 flex items-center gap-2">
           <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
@@ -328,8 +326,8 @@ export function ShareGatheringDialog({
               Sharing <span className="text-foreground">{gatheringName}</span>, live now.
             </p>
           ) : (
-            <p className="mono uppercase whitespace-nowrap text-[10px] tracking-wider text-muted-foreground">
-              Once live, this gathering will be accessible via this link.
+            <p className="mono uppercase text-[10px] tracking-wider text-muted-foreground">
+              Whatever you take live will be accessible at this link.
             </p>
           )}
           {editable && !editingSlug && (
