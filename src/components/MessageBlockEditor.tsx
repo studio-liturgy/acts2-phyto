@@ -151,14 +151,16 @@ export function MessageBlockEditor({ setId, versions }: { setId: string; version
     }
   };
 
-  // Colour by block: each scripture import is its own colour, and a run of
-  // consecutive points/images shares one — the same scheme the right preview and
-  // the presenter use, so a block reads as the same colour everywhere.
+  // Colour by block: each scripture import is its own colour; a run of consecutive
+  // points is one colour and a run of consecutive images is another, so images
+  // read as their own section, separate from points. Same scheme as the right
+  // preview, so a block reads as the same colour everywhere.
   const tints: string[] = [];
   let colorIndex = -1;
   let lastColorKey: string | undefined;
   for (const b of blocks) {
-    const colorKey = b.kind === "import" ? `i${b.idx}` : "elements";
+    const colorKey =
+      b.kind === "import" ? `i${b.idx}` : b.slide.kind === "image" ? "images" : "points";
     if (colorKey !== lastColorKey) colorIndex += 1;
     lastColorKey = colorKey;
     tints.push(TINTS[colorIndex % TINTS.length]);

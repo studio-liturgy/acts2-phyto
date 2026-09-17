@@ -522,13 +522,17 @@ function SetEditor() {
               (() => {
                 const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
                 // One coloured group per block, matching the editor: each scripture
-                // section is its own group; a run of consecutive points/images is a
-                // single "elements" group.
+                // section is its own group; a run of consecutive points is one group
+                // and a run of consecutive images is a separate group.
                 const groups: { label: string | undefined; slides: Slide[] }[] = [];
                 let lastKey: string | undefined;
                 for (const s of phytoSet.slides) {
                   const key =
-                    s.kind === "point" || s.kind === "image" ? "elements" : (s.section ?? "");
+                    s.kind === "image"
+                      ? "images"
+                      : s.kind === "point"
+                        ? "points"
+                        : (s.section ?? "");
                   const last = groups[groups.length - 1];
                   if (!last || key !== lastKey) {
                     groups.push({ label: s.reference ?? s.section, slides: [s] });
