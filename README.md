@@ -37,4 +37,4 @@ phyto is licensed under the GNU General Public License v3.0.
 
 ## What does "phyto" mean?
 
-phyto is short for phytoplankton. Organisms that use sunlight, freely available in abundance, to survive, live, and breathe. Our times of worship together should work the same way.
+phyto is the Greek prefix for plants. Organisms that freely receive, freely give away and grow over time. Our times of worship together should work the same way.

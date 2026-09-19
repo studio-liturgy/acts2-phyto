@@ -70,6 +70,12 @@ export default function AboutMain() {
               Donate
             </a>
             <Link
+              to="/transparency"
+              className="pill flex items-center border border-[var(--brand-white)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"
+            >
+              Transparency
+            </Link>
+            <Link
               to="/feedback"
               className="pill flex items-center border border-[var(--brand-white)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"
             >
@@ -79,9 +85,8 @@ export default function AboutMain() {
 
           {/* Mono footnote */}
           <p className="mono mt-20 max-w-4xl text-xs uppercase leading-relaxed text-[var(--brand-white)]">
-            phyto is short for phytoplankton. Organisms that use sunlight, freely available in
-            abundance, to survive, live, and breathe. Our times of worship together should work the
-            same way.
+            phyto is the Greek prefix for plants. Organisms that freely receive, freely give away
+            and grow over time. Our times of worship together should work the same way.
           </p>
           <div className="mt-12">
             <BackToTop />
