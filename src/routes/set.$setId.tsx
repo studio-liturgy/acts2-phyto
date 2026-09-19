@@ -77,6 +77,7 @@ import {
 } from "lucide-react";
 import { NumberStepper } from "@/components/NumberStepper";
 import { useIsSignedIn } from "@/lib/authStore";
+import { useScriptureLiveSync } from "@/hooks/use-scripture-live-sync";
 import { ShareSetDialog } from "@/components/ShareSetDialog";
 import {
   AlertDialog,
@@ -1496,15 +1497,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     if (changed) updateSet(setId, { slides });
   }, [lyrics, kind, setId, updateSet]);
 
-  // Live sync: rebuild slides whenever the scripture textarea changes.
-  // Same id-preserving reconcile as the song effect above.
-  useEffect(() => {
-    if (kind !== "scripture") return;
-    const parsed = manualText.trim() ? parseScriptureFromText(manualText, versesPer) : [];
-    const current = useLibrary.getState().sets[setId]?.slides ?? [];
-    const { slides, changed } = reconcileSlideIds(parsed, current);
-    if (changed) updateSet(setId, { slides });
-  }, [manualText, versesPer, kind, setId, updateSet]);
+  // Live sync: rebuild slides whenever the scripture textarea changes (and
+  // guard the message -> scripture flip). See the hook for the details.
+  useScriptureLiveSync({ kind, setId, manualText, setManualText, versesPer });
 
   const runSongSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
