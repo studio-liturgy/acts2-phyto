@@ -539,8 +539,7 @@ function Library() {
   // someone who already belongs to a group — they aren't a brand-new user even
   // if their personal catalogue happens to be empty. The explicit Intro link
   // (?intro) still opens it for anyone.
-  const showLanding =
-    activeWorkspace === "personal" && (!!intro || (isEmpty && groups.length === 0));
+  const showLanding = !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
 
   // The live gathering always leads, regardless of creation order.
   const gatheringDisplayOrder = useMemo(
