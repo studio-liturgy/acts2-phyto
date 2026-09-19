@@ -11,7 +11,7 @@
 //   beforeEach(() => supabaseMock.configure({ tables: {...}, session: {...} }));
 
 export type Row = Record<string, unknown>;
-type Op = "select" | "upsert" | "delete";
+type Op = "select" | "upsert" | "update" | "delete";
 
 export type InjectedError = {
   table: string;
@@ -21,12 +21,49 @@ export type InjectedError = {
   times?: number;
 };
 
+type Filter =
+  | { kind: "eq" | "neq" | "in" | "gte" | "is"; column: string; value: unknown }
+  // PostgREST `.or("a.eq.1,b.in.(x,y)")`: any one of the sub-filters matches.
+  | { kind: "or"; column: ""; value: Filter[] };
+
 export type RecordedCall = {
   table: string;
   op: Op;
   rows?: Row[];
-  filters: { kind: "eq" | "neq" | "in" | "gte"; column: string; value: unknown }[];
+  /** The patch handed to update(). */
+  patch?: Row;
+  filters: Filter[];
 };
+
+/** Parse the subset of PostgREST's `.or()` filter grammar sync.ts uses:
+ *  `col.eq.value` and `col.in.(v1,v2)` joined by top-level commas. */
+function parseOrFilters(spec: string): Filter[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of spec) {
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if (ch === "," && depth === 0) {
+      parts.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+  if (cur) parts.push(cur);
+  return parts.map((part) => {
+    const m = /^([^.]+)\.(eq|neq|in|gte|is)\.(.*)$/.exec(part);
+    if (!m) throw new Error(`supabase-mock: unsupported or() filter "${part}"`);
+    const [, column, kind, raw] = m;
+    if (kind === "in") {
+      const inner = raw.replace(/^\(/, "").replace(/\)$/, "");
+      return { kind, column, value: inner ? inner.split(",") : [] };
+    }
+    if (kind === "is") return { kind, column, value: raw === "null" ? null : raw };
+    return { kind: kind as "eq" | "neq" | "gte", column, value: raw };
+  });
+}
 
 type MockConfig = {
   tables?: Record<string, Row[]>;
@@ -37,7 +74,9 @@ type MockConfig = {
 class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | null }> {
   private op: Op = "select";
   private rows: Row[] | undefined;
+  private patch: Row | undefined;
   private returning = false;
+  private singleMode: "maybe" | "strict" | undefined;
   private orderBy: string | undefined;
   private rangeArg: [number, number] | undefined;
   private limitArg: number | undefined;
@@ -60,8 +99,30 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
     this.rows = rows;
     return this;
   }
+  update(patch: Row) {
+    this.op = "update";
+    this.patch = patch;
+    return this;
+  }
   delete() {
     this.op = "delete";
+    return this;
+  }
+  /** Resolve to the first row (or null) instead of an array, like PostgREST. */
+  maybeSingle() {
+    this.singleMode = "maybe";
+    return this;
+  }
+  single() {
+    this.singleMode = "strict";
+    return this;
+  }
+  is(column: string, value: null) {
+    this.call.filters.push({ kind: "is", column, value });
+    return this;
+  }
+  or(spec: string) {
+    this.call.filters.push({ kind: "or", column: "", value: parseOrFilters(spec) });
     return this;
   }
   eq(column: string, value: unknown) {
@@ -100,19 +161,38 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
     return Promise.resolve(this.execute()).then(onfulfilled, onrejected);
   }
 
+  private static matchOne(row: Row, f: Filter): boolean {
+    if (f.kind === "or") return f.value.some((sub) => QueryBuilder.matchOne(row, sub));
+    const v = row[f.column];
+    if (f.kind === "eq") return v === f.value;
+    if (f.kind === "neq") return v !== f.value;
+    if (f.kind === "in") return (f.value as unknown[]).includes(v);
+    if (f.kind === "is") return f.value === null ? v == null : v === f.value;
+    return typeof v === "number" && v >= (f.value as number);
+  }
+
   private matches(row: Row): boolean {
-    return this.call.filters.every((f) => {
-      const v = row[f.column];
-      if (f.kind === "eq") return v === f.value;
-      if (f.kind === "neq") return v !== f.value;
-      if (f.kind === "in") return (f.value as unknown[]).includes(v);
-      return typeof v === "number" && v >= (f.value as number);
-    });
+    return this.call.filters.every((f) => QueryBuilder.matchOne(row, f));
+  }
+
+  /** Apply single()/maybeSingle() to a resolved row list. */
+  private finish(rows: Row[]): { data: Row[] | null; error: Row | null } {
+    if (this.singleMode === "maybe") {
+      return { data: (rows[0] ?? null) as unknown as Row[] | null, error: null };
+    }
+    if (this.singleMode === "strict") {
+      if (rows.length !== 1) {
+        return { data: null, error: { code: "PGRST116", message: "expected exactly one row" } };
+      }
+      return { data: rows[0] as unknown as Row[], error: null };
+    }
+    return { data: rows, error: null };
   }
 
   private execute(): { data: Row[] | null; error: Row | null } {
     this.call.op = this.op;
     this.call.rows = this.rows;
+    this.call.patch = this.patch;
     this.mock.calls.push(this.call);
 
     const injected = this.mock.takeError(this.table, this.op);
@@ -126,7 +206,18 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
         if (i >= 0) table[i] = { ...table[i], ...row };
         else table.push({ ...row });
       }
-      return { data: this.returning ? [...(this.rows ?? [])] : null, error: null };
+      return this.returning ? this.finish([...(this.rows ?? [])]) : { data: null, error: null };
+    }
+
+    if (this.op === "update") {
+      const hit: Row[] = [];
+      this.mock.tables[this.table] = table.map((r) => {
+        if (!this.matches(r)) return r;
+        const next = { ...r, ...(this.patch ?? {}) };
+        hit.push({ ...next });
+        return next;
+      });
+      return this.returning ? this.finish(hit) : { data: null, error: null };
     }
 
     if (this.op === "delete") {
@@ -141,7 +232,7 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
     }
     if (this.rangeArg) rows = rows.slice(this.rangeArg[0], this.rangeArg[1] + 1);
     if (this.limitArg !== undefined) rows = rows.slice(0, this.limitArg);
-    return { data: rows.map((r) => ({ ...r })), error: null };
+    return this.finish(rows.map((r) => ({ ...r })));
   }
 }
 

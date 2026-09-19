@@ -976,11 +976,20 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   refreshLiveState: async () => {
     const session = useAuthStore.getState().session;
     if (!session) return;
-    // No user_id filter: RLS returns my own gatherings AND the group gatherings
-    // I can see, so a group's live session reflects for every member.
-    const { data, error } = await supabase
-      .from("gatherings")
-      .select("id, is_live, live_started_at");
+    // Scope the read to what this device can act on: my own gatherings plus
+    // those of the groups I'm in, so a group's live session reflects for every
+    // member. This must NOT be an unfiltered select: every gathering is publicly
+    // readable (the share_token policy), so without a filter this poll would
+    // pull the whole table for every account, every 12s, per tab.
+    const localGatherings = await db.gatherings.toArray();
+    const groupIds = new Set<string>(get().groups.map((g) => g.id));
+    for (const p of localGatherings) if (p.group_id) groupIds.add(p.group_id);
+    const uuidRe = /^[0-9a-f-]{36}$/i;
+    const safeGroupIds = [...groupIds].filter((id) => uuidRe.test(id));
+    const base = supabase.from("gatherings").select("id, is_live, live_started_at");
+    const { data, error } = await (safeGroupIds.length
+      ? base.or(`user_id.eq.${session.user.id},group_id.in.(${safeGroupIds.join(",")})`)
+      : base.eq("user_id", session.user.id));
     if (error) {
       console.error("[refreshLiveState] error:", error);
       return;
@@ -1000,7 +1009,6 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     );
 
     // Update only gatherings that exist on the server; leave local-only ones.
-    const localGatherings = await db.gatherings.toArray();
     await db.transaction("rw", db.gatherings, async () => {
       for (const p of localGatherings) {
         const live = liveById.get(p.id);
