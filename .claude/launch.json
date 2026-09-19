@@ -7,6 +7,14 @@
       "runtimeArgs": ["vite", "dev"],
       "port": 8080,
       "autoPort": true
+    },
+    {
+      "name": "phyto-dev-env",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev:env"],
+      "port": 8080,
+      "autoPort": true
     }
-  ]
+  ],
+  "autoVerify": false
 }

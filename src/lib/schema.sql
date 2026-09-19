@@ -452,3 +452,38 @@ create policy "deletions: owner update"
 create policy "deletions: owner delete"
   on deletions for delete
   using (user_id = auth.uid());
+
+-- ============================================================
+-- Table: transparency_entries
+-- Public donations/expenses ledger backing the /transparency page.
+-- Editing happens directly in the Supabase Studio Table Editor
+-- (which bypasses RLS) - there is no insert/update/delete policy
+-- for anon/authenticated, so the site can only ever read this table.
+--
+-- donation rows: entry_date, amount (gross), fees -> net_amount is generated.
+-- expense rows: entry_date, description, amount (fees = 0, net_amount = amount).
+-- ============================================================
+create table if not exists transparency_entries (
+  id          uuid        primary key default gen_random_uuid(),
+  type        text        not null check (type in ('donation', 'expense')),
+  entry_date  date        not null default current_date,
+  -- Required for expenses; donations don't need one.
+  description text,
+  amount      numeric(12, 2) not null check (amount >= 0),
+  -- Payment-processor fees withheld from a donation. Always 0 for expenses.
+  fees        numeric(12, 2) not null default 0 check (fees >= 0),
+  currency    text        not null default 'CAD',
+  net_amount  numeric(12, 2) generated always as (amount - fees) stored,
+  created_at  timestamptz not null default now(),
+  constraint transparency_entries_expense_needs_description
+    check (type <> 'expense' or description is not null)
+);
+
+create index if not exists transparency_entries_date_idx
+  on transparency_entries (entry_date desc);
+
+alter table transparency_entries enable row level security;
+
+create policy "transparency_entries: public select"
+  on transparency_entries for select
+  using (true);

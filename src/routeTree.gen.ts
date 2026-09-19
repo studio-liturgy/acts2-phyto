@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UpdatesRouteImport } from './routes/updates'
+import { Route as TransparencyRouteImport } from './routes/transparency'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -26,7 +27,9 @@ import { Route as SetSetIdRouteImport } from './routes/set.$setId'
 import { Route as SShareIdRouteImport } from './routes/s.$shareId'
 import { Route as GTokenRouteImport } from './routes/g.$token'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as ApiShareInviteRouteImport } from './routes/api/share/invite'
+import { Route as ApiPublicStatsRouteImport } from './routes/api/public/stats'
 import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedback'
 import { Route as ApiPublicContributeRouteImport } from './routes/api/public/contribute'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
@@ -36,6 +39,11 @@ import { Route as ApiAuthWelcomeRouteImport } from './routes/api/auth/welcome'
 const UpdatesRoute = UpdatesRouteImport.update({
   id: '/updates',
   path: '/updates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TransparencyRoute = TransparencyRouteImport.update({
+  id: '/transparency',
+  path: '/transparency',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -118,9 +126,19 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
+  id: '/api/webhooks/stripe',
+  path: '/api/webhooks/stripe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiShareInviteRoute = ApiShareInviteRouteImport.update({
   id: '/api/share/invite',
   path: '/api/share/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicStatsRoute = ApiPublicStatsRouteImport.update({
+  id: '/api/public/stats',
+  path: '/api/public/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicFeedbackRoute = ApiPublicFeedbackRouteImport.update({
@@ -162,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/transparency': typeof TransparencyRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
@@ -172,7 +191,9 @@ export interface FileRoutesByFullPath {
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
+  '/api/public/stats': typeof ApiPublicStatsRoute
   '/api/share/invite': typeof ApiShareInviteRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -187,6 +208,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/transparency': typeof TransparencyRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
@@ -197,7 +219,9 @@ export interface FileRoutesByTo {
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
+  '/api/public/stats': typeof ApiPublicStatsRoute
   '/api/share/invite': typeof ApiShareInviteRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -213,6 +237,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/transparency': typeof TransparencyRoute
   '/updates': typeof UpdatesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
@@ -223,7 +248,9 @@ export interface FileRoutesById {
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
+  '/api/public/stats': typeof ApiPublicStatsRoute
   '/api/share/invite': typeof ApiShareInviteRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -240,6 +267,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
+    | '/transparency'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
@@ -250,7 +278,9 @@ export interface FileRouteTypes {
     | '/api/media/upload'
     | '/api/public/contribute'
     | '/api/public/feedback'
+    | '/api/public/stats'
     | '/api/share/invite'
+    | '/api/webhooks/stripe'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -265,6 +295,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
+    | '/transparency'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
@@ -275,7 +306,9 @@ export interface FileRouteTypes {
     | '/api/media/upload'
     | '/api/public/contribute'
     | '/api/public/feedback'
+    | '/api/public/stats'
     | '/api/share/invite'
+    | '/api/webhooks/stripe'
   id:
     | '__root__'
     | '/'
@@ -290,6 +323,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
+    | '/transparency'
     | '/updates'
     | '/auth/callback'
     | '/g/$token'
@@ -300,7 +334,9 @@ export interface FileRouteTypes {
     | '/api/media/upload'
     | '/api/public/contribute'
     | '/api/public/feedback'
+    | '/api/public/stats'
     | '/api/share/invite'
+    | '/api/webhooks/stripe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -316,6 +352,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
+  TransparencyRoute: typeof TransparencyRoute
   UpdatesRoute: typeof UpdatesRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   GTokenRoute: typeof GTokenRoute
@@ -326,7 +363,9 @@ export interface RootRouteChildren {
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
   ApiPublicContributeRoute: typeof ApiPublicContributeRoute
   ApiPublicFeedbackRoute: typeof ApiPublicFeedbackRoute
+  ApiPublicStatsRoute: typeof ApiPublicStatsRoute
   ApiShareInviteRoute: typeof ApiShareInviteRoute
+  ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -336,6 +375,13 @@ declare module '@tanstack/react-router' {
       path: '/updates'
       fullPath: '/updates'
       preLoaderRoute: typeof UpdatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/transparency': {
+      id: '/transparency'
+      path: '/transparency'
+      fullPath: '/transparency'
+      preLoaderRoute: typeof TransparencyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -450,11 +496,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhooks/stripe': {
+      id: '/api/webhooks/stripe'
+      path: '/api/webhooks/stripe'
+      fullPath: '/api/webhooks/stripe'
+      preLoaderRoute: typeof ApiWebhooksStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/share/invite': {
       id: '/api/share/invite'
       path: '/api/share/invite'
       fullPath: '/api/share/invite'
       preLoaderRoute: typeof ApiShareInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/stats': {
+      id: '/api/public/stats'
+      path: '/api/public/stats'
+      fullPath: '/api/public/stats'
+      preLoaderRoute: typeof ApiPublicStatsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/feedback': {
@@ -508,6 +568,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
+  TransparencyRoute: TransparencyRoute,
   UpdatesRoute: UpdatesRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   GTokenRoute: GTokenRoute,
@@ -518,7 +579,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMediaUploadRoute: ApiMediaUploadRoute,
   ApiPublicContributeRoute: ApiPublicContributeRoute,
   ApiPublicFeedbackRoute: ApiPublicFeedbackRoute,
+  ApiPublicStatsRoute: ApiPublicStatsRoute,
   ApiShareInviteRoute: ApiShareInviteRoute,
+  ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
