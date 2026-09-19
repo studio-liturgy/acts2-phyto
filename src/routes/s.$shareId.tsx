@@ -48,7 +48,7 @@ function AcceptShare() {
   }, [isSignedIn, shareId, navigate]);
 
   const message: Record<Status, string> = {
-    working: "Saving the shared set to your library…",
+    working: "Saving the shared set to your catalogue…",
     signin: "Sign in to accept this shared set. It was shared with a specific email address.",
     notfound:
       "This shared set isn't available for your account. It may have been shared with a different email, or the owner revoked it.",
@@ -73,7 +73,7 @@ function AcceptShare() {
           to="/"
           className="pill mono uppercase mt-6 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
         >
-          Go to library
+          Go to catalogue
         </Link>
       )}
     </div>

@@ -110,11 +110,11 @@ export default function UpdatesMain() {
             </ul>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">
-              Song library
+              Song catalogue
             </div>
             <ul className="mt-2 space-y-1">
               <FeatureItem>
-                Fixed the songs in the built-in library that wrote the word I in lowercase
+                Fixed the songs in the built-in catalogue that wrote the word I in lowercase
               </FeatureItem>
             </ul>
 
@@ -175,11 +175,11 @@ export default function UpdatesMain() {
             </ul>
 
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">
-              Song library
+              Song catalogue
             </div>
             <ul className="mt-2 space-y-1">
               <FeatureItem>
-                Around 1,500 songs in the built-in library now come with their chords, and 1,850
+                Around 1,500 songs in the built-in catalogue now come with their chords, and 1,850
                 come with a key already set
               </FeatureItem>
               <FeatureItem>
@@ -358,7 +358,7 @@ export default function UpdatesMain() {
             </div>
             <ul className="mt-2 space-y-1">
               <FeatureItem>
-                Built-in worship song library: search over 3,000 songs fully offline, with results
+                Built-in worship song catalogue: search over 3,000 songs fully offline, with results
                 that appear instantly
               </FeatureItem>
               <FeatureItem>
