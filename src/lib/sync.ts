@@ -924,11 +924,19 @@ export async function applyMerge(
   // ── Step 1: remote-authoritative SETS → Dexie (only-remote + modified +
   //    touched). Touched = identical content, drifted timestamp: adopting the
   //    remote row aligns local updatedAt with the server so the drift never
-  //    re-diffs. ──
+  //    re-diffs. The local collaboration tags (group grants, owner email) are
+  //    carried over: they're derived from grant rows, not the set row, so the
+  //    remote copy doesn't have them, and dropping them would make the set
+  //    vanish from its group view until the next group sync re-tags it. ──
+  const withLocalTags = ({ local, remote }: { local: PhytoSet; remote: PhytoSet }): PhytoSet => ({
+    ...remote,
+    groupIds: local.groupIds,
+    shared_by: local.shared_by,
+  });
   const remoteSetsToWrite = [
     ...diff.onlyRemote.sets,
-    ...diff.modified.sets.map(({ remote }) => remote),
-    ...diff.touched.sets.map(({ remote }) => remote),
+    ...diff.modified.sets.map(withLocalTags),
+    ...diff.touched.sets.map(withLocalTags),
   ];
   if (remoteSetsToWrite.length) await db.sets.bulkPut(remoteSetsToWrite);
 
@@ -2269,18 +2277,27 @@ export async function syncGroups(): Promise<void> {
 
 /** Share one of my sets to a group (a grant). Idempotent. */
 export async function shareSetToGroup(setId: string, groupId: string): Promise<void> {
+  await shareSetsToGroup([setId], groupId);
+}
+
+/** Share several of my sets to a group in one request (one grant row each).
+ *  Idempotent. Sharing a whole catalogue is one upsert, not one per set. */
+export async function shareSetsToGroup(setIds: string[], groupId: string): Promise<void> {
   const session = getSession();
-  if (!session) return;
-  const { error } = await supabase.from("group_sets").upsert(
-    {
-      group_id: groupId,
-      set_id: setId,
-      owner_id: session.user.id,
-      owner_email: session.user.email ?? null,
-    },
-    { onConflict: "group_id,set_id", ignoreDuplicates: true },
-  );
-  if (error) console.error("[sync] shareSetToGroup error", error);
+  if (!session || !setIds.length) return;
+  const rows = [...new Set(setIds)].map((setId) => ({
+    group_id: groupId,
+    set_id: setId,
+    owner_id: session.user.id,
+    owner_email: session.user.email ?? null,
+  }));
+  for (let i = 0; i < rows.length; i += META_CHUNK) {
+    const { error } = await supabase.from("group_sets").upsert(rows.slice(i, i + META_CHUNK), {
+      onConflict: "group_id,set_id",
+      ignoreDuplicates: true,
+    });
+    if (error) console.error("[sync] shareSetsToGroup error", error);
+  }
 }
 
 /** Remove a set from a group (retract). Allowed for the owner or group admin. */

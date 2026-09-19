@@ -11,7 +11,7 @@ import {
   withSyncLock,
   removeSharedSet,
   fetchMyGroups,
-  shareSetToGroup,
+  shareSetsToGroup as shareSetsToGroupRemote,
   removeSetFromGroup,
   syncGroups,
   leaveGroup,
@@ -234,7 +234,7 @@ interface LibraryState {
   /** Delete a group I own (cascades memberships and grants). */
   deleteGroupById: (groupId: string) => Promise<boolean>;
   /** Internal: local cleanup shared by leave + delete. */
-  _afterLeaveOrDeleteGroup: (groupId: string) => Promise<void>;
+  _afterLeaveOrDeleteGroup: (groupId: string, mode: "leave" | "delete") => Promise<void>;
   /** Global template applied to ALL song sets. */
   songTemplate: SetTemplate;
   setSongTemplate: (patch: SetTemplate) => void;
@@ -365,7 +365,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   },
 
   shareSetsToGroup: async (setIds, groupId) => {
-    await Promise.all(setIds.map((id) => shareSetToGroup(id, groupId)));
+    await shareSetsToGroupRemote(setIds, groupId);
     // Optimistically tag locally so they appear in the group immediately; sync
     // reconciles the authoritative grants.
     const updates: PhytoSet[] = [];
@@ -381,6 +381,24 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
 
   unshareSetFromGroup: async (setId, groupId) => {
     await removeSetFromGroup(setId, groupId);
+    // A retracted set leaves the group's gatherings too (as it does when a
+    // member leaves), or they'd keep a reference members can no longer read.
+    // Every group gathering has a local copy (syncGroups pulls them all), so
+    // strip it locally and push: the owner path or the shared-gathering path
+    // rewrites the gathering_sets rows either way.
+    const affected = (await db.gatherings.toArray()).filter(
+      (p) => p.group_id === groupId && p.setIds.includes(setId),
+    );
+    if (affected.length) {
+      const now = Date.now();
+      const stripped = affected.map((p) => ({
+        ...p,
+        setIds: p.setIds.filter((sid) => sid !== setId),
+        updatedAt: now,
+      }));
+      await db.gatherings.bulkPut(stripped);
+      for (const p of stripped) schedulePush({ gathering: p.id });
+    }
     const s = await db.sets.get(setId);
     if (!s) {
       pingGroupsChanged([groupId]);
@@ -405,20 +423,21 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     await removeMyContributionsFromGroup(groupId);
     pingGroupsChanged([groupId]); // members re-pull the removals live
     const ok = await leaveGroup(groupId);
-    if (ok) await get()._afterLeaveOrDeleteGroup(groupId);
+    if (ok) await get()._afterLeaveOrDeleteGroup(groupId, "leave");
     return ok;
   },
 
   deleteGroupById: async (groupId) => {
     const ok = await deleteGroup(groupId);
-    if (ok) await get()._afterLeaveOrDeleteGroup(groupId);
+    if (ok) await get()._afterLeaveOrDeleteGroup(groupId, "delete");
     return ok;
   },
 
   // Shared cleanup after leaving or deleting a group: strip the group's grants
-  // off my own local sets, prune foreign sets I no longer see, refresh the group
-  // list, and fall back to Personal if I was viewing that group.
-  _afterLeaveOrDeleteGroup: async (groupId) => {
+  // off my own local sets, settle the group's gatherings, prune foreign sets I
+  // no longer see, refresh the group list, and fall back to Personal if I was
+  // viewing that group.
+  _afterLeaveOrDeleteGroup: async (groupId, mode) => {
     const mineTagged = (await db.sets.toArray()).filter(
       (s) => !s.shared && (s.groupIds ?? []).includes(groupId),
     );
@@ -429,6 +448,26 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
           groupIds: (s.groupIds ?? []).filter((g) => g !== groupId),
         })),
       );
+    }
+    // The group's gatherings, locally. Neither path is reached by sync any more
+    // (group gatherings sync per group, and this group is gone from my list),
+    // so settle them here to match what happened remotely:
+    //  - leave: the group keeps every gathering, mine included (group_id lives
+    //    on the row), so drop all local copies; rejoining pulls them back.
+    //  - delete: the FK sets group_id NULL, so each gathering becomes its
+    //    contributor's personal one — mine turn personal, others' are dropped.
+    const groupGatherings = (await db.gatherings.toArray()).filter((p) => p.group_id === groupId);
+    if (groupGatherings.length) {
+      if (mode === "leave") {
+        await db.gatherings.bulkDelete(groupGatherings.map((p) => p.id));
+      } else {
+        const foreign = groupGatherings.filter((p) => p.shared);
+        const mine = groupGatherings.filter((p) => !p.shared);
+        if (foreign.length) await db.gatherings.bulkDelete(foreign.map((p) => p.id));
+        if (mine.length) {
+          await db.gatherings.bulkPut(mine.map((p) => ({ ...p, group_id: undefined })));
+        }
+      }
     }
     try {
       await syncGroups();
@@ -520,7 +559,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       if (inGroup) {
         // Push the set first so the group_sets FK resolves, then grant.
         await pushToSupabase({ setIds: [id], gatheringIds: [] });
-        await shareSetToGroup(id, ws);
+        await shareSetsToGroupRemote([id], ws);
       } else {
         schedulePush({ set: id });
       }
@@ -969,11 +1008,13 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     // Server-authoritative session state, exactly like is_live: no updatedAt
     // bump (the DB trigger only advances it for title/share_token), and never
     // written back into Dexie/Zustand as content.
-    const { error } = await supabase
+    // My own row is scoped to me; a foreign group gathering is written via the
+    // group-member update policy (no user_id filter), like endSession.
+    const update = supabase
       .from("gatherings")
       .update({ hidden_sections: scoped })
-      .eq("id", gatheringId)
-      .eq("user_id", session.user.id);
+      .eq("id", gatheringId);
+    const { error } = await (target?.shared ? update : update.eq("user_id", session.user.id));
     if (error) console.error("[pushHiddenSections] error:", error);
   },
 
