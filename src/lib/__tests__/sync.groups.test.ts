@@ -136,3 +136,184 @@ describe("loadGroups", () => {
     expect(useLibrary.getState().activeWorkspace).toBe("personal");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Two-way collaboration on granted sets: other members' edits to a set I OWN
+// reach me live (last-write-wins), and content is only downloaded for rows
+// that are newer than my copy.
+// ---------------------------------------------------------------------------
+
+import { setRow } from "@/test/fixtures";
+import { syncSharedSets } from "@/lib/sync";
+
+const grant = (setId: string, ownerId: string) => ({
+  group_id: GROUP_ID,
+  set_id: setId,
+  owner_id: ownerId,
+  owner_email: ownerId === USER_ID ? "test@example.com" : "b@x.com",
+});
+
+describe("syncGroups: granted sets", () => {
+  it("adopts a member's newer edit to a set I own, keeping my local tags", async () => {
+    const mine = makeSet({ name: "Before", groupIds: [GROUP_ID], updatedAt: 1000 });
+    await db.sets.put(mine);
+    const edited = { ...mine, name: "After (edited by B)", updatedAt: 5000 };
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        group_members: [membership],
+        group_sets: [grant(mine.id, USER_ID)],
+        sets: [setRow(edited)],
+        gatherings: [],
+        gathering_sets: [],
+      },
+    });
+
+    await syncGroups();
+
+    const after = await db.sets.get(mine.id);
+    expect(after?.name).toBe("After (edited by B)");
+    expect(after?.updatedAt).toBe(5000);
+    expect(after?.shared).toBeUndefined();
+    expect(after?.groupIds).toEqual([GROUP_ID]);
+  });
+
+  it("keeps my own pending edit when it is newer than the server's copy", async () => {
+    const mine = makeSet({ name: "My pending edit", groupIds: [GROUP_ID], updatedAt: 9000 });
+    await db.sets.put(mine);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        group_members: [membership],
+        group_sets: [grant(mine.id, USER_ID)],
+        sets: [setRow({ ...mine, name: "Older server copy", updatedAt: 5000 })],
+        gatherings: [],
+        gathering_sets: [],
+      },
+    });
+
+    await syncGroups();
+
+    expect((await db.sets.get(mine.id))?.name).toBe("My pending edit");
+  });
+
+  it("reads metadata only, and downloads content just for rows newer than mine", async () => {
+    const unchanged = makeSet({ shared: true, groupIds: [GROUP_ID], updatedAt: 1000 });
+    const changed = makeSet({ shared: true, groupIds: [GROUP_ID], updatedAt: 1000 });
+    const fresh = makeSet({ updatedAt: 1000 }); // granted, not held locally yet
+    await db.sets.bulkPut([unchanged, changed]);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        group_members: [membership],
+        group_sets: [
+          grant(unchanged.id, OTHER_USER),
+          grant(changed.id, OTHER_USER),
+          grant(fresh.id, OTHER_USER),
+        ],
+        sets: [
+          setRow(unchanged, OTHER_USER),
+          setRow({ ...changed, name: "Changed remotely", updatedAt: 2000 }, OTHER_USER),
+          setRow(fresh, OTHER_USER),
+        ],
+        gatherings: [],
+        gathering_sets: [],
+      },
+    });
+
+    await syncGroups();
+
+    const reads = supabaseMock.callsFor("sets", "select");
+    expect(reads.map((c) => c.columns)).toEqual(["id, updated_at", "*"]);
+    const contentIds = reads[1].filters.find((f) => f.kind === "in")?.value as string[];
+    expect([...contentIds].sort()).toEqual([changed.id, fresh.id].sort());
+
+    expect((await db.sets.get(changed.id))?.name).toBe("Changed remotely");
+    expect((await db.sets.get(fresh.id))?.shared).toBe(true);
+    expect((await db.sets.get(fresh.id))?.groupIds).toEqual([GROUP_ID]);
+    expect((await db.sets.get(unchanged.id))?.updatedAt).toBe(1000);
+  });
+
+  it("skips the content download entirely when nothing is newer", async () => {
+    const foreign = makeSet({ shared: true, groupIds: [GROUP_ID], updatedAt: 1000 });
+    await db.sets.put(foreign);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        group_members: [membership],
+        group_sets: [grant(foreign.id, OTHER_USER)],
+        sets: [setRow(foreign, OTHER_USER)],
+        gatherings: [],
+        gathering_sets: [],
+      },
+    });
+
+    await syncGroups();
+
+    expect(supabaseMock.callsFor("sets", "select").map((c) => c.columns)).toEqual([
+      "id, updated_at",
+    ]);
+  });
+});
+
+describe("syncSharedSets", () => {
+  const shareRow = (setId: string, ownerId: string, granteeId: string) => ({
+    id: `share-${setId}`,
+    set_id: setId,
+    owner_id: ownerId,
+    owner_email: ownerId === USER_ID ? "test@example.com" : "b@x.com",
+    grantee_email: granteeId === USER_ID ? "test@example.com" : "b@x.com",
+    grantee_user_id: granteeId,
+  });
+
+  it("adopts a grantee's newer edit to a set I shared out", async () => {
+    const mine = makeSet({ name: "Before", updatedAt: 1000 });
+    await db.sets.put(mine);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        set_shares: [shareRow(mine.id, USER_ID, OTHER_USER)],
+        sets: [setRow({ ...mine, name: "Edited by grantee", updatedAt: 3000 })],
+      },
+    });
+
+    await syncSharedSets();
+
+    const after = await db.sets.get(mine.id);
+    expect(after?.name).toBe("Edited by grantee");
+    expect(after?.shared).toBeUndefined();
+  });
+
+  it("still adopts the owner's edit to a set shared with me, and prunes a revoked one", async () => {
+    const saved = makeSet({ shared: true, shared_by: "b@x.com", updatedAt: 1000 });
+    const revoked = makeSet({ shared: true, shared_by: "b@x.com", updatedAt: 1000 });
+    await db.sets.bulkPut([saved, revoked]);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        set_shares: [shareRow(saved.id, OTHER_USER, USER_ID)],
+        sets: [setRow({ ...saved, name: "Owner's newer edit", updatedAt: 2000 }, OTHER_USER)],
+      },
+    });
+
+    await syncSharedSets();
+
+    expect((await db.sets.get(saved.id))?.name).toBe("Owner's newer edit");
+    expect((await db.sets.get(saved.id))?.shared).toBe(true);
+    expect(await db.sets.get(revoked.id)).toBeUndefined();
+  });
+
+  it("leaves everything alone when the metadata read fails", async () => {
+    const saved = makeSet({ shared: true, updatedAt: 1000 });
+    await db.sets.put(saved);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: { set_shares: [shareRow(saved.id, OTHER_USER, USER_ID)], sets: [] },
+      errors: [{ table: "sets", op: "select", error: { message: "Failed to fetch" } }],
+    });
+
+    await syncSharedSets();
+
+    expect(await db.sets.get(saved.id)).toBeDefined();
+  });
+});

@@ -1743,67 +1743,155 @@ export async function removeSharedSet(setId: string): Promise<void> {
   await db.sets.delete(setId);
 }
 
-/** Refresh saved shared sets: adopt the owner's newer edits (last-write-wins by
- *  updatedAt) and drop any whose share was revoked or whose set was deleted (no
- *  longer accessible). This is the ONLY pull path for foreign rows, since they
- *  are excluded from the personal diff. Runs under the shared sync lock so it
- *  never interleaves with a personal merge/push. */
+// ---------------------------------------------------------------------------
+// Metadata-first pull shared by the collaborative paths. Set content is heavy
+// (a set can weigh megabytes) and these run on the 12s poll, so ask for
+// `id, updated_at` first and download content only for rows that are strictly
+// newer than the local copy (or absent locally, when `fetchAbsent`). "Strictly
+// newer" is safe because a push writes the server's updated_at back into the
+// local row, so an untouched set compares equal, and a local edit still waiting
+// on its push is newer than the server and is left alone (last-write-wins).
+// ---------------------------------------------------------------------------
+
+const META_CHUNK = 100;
+
+/** Remote `updated_at` (epoch ms) per id. Null on any fetch error. */
+async function fetchSetMeta(ids: string[]): Promise<Map<string, number> | null> {
+  const out = new Map<string, number>();
+  for (let i = 0; i < ids.length; i += META_CHUNK) {
+    const chunk = ids.slice(i, i + META_CHUNK);
+    const { data, error } = await supabase.from("sets").select("id, updated_at").in("id", chunk);
+    if (error) {
+      console.error("[sync] set metadata fetch error", error);
+      return null;
+    }
+    for (const row of (data ?? []) as Record<string, unknown>[]) {
+      out.set(row.id as string, new Date(row.updated_at as string).getTime());
+    }
+  }
+  return out;
+}
+
+/** Full rows for `ids`, parsed. Null on any fetch error. */
+async function fetchSetContent(ids: string[]): Promise<PhytoSet[] | null> {
+  const out: PhytoSet[] = [];
+  for (let i = 0; i < ids.length; i += SET_BATCH_SIZE) {
+    const chunk = ids.slice(i, i + SET_BATCH_SIZE);
+    const { data, error } = await supabase.from("sets").select("*").in("id", chunk);
+    if (error) {
+      console.error("[sync] set content fetch error", error);
+      return null;
+    }
+    for (const row of (data ?? []) as Record<string, unknown>[]) out.push(fromSupabaseSet(row));
+  }
+  return out;
+}
+
+/** The subset of `ids` whose remote row is newer than the local copy (or has no
+ *  local copy, when `fetchAbsent`), downloaded. Ids the server doesn't return
+ *  (unreadable / deleted) are skipped: grant bookkeeping is the caller's job.
+ *  Null on a fetch failure so the caller leaves everything as it was. */
+async function pullNewerSets(opts: {
+  ids: string[];
+  localById: Map<string, PhytoSet>;
+  fetchAbsent: boolean;
+}): Promise<PhytoSet[] | null> {
+  const ids = [...new Set(opts.ids)];
+  if (!ids.length) return [];
+  const meta = await fetchSetMeta(ids);
+  if (!meta) return null;
+  const need: string[] = [];
+  for (const id of ids) {
+    const remoteUpdatedAt = meta.get(id);
+    if (remoteUpdatedAt === undefined) continue;
+    const local = opts.localById.get(id);
+    if (!local) {
+      if (opts.fetchAbsent) need.push(id);
+    } else if (remoteUpdatedAt > local.updatedAt) {
+      need.push(id);
+    }
+  }
+  return need.length ? fetchSetContent(need) : [];
+}
+
+/** Refresh person-shares, both directions, last-write-wins by updatedAt:
+ *  - sets shared WITH me that I've saved: adopt the owner's (or another
+ *    grantee's) newer edits, and drop any whose share was revoked or whose set
+ *    was deleted (no longer accessible);
+ *  - sets I've shared OUT: adopt a grantee's newer edits to my own set, so their
+ *    work reaches me live instead of surfacing as a conflict on my next reload.
+ *  This is the ONLY pull path for foreign rows (they're excluded from the
+ *  personal diff). Metadata first; content only for rows newer than my copy.
+ *  Runs under the shared sync lock so it never interleaves with a personal
+ *  merge/push. */
 export async function syncSharedSets(): Promise<void> {
   const session = getSession();
   if (!session) return;
+  const uid = session.user.id;
   await withSyncLock(async () => {
+    const all = await db.sets.toArray();
     // ONLY person-shares (set_shares grants). Foreign GROUP sets are also
     // `shared` but are tracked by group_sets and managed by syncGroups — they
     // have no set_shares row, so including them here would wrongly prune them
     // (then syncGroups re-adds them, causing a flicker).
-    const localShared = (await db.sets.toArray()).filter(
-      (s) => s.shared && (s.groupIds?.length ?? 0) === 0,
-    );
-    if (!localShared.length) return;
+    const localShared = all.filter((s) => s.shared && (s.groupIds?.length ?? 0) === 0);
+    const localOwnById = new Map(all.filter((s) => !s.shared).map((s) => [s.id, s]));
 
+    // Grants in both directions in one read: addressed to me, and given by me.
     const { data: shares, error } = await supabase
       .from("set_shares")
-      .select("set_id, owner_email")
-      .eq("grantee_user_id", session.user.id);
+      .select("set_id, owner_id, owner_email, grantee_user_id")
+      .or(`grantee_user_id.eq.${uid},owner_id.eq.${uid}`);
     if (error) {
       console.error("[sync] syncSharedSets: shares error", error);
       return;
     }
-    const shareRows = (shares ?? []) as { set_id: string; owner_email: string | null }[];
-    const accessible = new Set(shareRows.map((r) => r.set_id));
-    const ownerEmailBySet = new Map(shareRows.map((r) => [r.set_id, r.owner_email]));
+    const shareRows = (shares ?? []) as {
+      set_id: string;
+      owner_id: string;
+      owner_email: string | null;
+      grantee_user_id: string | null;
+    }[];
+    const incoming = shareRows.filter((r) => r.grantee_user_id === uid);
+    const accessible = new Set(incoming.map((r) => r.set_id));
+    const ownerEmailBySet = new Map(incoming.map((r) => [r.set_id, r.owner_email]));
+    // My own sets with at least one claimed grantee, held locally.
+    const sharedOutIds = [
+      ...new Set(shareRows.filter((r) => r.owner_id === uid).map((r) => r.set_id)),
+    ].filter((id) => localOwnById.has(id));
 
     // Revoked or deleted upstream: I no longer have the grant → drop my copy.
     const revoked = localShared.filter((s) => !accessible.has(s.id));
     if (revoked.length) await db.sets.bulkDelete(revoked.map((s) => s.id));
 
     const stillShared = localShared.filter((s) => accessible.has(s.id));
-    if (!stillShared.length) return;
+    if (!stillShared.length && !sharedOutIds.length) return;
 
-    const { data: rows, error: setsErr } = await supabase
-      .from("sets")
-      .select("*")
-      .in(
-        "id",
-        stillShared.map((s) => s.id),
-      );
-    if (setsErr) {
-      console.error("[sync] syncSharedSets: sets error", setsErr);
-      return;
-    }
-    const localById = new Map(stillShared.map((s) => [s.id, s]));
+    const localById = new Map<string, PhytoSet>([
+      ...stillShared.map((s): [string, PhytoSet] => [s.id, s]),
+      ...sharedOutIds.map((id): [string, PhytoSet] => [id, localOwnById.get(id)!]),
+    ]);
+    const fetched = await pullNewerSets({
+      ids: [...stillShared.map((s) => s.id), ...sharedOutIds],
+      localById,
+      fetchAbsent: false,
+    });
+    if (!fetched) return;
+
     const toWrite: PhytoSet[] = [];
-    for (const row of (rows ?? []) as Record<string, unknown>[]) {
-      const parsed = fromSupabaseSet(row);
-      const remote: PhytoSet = {
-        ...parsed,
-        shared: true,
-        shared_by: ownerEmailBySet.get(parsed.id) ?? undefined,
-      };
-      const local = localById.get(remote.id);
-      // Adopt remote only when it's strictly newer, so a local edit still pending
-      // its push isn't clobbered.
-      if (!local || remote.updatedAt > local.updatedAt) toWrite.push(remote);
+    for (const parsed of fetched) {
+      if (accessible.has(parsed.id)) {
+        // Foreign: tag as such, with the owner's email for display.
+        toWrite.push({
+          ...parsed,
+          shared: true,
+          shared_by: ownerEmailBySet.get(parsed.id) ?? undefined,
+        });
+      } else {
+        // My own set, edited by a grantee: adopt the content, keep my local tags.
+        const local = localOwnById.get(parsed.id)!;
+        toWrite.push({ ...parsed, groupIds: local.groupIds, shared_by: local.shared_by });
+      }
     }
     if (toWrite.length) await db.sets.bulkPut(toWrite);
   });
@@ -2019,36 +2107,55 @@ export async function syncGroups(): Promise<void> {
     }
     if (myUpdates.length) await db.sets.bulkPut(myUpdates);
 
-    // 2) Foreign granted sets (owned by others): pull content + tag.
+    // 2) Granted sets, last-write-wins by updatedAt. FOREIGN ones (owned by
+    //    others) are pulled and tagged; my OWN granted ones adopt other members'
+    //    edits, so their work reaches me live instead of surfacing as a conflict
+    //    on my next reload. Metadata first; content only for rows newer than my
+    //    copy (or foreign rows I don't hold yet).
     const foreignSetIds = [
       ...new Set(grants.filter((g) => g.owner_id !== uid).map((g) => g.set_id)),
     ];
+    const localOwnById = new Map(local.filter((s) => !s.shared).map((s) => [s.id, s]));
+    const ownGrantedIds = [
+      ...new Set(grants.filter((g) => g.owner_id === uid).map((g) => g.set_id)),
+    ].filter((id) => localOwnById.has(id));
     const localForeignById = new Map(localForeignGroup.map((s) => [s.id, s]));
-    if (foreignSetIds.length) {
-      const { data: setRows, error: setErr } = await supabase
-        .from("sets")
-        .select("*")
-        .in("id", foreignSetIds);
-      if (setErr) {
-        console.error("[sync] syncGroups sets error", setErr);
-        return;
+    const fetched = await pullNewerSets({
+      ids: [...foreignSetIds, ...ownGrantedIds],
+      localById: new Map<string, PhytoSet>([...localForeignById, ...localOwnById]),
+      fetchAbsent: true, // only foreign ids can be absent: own ids were filtered to local ones
+    });
+    if (!fetched) return;
+    const fetchedById = new Map(fetched.map((s) => [s.id, s]));
+    const toWrite: PhytoSet[] = [];
+    for (const id of foreignSetIds) {
+      const gids = groupsBySet.get(id) ?? [];
+      const email = ownerEmailBySet.get(id) ?? undefined;
+      const fresh = fetchedById.get(id);
+      const localCopy = localForeignById.get(id);
+      if (fresh) {
+        // Remote content wins (newer, or first sight of it).
+        toWrite.push({ ...fresh, shared: true, groupIds: gids, shared_by: email });
+      } else if (
+        localCopy &&
+        (!sameSet(gids, localCopy.groupIds ?? []) || localCopy.shared_by !== email)
+      ) {
+        // My local content is newer/equal (a pending edit) — keep it, refresh tags.
+        toWrite.push({ ...localCopy, groupIds: gids, shared_by: email });
       }
-      const toWrite: PhytoSet[] = [];
-      for (const row of (setRows ?? []) as Record<string, unknown>[]) {
-        const parsed = fromSupabaseSet(row);
-        const gids = groupsBySet.get(parsed.id) ?? [];
-        const email = ownerEmailBySet.get(parsed.id) ?? undefined;
-        const localCopy = localForeignById.get(parsed.id);
-        if (!localCopy || parsed.updatedAt > localCopy.updatedAt) {
-          // Remote content wins.
-          toWrite.push({ ...parsed, shared: true, groupIds: gids, shared_by: email });
-        } else if (!sameSet(gids, localCopy.groupIds ?? []) || localCopy.shared_by !== email) {
-          // My local content is newer/equal (a pending edit) — keep it, refresh tags.
-          toWrite.push({ ...localCopy, groupIds: gids, shared_by: email });
-        }
-      }
-      if (toWrite.length) await db.sets.bulkPut(toWrite);
     }
+    for (const id of ownGrantedIds) {
+      const fresh = fetchedById.get(id);
+      if (!fresh) continue;
+      // Another member edited my set: adopt the content, keep my local tags.
+      const localCopy = localOwnById.get(id)!;
+      toWrite.push({
+        ...fresh,
+        groupIds: groupsBySet.get(id) ?? [],
+        shared_by: localCopy.shared_by,
+      });
+    }
+    if (toWrite.length) await db.sets.bulkPut(toWrite);
     // Prune foreign group sets no longer granted to me.
     const accessible = new Set(foreignSetIds);
     const gone = localForeignGroup.filter((s) => !accessible.has(s.id));

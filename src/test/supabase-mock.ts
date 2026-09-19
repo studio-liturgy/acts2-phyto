@@ -32,6 +32,9 @@ export type RecordedCall = {
   rows?: Row[];
   /** The patch handed to update(). */
   patch?: Row;
+  /** The column list handed to select(), so a test can tell a metadata read
+   *  ("id, updated_at") from a content download ("*"). */
+  columns?: string;
   filters: Filter[];
 };
 
@@ -89,9 +92,10 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
     this.call = { table, op: "select", filters: [] };
   }
 
-  select(_columns?: string) {
+  select(columns?: string) {
     // After upsert()/delete() this marks "returning" mode; standalone it's a read.
     if (this.op !== "select") this.returning = true;
+    this.call.columns = columns;
     return this;
   }
   upsert(rows: Row[], _opts?: { onConflict?: string }) {
