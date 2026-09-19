@@ -69,8 +69,18 @@ function Stat({ value, label }: { value: React.ReactNode; label: string }) {
   );
 }
 
+function fundingStatus(totalDonations: number, totalExpenses: number) {
+  const fullyFunded = totalExpenses <= 0 || totalDonations >= totalExpenses;
+  const remaining = Math.max(totalExpenses - totalDonations, 0);
+  return {
+    fullyFunded,
+    text: fullyFunded ? "Fully funded!" : `${formatMoney(remaining)} remaining`,
+  };
+}
+
 /** Funding bar: donations as a percentage of expenses. Full (or over) shows as
- *  a single solid pill; hovering always shows exactly how things stand. */
+ *  a single solid pill; hovering always shows exactly how things stand. Hidden
+ *  on mobile - the same status is shown as plain text under the totals there. */
 function FundingBar({
   totalDonations,
   totalExpenses,
@@ -78,12 +88,11 @@ function FundingBar({
   totalDonations: number;
   totalExpenses: number;
 }) {
-  const fullyFunded = totalExpenses <= 0 || totalDonations >= totalExpenses;
+  const { fullyFunded, text } = fundingStatus(totalDonations, totalExpenses);
   const pct = fullyFunded ? 100 : (totalDonations / totalExpenses) * 100;
-  const remaining = Math.max(totalExpenses - totalDonations, 0);
 
   return (
-    <div className="group relative mt-12">
+    <div className="group relative mt-12 hidden sm:block">
       <div className="h-7 w-full overflow-hidden rounded-full bg-[var(--brand-white)]/25">
         <div
           className="h-full rounded-full bg-[var(--brand-white)] transition-[width] duration-700 ease-out"
@@ -94,7 +103,7 @@ function FundingBar({
         className="mono pointer-events-none absolute bottom-full mb-2 rounded-full bg-[var(--brand-white)] px-4 py-1.5 text-xs uppercase tracking-wider whitespace-nowrap text-[var(--brand-blue)] opacity-0 transition-opacity group-hover:opacity-100"
         style={{ right: `${100 - Math.min(Math.max(pct, 16), 100)}%` }}
       >
-        {fullyFunded ? "Fully funded!" : `${formatMoney(remaining)} remaining`}
+        {text}
       </div>
     </div>
   );
@@ -163,11 +172,11 @@ function TransparencyPage() {
           />
         </div>
 
-        {/* Funding bar */}
+        {/* Funding bar (sm+ only; mobile shows the same status as text below) */}
         {entries ? (
           <FundingBar totalDonations={totalDonations} totalExpenses={totalExpenses} />
         ) : (
-          <div className="mt-12 h-7 w-full animate-pulse rounded-full bg-[var(--brand-white)]/15" />
+          <div className="mt-12 hidden h-7 w-full animate-pulse rounded-full bg-[var(--brand-white)]/15 sm:block" />
         )}
 
         {/* Totals */}
@@ -175,6 +184,11 @@ function TransparencyPage() {
           <div>Total donations: {entries ? formatMoney(totalDonations) : "—"}</div>
           <div>Total expenses: {entries ? formatMoney(totalExpenses) : "—"}</div>
         </div>
+        {entries && (
+          <div className="mono mt-1 text-base uppercase tracking-wider opacity-80 sm:hidden">
+            {fundingStatus(totalDonations, totalExpenses).text}
+          </div>
+        )}
 
         {error && (
           <p className="mt-8 text-sm opacity-70">Couldn&rsquo;t load the ledger right now.</p>

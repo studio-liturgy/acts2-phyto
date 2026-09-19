@@ -56,9 +56,11 @@ export function Footer({ className }: { className?: string }) {
           >
             Source
           </a>
-          <Link to="/updates" className={`${linkCls} whitespace-nowrap`}>
-            Updates
-          </Link>
+          {!isTest && (
+            <Link to="/updates" className={`${linkCls} whitespace-nowrap`}>
+              Updates
+            </Link>
+          )}
           <Link to="/terms" className={`${linkCls} whitespace-nowrap`}>
             Legal
           </Link>

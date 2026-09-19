@@ -1039,9 +1039,11 @@ export function FirstTimeLanding({
             <Link to="/feedback" className={linkCls}>
               Feedback
             </Link>
-            <Link to="/updates" className={linkCls}>
-              Updates
-            </Link>
+            {!isTest && (
+              <Link to="/updates" className={linkCls}>
+                Updates
+              </Link>
+            )}
           </nav>
           <nav className="flex items-center gap-6 text-xs">
             <Link to="/legal" className={`${linkCls} whitespace-nowrap`}>
