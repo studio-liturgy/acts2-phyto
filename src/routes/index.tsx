@@ -1065,12 +1065,14 @@ function Library() {
                           <button
                             type="button"
                             onClick={() => setShowExportConfirm(true)}
-                            disabled={selectedIds.size === 0}
+                            // Only my own sets go in a file (foreign shared
+                            // rows aren't mine to export), so count those.
+                            disabled={ownedSelectedIds.length === 0}
                             className="pill flex h-10 w-10 items-center justify-center transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
                             title={
-                              selectedIds.size
-                                ? `Export ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
-                                : "Select sets to export"
+                              ownedSelectedIds.length
+                                ? `Export ${ownedSelectedIds.length} selected set${ownedSelectedIds.length === 1 ? "" : "s"}`
+                                : "Select your own sets to export"
                             }
                             aria-label="Export selected sets"
                           >
@@ -1382,15 +1384,17 @@ function Library() {
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">Export</AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            This will download the {selectedIds.size} selected set
-            {selectedIds.size === 1 ? "" : "s"} as a .phyto file.
+            This will download the {ownedSelectedIds.length} selected set
+            {ownedSelectedIds.length === 1 ? "" : "s"} as a .phyto file.
+            {ownedSelectedIds.length < selectedIds.size &&
+              " Sets shared with you are left out: they aren't yours to export."}
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
               type="button"
               onClick={() => {
                 setShowExportConfirm(false);
-                exportCatalogue([...selectedIds]);
+                exportCatalogue(ownedSelectedIds);
               }}
               className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
             >
