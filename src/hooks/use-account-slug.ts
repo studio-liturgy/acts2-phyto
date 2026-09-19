@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ensureSlug, setSlug, type SetSlugResult, type SlugScope } from "@/lib/account-slug";
 import { normalizeSlug } from "@/lib/slug";
+import { useAuthStore } from "@/lib/authStore";
+import { useLibrary } from "@/lib/store";
 
 /**
  * Drives the share dialog's custom URL for a scope (personal or a group). When
@@ -12,7 +14,9 @@ import { normalizeSlug } from "@/lib/slug";
  * gathering's own random token for half a second before snapping to the custom
  * one. Only once resolution finishes with no account slug (signed out, or the
  * migration isn't applied) does it fall back to the seed as a plain read-only
- * link. `canCustomize` is false in that fallback case.
+ * link. `canCustomize` is false in that fallback case, and false for a group
+ * whose owner isn't me: only the group's owner may write its slug (RLS), so a
+ * member would otherwise be offered an editor whose save can only fail.
  */
 export function useAccountSlug({
   scope,
@@ -30,6 +34,10 @@ export function useAccountSlug({
 } {
   const [accountSlug, setAccountSlug] = useState<string | null>(null);
   const [resolved, setResolved] = useState(false);
+  const userId = useAuthStore((s) => s.session?.user.id ?? null);
+  const groups = useLibrary((s) => s.groups);
+  const ownsScope =
+    !scope.groupId || groups.some((g) => g.id === scope.groupId && g.owner_id === userId);
   // Seed only matters for provisioning a first slug; keep it in a ref so a seed
   // change (e.g. creating a new gathering) never re-triggers a load or clears an
   // already-resolved slug.
@@ -70,7 +78,7 @@ export function useAccountSlug({
     // Empty while loading (no seed flash); the seed only fills in once resolution
     // has finished without an account slug.
     slug: accountSlug ?? (resolved ? seed : ""),
-    canCustomize: accountSlug != null,
+    canCustomize: accountSlug != null && ownsScope,
     ready: resolved,
     save,
   };

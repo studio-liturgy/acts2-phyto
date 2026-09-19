@@ -4,12 +4,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
-import {
-  fetchRecentShareRecipients,
-  shareSetToGroup,
-  removeSetFromGroup,
-  type MyGroup,
-} from "@/lib/sync";
+import { fetchRecentShareRecipients, type MyGroup } from "@/lib/sync";
 
 type ShareRow = { id: string; grantee_email: string };
 
@@ -40,6 +35,12 @@ export function ShareSetDialog({
   // set that's already in a group shows its green check immediately instead of
   // flashing a + until the group_sets fetch lands.
   const localGroupIds = useLibrary((s) => s.sets[setId]?.groupIds);
+  // Go through the store, not the raw grant helpers: it tags the local copy
+  // right away (so the set shows in the group without waiting for the next
+  // sync), strips a retracted set from the group's gatherings, and pings the
+  // other members to re-pull.
+  const shareSetsToGroup = useLibrary((s) => s.shareSetsToGroup);
+  const unshareSetFromGroup = useLibrary((s) => s.unshareSetFromGroup);
   const [email, setEmail] = useState("");
   const [shares, setShares] = useState<ShareRow[]>([]);
   const [groupGrants, setGroupGrants] = useState<string[]>(localGroupIds ?? []);
@@ -72,10 +73,10 @@ export function ShareSetDialog({
 
   const toggleGroup = async (groupId: string) => {
     if (groupGrants.includes(groupId)) {
-      await removeSetFromGroup(setId, groupId);
+      await unshareSetFromGroup(setId, groupId);
       setGroupGrants((g) => g.filter((x) => x !== groupId));
     } else {
-      await shareSetToGroup(setId, groupId);
+      await shareSetsToGroup([setId], groupId);
       setGroupGrants((g) => [...g, groupId]);
     }
   };

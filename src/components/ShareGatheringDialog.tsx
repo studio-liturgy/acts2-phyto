@@ -161,17 +161,20 @@ export function ShareGatheringDialog({
               </>
             ) : (
               <>
+                {/* Empty while the account slug resolves (no seed flash): show a
+                    quiet placeholder and hold the copy/QR actions until it lands. */}
                 <span className="flex-1 truncate px-4 font-mono uppercase text-sm text-muted-foreground">
-                  {shareUrl}
+                  {shareUrl || "Loading link"}
                 </span>
                 <button
                   type="button"
+                  disabled={!shareUrl}
                   onClick={() => {
                     navigator.clipboard.writeText(shareUrl);
                     setCopiedShare(true);
                     setTimeout(() => setCopiedShare(false), 2000);
                   }}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90 disabled:opacity-40"
                   aria-label="Copy URL"
                 >
                   <span className="transition-all duration-300">
@@ -184,8 +187,9 @@ export function ShareGatheringDialog({
           {!editingSlug && (
             <button
               type="button"
+              disabled={!shareUrl}
               onClick={() => setShowShareQr((v) => !v)}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90 disabled:opacity-40"
               aria-label="QR Code"
             >
               <QrCode className="h-4 w-4" />
