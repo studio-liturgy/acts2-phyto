@@ -61,7 +61,7 @@ function StatSkeleton() {
 function Stat({ value, label }: { value: React.ReactNode; label: string }) {
   return (
     <div className="flex flex-wrap items-baseline gap-3">
-      <div className="text-7xl sm:text-8xl md:text-9xl">{value}</div>
+      <div className="text-7xl tracking-[-0.045em] sm:text-8xl md:text-9xl">{value}</div>
       <div className="mono text-xs uppercase tracking-wider whitespace-nowrap opacity-70">
         {label}
       </div>
@@ -171,7 +171,7 @@ function TransparencyPage() {
         )}
 
         {/* Totals */}
-        <div className="mono mt-6 flex flex-col gap-2 text-base uppercase tracking-wider sm:flex-row sm:items-baseline sm:justify-between sm:text-lg">
+        <div className="mono mt-6 flex flex-col gap-1 text-base uppercase tracking-wider sm:flex-row sm:items-baseline sm:justify-between sm:gap-2 sm:text-lg">
           <div>Total donations: {entries ? formatMoney(totalDonations) : "—"}</div>
           <div>Total expenses: {entries ? formatMoney(totalExpenses) : "—"}</div>
         </div>
@@ -185,24 +185,26 @@ function TransparencyPage() {
           <section>
             <h2 className="mono text-xs uppercase tracking-wider opacity-70">Donations</h2>
             <div className="mono mt-4 overflow-x-auto uppercase">
-              <table className="w-full min-w-[420px] text-xs">
+              <table className="w-full text-xs md:min-w-[420px]">
                 <thead>
                   <tr className="text-left tracking-wider opacity-60">
                     <th className="pb-2 font-normal">Date</th>
-                    <th className="pb-2 pl-6 font-normal text-right">Amount</th>
-                    <th className="pb-2 pl-6 font-normal text-right">Fees</th>
-                    <th className="pb-2 pl-6 font-normal text-right">Total</th>
+                    <th className="pb-2 pl-3 font-normal text-right sm:pl-6">Amount</th>
+                    <th className="pb-2 pl-3 font-normal text-right sm:pl-6">Fees</th>
+                    <th className="pb-2 pl-3 font-normal text-right sm:pl-6">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--brand-white)]/10">
                   {donations.map((e) => (
                     <tr key={e.id}>
-                      <td className="py-3 text-left">{formatDate(e.entry_date)}</td>
-                      <td className="py-3 pl-6 text-right tabular-nums">{formatMoney(e.amount)}</td>
-                      <td className="py-3 pl-6 text-right tabular-nums opacity-70">
+                      <td className="py-3 text-left opacity-70">{formatDate(e.entry_date)}</td>
+                      <td className="py-3 pl-3 text-right tabular-nums sm:pl-6">
+                        {formatMoney(e.amount)}
+                      </td>
+                      <td className="py-3 pl-3 text-right tabular-nums opacity-70 sm:pl-6">
                         {formatMoney(e.fees)}
                       </td>
-                      <td className="py-3 pl-6 text-right tabular-nums">
+                      <td className="py-3 pl-3 text-right tabular-nums sm:pl-6">
                         {formatMoney(e.net_amount)}
                       </td>
                     </tr>
@@ -221,21 +223,27 @@ function TransparencyPage() {
 
           <section>
             <h2 className="mono text-xs uppercase tracking-wider opacity-70">Expenses</h2>
-            <div className="mono mt-4 overflow-x-auto uppercase">
-              <table className="w-full min-w-[420px] text-xs">
+            <div className="mono mt-4 uppercase">
+              <table className="w-full table-fixed text-xs">
                 <thead>
                   <tr className="text-left tracking-wider opacity-60">
-                    <th className="pb-2 font-normal">Date</th>
-                    <th className="pb-2 pl-6 font-normal">Description</th>
-                    <th className="pb-2 pl-6 font-normal text-right">Amount</th>
+                    <th className="w-[4.5rem] pb-2 font-normal sm:w-20">Date</th>
+                    <th className="pb-2 pl-3 font-normal sm:pl-6">Description</th>
+                    <th className="w-[4.5rem] pb-2 pl-3 font-normal text-right sm:w-24 sm:pl-6">
+                      Amount
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--brand-white)]/10">
                   {expenses.map((e) => (
                     <tr key={e.id}>
-                      <td className="py-3 text-left">{formatDate(e.entry_date)}</td>
-                      <td className="py-3 pl-6">{e.description}</td>
-                      <td className="py-3 pl-6 text-right tabular-nums">{formatMoney(e.amount)}</td>
+                      <td className="py-3 text-left whitespace-nowrap opacity-70">
+                        {formatDate(e.entry_date)}
+                      </td>
+                      <td className="truncate py-3 pl-3 sm:pl-6">{e.description}</td>
+                      <td className="py-3 pl-3 text-right tabular-nums sm:pl-6">
+                        {formatMoney(e.amount)}
+                      </td>
                     </tr>
                   ))}
                   {entries && expenses.length === 0 && (

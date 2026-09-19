@@ -29,24 +29,23 @@ export const Route = createFileRoute("/api/public/stats")({
           auth: { autoRefreshToken: false, persistSession: false },
         });
 
-        const [usersResult, setsResult] = await Promise.all([
-          // perPage: 1 keeps the response tiny - GoTrue still computes the
-          // total across all users for pagination, which is all we need.
-          supabase.auth.admin.listUsers({ page: 1, perPage: 1 }),
-          supabase.from("sets").select("*", { count: "exact", head: true }),
-        ]);
+        // Single RPC (plain indexed count(*) x2) instead of the GoTrue admin
+        // listUsers API + a separate PostgREST count - the admin API is a
+        // second service hop and was the slow part of this endpoint.
+        const { data, error } = await supabase.rpc("get_transparency_stats").single<{
+          accounts: number;
+          sets: number;
+        }>();
 
-        if (usersResult.error || setsResult.error) {
-          console.error(
-            `Stats query failed: ${usersResult.error?.message ?? setsResult.error?.message}`,
-          );
+        if (error || !data) {
+          console.error(`Stats query failed: ${error?.message}`);
           return Response.json({ ok: false, error: "Could not load stats." }, { status: 502 });
         }
 
         return Response.json({
           ok: true,
-          accounts: usersResult.data.total,
-          sets: setsResult.count ?? 0,
+          accounts: data.accounts,
+          sets: data.sets,
         });
       },
     },

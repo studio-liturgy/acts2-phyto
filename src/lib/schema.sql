@@ -487,3 +487,21 @@ alter table transparency_entries enable row level security;
 create policy "transparency_entries: public select"
   on transparency_entries for select
   using (true);
+
+-- Backs /api/public/stats: one plain indexed count(*) x2 instead of the
+-- GoTrue admin listUsers API (a separate, slower service hop) plus a
+-- separate PostgREST count query. Returns only two integers - granted to
+-- service_role only, called server-side with the service role key.
+create or replace function public.get_transparency_stats()
+returns table (accounts bigint, sets bigint)
+language sql
+security definer
+set search_path = public, auth
+as $$
+  select
+    (select count(*) from auth.users) as accounts,
+    (select count(*) from public.sets) as sets;
+$$;
+
+revoke all on function public.get_transparency_stats() from public;
+grant execute on function public.get_transparency_stats() to service_role;
