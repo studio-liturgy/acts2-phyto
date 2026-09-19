@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
+import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 import { supabase } from "@/lib/supabase";
 import { APP_NAME } from "@/lib/appConfig";
@@ -161,7 +162,7 @@ function TransparencyPage() {
         </Link>
 
         {/* Stats */}
-        <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-2">
+        <div className="mt-12 mb-20 grid grid-cols-1 gap-4 sm:mb-0 sm:grid-cols-2 sm:gap-8">
           <Stat
             value={stats ? stats.accounts.toLocaleString() : <StatSkeleton />}
             label="Accounts"
@@ -276,6 +277,10 @@ function TransparencyPage() {
         <div className="mono mt-16 space-y-2 text-xs uppercase leading-relaxed opacity-70">
           <p>Time spent on phyto is left out of expenses. This is a voluntary passion project.</p>
           <p>All amounts are in CAD.</p>
+        </div>
+
+        <div className="mt-12">
+          <BackToTop />
         </div>
       </main>
 
