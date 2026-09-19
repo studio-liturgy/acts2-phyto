@@ -59,8 +59,6 @@ export function LegalLayout({
         >
           <ArrowLeft className="h-3 w-3" /> BACK
         </Link>
-        <h1 className="mt-6 text-5xl">Legal</h1>
-
         <div className="mt-8 flex gap-2">
           <LegalPill to="/terms" active={active === "terms"}>
             Terms of Use

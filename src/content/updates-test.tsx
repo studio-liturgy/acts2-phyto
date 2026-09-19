@@ -25,7 +25,7 @@ export default function UpdatesTest() {
         >
           <ArrowLeft className="h-3 w-3" /> BACK
         </Link>
-        <h1 className="mt-6 text-5xl">Test Notes</h1>
+        <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-8">
           <li>
             <div className="mono text-xs uppercase tracking-wider opacity-80">Known Issues</div>

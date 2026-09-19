@@ -1040,7 +1040,7 @@ export function FirstTimeLanding({
               Feedback
             </Link>
             <Link to="/updates" className={linkCls}>
-              {isTest ? "Test Notes" : "Updates"}
+              Updates
             </Link>
           </nav>
           <nav className="flex items-center gap-6 text-xs">

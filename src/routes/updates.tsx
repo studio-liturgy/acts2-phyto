@@ -7,14 +7,14 @@ const isTest = import.meta.env.VITE_APP_ENV === "test";
 export const Route = createFileRoute("/updates")({
   head: () => ({
     meta: [
-      { title: isTest ? "Test Notes | phytoexp" : "Updates | phyto" },
+      { title: isTest ? "Updates | phytoexp" : "Updates | phyto" },
       {
         name: "description",
         content: isTest
           ? "Features being tested and known issues on phytoexp."
           : "Release notes and updates for phyto.",
       },
-      { property: "og:title", content: isTest ? "Test Notes | phytoexp" : "Updates | phyto" },
+      { property: "og:title", content: isTest ? "Updates | phytoexp" : "Updates | phyto" },
       {
         property: "og:description",
         content: isTest

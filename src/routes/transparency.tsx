@@ -55,7 +55,7 @@ function formatDate(dateStr: string) {
 
 function StatSkeleton() {
   return (
-    <span className="inline-block h-9 w-20 animate-pulse rounded bg-[var(--brand-white)]/15" />
+    <span className="inline-block h-16 w-36 animate-pulse rounded bg-[var(--brand-white)]/15" />
   );
 }
 
@@ -110,18 +110,16 @@ function TransparencyPage() {
           <ArrowLeft className="h-3 w-3" /> BACK
         </Link>
 
-        <h1 className="mt-6 text-5xl">Transparency</h1>
-
         {/* Stats */}
-        <div className="mt-12 grid grid-cols-2 gap-4 border-t border-[var(--brand-white)]/20 pt-8">
+        <div className="mt-12 grid grid-cols-2 gap-4">
           <div>
-            <div className="text-4xl">
+            <div className="text-7xl">
               {stats ? stats.accounts.toLocaleString() : <StatSkeleton />}
             </div>
             <div className="mono mt-2 text-xs uppercase tracking-wider opacity-70">Accounts</div>
           </div>
           <div>
-            <div className="text-4xl">{stats ? stats.sets.toLocaleString() : <StatSkeleton />}</div>
+            <div className="text-7xl">{stats ? stats.sets.toLocaleString() : <StatSkeleton />}</div>
             <div className="mono mt-2 text-xs uppercase tracking-wider opacity-70">
               Sets created
             </div>
@@ -131,7 +129,7 @@ function TransparencyPage() {
         {/* Finances summary */}
         <div className="mt-12 grid grid-cols-2 gap-4 border-t border-[var(--brand-white)]/20 pt-8">
           <div>
-            <div className="text-4xl">
+            <div className="text-7xl">
               {entries ? formatMoney(totalDonations) : <StatSkeleton />}
             </div>
             <div className="mono mt-2 text-xs uppercase tracking-wider opacity-70">
@@ -139,7 +137,7 @@ function TransparencyPage() {
             </div>
           </div>
           <div>
-            <div className="text-4xl">
+            <div className="text-7xl">
               {entries ? formatMoney(totalExpenses) : <StatSkeleton />}
             </div>
             <div className="mono mt-2 text-xs uppercase tracking-wider opacity-70">
