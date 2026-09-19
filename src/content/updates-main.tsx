@@ -25,7 +25,6 @@ export default function UpdatesMain() {
         >
           <ArrowLeft className="h-3 w-3" /> BACK
         </Link>
-        <h1 className="mt-6 text-5xl">Updates</h1>
         <ul className="mt-8 space-y-12">
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">September 9, 2026</div>
