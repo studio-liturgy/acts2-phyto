@@ -2223,11 +2223,47 @@ export async function syncGroups(): Promise<void> {
       if (toWrite.length) await db.gatherings.bulkPut(toWrite);
     }
     // Prune FOREIGN group gatherings I've lost access to (removed/left/deleted by
-    // the owner). My own are never pruned here: a freshly created one isn't remote
-    // yet, and deletion of mine is handled by deleteGathering.
+    // the owner).
     const accessibleGath = new Set(remoteGathRows.map((r) => r.id as string));
     const goneGath = localForeignGath.filter((p) => !accessibleGath.has(p.id));
     if (goneGath.length) await db.gatherings.bulkDelete(goneGath.map((p) => p.id));
+
+    // My OWN group gatherings deleted on another of my devices. Group gatherings
+    // sit outside the personal diff (they sync here), so its tombstone check
+    // never reaches them and the copy would linger — and be pushed back on the
+    // next full push. Apply the same rule here: absent remotely AND tombstoned
+    // at or after my copy's last edit → drop it. A freshly created one that
+    // hasn't been pushed yet has no tombstone and is kept.
+    const myMissing = localGath.filter(
+      (p) =>
+        !p.shared && !!p.group_id && groupIds.includes(p.group_id) && !accessibleGath.has(p.id),
+    );
+    if (myMissing.length) {
+      const { data: tombs, error: tombErr } = await supabase
+        .from("deletions")
+        .select("id, deleted_at")
+        .eq("user_id", uid)
+        .eq("kind", "gathering")
+        .in(
+          "id",
+          myMissing.map((p) => p.id),
+        );
+      if (tombErr) {
+        console.error("[sync] syncGroups: deletions read error", tombErr);
+      } else {
+        const deletedAt = new Map(
+          ((tombs ?? []) as { id: string; deleted_at: string }[]).map((t) => [
+            t.id,
+            new Date(t.deleted_at).getTime(),
+          ]),
+        );
+        const dead = myMissing.filter((p) => {
+          const d = deletedAt.get(p.id);
+          return d !== undefined && d >= p.updatedAt;
+        });
+        if (dead.length) await db.gatherings.bulkDelete(dead.map((p) => p.id));
+      }
+    }
   });
 }
 

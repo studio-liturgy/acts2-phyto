@@ -317,3 +317,56 @@ describe("syncSharedSets", () => {
     expect(await db.sets.get(saved.id)).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// My own group gatherings sit outside the personal diff, so a deletion on one
+// of my devices has to be propagated here via its tombstone.
+// ---------------------------------------------------------------------------
+
+import { tombstoneRow } from "@/test/fixtures";
+
+describe("syncGroups: my own group gatherings", () => {
+  const inGroup = () => ({
+    group_members: [membership],
+    group_sets: [],
+    sets: [],
+    gatherings: [],
+    gathering_sets: [],
+  });
+
+  it("drops my copy of a group gathering I deleted on another device", async () => {
+    const deleted = makeGathering({ group_id: GROUP_ID, updatedAt: 1000 });
+    await db.gatherings.put(deleted);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: { ...inGroup(), deletions: [tombstoneRow("gathering", deleted.id, 2000)] },
+    });
+
+    await syncGroups();
+
+    expect(await db.gatherings.get(deleted.id)).toBeUndefined();
+  });
+
+  it("keeps a freshly created group gathering that hasn't been pushed yet", async () => {
+    const fresh = makeGathering({ group_id: GROUP_ID, updatedAt: 1000 });
+    await db.gatherings.put(fresh);
+    supabaseMock.configure({ session: fakeSession, tables: { ...inGroup(), deletions: [] } });
+
+    await syncGroups();
+
+    expect(await db.gatherings.get(fresh.id)).toBeDefined();
+  });
+
+  it("keeps a copy edited after the tombstone (edit-over-delete wins, as in the personal diff)", async () => {
+    const edited = makeGathering({ group_id: GROUP_ID, updatedAt: 3000 });
+    await db.gatherings.put(edited);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: { ...inGroup(), deletions: [tombstoneRow("gathering", edited.id, 2000)] },
+    });
+
+    await syncGroups();
+
+    expect(await db.gatherings.get(edited.id)).toBeDefined();
+  });
+});
