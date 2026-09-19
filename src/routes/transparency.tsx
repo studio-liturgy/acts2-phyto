@@ -34,18 +34,15 @@ type Entry = {
   description: string | null;
   amount: number;
   fees: number;
-  currency: string;
   net_amount: number;
 };
 
 type Stats = { accounts: number; sets: number };
 
-function formatMoney(amount: number, currency: string) {
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
-  } catch {
-    return `${amount.toFixed(2)} ${currency}`;
-  }
+// Everything on this page is in CAD (see the note under the intro), so
+// amounts are just formatted as plain dollars rather than per-row currency.
+function formatMoney(amount: number) {
+  return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatDate(dateStr: string) {
@@ -75,7 +72,7 @@ function TransparencyPage() {
 
     supabase
       .from("transparency_entries")
-      .select("id, type, entry_date, description, amount, fees, currency, net_amount")
+      .select("id, type, entry_date, description, amount, fees, net_amount")
       .order("entry_date", { ascending: false })
       .then(({ data, error: err }) => {
         if (cancelled) return;
@@ -112,6 +109,9 @@ function TransparencyPage() {
           phyto is free and runs on donations. Here&rsquo;s what&rsquo;s come in, what it&rsquo;s
           gone toward, and how things are growing - updated as it happens.
         </p>
+        <p className="mono mt-4 text-xs uppercase tracking-wider opacity-60">
+          All amounts are in CAD.
+        </p>
 
         {/* Stats */}
         <div className="mt-12 grid grid-cols-2 gap-4 border-t border-[var(--brand-white)]/20 pt-8">
@@ -130,17 +130,13 @@ function TransparencyPage() {
         {/* Finances summary */}
         <div className="mt-12 grid grid-cols-2 gap-4 border-t border-[var(--brand-white)]/20 pt-8">
           <div>
-            <div className="text-4xl">
-              {entries ? formatMoney(totalDonations, donations[0]?.currency ?? "USD") : "—"}
-            </div>
+            <div className="text-4xl">{entries ? formatMoney(totalDonations) : "—"}</div>
             <div className="mono mt-2 text-xs uppercase tracking-wider opacity-70">
               Total donations
             </div>
           </div>
           <div>
-            <div className="text-4xl">
-              {entries ? formatMoney(totalExpenses, expenses[0]?.currency ?? "USD") : "—"}
-            </div>
+            <div className="text-4xl">{entries ? formatMoney(totalExpenses) : "—"}</div>
             <div className="mono mt-2 text-xs uppercase tracking-wider opacity-70">
               Total expenses
             </div>
@@ -168,15 +164,11 @@ function TransparencyPage() {
                 {donations.map((e) => (
                   <tr key={e.id}>
                     <td className="py-3">{formatDate(e.entry_date)}</td>
-                    <td className="py-3 text-right tabular-nums">
-                      {formatMoney(e.amount, e.currency)}
-                    </td>
+                    <td className="py-3 text-right tabular-nums">{formatMoney(e.amount)}</td>
                     <td className="py-3 text-right tabular-nums opacity-70">
-                      {formatMoney(e.fees, e.currency)}
+                      {formatMoney(e.fees)}
                     </td>
-                    <td className="py-3 text-right tabular-nums">
-                      {formatMoney(e.net_amount, e.currency)}
-                    </td>
+                    <td className="py-3 text-right tabular-nums">{formatMoney(e.net_amount)}</td>
                   </tr>
                 ))}
                 {entries && donations.length === 0 && (
@@ -203,7 +195,7 @@ function TransparencyPage() {
                     {formatDate(e.entry_date)}
                   </div>
                 </div>
-                <div className="shrink-0 tabular-nums">{formatMoney(e.amount, e.currency)}</div>
+                <div className="shrink-0 tabular-nums">{formatMoney(e.amount)}</div>
               </li>
             ))}
             {entries && expenses.length === 0 && (
