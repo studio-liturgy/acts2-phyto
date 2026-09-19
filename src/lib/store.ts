@@ -340,6 +340,10 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
 
   loadGroups: async () => {
     const groups = await fetchMyGroups();
+    // A failed fetch (offline, transient) leaves the list as it was: an empty
+    // list here would drop the switcher's groups and kick the active workspace
+    // back to Personal on every network blip.
+    if (!groups) return;
     set({ groups });
     // Refresh the cached active-group name now that the list is known.
     const activeWs = get().activeWorkspace;

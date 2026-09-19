@@ -1818,8 +1818,11 @@ export async function syncSharedSets(): Promise<void> {
 
 export type MyGroup = { id: string; name: string; role: "admin" | "member"; owner_id: string };
 
-/** Groups I belong to (claimed memberships). */
-export async function fetchMyGroups(): Promise<MyGroup[]> {
+/** Groups I belong to (claimed memberships). Returns null when the list could
+ *  not be fetched (offline, transient error): callers must treat that as
+ *  "unknown", never as "no groups" — syncGroups reads an empty list as "I left
+ *  every group" and prunes the group content it holds locally. */
+export async function fetchMyGroups(): Promise<MyGroup[] | null> {
   const session = getSession();
   if (!session) return [];
   const { data, error } = await supabase
@@ -1828,7 +1831,7 @@ export async function fetchMyGroups(): Promise<MyGroup[]> {
     .eq("user_id", session.user.id);
   if (error) {
     console.error("[sync] fetchMyGroups error", error);
-    return [];
+    return null;
   }
   type G = { id: string; name: string; owner_id: string };
   const rows = (data ?? []) as unknown as { role: string; groups: G | G[] | null }[];
@@ -1961,7 +1964,10 @@ export async function syncGroups(): Promise<void> {
   const session = getSession();
   if (!session) return;
   const uid = session.user.id;
-  const groupIds = (await fetchMyGroups()).map((g) => g.id);
+  const myGroups = await fetchMyGroups();
+  // Unknown (fetch failed) is not "none": bail rather than prune everything.
+  if (!myGroups) return;
+  const groupIds = myGroups.map((g) => g.id);
   await withSyncLock(async () => {
     const local = await db.sets.toArray();
     const localForeignGroup = local.filter((s) => s.shared && (s.groupIds?.length ?? 0) > 0);
@@ -2236,7 +2242,7 @@ export async function inviteGroupMember(groupId: string, rawEmail: string): Prom
 
   // Best-effort invite email; the membership stands regardless.
   try {
-    const groupName = (await fetchMyGroups()).find((g) => g.id === groupId)?.name;
+    const groupName = (await fetchMyGroups())?.find((g) => g.id === groupId)?.name;
     await fetch("/api/groups/invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
