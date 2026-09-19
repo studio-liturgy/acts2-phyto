@@ -91,12 +91,15 @@ function toGatheringRow(data: Record<string, unknown>): GatheringRow {
 type Resolution = { kind: "gathering"; row: GatheringRow } | { kind: "waiting" } | null;
 
 /** The one live gathering in a scope ("one live per scope"), or null. Anon can
- *  read gatherings via the public share_token policy, so this works logged-out. */
+ *  read gatherings via the public share_token policy, so this works logged-out.
+ *  Filtered to is_live rows server-side: this runs every 8s on every viewer's
+ *  phone, so it must not pull the leader's whole gathering list each time.
+ *  isLiveNow still applies the 24h expiry to the (usually single) row returned. */
 async function fetchLiveInScope(scope: {
   user_id: string | null;
   group_id: string | null;
 }): Promise<GatheringRow | null> {
-  const base = supabase.from("gatherings").select(GATHERING_COLS);
+  const base = supabase.from("gatherings").select(GATHERING_COLS).eq("is_live", true);
   const query = scope.group_id
     ? base.eq("group_id", scope.group_id)
     : base.eq("user_id", scope.user_id as string).is("group_id", null);
