@@ -1,0 +1,141 @@
+<!--
+  LOCAL PREVIEW ONLY. Source of truth is email-templates/donation-thank-you.html.
+  Differences: asset URLs are relative (/email/...) so the dev server serves them,
+  fonts load from /fonts/, and outbound links are placeholder "#" hrefs.
+  Open at http://localhost:8080/email/donation-thank-you-preview.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light only" />
+    <title>Preview — phyto donation thank-you email</title>
+    <style>
+      @font-face {
+        font-family: 'Space Mono';
+        src: url('/fonts/SpaceMono-Regular.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Space Mono';
+        src: url('/fonts/SpaceMono-Italic.ttf') format('truetype');
+        font-weight: 400;
+        font-style: italic;
+      }
+      @media only screen and (max-width:600px) {
+        .h1 { font-size:28px !important; }
+      }
+    </style>
+  </head>
+  <body bgcolor="#2E7299" style="margin:0;padding:0;background:#2E7299;font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.03em;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Thank you for your gift to phyto - here's what it's going toward.</div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#2E7299" style="background:#2E7299;">
+      <tr>
+        <td align="center" style="padding:0;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+            <!-- HERO: textured background + phyto wordmark, flattened into one PNG -->
+            <tr>
+              <td style="padding:0;font-size:0;line-height:0;">
+                <img src="/email/email-header.png" width="600" alt="phyto"
+                     style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
+              </td>
+            </tr>
+
+            <!-- INTRO -->
+            <tr>
+              <td style="padding:48px 40px 0;">
+                <h1 class="h1" style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:32px;line-height:1.25;font-weight:400;letter-spacing:-0.03em;">
+                  Thank you for your donation!
+                </h1>
+              </td>
+            </tr>
+
+            <!-- STORY -->
+            <tr>
+              <td style="padding:32px 40px 0;">
+                <p style="margin:0 0 16px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;letter-spacing:0;">
+                  I started this with a simple idea in May and now it&rsquo;s become a blessing to so many others. It&rsquo;s been such a joy to see how God is using phyto to bless gatherings in churches and homes, around the world - across nations, cultures and languages. So far, there have been over 450 accounts and 4000 sets created - and new accounts and sets are being created daily!
+                </p>
+                <p style="margin:0 0 16px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;letter-spacing:0;">
+                  I have so many more ideas for phyto and beyond, so thank you for partnering with me in this journey and believing in what God is doing through this! I don&rsquo;t take your financial contribution lightly!
+                </p>
+                <p style="margin:0 0 24px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;letter-spacing:0;">
+                  I&rsquo;ve decided to make all the bookkeeping public so that you can be aware of what you&rsquo;re putting your money to. Below you&rsquo;ll find how others have been donating and also the expenses required to run, maintain, and update phyto.
+                </p>
+                <p style="margin:0 0 24px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;letter-spacing:0;">
+                  I have left out any personal time spent on this project as expenses, since this is purely a passion project. I work on this voluntarily, but if God ever grants the opportunity to work on this full time, it would be such a joy!
+                </p>
+                <a href="#" style="display:inline-block;margin:0 0 24px;text-decoration:none;border:1px solid #F5EFEF;border-radius:9999px;padding:8px 20px;white-space:nowrap;">
+                  <span style="display:inline-block;vertical-align:middle;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:32px;letter-spacing:-0.045em;">Stats + Finances</span>
+                  <span style="display:inline-block;vertical-align:middle;margin-left:10px;line-height:0;">
+                    <img src="/email/arrow.png" width="20" height="20" alt="&#8599;" style="display:block;width:20px;height:20px;border:0;" />
+                  </span>
+                </a>
+                <p style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;letter-spacing:0;">
+                  Thanks again for your support!
+                </p>
+              </td>
+            </tr>
+
+            <!-- SIGNATURE -->
+            <tr>
+              <td style="padding:32px 40px 0;">
+                <p style="margin:0;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;">
+                  grace + peace,
+                </p>
+                <p style="margin:0 0 12px;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;">
+                  Valiant Chan
+                </p>
+                <img src="/email/VChanSig.png" width="160" alt="Valiant Chan"
+                     style="display:block;width:160px;height:auto;border:0;" />
+              </td>
+            </tr>
+
+            <!-- BUTTONS (style matches the site's "Present"/"Donate" pill CTAs: border-foreground pill, ArrowUpRight icon, tracking-[-0.045em], hover invert. inline-block + div wraps naturally if the row is too tight, unlike table cells. -->
+            <tr>
+              <td align="center" style="padding:40px 32px 0;">
+                <div style="text-align:center;">
+                  <a href="#" style="display:inline-block;margin:6px 8px;text-decoration:none;border:1px solid #F5EFEF;border-radius:9999px;padding:8px 20px;white-space:nowrap;">
+                    <span style="display:inline-block;vertical-align:middle;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:32px;letter-spacing:-0.045em;">Feedback</span>
+                    <span style="display:inline-block;vertical-align:middle;margin-left:10px;line-height:0;">
+                      <img src="/email/arrow.png" width="20" height="20" alt="&#8599;" style="display:block;width:20px;height:20px;border:0;" />
+                    </span>
+                  </a>
+                  <a href="#" style="display:inline-block;margin:6px 8px;text-decoration:none;border:1px solid #F5EFEF;border-radius:9999px;padding:8px 20px;white-space:nowrap;">
+                    <span style="display:inline-block;vertical-align:middle;color:#F5EFEF;font-family:Arial,Helvetica,sans-serif;font-size:32px;letter-spacing:-0.045em;">Instagram</span>
+                    <span style="display:inline-block;vertical-align:middle;margin-left:10px;line-height:0;">
+                      <img src="/email/arrow.png" width="20" height="20" alt="&#8599;" style="display:block;width:20px;height:20px;border:0;" />
+                    </span>
+                  </a>
+                </div>
+              </td>
+            </tr>
+
+            <!-- FOOTER -->
+            <tr>
+              <td align="center" style="padding:56px 40px 0;">
+                <a href="#" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">Source</a>
+                <a href="#" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">Updates</a>
+                <a href="#" style="color:#F5EFEF;font-family:'Space Mono',Courier,monospace;font-size:12px;letter-spacing:0;text-transform:uppercase;text-decoration:none;padding:0 16px;">Legal</a>
+              </td>
+            </tr>
+
+            <!-- TAGLINE -->
+            <tr>
+              <td style="padding:24px 40px 48px;">
+                <p style="margin:0;color:rgba(245,239,239,0.55);font-family:'Space Mono',Courier,monospace;font-size:11px;letter-spacing:0.02em;text-transform:uppercase;line-height:1.8;text-align:center;">
+                  Phyto is the Greek prefix for plants. Organisms that freely receive, freely give away and grow over time. Our times of worship together should work the same way.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
