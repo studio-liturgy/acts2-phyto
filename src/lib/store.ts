@@ -317,6 +317,10 @@ interface LibraryState {
 // effect that calls it re-runs whenever the session or sync dialog changes).
 let imageMigrationRunning = false;
 
+// Bumped on every local settings change, so a settings read that was in
+// flight when the user clicked doesn't overwrite the click when it lands.
+let settingsEpoch = 0;
+
 export const useLibrary = create<LibraryState>()((set, get) => ({
   sets: {},
   order: [],
@@ -374,10 +378,13 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   refreshWorkspaceSettings: async () => {
     const ws = get().activeWorkspace;
     const personal = ws === "personal";
+    const epoch = settingsEpoch;
     const fetched = await fetchWorkspaceSettings({ groupId: personal ? null : ws });
     // Only apply if the user is still on this workspace (a switch may have
-    // raced the read), and only when the read succeeded.
-    if (!fetched || get().activeWorkspace !== ws) return;
+    // raced the read), nothing was changed here meanwhile (a read in flight
+    // when a toggle was clicked would land its stale value over the click,
+    // and the toggle flickered back), and the read succeeded.
+    if (!fetched || get().activeWorkspace !== ws || epoch !== settingsEpoch) return;
     const signedIn = !!useAuthStore.getState().session;
     if (personal && signedIn && !fetched.exists) {
       // First sign-in with no account row: a choice made signed out on this
@@ -401,6 +408,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     const personal = ws === "personal";
     const before = get().workspaceSettings;
     const next = { ...before, ...patch };
+    settingsEpoch += 1;
     set({ workspaceSettings: next });
     if (personal) writeLocalPersonalSettings(next);
     // Signed out, the device copy IS the personal workspace's settings.

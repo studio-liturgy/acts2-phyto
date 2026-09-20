@@ -4,7 +4,7 @@
 //   "John 3:16-18"         range within a chapter
 //   "John 3"               whole chapter
 //   "John 3:21-John 4:2"   cross-chapter range (same book only)
-import type { LangCode } from "./langs";
+import { workspaceLangLabel, type LangCode } from "./langs";
 
 export const TRANSLATIONS = [
   { code: "NIV", label: "NIV — New International Version" },
@@ -152,6 +152,24 @@ export function langOfTranslation(code: string): LangCode | undefined {
 export function scriptOfTranslation(code: string): LangCode | undefined {
   if (TRADITIONAL_CHINESE.has(code)) return "zh-Hant";
   return langOfTranslation(code);
+}
+
+/** The translations of a workspace language, grouped for a picker: one group
+ *  per language, except Chinese, which lists its traditional and simplified
+ *  versions under separate headings. */
+export function translationGroupsForLang(
+  lang: LangCode,
+): { language: string; translations: { code: string; label: string }[] }[] {
+  const all = translationsForLang(lang);
+  if (lang === "zh-Hans") {
+    const trad = all.filter((t) => TRADITIONAL_CHINESE.has(t.code));
+    const simp = all.filter((t) => !TRADITIONAL_CHINESE.has(t.code));
+    return [
+      { language: "Chinese (traditional)", translations: trad },
+      { language: "Chinese (simplified)", translations: simp },
+    ].filter((g) => g.translations.length);
+  }
+  return [{ language: workspaceLangLabel(lang), translations: all }];
 }
 
 /** The translations offered for a workspace language (for the single-version

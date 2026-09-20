@@ -76,7 +76,7 @@ export const LANGS: readonly LangDef[] = [
     derivedFrom: "ja",
   },
 
-  { code: "zh-Hans", label: "Chinese (simplified)", short: "简", dir: "ltr", fontFallback: SC },
+  { code: "zh-Hans", label: "Chinese (simplified)", short: "CN", dir: "ltr", fontFallback: SC },
   {
     code: "zh-Hant",
     label: "Chinese (traditional)",

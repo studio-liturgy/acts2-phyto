@@ -5,6 +5,7 @@ import {
   fetchScriptureBolls,
   langOfTranslation,
   splitRefLabel,
+  translationGroupsForLang,
   translationsForLang,
   TRANSLATION_CODES,
 } from "@/lib/bible";
@@ -23,7 +24,7 @@ import {
   visibleVersions,
 } from "@/lib/versions";
 import type { SetKind, Slide } from "@/lib/types";
-import { langDef, type LangCode } from "@/lib/langs";
+import type { LangCode } from "@/lib/langs";
 
 /**
  * The scripture importer's state and behaviour, with the two-version support
@@ -46,6 +47,11 @@ import { langDef, type LangCode } from "@/lib/langs";
  * A message set keeps its verses on its slides (the block editor owns them);
  * this hook still drives its imports and version changes.
  */
+/** A single group needs no heading. */
+function ungroupSingle<T extends { language: string }>(groups: T[]): T[] {
+  return groups.length === 1 ? [{ ...groups[0], language: "" }] : groups;
+}
+
 export function useScriptureVersions({ setId, kind }: { setId: string; kind: SetKind }) {
   const scriptureKind = kind === "scripture" || kind === "message";
   const updateSet = useLibrary((s) => s.updateSet);
@@ -89,22 +95,19 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
         : translationsForLang(firstLang),
     [multi, translation2, settings.language, settings.language2, firstLang],
   );
-  /** The 1st picker's list, grouped by language when it spans both. */
+  /** The 1st picker's list, grouped by language when it spans both (and
+   *  Chinese always by script). A lone group carries no heading. */
   const firstGroups = useMemo(
     () =>
-      multi && !translation2 && settings.language2
-        ? [
-            {
-              language: langDef(settings.language).label,
-              translations: translationsForLang(settings.language),
-            },
-            {
-              language: langDef(settings.language2).label,
-              translations: translationsForLang(settings.language2),
-            },
-          ]
-        : [{ language: "", translations: firstChoices }],
-    [multi, translation2, settings.language, settings.language2, firstChoices],
+      ungroupSingle(
+        multi && !translation2 && settings.language2
+          ? [
+              ...translationGroupsForLang(settings.language),
+              ...translationGroupsForLang(settings.language2),
+            ]
+          : translationGroupsForLang(firstLang),
+      ),
+    [multi, translation2, settings.language, settings.language2, firstLang],
   );
   // Picking a 1st version in the other language moves the 2nd version over to
   // the remaining language (its first bible version), so the pair still spans
@@ -561,8 +564,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
    *  both languages grouped, else its own language. */
   const updateGroupsFor = useCallback(
     (v1: string, v2: string) => {
-      const groupFor = (l: LangCode | null) =>
-        l ? [{ language: langDef(l).label, translations: translationsForLang(l) }] : [];
+      const groupFor = (l: LangCode | null) => (l ? translationGroupsForLang(l) : []);
       if (!multi || !settings.language2) {
         return { first: groupFor(settings.language), second: [] as ReturnType<typeof groupFor> };
       }
