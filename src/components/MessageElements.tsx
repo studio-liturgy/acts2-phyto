@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
+import { PillSwitch } from "@/components/PillSwitch";
 import { prepareImageFile } from "@/lib/image-upload";
 import { useLibrary } from "@/lib/store";
 import type { PointType, Slide } from "@/lib/types";
@@ -151,6 +151,7 @@ export function AutoTextarea({
   className = FIELD,
   data,
   onMouseDown,
+  onKeyDown,
   selected,
 }: {
   value: string;
@@ -160,6 +161,7 @@ export function AutoTextarea({
   /** data-* attributes, e.g. for identifying the cell during a drag-select. */
   data?: Record<string, string | number>;
   onMouseDown?: () => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   selected?: boolean;
 }) {
   const size = (el: HTMLTextAreaElement | null) => {
@@ -175,6 +177,7 @@ export function AutoTextarea({
       onInput={(e) => size(e.currentTarget)}
       onChange={(e) => onChange(e.target.value)}
       onMouseDown={onMouseDown}
+      onKeyDown={onKeyDown}
       placeholder={placeholder}
       className={className}
       style={
@@ -268,11 +271,10 @@ export function ElementCard({
         title={numbered ? "Numbered list" : "Bullet dots"}
       >
         <span aria-hidden>{"\u2022"}</span>
-        <Switch
+        <PillSwitch
           checked={numbered}
           onCheckedChange={(on) => onChange({ listStyle: on ? "numbers" : "bullets" })}
-          aria-label="Numbered list"
-          className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3"
+          label="Numbered list"
         />
         <span aria-hidden>1.</span>
       </label>

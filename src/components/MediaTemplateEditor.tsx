@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { NumberStepper } from "@/components/NumberStepper";
 import { useLibrary } from "@/lib/store";
+import { PillSwitch } from "@/components/PillSwitch";
 import type { Set as PhytoSet } from "@/lib/types";
 
 /**
@@ -59,10 +60,10 @@ export function MediaPlaybackControls({ setId }: { setId: string }) {
       {auto > 0 && (
         <div className="flex items-center justify-between gap-2">
           <span className="mono text-[10px] uppercase tracking-wider">Loop</span>
-          <input
-            type="checkbox"
+          <PillSwitch
+            label="Loop"
             checked={!!phytoSet.loop}
-            onChange={(e) => updateSet(setId, { loop: e.target.checked })}
+            onCheckedChange={(on) => updateSet(setId, { loop: on })}
           />
         </div>
       )}

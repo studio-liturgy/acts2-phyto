@@ -15,6 +15,29 @@ const DEL = "2rem"; // right delete column
  * dragged to reorder or deleted as a whole, boxes auto-grow (no scrollbars), and
  * the arrow keys move between verses.
  */
+/** Two verses as one: a single space between them, nothing added when either
+ *  side is empty. Exported for tests. */
+export function joinVerse(a: string, b: string): string {
+  const left = a.trimEnd();
+  const right = b.trimStart();
+  return left && right ? `${left} ${right}` : left || right;
+}
+
+/** Rows with verse `ri` joined onto the one above it (every version), or null
+ *  when it's the first verse of its import (nothing to join onto). */
+export function mergeRowsUp(rows: VerseRow[], ri: number, versions: string[]): VerseRow[] | null {
+  if (ri <= 0 || ri >= rows.length || rows[ri].starts) return null;
+  const prev = rows[ri - 1];
+  const cur = rows[ri];
+  const merged: VerseRow = {
+    ...prev,
+    text: Object.fromEntries(
+      versions.map((v) => [v, joinVerse(prev.text[v] ?? "", cur.text[v] ?? "")]),
+    ),
+  };
+  return rows.map((r, i) => (i === ri - 1 ? merged : r)).filter((_, i) => i !== ri);
+}
+
 export function ScriptureVerseEditor({
   versions,
   text,
@@ -42,6 +65,24 @@ export function ScriptureVerseEditor({
   };
   const editCell = (ri: number, v: string, value: string) =>
     commit(rows.map((r, i) => (i === ri ? { ...r, text: { ...r.text, [v]: value } } : r)));
+  // Backspace at the very start of a verse joins it onto the verse above, in
+  // EVERY version at once (the verses are aligned, so they merge together).
+  // Only within one import: the first verse of a passage has nothing above it
+  // to join, even when another passage sits before it. The caret lands at the
+  // seam so the join can be undone with one keystroke.
+  const mergeUp = (ri: number, v: string) => {
+    const next = mergeRowsUp(rows, ri, versions);
+    if (!next) return;
+    const seam = (rows[ri - 1].text[v] ?? "").length;
+    commit(next);
+    requestAnimationFrame(() => {
+      const el = cells.current.get(cellKey(ri - 1, v));
+      if (!el) return;
+      el.focus();
+      const at = Math.min(seam + 1, el.value.length);
+      el.setSelectionRange(at, at);
+    });
+  };
   const moveCaret = (ri: number, v: string, dir: -1 | 1) => {
     const el = cells.current.get(cellKey(ri + dir, v));
     if (!el) return;
@@ -209,7 +250,14 @@ export function ScriptureVerseEditor({
                               onChange={(e) => editCell(index, v, e.target.value)}
                               onKeyDown={(e) => {
                                 const el = e.currentTarget;
-                                if (e.key === "ArrowUp" && el.selectionStart === 0) {
+                                if (
+                                  e.key === "Backspace" &&
+                                  el.selectionStart === 0 &&
+                                  el.selectionEnd === 0
+                                ) {
+                                  e.preventDefault();
+                                  mergeUp(index, v);
+                                } else if (e.key === "ArrowUp" && el.selectionStart === 0) {
                                   e.preventDefault();
                                   moveCaret(index, v, -1);
                                 } else if (

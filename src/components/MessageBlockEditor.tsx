@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, Minimize2, Trash2 } from "lucide-react";
 import { DotsGrip, hideDragGhost } from "@/components/DragBits";
 import { AutoTextarea, BlockFrame, ElementCard, AddElementBar } from "@/components/MessageElements";
+import { joinVerse } from "@/components/ScriptureVerseEditor";
 import { SlideView } from "@/components/SlideView";
 import { useLibrary } from "@/lib/store";
 import type { Slide } from "@/lib/types";
@@ -282,6 +283,38 @@ export function MessageBlockEditor({
               if (v === primaryVersion) patch.lines = [val];
               updateSlide(setId, slide.id, patch);
             }}
+            onMergeUp={(slide) => {
+              // Join this verse onto the one above, within its import, in every
+              // version; the slide below goes away.
+              const idx = b.slides.findIndex((x) => x.id === slide.id);
+              if (idx <= 0) return;
+              const prev = b.slides[idx - 1];
+              const all = new Set([
+                ...Object.keys(prev.linesByVersion ?? {}),
+                ...Object.keys(slide.linesByVersion ?? {}),
+                primaryVersion,
+              ]);
+              const linesByVersion: Record<string, string> = {};
+              for (const v of all) {
+                const a =
+                  prev.linesByVersion?.[v] ?? (v === primaryVersion ? (prev.lines?.[0] ?? "") : "");
+                const c =
+                  slide.linesByVersion?.[v] ??
+                  (v === primaryVersion ? (slide.lines?.[0] ?? "") : "");
+                const joined = joinVerse(a, c);
+                if (joined) linesByVersion[v] = joined;
+              }
+              const primaryText = linesByVersion[primaryVersion] ?? "";
+              updateSet(setId, {
+                slides: slides
+                  .map((x) =>
+                    x.id === prev.id
+                      ? { ...x, linesByVersion, lines: primaryText ? [primaryText] : [] }
+                      : x,
+                  )
+                  .filter((x) => x.id !== slide.id),
+              });
+            }}
             onRemove={() => removeBlock(b)}
           />
         ) : (
@@ -338,6 +371,7 @@ function ImportBlock({
   colSel,
   onCellMouseDown,
   onEdit,
+  onMergeUp,
   onRemove,
 }: {
   versions: string[];
@@ -349,6 +383,8 @@ function ImportBlock({
   colSel: { version: string; from: number; to: number } | null;
   onCellMouseDown: (version: string, seq: number) => void;
   onEdit: (slide: Slide, version: string, value: string) => void;
+  /** Backspace at the start of a verse: join it onto the verse above. */
+  onMergeUp: (slide: Slide) => void;
   onRemove: () => void;
 }) {
   const primary = primaryVersion;
@@ -370,6 +406,13 @@ function ImportBlock({
                 key={v}
                 value={s.linesByVersion?.[v] ?? (v === primary ? (s.lines?.[0] ?? "") : "")}
                 onChange={(val) => onEdit(s, v, val)}
+                onKeyDown={(e) => {
+                  const el = e.currentTarget;
+                  if (e.key === "Backspace" && el.selectionStart === 0 && el.selectionEnd === 0) {
+                    e.preventDefault();
+                    onMergeUp(s);
+                  }
+                }}
                 data={
                   seq !== undefined ? { "data-verse-version": v, "data-verse-seq": seq } : undefined
                 }

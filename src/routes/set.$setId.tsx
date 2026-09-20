@@ -30,7 +30,7 @@ import { ScriptureVerseEditor } from "@/components/ScriptureVerseEditor";
 import { VersionPicker } from "@/components/VersionPicker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { PillSwitch } from "@/components/PillSwitch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -869,19 +869,18 @@ function SetEditor() {
                 <SlideView slide={selected} variant="preview" />
               </div>
               {selected.kind === "video" && (
-                <label className="mt-3 flex cursor-pointer items-center justify-between gap-2 text-xs">
+                <div className="mt-3 flex items-center justify-between gap-2 text-xs">
                   <span className="mono uppercase tracking-wider text-muted-foreground">
                     Autoplay when live
                   </span>
-                  <input
-                    type="checkbox"
+                  <PillSwitch
+                    label="Autoplay when live"
                     checked={!!selected.autoplay}
-                    onChange={(e) =>
-                      updateSlide(phytoSet.id, selected.id, { autoplay: e.target.checked })
+                    onCheckedChange={(on) =>
+                      updateSlide(phytoSet.id, selected.id, { autoplay: on })
                     }
-                    className="h-4 w-4 accent-[var(--brand-orange)]"
                   />
-                </label>
+                </div>
               )}
             </>
           ) : (
@@ -1175,7 +1174,8 @@ function ChordControls({
       <div className="flex items-center gap-2">
         {children}
         <span className="mono text-[10px] uppercase tracking-wider">Chords</span>
-        <Switch
+        <PillSwitch
+          label="Chords"
           checked={shown}
           onCheckedChange={(on) =>
             updateSet(setId, {
@@ -2080,16 +2080,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                       incrementLabel="More verses per slide"
                     />
                   </div>
-                  <label className="inline-flex cursor-pointer items-center gap-2">
-                    <span className="mono text-[10px] uppercase tracking-wider">
-                      Keep line breaks
-                    </span>
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center gap-2">
+                    <span className="mono text-[10px] uppercase tracking-wider">Line breaks</span>
+                    <PillSwitch
+                      label="Line breaks"
                       checked={keepLineBreaks}
-                      onChange={(e) => setKeepLineBreaks(e.target.checked)}
+                      onCheckedChange={setKeepLineBreaks}
                     />
-                  </label>
+                  </div>
                 </div>
               </div>
             )}
