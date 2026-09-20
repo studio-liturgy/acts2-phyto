@@ -3,10 +3,11 @@ import {
   IMAGE_MAX_BYTES,
   IMAGE_EXT_BY_TYPE,
   MEDIA_MAX_BYTES,
-  MEDIA_USER_QUOTA_BYTES,
   UPLOAD_EXT_BY_TYPE,
+  quotaForAccount,
 } from "@/lib/media";
 import {
+  getUser,
   getUserId,
   getWorkerEnv,
   readString,
