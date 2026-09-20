@@ -544,8 +544,20 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     const v2 = langOfTranslation(translation2) === remaining ? translation2 : first(remaining);
     return { v1, v2: v2 === v1 ? "" : v2 };
   }, [multi, settings.language, settings.language2, translation, translation2]);
-  const updateVersionsToWorkspace = async () => {
-    const { v1, v2 } = workspaceVersions;
+  /** The Update dialog's picker lists: the workspace's language(s), grouped. */
+  const updateGroups = useMemo(() => {
+    const groupFor = (l: LangCode | null) =>
+      l ? [{ language: langDef(l).label, translations: translationsForLang(l) }] : [];
+    const first = groupFor(settings.language);
+    if (!multi || !settings.language2) return { first, second: [] as typeof first };
+    const both = [...first, ...groupFor(settings.language2)];
+    return { first: both, second: both };
+  }, [multi, settings.language, settings.language2]);
+
+  const updateVersionsToWorkspace = async (
+    v1: string = workspaceVersions.v1,
+    v2: string = workspaceVersions.v2,
+  ) => {
     // Take over the pickers without the picker effect re-fetching on top.
     prevPickerKey.current = (v2 ? [v1, v2] : [v1]).join("|");
     setTranslation(v1);
@@ -605,6 +617,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     versionsMismatch,
     storedVersions: inferred,
     workspaceVersions,
+    updateGroups,
     updateVersionsToWorkspace,
   };
 }

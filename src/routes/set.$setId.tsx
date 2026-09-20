@@ -1495,6 +1495,17 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [ref, setRef] = useState("");
   const [version2Open, setVersion2Open] = useState(false);
   const [showUpdateVersions, setShowUpdateVersions] = useState(false);
+  // The versions the Update dialog will re-import in, seeded from the
+  // workspace's when it opens and adjustable there.
+  const [updateV1, setUpdateV1] = useState("");
+  const [updateV2, setUpdateV2] = useState("");
+  const [updateV1Open, setUpdateV1Open] = useState(false);
+  const [updateV2Open, setUpdateV2Open] = useState(false);
+  const openUpdateVersions = () => {
+    setUpdateV1(scripture.workspaceVersions.v1);
+    setUpdateV2(scripture.workspaceVersions.v2);
+    setShowUpdateVersions(true);
+  };
   // Scripture: boxes, imports, versions (see the hook).
   const scripture = useScriptureVersions({ setId, kind });
   const {
@@ -2139,7 +2150,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => setShowUpdateVersions(true)}
+                onClick={openUpdateVersions}
                 className="rounded-full bg-foreground px-3 py-1 uppercase text-background transition hover:opacity-90 disabled:opacity-40"
               >
                 Update
@@ -2149,19 +2160,44 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           <AlertDialog open={showUpdateVersions} onOpenChange={setShowUpdateVersions}>
             <AlertDialogContent className="gap-0 rounded-3xl p-8">
               <AlertDialogTitle className="text-2xl font-normal leading-tight">
-                Re-import in {scripture.workspaceVersions.v1}
-                {scripture.workspaceVersions.v2 ? ` / ${scripture.workspaceVersions.v2}` : ""}?
+                Re-import in {updateV1}
+                {updateV2 ? ` / ${updateV2}` : ""}?
               </AlertDialogTitle>
               <AlertDialogDescription className="mt-4 text-base text-foreground">
-                Every passage in this set is fetched again in the workspace&rsquo;s bible versions.
-                Any verses you edited by hand go back to the translation&rsquo;s text.
+                Every passage in this set is fetched again in these bible versions. Any verses you
+                edited by hand go back to the translation&rsquo;s text.
               </AlertDialogDescription>
+              <div className={`mt-6 grid gap-3 ${scripture.multi ? "grid-cols-2" : "grid-cols-1"}`}>
+                <VersionPicker
+                  label={scripture.multi ? "1st version" : "Version"}
+                  value={updateV1}
+                  open={updateV1Open}
+                  setOpen={setUpdateV1Open}
+                  onPick={setUpdateV1}
+                  exclude={updateV2}
+                  groups={scripture.updateGroups.first}
+                />
+                {scripture.multi && (
+                  <VersionPicker
+                    label="2nd version"
+                    value={updateV2}
+                    placeholder="None"
+                    open={updateV2Open}
+                    setOpen={setUpdateV2Open}
+                    onPick={setUpdateV2}
+                    onClear={() => setUpdateV2("")}
+                    exclude={updateV1}
+                    groups={scripture.updateGroups.second}
+                  />
+                )}
+              </div>
               <div className="mt-8 flex gap-3">
                 <button
                   type="button"
+                  disabled={!updateV1}
                   onClick={() => {
                     setShowUpdateVersions(false);
-                    void scripture.updateVersionsToWorkspace();
+                    void scripture.updateVersionsToWorkspace(updateV1, updateV2);
                   }}
                   className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
                 >

@@ -59,7 +59,6 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
     if (affected > 0) setPending({ patch, affected });
     else void apply(patch);
   };
-  const importedScriptures = pending?.affected ?? 0;
   const pendingLabel = pending
     ? [pending.patch.language, pending.patch.language2]
         .filter((l): l is LangCode => !!l)
@@ -137,10 +136,8 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
             {pendingLabel ? `Change language to ${pendingLabel}?` : "Change languages?"}
           </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            {importedScriptures === 1
-              ? "1 scripture set you've already imported is in a language this workspace won't name; it keeps the bible versions it was imported in."
-              : `${importedScriptures} scripture sets you've already imported are in a language this workspace won't name; they keep the bible versions they were imported in.`}{" "}
-            Only new imports use the new language. To bring a set across, open it and press UPDATE.
+            Scripture sets you&rsquo;ve already imported keep the bible versions they were imported
+            in. Only new imports use the new language.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
