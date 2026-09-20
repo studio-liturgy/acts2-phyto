@@ -96,34 +96,23 @@ describe("version boxes round-trip", () => {
 });
 
 describe("versionsMismatchWorkspace", () => {
-  it("flags versions outside the workspace's languages", () => {
-    expect(
-      versionsMismatchWorkspace(["NIV", "CUNPS"], {
-        multiLanguage: true,
-        language: "en",
-        language2: "zh-Hans",
-      }),
-    ).toBe(false);
-    expect(
-      versionsMismatchWorkspace(["NIV", "CUNPS"], {
-        multiLanguage: true,
-        language: "en",
-        language2: "ko",
-      }),
-    ).toBe(true);
-    expect(
-      versionsMismatchWorkspace(["NIV"], { multiLanguage: false, language: "en", language2: null }),
-    ).toBe(false);
-    expect(
-      versionsMismatchWorkspace(["NIV"], { multiLanguage: false, language: "ja", language2: null }),
-    ).toBe(true);
-    expect(
-      versionsMismatchWorkspace(undefined, {
-        multiLanguage: false,
-        language: "ja",
-        language2: null,
-      }),
-    ).toBe(false);
+  const off = (language: "en" | "fr" | "zh-Hant") =>
+    ({ multiLanguage: false, language, language2: null }) as const;
+  const on = (language: "en" | "fr" | "zh-Hant", language2: "en" | "fr" | "ja") =>
+    ({ multiLanguage: true, language, language2 }) as const;
+
+  it("is fine when the set covers every workspace language, extras included", () => {
+    expect(versionsMismatchWorkspace(["FRLSG", "NIV"], off("en"))).toBe(false);
+    expect(versionsMismatchWorkspace(["NIV", "FRLSG"], on("fr", "en"))).toBe(false);
+    expect(versionsMismatchWorkspace(["NIV", "ESV"], off("en"))).toBe(false);
+  });
+
+  it("warns when a workspace language has no version in the set", () => {
+    expect(versionsMismatchWorkspace(["CUNPS", "NIV"], on("fr", "en"))).toBe(true);
+    expect(versionsMismatchWorkspace(["NIV"], on("fr", "en"))).toBe(true);
+    expect(versionsMismatchWorkspace(["FRLSG"], off("en"))).toBe(true);
+    expect(versionsMismatchWorkspace(["CUNPS"], off("zh-Hant"))).toBe(true);
+    expect(versionsMismatchWorkspace(undefined, off("fr"))).toBe(false);
   });
 });
 

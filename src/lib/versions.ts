@@ -169,22 +169,20 @@ export function languagesOfVersions(versions: string[] | undefined): string {
 }
 
 /**
- * Does the set's choice of bible versions sit outside the workspace's
- * languages? Multi-language on: any version in a language the workspace
- * doesn't name. Off: the primary version isn't in the system language. False
- * for sets that record no versions (nothing to update).
+ * Can the set NOT show every language the workspace names? A set may carry
+ * extra languages (a French / English set is fine in an English workspace);
+ * what warns is a workspace language the set has no version in (a Chinese /
+ * English set in a French / English workspace lacks French). False for sets
+ * that record no versions (nothing to judge).
  */
 export function versionsMismatchWorkspace(
   versions: string[] | undefined,
   settings: WorkspaceSettings,
 ): boolean {
   if (!versions?.length) return false;
-  if (settings.multiLanguage) {
-    const langs = new Set([settings.language, settings.language2].filter(Boolean));
-    return versions.some((code) => {
-      const l = langOfTranslation(code);
-      return !l || !langs.has(l);
-    });
-  }
-  return langOfTranslation(versions[0]) !== settings.language;
+  const have = new Set(versions.map((code) => langOfTranslation(code)));
+  const wanted: LangCode[] = settings.multiLanguage
+    ? [settings.language, ...(settings.language2 ? [settings.language2] : [])]
+    : [settings.language];
+  return wanted.some((l) => !have.has(l));
 }
