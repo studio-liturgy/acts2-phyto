@@ -1916,7 +1916,10 @@ function SlideGridForPresenter({
     phytoSet.kind === "song" ||
     phytoSet.kind === "scripture" ||
     phytoSet.kind === "message" ||
-    (phytoSet.kind === "media" && phytoSet.slides.some((sl) => sl.sectionAfter !== undefined));
+    (phytoSet.kind === "media" &&
+      phytoSet.slides.some(
+        (sl) => sl.sectionAfter !== undefined || sl.sectionBefore !== undefined,
+      ));
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 

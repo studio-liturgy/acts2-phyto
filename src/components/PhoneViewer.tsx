@@ -41,6 +41,9 @@ export interface PhoneSlide {
    *  (localized) reference. See PhoneSet.versions. */
   linesByVersion?: Record<string, string>;
   referencesByVersion?: Record<string, string>;
+  /** Media: section dividers (see Slide). */
+  sectionAfter?: string;
+  sectionBefore?: string;
 }
 
 export interface PhoneSet {
@@ -880,12 +883,32 @@ function SetContent({
   }
 
   if (set.type === "media") {
-    const mediaSlides = slides.filter((s) => s.imageUrl || s.youtubeId || s.videoUrl);
+    // Sections (from the editor's dividers) show their names above their
+    // media, as a song's sections do.
+    const groups = groupSlides(slides);
+    const sectioned = groups.length > 1 || groups[0]?.section;
     return (
-      <div className="space-y-4 px-4 py-6">
-        {mediaSlides.map((slide, i) => (
-          <MediaSlide key={slide.id ?? i} slide={slide} />
-        ))}
+      <div className="space-y-6 px-4 py-6">
+        {groups.map((g) => {
+          const media = g.items
+            .map((i) => i.slide)
+            .filter((s) => s.imageUrl || s.youtubeId || s.videoUrl);
+          if (media.length === 0) return null;
+          return (
+            <div key={g.key} className="space-y-4">
+              {sectioned && g.section && (
+                <p
+                  className={`text-xs uppercase tracking-widest ${isDark ? "opacity-40" : "opacity-50"}`}
+                >
+                  {g.section}
+                </p>
+              )}
+              {media.map((slide, i) => (
+                <MediaSlide key={slide.id ?? i} slide={slide} />
+              ))}
+            </div>
+          );
+        })}
       </div>
     );
   }

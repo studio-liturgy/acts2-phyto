@@ -16,6 +16,8 @@ export interface SectionSlide {
   /** Media: a section divider (with this label) sits right AFTER this slide,
    *  so the slides that follow belong to a new section. */
   sectionAfter?: string;
+  /** Media, first slide: the first section's name. */
+  sectionBefore?: string;
 }
 
 export interface SlideGroup<T extends SectionSlide = SectionSlide> {
@@ -48,7 +50,8 @@ export function groupSlides<T extends SectionSlide>(slides: T[]): SlideGroup<T>[
   let lastBlockKey: string | null = null;
   // Media sections come from dividers between slides rather than a label on
   // each slide: a divider after slide N opens a new section at N+1.
-  let dividerSection: string | null | undefined;
+  let dividerSection: string | null | undefined =
+    slides[0]?.sectionBefore !== undefined ? slides[0].sectionBefore.trim() || null : undefined;
   let mediaSectionNo = 0;
   slides.forEach((s, i) => {
     const sec = sectionOf(s) ?? dividerSection ?? null;

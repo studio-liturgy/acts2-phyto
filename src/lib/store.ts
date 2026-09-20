@@ -123,6 +123,21 @@ function readScriptureTemplate(): SetTemplate {
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 const dirtySetIds = new Set<string>();
 const dirtyGatheringIds = new Set<string>();
+/** A media set's first-section name lives on whichever slide is first: after a
+ *  reorder or a removal, move it there (from wherever it travelled). */
+function keepFirstSection(slides: Slide[]): Slide[] {
+  const carrier = slides.findIndex((sl) => sl.sectionBefore !== undefined);
+  if (carrier <= 0) return slides;
+  const name = slides[carrier].sectionBefore;
+  return slides.map((sl, i) => {
+    if (i === carrier) {
+      const { sectionBefore: _drop, ...rest } = sl;
+      return rest;
+    }
+    return i === 0 ? { ...sl, sectionBefore: name } : sl;
+  });
+}
+
 function schedulePush(opts?: { set?: string; gathering?: string }) {
   if (opts?.set) dirtySetIds.add(opts.set);
   if (opts?.gathering) dirtyGatheringIds.add(opts.gathering);
@@ -800,7 +815,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const removed = d.slides.find((sl) => sl.id === slideId);
       const updated = {
         ...d,
-        slides: d.slides.filter((sl) => sl.id !== slideId),
+        slides: keepFirstSection(d.slides.filter((sl) => sl.id !== slideId)),
         updatedAt: Date.now(),
       };
       db.sets.put(updated).then(() => schedulePush({ set: setId }));
@@ -813,7 +828,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const d = s.sets[setId];
       if (!d) return s;
       const map = new Map(d.slides.map((sl) => [sl.id, sl]));
-      const slides = ids.map((i) => map.get(i)!).filter(Boolean);
+      const slides = keepFirstSection(ids.map((i) => map.get(i)!).filter(Boolean));
       const updated = { ...d, slides, updatedAt: Date.now() };
       db.sets.put(updated).then(() => schedulePush({ set: setId }));
       return { sets: { ...s.sets, [setId]: updated } };

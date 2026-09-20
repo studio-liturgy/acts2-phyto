@@ -903,6 +903,13 @@ function SetEditor() {
                       ),
                     })
                   }
+                  onRenameFirst={(name) =>
+                    updateSet(phytoSet.id, {
+                      slides: phytoSet.slides.map((sl, i) =>
+                        i === 0 ? { ...sl, sectionBefore: name } : sl,
+                      ),
+                    })
+                  }
                   dense={dense}
                   kind={phytoSet.kind}
                 />
@@ -1075,6 +1082,7 @@ function SlideGrid({
   onToggleFit,
   onRenameDivider,
   onRemoveDivider,
+  onRenameFirst,
   dense,
   kind,
 }: {
@@ -1090,6 +1098,8 @@ function SlideGrid({
   onRenameDivider?: (id: string, name: string) => void;
   /** Remove the section divider that sits after slide `id` (media only). */
   onRemoveDivider?: (id: string) => void;
+  /** Name the first section (kept on the first slide; media only). */
+  onRenameFirst?: (name: string) => void;
   dense?: boolean;
   kind?: SetKind;
 }) {
@@ -1110,137 +1120,157 @@ function SlideGrid({
     dragIndex.current = null;
   };
 
-  // Which section (by divider count) each displayed slide belongs to.
-  const hasSections = displaySlides.some((sl) => sl.sectionAfter !== undefined);
-  const sectionIndex: number[] = [];
-  {
-    let n = 0;
-    for (const sl of displaySlides) {
-      sectionIndex.push(n);
-      if (sl.sectionAfter !== undefined) n += 1;
-    }
+  const hasSections = displaySlides.some(
+    (sl) => sl.sectionAfter !== undefined || sl.sectionBefore !== undefined,
+  );
+
+  // One tile. Sections wrap the tiles below; the tile itself is the same.
+  const renderTile = (s: Slide, i: number) => {
+    const isSelected = selectedId === s.id;
+    const inMulti = multiSel.has(s.id);
+    const isDragging = s.id === draggingId;
+    const borderStyle: React.CSSProperties | undefined = isSelected
+      ? { borderColor: selColor }
+      : inMulti
+        ? { borderColor: `color-mix(in oklab, ${selColor} 60%, transparent)` }
+        : undefined;
+    return (
+      <div
+        key={s.id}
+        draggable
+        onDragStart={(e) => {
+          setDraggingId(s.id);
+          dragIndex.current = i;
+          e.dataTransfer.effectAllowed = "move";
+        }}
+        onDragOver={(e) => {
+          if (dragIndex.current === null) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const current = liveOrder ?? slides;
+          const fromIdx = current.findIndex((x) => x.id === draggingId);
+          if (fromIdx === i || fromIdx === -1) return;
+          const next = [...current];
+          const [moved] = next.splice(fromIdx, 1);
+          next.splice(i, 0, moved);
+          liveOrderRef.current = next;
+          setLiveOrder(next);
+        }}
+        onDragEnd={commitOrder}
+        onClick={(e) => onSelect(s.id, e)}
+        style={borderStyle}
+        className={`group relative cursor-grab overflow-hidden rounded-md border-2 transition ${
+          isDragging ? "opacity-50" : ""
+        } ${isSelected || inMulti ? "" : "border-transparent hover:border-muted-foreground"}`}
+      >
+        <SlideView slide={s} variant="thumb" />
+        <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
+          {i + 1}
+        </div>
+        <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100">
+          {s.kind === "image" && onToggleFit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFit(s.id);
+              }}
+              className="rounded-full bg-black/60 p-1 text-white"
+              aria-label={s.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"}
+              title={s.imageFit === "cover" ? "Fit image" : "Fill frame"}
+            >
+              {s.imageFit === "cover" ? (
+                <Minimize2 className="h-3 w-3" />
+              ) : (
+                <Maximize2 className="h-3 w-3" />
+              )}
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(s.id);
+            }}
+            className="rounded-full bg-black/60 p-1 text-white"
+            aria-label="Remove slide"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    if (e.dataTransfer.files?.length) return;
+    e.stopPropagation();
+    commitOrder();
+  };
+
+  if (!hasSections) {
+    return (
+      <div className={`grid gap-3 ${cols}`} onDrop={onDrop}>
+        {displaySlides.map(renderTile)}
+      </div>
+    );
   }
 
+  // Sections: each is a coloured area (the presenter's colours) with its name
+  // at the top left and, for every section but the first, its delete at the
+  // top right (removing the divider folds it into the section above). The
+  // first section's name is kept on the first slide.
+  const sections: { start: number; slides: Slide[] }[] = [];
+  displaySlides.forEach((sl, i) => {
+    if (i === 0 || displaySlides[i - 1].sectionAfter !== undefined) {
+      sections.push({ start: i, slides: [] });
+    }
+    sections[sections.length - 1].slides.push(sl);
+  });
+
   return (
-    <div
-      className={`grid gap-3 ${cols}`}
-      onDrop={(e) => {
-        if (e.dataTransfer.files?.length) return;
-        e.stopPropagation();
-        commitOrder();
-      }}
-    >
-      {displaySlides.map((s, i) => {
-        const isSelected = selectedId === s.id;
-        const inMulti = multiSel.has(s.id);
-        const isDragging = s.id === draggingId;
-        // Media sections (from the dividers) carry the same colours as the
-        // presenter's groups: a tile wears its section's colour as its border,
-        // and the divider line takes the colour of the section it opens.
-        const sectionTint = hasSections ? SECTION_TINTS[sectionIndex[i] % 3] : undefined;
-        const borderStyle: React.CSSProperties | undefined = isSelected
-          ? { borderColor: selColor }
-          : inMulti
-            ? { borderColor: `color-mix(in oklab, ${selColor} 60%, transparent)` }
-            : sectionTint
-              ? { borderColor: `color-mix(in oklab, ${sectionTint} 45%, transparent)` }
-              : undefined;
+    <div className="space-y-3" onDrop={onDrop}>
+      {sections.map((sec, gi) => {
+        const opener = gi === 0 ? null : displaySlides[sec.start - 1];
+        const name =
+          gi === 0 ? (displaySlides[0]?.sectionBefore ?? "") : (opener?.sectionAfter ?? "");
         return (
-          <Fragment key={s.id}>
-            <div
-              draggable
-              onDragStart={(e) => {
-                setDraggingId(s.id);
-                dragIndex.current = i;
-                e.dataTransfer.effectAllowed = "move";
-              }}
-              onDragOver={(e) => {
-                if (dragIndex.current === null) return;
-                e.preventDefault();
-                e.stopPropagation();
-                const current = liveOrder ?? slides;
-                const fromIdx = current.findIndex((x) => x.id === draggingId);
-                if (fromIdx === i || fromIdx === -1) return;
-                const next = [...current];
-                const [moved] = next.splice(fromIdx, 1);
-                next.splice(i, 0, moved);
-                liveOrderRef.current = next;
-                setLiveOrder(next);
-              }}
-              onDragEnd={commitOrder}
-              onClick={(e) => onSelect(s.id, e)}
-              style={borderStyle}
-              className={`group relative cursor-grab overflow-hidden rounded-md border-2 transition ${
-                isDragging ? "opacity-50" : ""
-              } ${isSelected || inMulti || sectionTint ? "" : "border-transparent hover:border-muted-foreground"}`}
-            >
-              <SlideView slide={s} variant="thumb" />
-              <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
-                {i + 1}
-              </div>
-              <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100">
-                {s.kind === "image" && onToggleFit && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleFit(s.id);
-                    }}
-                    className="rounded-full bg-black/60 p-1 text-white"
-                    aria-label={
-                      s.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"
-                    }
-                    title={s.imageFit === "cover" ? "Fit image" : "Fill frame"}
-                  >
-                    {s.imageFit === "cover" ? (
-                      <Minimize2 className="h-3 w-3" />
-                    ) : (
-                      <Maximize2 className="h-3 w-3" />
-                    )}
-                  </button>
-                )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(s.id);
-                  }}
-                  className="rounded-full bg-black/60 p-1 text-white"
-                  aria-label="Remove slide"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-            {s.sectionAfter !== undefined && (
-              <div className="col-span-full my-1 flex items-center gap-2">
-                <span
-                  className="h-px flex-1 bg-foreground/20"
-                  style={{ backgroundColor: SECTION_TINTS[(sectionIndex[i] + 1) % 3] }}
-                />
-                <input
-                  value={s.sectionAfter}
-                  onChange={(e) => onRenameDivider?.(s.id, e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  placeholder="Section name"
-                  className="mono w-40 bg-transparent text-center text-[10px] uppercase tracking-wider text-muted-foreground outline-none placeholder:text-muted-foreground/50"
-                />
+          <div
+            key={gi === 0 ? "first" : opener!.id}
+            className="rounded-xl p-3"
+            style={{
+              backgroundColor: `color-mix(in oklab, ${SECTION_TINTS[gi % 3]} 45%, transparent)`,
+            }}
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <input
+                value={name}
+                onChange={(e) =>
+                  gi === 0
+                    ? onRenameFirst?.(e.target.value)
+                    : onRenameDivider?.(opener!.id, e.target.value)
+                }
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Section name"
+                className="mono w-48 bg-transparent text-[10px] uppercase tracking-wider outline-none placeholder:text-muted-foreground/60"
+              />
+              {gi > 0 && (
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onRemoveDivider?.(s.id);
+                    onRemoveDivider?.(opener!.id);
                   }}
-                  className="text-muted-foreground transition hover:text-foreground"
+                  className="rounded-full p-1 text-foreground/60 transition hover:bg-foreground/15 hover:text-foreground"
                   aria-label="Remove section"
+                  title="Remove section (its slides join the section above)"
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
-                <span
-                  className="h-px flex-1 bg-foreground/20"
-                  style={{ backgroundColor: SECTION_TINTS[(sectionIndex[i] + 1) % 3] }}
-                />
-              </div>
-            )}
-          </Fragment>
+              )}
+            </div>
+            <div className={`grid gap-3 ${cols}`}>
+              {sec.slides.map((sl, j) => renderTile(sl, sec.start + j))}
+            </div>
+          </div>
         );
       })}
     </div>

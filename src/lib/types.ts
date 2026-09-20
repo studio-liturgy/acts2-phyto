@@ -27,11 +27,14 @@ export interface Slide {
    *  "contain" (default) shows the whole image; "cover" fills the frame. Both
    *  preserve aspect ratio — the image is never stretched. Toggled per image. */
   imageFit?: "contain" | "cover";
-  /** Media-only: when a string is present, a section divider labelled with it is
-   *  shown immediately AFTER this slide in the media editor, starting a new visual
-   *  section for the slides that follow. Purely an editor aid — projection ignores
-   *  it entirely (the slides play exactly as before). */
+  /** Media-only: when a string is present, a section divider labelled with it
+   *  sits immediately AFTER this slide, starting a new section for the slides
+   *  that follow. Sections are coloured in the editor and the presenter and
+   *  named in the phone view; playback is unaffected. */
   sectionAfter?: string;
+  /** Media-only, first slide only: the name of the first section (the one
+   *  before any divider). Kept on whichever slide is first. */
+  sectionBefore?: string;
   /** Video-only: where the media comes from. */
   videoSource?: VideoSource;
   /** Video-only: R2 public URL ("file") or direct external URL ("url"). */
