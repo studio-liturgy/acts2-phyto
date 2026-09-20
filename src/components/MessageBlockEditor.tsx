@@ -238,7 +238,7 @@ export function MessageBlockEditor({
         <div
           key={`images-run-${imageRunNo}`}
           className="grid grid-cols-2 gap-2 p-3"
-          style={{ backgroundColor: `color-mix(in oklab, ${tints[run[0].i]} 8%, transparent)` }}
+          style={{ backgroundColor: `color-mix(in oklab, ${tints[run[0].i]} 45%, transparent)` }}
           onDrop={dropOnRun}
         >
           {run.map(({ slide, key, i: bi }) => {

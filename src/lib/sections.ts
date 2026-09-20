@@ -13,6 +13,9 @@ export interface SectionSlide {
   /** which scripture import this verse came from, so a message groups by
    *  import (and colours per block) rather than by shared reference text. */
   importIndex?: number;
+  /** Media: a section divider (with this label) sits right AFTER this slide,
+   *  so the slides that follow belong to a new section. */
+  sectionAfter?: string;
 }
 
 export interface SlideGroup<T extends SectionSlide = SectionSlide> {
@@ -43,8 +46,12 @@ export function groupSlides<T extends SectionSlide>(slides: T[]): SlideGroup<T>[
   const groups: SlideGroup<T>[] = [];
   let currentSection: string | null = null;
   let lastBlockKey: string | null = null;
+  // Media sections come from dividers between slides rather than a label on
+  // each slide: a divider after slide N opens a new section at N+1.
+  let dividerSection: string | null | undefined;
+  let mediaSectionNo = 0;
   slides.forEach((s, i) => {
-    const sec = sectionOf(s);
+    const sec = sectionOf(s) ?? dividerSection ?? null;
     const resolvedSection = sec ?? currentSection;
     // A block is: one scripture import (by importIndex), a run of consecutive
     // points/images together, or a run of one section (songs). This keeps a
@@ -52,8 +59,10 @@ export function groupSlides<T extends SectionSlide>(slides: T[]): SlideGroup<T>[
     const blockKey =
       s.kind === "scripture" && s.importIndex !== undefined
         ? `import:${s.importIndex}`
-        : s.kind === "point" || s.kind === "image"
-          ? "elements"
+        : s.kind === "point" || s.kind === "image" || s.kind === "video" || s.kind === "blank"
+          ? dividerSection !== undefined
+            ? `media:${mediaSectionNo}`
+            : "elements"
           : `sec:${resolvedSection ?? ""}`;
     const last = groups[groups.length - 1];
     if (!last || blockKey !== lastBlockKey) {
@@ -63,6 +72,12 @@ export function groupSlides<T extends SectionSlide>(slides: T[]): SlideGroup<T>[
       last.items.push({ slide: s, index: i });
     }
     lastBlockKey = blockKey;
+    if (s.sectionAfter !== undefined) {
+      // Everything after this slide is a new (media) section.
+      dividerSection = s.sectionAfter.trim() || null;
+      mediaSectionNo += 1;
+      currentSection = null;
+    }
   });
   // Assign stable keys: label + per-label occurrence index, so two distinct
   // "Chorus" sections stay independently hideable.

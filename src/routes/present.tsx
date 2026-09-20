@@ -1696,9 +1696,21 @@ function MediaAutoAdvance() {
     if (phytoSet.slides[idx].kind === "video" && !videoEnded) return;
     const t = setTimeout(() => {
       const go = useLive.getState().go;
-      const next = phytoSet.slides[idx + 1];
+      const slides = phytoSet.slides;
+      const next = slides[idx + 1];
+      // Loop within the section: a divider after this slide (or the end of the
+      // set) sends playback back to the section's first slide.
+      if (phytoSet.loop && phytoSet.loopSection) {
+        const atSectionEnd = slides[idx].sectionAfter !== undefined || !next;
+        if (atSectionEnd) {
+          let start = idx;
+          while (start > 0 && slides[start - 1].sectionAfter === undefined) start -= 1;
+          go(phytoSet.id, slides[start].id);
+          return;
+        }
+      }
       if (next) go(phytoSet.id, next.id);
-      else if (phytoSet.loop && phytoSet.slides[0]) go(phytoSet.id, phytoSet.slides[0].id);
+      else if (phytoSet.loop && slides[0]) go(phytoSet.id, slides[0].id);
     }, ms);
     return () => clearTimeout(t);
   }, [phytoSet, slideId, blackout, videoEnded]);
@@ -1898,8 +1910,13 @@ function SlideGridForPresenter({
   manageMode?: boolean;
   onToggleSection?: (sectionKey: string, clientX: number, clientY: number) => void;
 }) {
+  // Media sections come from the editor's dividers; they're shown (coloured)
+  // but can't be hidden, so a media set with no dividers is one group.
   const useSections =
-    phytoSet.kind === "song" || phytoSet.kind === "scripture" || phytoSet.kind === "message";
+    phytoSet.kind === "song" ||
+    phytoSet.kind === "scripture" ||
+    phytoSet.kind === "message" ||
+    (phytoSet.kind === "media" && phytoSet.slides.some((sl) => sl.sectionAfter !== undefined));
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 

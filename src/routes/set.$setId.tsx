@@ -481,7 +481,7 @@ function SetEditor() {
                         <div
                           className="rounded-xl p-2"
                           style={{
-                            backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 20%, transparent)`,
+                            backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 45%, transparent)`,
                           }}
                         >
                           <div className="grid grid-cols-2 gap-2">
@@ -562,7 +562,7 @@ function SetEditor() {
                         <div
                           className="rounded-xl p-2"
                           style={{
-                            backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 20%, transparent)`,
+                            backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 45%, transparent)`,
                           }}
                         >
                           <div className="grid grid-cols-2 gap-2">
@@ -1008,6 +1008,9 @@ function ImportOptions({
   );
 }
 
+/** Section colours, in the presenter's order (see present.tsx TINTS). */
+const SECTION_TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+
 function kindColor(kind?: SetKind): string {
   if (kind === "song") return "var(--brand-blue)";
   if (kind === "scripture") return "var(--brand-green)";
@@ -1061,6 +1064,17 @@ function SlideGrid({
     dragIndex.current = null;
   };
 
+  // Which section (by divider count) each displayed slide belongs to.
+  const hasSections = displaySlides.some((sl) => sl.sectionAfter !== undefined);
+  const sectionIndex: number[] = [];
+  {
+    let n = 0;
+    for (const sl of displaySlides) {
+      sectionIndex.push(n);
+      if (sl.sectionAfter !== undefined) n += 1;
+    }
+  }
+
   return (
     <div
       className={`grid gap-3 ${cols}`}
@@ -1074,11 +1088,17 @@ function SlideGrid({
         const isSelected = selectedId === s.id;
         const inMulti = multiSel.has(s.id);
         const isDragging = s.id === draggingId;
+        // Media sections (from the dividers) carry the same colours as the
+        // presenter's groups: a tile wears its section's colour as its border,
+        // and the divider line takes the colour of the section it opens.
+        const sectionTint = hasSections ? SECTION_TINTS[sectionIndex[i] % 3] : undefined;
         const borderStyle: React.CSSProperties | undefined = isSelected
           ? { borderColor: selColor }
           : inMulti
             ? { borderColor: `color-mix(in oklab, ${selColor} 60%, transparent)` }
-            : undefined;
+            : sectionTint
+              ? { borderColor: `color-mix(in oklab, ${sectionTint} 45%, transparent)` }
+              : undefined;
         return (
           <Fragment key={s.id}>
             <div
@@ -1106,7 +1126,7 @@ function SlideGrid({
               style={borderStyle}
               className={`group relative cursor-grab overflow-hidden rounded-md border-2 transition ${
                 isDragging ? "opacity-50" : ""
-              } ${isSelected || inMulti ? "" : "border-transparent hover:border-muted-foreground"}`}
+              } ${isSelected || inMulti || sectionTint ? "" : "border-transparent hover:border-muted-foreground"}`}
             >
               <SlideView slide={s} variant="thumb" />
               <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
@@ -1146,7 +1166,10 @@ function SlideGrid({
             </div>
             {s.sectionAfter !== undefined && (
               <div className="col-span-full my-1 flex items-center gap-2">
-                <span className="h-px flex-1 bg-foreground/20" />
+                <span
+                  className="h-px flex-1 bg-foreground/20"
+                  style={{ backgroundColor: SECTION_TINTS[(sectionIndex[i] + 1) % 3] }}
+                />
                 <input
                   value={s.sectionAfter}
                   onChange={(e) => onRenameDivider?.(s.id, e.target.value)}
@@ -1165,7 +1188,10 @@ function SlideGrid({
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
-                <span className="h-px flex-1 bg-foreground/20" />
+                <span
+                  className="h-px flex-1 bg-foreground/20"
+                  style={{ backgroundColor: SECTION_TINTS[(sectionIndex[i] + 1) % 3] }}
+                />
               </div>
             )}
           </Fragment>

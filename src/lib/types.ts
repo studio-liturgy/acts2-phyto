@@ -100,6 +100,9 @@ export interface Set {
   loop?: boolean;
   /** Media-only: cross-dissolve duration in ms between slides. */
   dissolveMs?: number;
+  /** Media-only, with loop: auto advance loops within the current section
+   *  (between its dividers) instead of the whole set. */
+  loopSection?: boolean;
   /** Scripture/message: the bible versions (translation codes) on each verse
    *  slide, in stacking order; one entry for a single translation, two when a
    *  second was imported alongside. Which of them a workspace shows is decided

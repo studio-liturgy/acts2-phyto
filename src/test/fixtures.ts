@@ -52,6 +52,7 @@ export function setRow(s: PhytoSet, userId = USER_ID): Row {
       template: s.template,
       autoAdvanceMs: s.autoAdvanceMs,
       loop: s.loop,
+      loopSection: s.loopSection,
       dissolveMs: s.dissolveMs,
       versions: s.versions,
       scriptureImports: s.scriptureImports,

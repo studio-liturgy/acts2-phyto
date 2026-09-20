@@ -216,7 +216,9 @@ export function BlockFrame({
   return (
     <div
       className="flex border-b border-foreground/15"
-      style={tint ? { backgroundColor: `color-mix(in oklab, ${tint} 8%, transparent)` } : undefined}
+      style={
+        tint ? { backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` } : undefined
+      }
     >
       <span className="flex shrink-0 items-start justify-center pt-2" style={{ width: GRAB }}>
         {grip}

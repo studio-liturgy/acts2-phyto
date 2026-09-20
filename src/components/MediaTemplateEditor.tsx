@@ -67,6 +67,18 @@ export function MediaPlaybackControls({ setId }: { setId: string }) {
           />
         </div>
       )}
+      {/* Loop within a section: only meaningful once looping, and only when
+          the set has section dividers to loop between. */}
+      {auto > 0 && phytoSet.loop && phytoSet.slides.some((s) => s.sectionAfter !== undefined) && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="mono text-[10px] uppercase tracking-wider">Loop section</span>
+          <PillSwitch
+            label="Loop within the current section"
+            checked={!!phytoSet.loopSection}
+            onCheckedChange={(on) => updateSet(setId, { loopSection: on })}
+          />
+        </div>
+      )}
       <Dialog open={autoplayNotice} onOpenChange={setAutoplayNotice}>
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
           <DialogTitle className="text-2xl font-normal leading-tight">
