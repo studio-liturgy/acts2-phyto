@@ -342,7 +342,9 @@ export function MessageBlockEditor({
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      {rows}
+      {/* Frozen: nothing in a message can be edited, deleted or reordered
+          (points and images included) until the versions are updated. */}
+      {readOnly ? <div className="pointer-events-none opacity-50">{rows}</div> : rows}
       {!readOnly && (
         <div className="p-4">
           <AddElementBar setId={setId} />

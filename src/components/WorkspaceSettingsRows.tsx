@@ -94,7 +94,8 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
         </div>
       )}
       <p className="mono mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-        Scripture sets you&rsquo;ve already imported keep the languages they were imported in.
+        Scripture sets you&rsquo;ve already imported keep the languages they were imported in, but
+        are frozen until updated.
       </p>
       {error && (
         <p className="mono mt-1 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
