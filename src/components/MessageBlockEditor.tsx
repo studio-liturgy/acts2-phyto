@@ -49,7 +49,18 @@ const flatten = (blocks: Block[]): Slide[] =>
  * (`versions` is a single entry today; the machinery is kept so a second
  * translation can drop in later.)
  */
-export function MessageBlockEditor({ setId, versions }: { setId: string; versions: string[] }) {
+export function MessageBlockEditor({
+  setId,
+  versions,
+  primaryVersion = versions[0],
+}: {
+  setId: string;
+  /** The versions shown (and editable) in this workspace, in order. */
+  versions: string[];
+  /** The set's first version, whose text also lives in the compat `lines`
+   *  field. Differs from versions[0] when the workspace shows another one. */
+  primaryVersion?: string;
+}) {
   const slides = useLibrary((s) => s.sets[setId]?.slides ?? []);
   const updateSet = useLibrary((s) => s.updateSet);
   const updateSlide = useLibrary((s) => s.updateSlide);
@@ -133,7 +144,7 @@ export function MessageBlockEditor({ setId, versions }: { setId: string; version
         .map(
           (s) =>
             s.linesByVersion?.[colSel.version] ??
-            (colSel.version === versions[0] ? (s.lines?.[0] ?? "") : ""),
+            (colSel.version === primaryVersion ? (s.lines?.[0] ?? "") : ""),
         )
         .join("\n");
       e.clipboardData?.setData("text/plain", text);
@@ -257,6 +268,7 @@ export function MessageBlockEditor({ setId, versions }: { setId: string; version
         {b.kind === "import" ? (
           <ImportBlock
             versions={versions}
+            primaryVersion={primaryVersion}
             slides={b.slides}
             tint={tints[i]}
             grip={grip}
@@ -267,7 +279,7 @@ export function MessageBlockEditor({ setId, versions }: { setId: string; version
               const patch: Partial<Slide> = {
                 linesByVersion: { ...(slide.linesByVersion ?? {}), [v]: val },
               };
-              if (v === versions[0]) patch.lines = [val];
+              if (v === primaryVersion) patch.lines = [val];
               updateSlide(setId, slide.id, patch);
             }}
             onRemove={() => removeBlock(b)}
@@ -318,6 +330,7 @@ function Grip({
 
 function ImportBlock({
   versions,
+  primaryVersion,
   slides,
   tint,
   grip,
@@ -328,6 +341,7 @@ function ImportBlock({
   onRemove,
 }: {
   versions: string[];
+  primaryVersion: string;
   slides: Slide[];
   tint: string;
   grip: React.ReactNode;
@@ -337,7 +351,7 @@ function ImportBlock({
   onEdit: (slide: Slide, version: string, value: string) => void;
   onRemove: () => void;
 }) {
-  const primary = versions[0];
+  const primary = primaryVersion;
   const reference = slides[0]?.referencesByVersion?.[primary] ?? slides[0]?.reference ?? "Passage";
   const cols = `repeat(${versions.length}, minmax(0, 1fr))`;
 

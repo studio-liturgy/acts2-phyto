@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, useState } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 vi.mock("@/lib/supabase", async () => {
@@ -9,16 +9,14 @@ vi.mock("@/lib/supabase", async () => {
 
 import { db } from "@/lib/db";
 import { useLibrary } from "@/lib/store";
-import { useScriptureLiveSync } from "@/hooks/use-scripture-live-sync";
+import { mergeHiddenVersions, useScriptureVersions } from "@/hooks/use-scripture-versions";
 import { resetDb } from "@/test/db-utils";
 import { makeSet } from "@/test/fixtures";
 import type { SetKind, Slide } from "@/lib/types";
 
-// The Importers component seeds its verse box from the slides only when the
-// set is already a scripture at mount; a message leaves it empty.
+// Drives the hook exactly as the Importers component does.
 function Harness({ setId, kind }: { setId: string; kind: SetKind }) {
-  const [manualText, setManualText] = useState("");
-  useScriptureLiveSync({ kind, setId, manualText, setManualText, versesPer: 1 });
+  useScriptureVersions({ setId, kind });
   return null;
 }
 
@@ -51,7 +49,7 @@ afterEach(async () => {
   host.remove();
 });
 
-describe("useScriptureLiveSync", () => {
+describe("useScriptureVersions", () => {
   it("keeps the verses when a saved message loses its last point and flips back to scripture", async () => {
     const message = makeSet({ kind: "message", slides: [...verses, point] });
     await db.sets.put(message);
@@ -74,16 +72,46 @@ describe("useScriptureLiveSync", () => {
     expect(after.map((s) => s.id)).toEqual(["v1", "v2"]);
   });
 
-  it("still clears the slides when the user empties the box on a plain scripture", async () => {
+  it("opening a plain scripture seeds the box from its verses and writes nothing", async () => {
     const scripture = makeSet({ kind: "scripture", slides: verses });
     await db.sets.put(scripture);
     await useLibrary.getState().loadFromDb();
+    const before = useLibrary.getState().sets[scripture.id].updatedAt;
 
     await act(async () => root.render(<Harness setId={scripture.id} kind="scripture" />));
 
-    // Mounted as a scripture with an empty box: that IS the user's text, so the
-    // ordinary sync applies (this mirrors the pre-existing behaviour, where the
-    // real editor seeds the box from the slides before this hook first runs).
-    expect(useLibrary.getState().sets[scripture.id].slides).toHaveLength(0);
+    const after = useLibrary.getState().sets[scripture.id];
+    expect(after.slides.map((s) => s.id)).toEqual(["v1", "v2"]);
+    expect(after.updatedAt).toBe(before);
+  });
+});
+
+describe("mergeHiddenVersions", () => {
+  it("carries the hidden translation through a rebuild and keeps lines on the primary", () => {
+    const current: Slide[] = [
+      {
+        id: "a",
+        kind: "scripture",
+        lines: ["For God"],
+        linesByVersion: { NIV: "For God", CUNPS: "神愛世人" },
+        referencesByVersion: { NIV: "John 3:16", CUNPS: "約翰福音 3:16" },
+        reference: "John 3:16",
+      },
+    ];
+    // The workspace shows CUNPS only; the user edited that box.
+    const parsed: Slide[] = [
+      {
+        id: "b",
+        kind: "scripture",
+        lines: ["神爱世人（改）"],
+        linesByVersion: { CUNPS: "神爱世人（改）" },
+        referencesByVersion: { CUNPS: "約翰福音 3:16" },
+        reference: "約翰福音 3:16",
+      },
+    ];
+    const [merged] = mergeHiddenVersions(parsed, current, ["CUNPS"], "NIV");
+    expect(merged.linesByVersion).toEqual({ NIV: "For God", CUNPS: "神爱世人（改）" });
+    expect(merged.lines).toEqual(["For God"]);
+    expect(merged.reference).toBe("John 3:16");
   });
 });

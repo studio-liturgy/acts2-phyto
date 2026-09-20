@@ -119,11 +119,26 @@ const GROUP_LANG: Record<string, LangCode> = {
   French: "fr",
 };
 
+// The Chinese group mixes scripts; a workspace is set to one of them, so each
+// translation needs its own. Union (CUV, CUNP), Pastoral (PCB) and Studium
+// Biblicum (ChiSB) are traditional; the "S" editions are simplified.
+const TRADITIONAL_CHINESE = new Set(["CUV", "CUNP", "PCB", "ChiSB"]);
+
 export function langOfTranslation(code: string): LangCode | undefined {
+  if (TRADITIONAL_CHINESE.has(code)) return "zh-Hant";
   for (const group of TRANSLATION_GROUPS) {
     if (group.translations.some((t) => t.code === code)) return GROUP_LANG[group.language];
   }
   return undefined;
+}
+
+/** The translations offered for a workspace language (for the single-version
+ *  picker when multi-language is off). Falls back to everything when no
+ *  translation is in that language. */
+export function translationsForLang(lang: LangCode): { code: string; label: string }[] {
+  const all = TRANSLATION_GROUPS.flatMap((g) => [...g.translations]);
+  const mine = all.filter((t) => langOfTranslation(t.code) === lang);
+  return mine.length ? mine : all;
 }
 
 const BOOKS: { id: number; names: string[] }[] = [

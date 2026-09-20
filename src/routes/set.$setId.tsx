@@ -14,7 +14,7 @@ import {
   isUploadableVideo,
 } from "@/lib/media";
 import { prepareImageFile, prepareRenderedImage } from "@/lib/image-upload";
-import { fetchScriptureBolls, TRANSLATIONS } from "@/lib/bible";
+import { useScriptureVersions } from "@/hooks/use-scripture-versions";
 import { searchSongs, preloadSongs, parseQuery, songPreview, type SongResult } from "@/lib/songs";
 import {
   lyricsToSlides,
@@ -27,6 +27,7 @@ import { SlideView } from "@/components/SlideView";
 import { MessageElements } from "@/components/MessageElements";
 import { MessageBlockEditor } from "@/components/MessageBlockEditor";
 import { ScriptureVerseEditor } from "@/components/ScriptureVerseEditor";
+import { VersionPicker } from "@/components/VersionPicker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -73,11 +74,11 @@ import {
   Search,
   Loader2,
   ChevronDown,
+  ArrowLeftRight,
   X,
 } from "lucide-react";
 import { NumberStepper } from "@/components/NumberStepper";
 import { useIsSignedIn } from "@/lib/authStore";
-import { useScriptureLiveSync } from "@/hooks/use-scripture-live-sync";
 import { ShareSetDialog } from "@/components/ShareSetDialog";
 import {
   AlertDialog,
@@ -1446,34 +1447,38 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [versionOpen, setVersionOpen] = useState(false);
 
   const [ref, setRef] = useState("");
-  const [translation, setTranslation] = useState("NIV");
-  const [versesPer, setVersesPer] = useState(1);
-  const [keepLineBreaks, setKeepLineBreaks] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [manualRef, setManualRef] = useState("");
-  const [manualText, setManualText] = useState(() => {
-    if (kind !== "scripture") return "";
-    return slidesToScriptureText(useLibrary.getState().sets[setId]?.slides ?? []);
-  });
+  const [version2Open, setVersion2Open] = useState(false);
+  // Scripture: boxes, imports, versions (see the hook).
+  const scripture = useScriptureVersions({ setId, kind });
+  const {
+    translation,
+    setTranslation,
+    translation2,
+    setTranslation2,
+    versesPer,
+    setVersesPer,
+    keepLineBreaks,
+    setKeepLineBreaks,
+    busy,
+    err,
+    alignNote,
+    manualText,
+    setManualText,
+    manualText2,
+    setManualText2,
+  } = scripture;
 
-  // Late hydration: on a direct URL load Dexie may not have populated the
-  // store yet, so the lazy initializers above saw no slides. Reconstruct once
-  // they appear — but never clobber text the user (or an import) already put
-  // in the box, and latch only after an actual reconstruction so this retries
-  // until the store is ready.
-  const hydrated = useRef(lyrics !== "" || manualText !== "");
+  // Late hydration (song): on a direct URL load Dexie may not have populated
+  // the store yet, so the lazy initializer above saw no slides. Reconstruct
+  // once they appear, but never clobber text the user already typed.
+  const hydrated = useRef(lyrics !== "");
   const storeSlides = useLibrary((s) => s.sets[setId]?.slides);
   useEffect(() => {
-    if (hydrated.current) return;
+    if (hydrated.current || kind !== "song") return;
     if (!storeSlides || storeSlides.length === 0) return;
     hydrated.current = true;
-    if (kind === "song" && lyrics === "") {
-      setLyrics(slidesToLyricsText(storeSlides));
-    } else if (kind === "scripture" && manualText === "") {
-      setManualText(slidesToScriptureText(storeSlides));
-    }
-  }, [storeSlides, kind, lyrics, manualText]);
+    if (lyrics === "") setLyrics(slidesToLyricsText(storeSlides));
+  }, [storeSlides, kind, lyrics]);
 
   // Persist linesPer across navigations.
   useEffect(() => {
@@ -1497,10 +1502,6 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     const { slides, changed } = reconcileSlideIds(parsed, current);
     if (changed) updateSet(setId, { slides });
   }, [lyrics, kind, setId, updateSet]);
-
-  // Live sync: rebuild slides whenever the scripture textarea changes (and
-  // guard the message -> scripture flip). See the hook for the details.
-  useScriptureLiveSync({ kind, setId, manualText, setManualText, versesPer });
 
   const runSongSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -1690,49 +1691,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     });
   };
 
-  const importScriptureWith = async (vPer: number) => {
-    if (!ref.trim()) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      const { reference, verses } = await fetchScriptureBolls(ref, translation, {
-        removeLineBreaks: !keepLineBreaks,
-      });
-      const labelled = `${reference} ${translation}`;
-      const parts: string[] = [];
-      for (let i = 0; i < verses.length; i += vPer) {
-        if (i > 0) parts.push("---");
-        const group = verses.slice(i, i + vPer);
-        const verseTexts = group.map((v) => v.text.trim()).join(" ");
-        parts.push(i === 0 ? `[${labelled}]\n${verseTexts}` : verseTexts);
-      }
-      const newBlock = parts.join("\n\n");
-      if (kind === "message") {
-        // A message owns its slides directly (the block editor), so an import
-        // appends a fresh verse block at the end (its own importIndex) rather
-        // than going through the box; the user then drags it into place.
-        const built = parseScriptureFromText(newBlock, vPer);
-        const existing = useLibrary.getState().sets[setId]?.slides ?? [];
-        // Index-less existing verses count as import 0, so a fresh import lands in
-        // its own block rather than merging with them.
-        const nextIdx = existing.reduce((m, s) => Math.max(m, s.importIndex ?? 0), -1) + 1;
-        updateSet(setId, {
-          slides: [...existing, ...built.map((s) => ({ ...s, importIndex: nextIdx }))],
-        });
-      } else {
-        // Append to any existing passage rather than replacing it.
-        setManualText((prev) => (prev.trim() ? `${prev}\n\n---\n\n${newBlock}` : newBlock));
-        // Title stays as the first passage imported.
-        if (!manualText.trim()) updateSet(setId, { name: labelled });
-      }
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const importScripture = () => importScriptureWith(versesPer);
+  const importScripture = () => scripture.importScripture(ref);
 
   const importImages = async (files: FileList | null) => {
     if (!files) return;
@@ -2070,69 +2029,83 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               if (ref.trim() && !busy) importScripture();
             }}
           />
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <div>
-              <div className="mono mb-1 text-[10px] uppercase tracking-wider">Version</div>
-              <div className="relative">
-                <div
-                  className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-2 cursor-pointer"
-                  onClick={() => setVersionOpen((o) => !o)}
-                  onBlur={(e) => {
-                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setVersionOpen(false);
-                  }}
-                  tabIndex={0}
-                >
-                  <span className="mono uppercase flex-1 truncate text-xs">{translation}</span>
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-                </div>
-                {versionOpen && (
-                  <div className="catalogue-scroll absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-foreground bg-popover shadow-md">
-                    {TRANSLATIONS.map((t) => (
-                      <button
-                        key={t.code}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setTranslation(t.code);
-                          setVersionOpen(false);
-                        }}
-                        className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-muted ${t.code === translation ? "bg-muted" : ""}`}
-                      >
-                        <span className="mono uppercase text-xs shrink-0">{t.code}</span>
-                        <span className="mono uppercase text-[10px] tracking-wider text-muted-foreground truncate text-right">
-                          {t.label.replace(/^.+?—\s*/, "")}
-                        </span>
-                      </button>
-                    ))}
+          <div
+            className={`mt-3 grid gap-3 ${scripture.multi && !scripture.bilingual ? "grid-cols-3" : "grid-cols-2"}`}
+          >
+            <VersionPicker
+              label="Version"
+              value={translation}
+              open={versionOpen}
+              setOpen={setVersionOpen}
+              onPick={setTranslation}
+              exclude={scripture.multi ? translation2 : ""}
+              groups={
+                scripture.multi
+                  ? scripture.translationGroups.map((g) => ({
+                      language: g.language,
+                      translations: [...g.translations],
+                    }))
+                  : [{ language: "", translations: scripture.singleChoices }]
+              }
+            />
+            {scripture.multi && (
+              <VersionPicker
+                label="Second version"
+                value={translation2}
+                placeholder="None"
+                open={version2Open}
+                setOpen={setVersion2Open}
+                onPick={setTranslation2}
+                onClear={() => setTranslation2("")}
+                exclude={translation}
+                groups={scripture.translationGroups.map((g) => ({
+                  language: g.language,
+                  translations: [...g.translations],
+                }))}
+              />
+            )}
+            {!scripture.bilingual && (
+              <div className="flex flex-col justify-end">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="mono text-[10px] uppercase tracking-wider">
+                      Verses per slide
+                    </div>
+                    <NumberStepper
+                      value={versesPer}
+                      onChange={(n) => setVersesPer(Math.min(3, Math.max(1, Math.round(n))))}
+                      min={1}
+                      max={3}
+                      decrementLabel="Fewer verses per slide"
+                      incrementLabel="More verses per slide"
+                    />
                   </div>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col justify-end">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
-                <div className="flex items-center gap-2">
-                  <div className="mono text-[10px] uppercase tracking-wider">Verses per slide</div>
-                  <NumberStepper
-                    value={versesPer}
-                    onChange={(n) => setVersesPer(Math.min(3, Math.max(1, Math.round(n))))}
-                    min={1}
-                    max={3}
-                    decrementLabel="Fewer verses per slide"
-                    incrementLabel="More verses per slide"
-                  />
+                  <label className="inline-flex cursor-pointer items-center gap-2">
+                    <span className="mono text-[10px] uppercase tracking-wider">
+                      Keep line breaks
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={keepLineBreaks}
+                      onChange={(e) => setKeepLineBreaks(e.target.checked)}
+                    />
+                  </label>
                 </div>
-                <label className="inline-flex cursor-pointer items-center gap-2">
-                  <span className="mono text-[10px] uppercase tracking-wider">
-                    Keep line breaks
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={keepLineBreaks}
-                    onChange={(e) => setKeepLineBreaks(e.target.checked)}
-                  />
-                </label>
               </div>
-            </div>
+            )}
           </div>
+          {scripture.bilingual && (
+            <button
+              type="button"
+              onClick={scripture.swapVersions}
+              className="mono mt-2 flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeftRight className="h-3 w-3" /> Swap versions
+            </button>
+          )}
+          {alignNote && (
+            <p className="mono mt-2 text-xs tracking-wider text-amber-600">{alignNote}</p>
+          )}
           {err && (
             <p className="mono uppercase mt-2 text-xs tracking-wider text-destructive">{err}</p>
           )}
@@ -2149,17 +2122,35 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             scripture shows its imported verses (editable) with the add-bar below,
             so a passage can grow points and images without leaving this view. */}
         {kind === "message" ? (
-          <MessageBlockEditor setId={setId} versions={SINGLE_VERSION} />
+          <MessageBlockEditor
+            setId={setId}
+            versions={scripture.boxMode ? scripture.editVersions : SINGLE_VERSION}
+            primaryVersion={scripture.boxMode ? scripture.primaryVersion : undefined}
+          />
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {manualText.trim() && (
-              <ScriptureVerseEditor
-                versions={SINGLE_VERSION}
-                text={{ _: manualText }}
-                setText={(_v, val) => setManualText(val)}
-              />
-            )}
-            <MessageElements setId={setId} hasVerses={!!manualText.trim()} />
+            {(manualText.trim() || manualText2.trim()) &&
+              (scripture.boxMode ? (
+                <ScriptureVerseEditor
+                  versions={scripture.editVersions}
+                  text={Object.fromEntries(
+                    scripture.editVersions.map((v, i) => [v, i === 0 ? manualText : manualText2]),
+                  )}
+                  setText={(v, val) =>
+                    v === scripture.editVersions[0] ? setManualText(val) : setManualText2(val)
+                  }
+                />
+              ) : (
+                <ScriptureVerseEditor
+                  versions={SINGLE_VERSION}
+                  text={{ _: manualText }}
+                  setText={(_v, val) => setManualText(val)}
+                />
+              ))}
+            <MessageElements
+              setId={setId}
+              hasVerses={!!(manualText.trim() || manualText2.trim())}
+            />
           </div>
         )}
       </div>
