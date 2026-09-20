@@ -13,6 +13,21 @@ describe("psalm superscriptions are dropped from verse 1", () => {
     ).toBe("Give ear to my words, O Lord, consider my sighing.");
   });
 
+  it("NIV: the five-book division and title ahead of a psalm's first words", () => {
+    expect(
+      cleanVerseText(
+        "BOOK I<br/>Psalms 1–41<br/>Psalm 1<br/>Blessed is the man<br/>who does not walk in the counsel of the wicked",
+        o,
+      ),
+    ).toBe("Blessed is the man who does not walk in the counsel of the wicked");
+    expect(
+      cleanVerseText(
+        "BOOK II<br/>Psalms 42–72<br/>Psalm 42<br/>For the director of music. A maskil of the Sons of Korah.<br/>As the deer pants for streams of water,",
+        o,
+      ),
+    ).toBe("As the deer pants for streams of water,");
+  });
+
   it("NKJV: italic note", () => {
     expect(
       cleanVerseText(

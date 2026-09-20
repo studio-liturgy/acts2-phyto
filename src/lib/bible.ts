@@ -499,7 +499,7 @@ function stripTags(s: string): string {
  *  the words of many psalms ("For the director of music. Of David. A psalm."),
  *  and the "Psalm N" title some translations prepend. */
 const SUPERSCRIPTION =
-  /^(psalms?\s+\d+\b|for the (director|choir|leader|chief)\b|to the chief musician\b|a (psalm|song|prayer|maskil|maschil|miktam|michtam|shiggaion|contemplation|petition)\b|an? (psalm|song|prayer)\b|of (david|asaph|solomon|moses|heman|ethan|the sons of korah|jeduthun)\b|a song of ascents\b|according to\b)/i;
+  /^(book\s+(?:[ivx]+|\d+)\b|psalms?\s+\d+\b|for the (director|choir|leader|chief)\b|to the chief musician\b|a (psalm|song|prayer|maskil|maschil|miktam|michtam|shiggaion|contemplation|petition)\b|an? (psalm|song|prayer)\b|of (david|asaph|solomon|moses|heman|ethan|the sons of korah|jeduthun)\b|a song of ascents\b|according to\b)/i;
 
 /** Opening/closing bracket pairs used for superscriptions in CJK editions. */
 const CJK_BRACKETS: [string, string][] = [
@@ -534,9 +534,10 @@ export function cleanVerseText(
         break;
       }
     }
-    // NIV-style: "Psalm 5<br/>For the director of music…<br/>verse". Drop
-    // leading <br/>-separated segments while they read as a superscription.
-    for (let guard = 0; guard < 3; guard++) {
+    // NIV-style: "BOOK I<br/>Psalms 1–41<br/>Psalm 1<br/>For the director of
+    // music…<br/>verse". Drop leading <br/>-separated segments while they read
+    // as a book division, a title or a superscription.
+    for (let guard = 0; guard < 6; guard++) {
       const brIdx = out.search(/<br\s*\/?>/i);
       if (brIdx <= 0) break;
       const head = stripTags(out.slice(0, brIdx)).trim();
