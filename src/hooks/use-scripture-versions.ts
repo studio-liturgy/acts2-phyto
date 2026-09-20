@@ -544,15 +544,29 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     const v2 = langOfTranslation(translation2) === remaining ? translation2 : first(remaining);
     return { v1, v2: v2 === v1 ? "" : v2 };
   }, [multi, settings.language, settings.language2, translation, translation2]);
-  /** The Update dialog's picker lists: the workspace's language(s), grouped. */
-  const updateGroups = useMemo(() => {
-    const groupFor = (l: LangCode | null) =>
-      l ? [{ language: langDef(l).label, translations: translationsForLang(l) }] : [];
-    const first = groupFor(settings.language);
-    if (!multi || !settings.language2) return { first, second: [] as typeof first };
-    const both = [...first, ...groupFor(settings.language2)];
-    return { first: both, second: both };
-  }, [multi, settings.language, settings.language2]);
+  /** The Update dialog's picker lists, following the importer's rule: the
+   *  two languages take turns. Given the dialog's current 1st pick, the 2nd
+   *  slot offers the other language; with no 2nd chosen, the 1st slot lists
+   *  both languages grouped, else its own language. */
+  const updateGroupsFor = useCallback(
+    (v1: string, v2: string) => {
+      const groupFor = (l: LangCode | null) =>
+        l ? [{ language: langDef(l).label, translations: translationsForLang(l) }] : [];
+      if (!multi || !settings.language2) {
+        return { first: groupFor(settings.language), second: [] as ReturnType<typeof groupFor> };
+      }
+      const l1 = langOfTranslation(v1);
+      const firstLang = l1 === settings.language2 ? settings.language2 : settings.language;
+      const other = firstLang === settings.language ? settings.language2 : settings.language;
+      return {
+        first: v2
+          ? groupFor(firstLang)
+          : [...groupFor(settings.language), ...groupFor(settings.language2)],
+        second: groupFor(other),
+      };
+    },
+    [multi, settings.language, settings.language2],
+  );
 
   const updateVersionsToWorkspace = async (
     v1: string = workspaceVersions.v1,
@@ -617,7 +631,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     versionsMismatch,
     storedVersions: inferred,
     workspaceVersions,
-    updateGroups,
+    updateGroupsFor,
     updateVersionsToWorkspace,
   };
 }

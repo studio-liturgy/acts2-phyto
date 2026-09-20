@@ -2173,9 +2173,18 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                   value={updateV1}
                   open={updateV1Open}
                   setOpen={setUpdateV1Open}
-                  onPick={setUpdateV1}
+                  onPick={(code) => {
+                    setUpdateV1(code);
+                    // Keep the pair spanning both languages, as the importer does.
+                    if (updateV2) {
+                      const other = scripture.updateGroupsFor(code, updateV2).second[0];
+                      if (other && !other.translations.some((t) => t.code === updateV2)) {
+                        setUpdateV2(other.translations[0]?.code ?? "");
+                      }
+                    }
+                  }}
                   exclude={updateV2}
-                  groups={scripture.updateGroups.first}
+                  groups={scripture.updateGroupsFor(updateV1, updateV2).first}
                 />
                 {scripture.multi && (
                   <VersionPicker
@@ -2187,7 +2196,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                     onPick={setUpdateV2}
                     onClear={() => setUpdateV2("")}
                     exclude={updateV1}
-                    groups={scripture.updateGroups.second}
+                    groups={scripture.updateGroupsFor(updateV1, updateV2).second}
                   />
                 )}
               </div>
