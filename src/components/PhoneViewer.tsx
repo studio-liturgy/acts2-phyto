@@ -34,6 +34,7 @@ export interface PhoneSlide {
   /** Message-only (kind === "point"): the point layout + its attribution. */
   pointType?: "quote" | "bullets" | "statement";
   attribution?: string;
+  listStyle?: "bullets" | "numbers";
   /** Scripture-only: which import this verse came from (for grouping). */
   importIndex?: number;
 }
@@ -785,7 +786,9 @@ function SetContent({
             return (
               <div key={i} className="space-y-1 text-[0.85em]">
                 {slide.title?.trim() && <p className="font-semibold">{slide.title}</p>}
-                <ul className="list-disc space-y-1 pl-5">
+                <ul
+                  className={`space-y-1 pl-5 ${slide.listStyle === "numbers" ? "list-decimal" : "list-disc"}`}
+                >
                   {lines.map((l, j) => (
                     <li key={j} className="leading-relaxed">
                       {l}

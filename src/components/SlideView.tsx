@@ -618,7 +618,9 @@ function PointBody({ slide, fontScale }: { slide: Slide; fontScale: number }) {
               className="flex items-start gap-6 leading-snug"
               style={{ fontSize: `${3 * fontScale}rem` }}
             >
-              <span className="opacity-50">&bull;</span>
+              <span className="opacity-50">
+                {slide.listStyle === "numbers" ? `${i + 1}.` : "\u2022"}
+              </span>
               <span>{l}</span>
             </li>
           ))}

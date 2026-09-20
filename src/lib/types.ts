@@ -59,6 +59,9 @@ export interface Slide {
   pointType?: PointType;
   /** Message-only: who a quote is attributed to. */
   attribution?: string;
+  /** Message-only (pointType === "bullets"): numbered list instead of dots.
+   *  Absent = bullet dots. */
+  listStyle?: "bullets" | "numbers";
 }
 
 export type SetKind = "song" | "scripture" | "media" | "mixed" | "message";

@@ -192,6 +192,7 @@ export function BlockFrame({
   grip,
   onRemove,
   tint,
+  actions,
   children,
 }: {
   label: string;
@@ -200,6 +201,8 @@ export function BlockFrame({
   /** A brand-colour token; when set the block gets the same faint tint the
    *  scripture editor gives each imported passage. */
   tint?: string;
+  /** Extra per-block controls, shown just left of the delete button. */
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -216,6 +219,11 @@ export function BlockFrame({
         </div>
         {children}
       </div>
+      {actions && (
+        <div className="flex shrink-0 items-start justify-center pt-1.5" style={{ width: DEL }}>
+          {actions}
+        </div>
+      )}
       <div className="flex shrink-0 items-start justify-center pt-1.5" style={{ width: DEL }}>
         <button
           type="button"
@@ -253,8 +261,24 @@ export function ElementCard({
           ? "Bullet points"
           : "Statement";
 
+  // Bullet points: switch between dots and numbers. The button shows the style
+  // it switches TO, like the image fit toggle.
+  const numbered = slide.listStyle === "numbers";
+  const listToggle =
+    slide.kind === "point" && slide.pointType === "bullets" ? (
+      <button
+        type="button"
+        onClick={() => onChange({ listStyle: numbered ? "bullets" : "numbers" })}
+        aria-label={numbered ? "Use bullet dots" : "Use numbers"}
+        title={numbered ? "Use bullet dots" : "Use numbers"}
+        className="mono flex h-6 w-6 items-center justify-center rounded-full text-[11px] leading-none text-foreground/60 transition hover:bg-foreground/15 hover:text-foreground"
+      >
+        {numbered ? "\u2022" : "1."}
+      </button>
+    ) : undefined;
+
   return (
-    <BlockFrame label={label} grip={grip} onRemove={onRemove} tint={tint}>
+    <BlockFrame label={label} grip={grip} onRemove={onRemove} tint={tint} actions={listToggle}>
       {slide.kind === "image" ? (
         <div className="relative px-3 py-2">
           <img
