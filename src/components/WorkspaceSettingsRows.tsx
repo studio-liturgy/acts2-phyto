@@ -1,16 +1,9 @@
 import { useState } from "react";
 import { PillSwitch } from "@/components/PillSwitch";
 import { LanguagePicker } from "@/components/LanguagePicker";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useLibrary } from "@/lib/store";
-import { WORKSPACE_LANGS, langDef, type LangCode } from "@/lib/langs";
+import { WORKSPACE_LANGS, type LangCode } from "@/lib/langs";
 import type { WorkspaceSettings } from "@/lib/workspace-settings";
-import { inferredVersions, versionsMismatchWorkspace } from "@/lib/versions";
 
 const ROW = "flex items-center justify-between gap-4 py-2";
 const LABEL = "mono text-xs uppercase tracking-wider";
@@ -31,40 +24,13 @@ function defaultSecond(first: LangCode): LangCode {
 export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean }) {
   const settings = useLibrary((s) => s.workspaceSettings);
   const updateWorkspaceSettings = useLibrary((s) => s.updateWorkspaceSettings);
-  const sets = useLibrary((s) => s.sets);
   const [error, setError] = useState<string | null>(null);
-  // A language change while this workspace already holds imported scriptures:
-  // those keep the bible versions they were imported in (nothing is rewritten);
-  // only new imports follow the new language. Say so before applying.
-  const [pending, setPending] = useState<{
-    patch: Partial<WorkspaceSettings>;
-    affected: number;
-  } | null>(null);
-  // How many of this workspace's scripture/message sets would be in a language
-  // the workspace no longer names, once `patch` is applied.
-  const wouldMismatch = (patch: Partial<WorkspaceSettings>) =>
-    Object.values(sets).filter(
-      (d) =>
-        (d.kind === "scripture" || d.kind === "message") &&
-        versionsMismatchWorkspace(inferredVersions(d), { ...settings, ...patch }),
-    ).length;
-
   const apply = async (patch: Partial<WorkspaceSettings>) => {
     setError(null);
     const ok = await updateWorkspaceSettings(patch);
     if (!ok) setError("Could not save. Check your connection and try again.");
   };
-  const applyLanguage = (patch: Partial<WorkspaceSettings>) => {
-    const affected = wouldMismatch(patch);
-    if (affected > 0) setPending({ patch, affected });
-    else void apply(patch);
-  };
-  const pendingLabel = pending
-    ? [pending.patch.language, pending.patch.language2]
-        .filter((l): l is LangCode => !!l)
-        .map((l) => langDef(l).label)
-        .join(" and ")
-    : "";
+  const applyLanguage = apply;
 
   const second = settings.language2 ?? defaultSecond(settings.language);
 
@@ -127,43 +93,14 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
           />
         </div>
       )}
+      <p className="mono mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+        Scripture sets you&rsquo;ve already imported keep the languages they were imported in.
+      </p>
       {error && (
         <p className="mono mt-1 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
           {error}
         </p>
       )}
-
-      <AlertDialog open={pending !== null} onOpenChange={(o) => !o && setPending(null)}>
-        <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-2xl font-normal leading-tight">
-            {pendingLabel ? `Change language to ${pendingLabel}?` : "Change languages?"}
-          </AlertDialogTitle>
-          <AlertDialogDescription className="mt-4 text-base text-foreground">
-            Scripture sets you&rsquo;ve already imported keep the bible versions they were imported
-            in. Only new imports use the new language.
-          </AlertDialogDescription>
-          <div className="mt-8 flex gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                const patch = pending?.patch;
-                setPending(null);
-                if (patch) void apply(patch);
-              }}
-              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
-            >
-              Change language
-            </button>
-            <button
-              type="button"
-              onClick={() => setPending(null)}
-              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
-            >
-              Cancel
-            </button>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
