@@ -115,3 +115,13 @@ describe("mergeHiddenVersions", () => {
     expect(merged.reference).toBe("John 3:16");
   });
 });
+
+describe("renameVersions", () => {
+  it("swaps the version codes in an auto-named set and leaves custom names alone", async () => {
+    const { renameVersions } = await import("@/hooks/use-scripture-versions");
+    expect(renameVersions("John 3:16 NIV", "CUNPS", "")).toBe("John 3:16 CUNPS");
+    expect(renameVersions("John 3:16 NIV / CUNPS", "ESV", "JPNICT")).toBe("John 3:16 ESV / JPNICT");
+    expect(renameVersions("Psalms 100:4 NIV", "NIV", "KRV")).toBe("Psalms 100:4 NIV / KRV");
+    expect(renameVersions("Sunday reading", "NIV", "KRV")).toBe("Sunday reading");
+  });
+});

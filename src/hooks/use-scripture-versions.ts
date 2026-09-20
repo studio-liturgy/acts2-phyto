@@ -6,6 +6,7 @@ import {
   langOfTranslation,
   splitRefLabel,
   translationsForLang,
+  TRANSLATION_CODES,
 } from "@/lib/bible";
 import {
   parseScriptureFromText,
@@ -107,15 +108,19 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   );
   // Picking a 1st version in the other language moves the 2nd version over to
   // the remaining language (its first bible version), so the pair still spans
-  // both languages.
+  // both languages. Only on the USER's pick: a workspace language change must
+  // not silently re-fetch a set (that's what the Update prompt is for).
+  const prevTranslation = useRef(translation);
   useEffect(() => {
+    if (prevTranslation.current === translation) return;
+    prevTranslation.current = translation;
     if (!multi || !translation2 || !secondLang) return;
     if (langOfTranslation(translation2) !== secondLang) {
       const first = translationsForLang(secondLang)[0]?.code;
       if (first && first !== translation) setTranslation2(first);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [secondLang]);
+  }, [translation]);
   // A set with no stored version follows the workspace's languages (a fresh
   // set opened in a Chinese workspace imports Chinese).
   useEffect(() => {
@@ -124,10 +129,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       const first = firstChoices[0]?.code;
       if (first) setTranslation(first);
     }
-    if (multi && translation2 && secondLang && langOfTranslation(translation2) !== secondLang) {
-      const first = secondChoices[0]?.code;
-      if (first) setTranslation2(first);
-    }
+    // (A stored set's 2nd version is left alone here too: see the Update prompt.)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.language, settings.language2, multi]);
 
@@ -522,12 +524,26 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     [kind, storedVersions, storeSlides],
   );
   const versionsMismatch = versionsMismatchWorkspace(inferred, settings);
+  // What Update re-imports in: a version already in one of the workspace's
+  // languages is kept; the other slot gets the remaining language's first
+  // bible. A single-version set stays single.
   const workspaceVersions = useMemo(() => {
-    const v1 = translationsForLang(settings.language)[0]?.code ?? "NIV";
-    const v2 =
-      multi && settings.language2 ? (translationsForLang(settings.language2)[0]?.code ?? "") : "";
+    const first = (l: LangCode | null) => (l ? (translationsForLang(l)[0]?.code ?? "") : "");
+    if (!multi || !settings.language2) {
+      const keep = langOfTranslation(translation) === settings.language;
+      return { v1: keep ? translation : first(settings.language) || "NIV", v2: "" };
+    }
+    const langs: LangCode[] = [settings.language, settings.language2];
+    const l1 = langOfTranslation(translation);
+    const keep1 = !!l1 && langs.includes(l1);
+    const v1 = keep1 ? translation : first(settings.language) || "NIV";
+    const lang1: LangCode = keep1 && l1 ? l1 : settings.language;
+    const remaining: LangCode =
+      lang1 === settings.language ? settings.language2 : settings.language;
+    if (!translation2) return { v1, v2: "" };
+    const v2 = langOfTranslation(translation2) === remaining ? translation2 : first(remaining);
     return { v1, v2: v2 === v1 ? "" : v2 };
-  }, [settings.language, settings.language2, multi]);
+  }, [multi, settings.language, settings.language2, translation, translation2]);
   const updateVersionsToWorkspace = async () => {
     const { v1, v2 } = workspaceVersions;
     // Take over the pickers without the picker effect re-fetching on top.
@@ -542,10 +558,14 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     if (!refs.length) return;
     if (kind === "message") {
       await rebuildMessageVersions(v1, v2);
-      return;
+    } else {
+      updateSet(setId, { versions: v2 ? [v1, v2] : [v1], scriptureImports: refs });
+      await rebuildScripture(refs, v1, v2);
     }
-    updateSet(setId, { versions: v2 ? [v1, v2] : [v1], scriptureImports: refs });
-    await rebuildScripture(refs, v1, v2);
+    // The name names the versions ("John 3:16 NIV / CUNPS"): update it too.
+    const name = readSet()?.name ?? "";
+    const renamed = renameVersions(name, v1, v2);
+    if (renamed !== name) updateSet(setId, { name: renamed });
   };
 
   const clearBoxes = () => {
@@ -587,6 +607,15 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     workspaceVersions,
     updateVersionsToWorkspace,
   };
+}
+
+/** "John 3:16 NIV / CUNPS" with new codes in place of the old ones. A name
+ *  that doesn't end in version codes (a custom title) is left as it is.
+ *  Exported for tests. */
+export function renameVersions(name: string, v1: string, v2: string): string {
+  const m = /^(.*?)\s+([A-Za-z0-9]+)(?:\s*\/\s*([A-Za-z0-9]+))?\s*$/.exec(name);
+  if (!m || !TRANSLATION_CODES.has(m[2]) || (m[3] && !TRANSLATION_CODES.has(m[3]))) return name;
+  return `${m[1]} ${v1}${v2 ? ` / ${v2}` : ""}`;
 }
 
 /**

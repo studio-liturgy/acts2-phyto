@@ -31,7 +31,7 @@ export function VersionWarning({ set, className = "" }: { set: PhytoSet; classNa
             <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
           </span>
         </TooltipTrigger>
-        <TooltipContent side="top">
+        <TooltipContent side="top" className="mono text-[10px] uppercase tracking-wider">
           <span className="block">Imported in {versions!.join(" / ")}</span>
           <span className="block">This workspace uses {wanted}</span>
           <span className="block opacity-70">Open the set and press Update</span>
