@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useTheme } from "@/hooks/use-theme";
 import { Sun, Moon } from "lucide-react";
 
-const isTest = import.meta.env.VITE_APP_ENV === "test";
-const iconColor = isTest ? "text-[var(--brand-orange-dark)]" : "text-[var(--brand-blue)]";
+// The knob is the foreground colour (white in dark mode, black in light), so
+// the icon inside it takes the background colour: black on dark, white on light.
+const iconColor = "text-background";
 
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const { mode, toggle } = useTheme();

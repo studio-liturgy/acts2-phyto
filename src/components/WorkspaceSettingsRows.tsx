@@ -30,7 +30,12 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
     const ok = await updateWorkspaceSettings(patch);
     if (!ok) setError("Could not save. Check your connection and try again.");
   };
-  const applyLanguage = apply;
+  // The note about existing sets appears once a language has been changed here.
+  const [languageChanged, setLanguageChanged] = useState(false);
+  const applyLanguage = (patch: Partial<WorkspaceSettings>) => {
+    setLanguageChanged(true);
+    return apply(patch);
+  };
 
   const second = settings.language2 ?? defaultSecond(settings.language);
 
@@ -93,10 +98,12 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
           />
         </div>
       )}
-      <p className="mono mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-        Scripture sets you&rsquo;ve already imported keep the languages they were imported in, but
-        are frozen until updated.
-      </p>
+      {languageChanged && (
+        <p className="mono mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+          Scripture sets you&rsquo;ve already imported keep the languages they were imported in, but
+          are frozen until updated.
+        </p>
+      )}
       {error && (
         <p className="mono mt-1 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
           {error}
