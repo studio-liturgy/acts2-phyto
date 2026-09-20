@@ -40,7 +40,7 @@ export function LanguagePicker({
         <button
           type="button"
           className={cn(
-            "mono flex h-7 items-center gap-2 rounded-full border px-2.5 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-50",
+            "mono flex h-7 items-center gap-2 rounded-full border px-2.5 text-xs uppercase tracking-wider text-foreground disabled:cursor-not-allowed disabled:opacity-50",
             className,
           )}
           style={{
@@ -58,7 +58,7 @@ export function LanguagePicker({
           <ChevronDown className="h-3 w-3 opacity-60" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-h-80 min-w-[14rem] overflow-y-auto">
+      <DropdownMenuContent align="end" className="max-h-80 min-w-0 overflow-y-auto">
         {options.map((l) => (
           <DropdownMenuItem
             key={l.code}
@@ -74,7 +74,9 @@ export function LanguagePicker({
               className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: langColor(l.code) }}
             />
-            <span className="mono text-xs text-foreground">{workspaceLangLabel(l.code)}</span>
+            <span className="mono ml-auto text-xs uppercase tracking-wider text-foreground">
+              {workspaceLangLabel(l.code)}
+            </span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
