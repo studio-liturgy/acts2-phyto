@@ -56,10 +56,10 @@ describe("visibleVersions", () => {
         { multiLanguage: true, language: "en", language2: "zh-Hans" },
       ),
     ).toEqual(["CUNPS", "NIV"]);
-    // Only one of the two present: just that one.
+    // A set outside the workspace's languages (warned) still shows all it has.
     expect(
       visibleVersions(stacked, { multiLanguage: true, language: "en", language2: "ko" }),
-    ).toEqual(["NIV"]);
+    ).toEqual(["NIV", "CUNPS"]);
     // Neither present (imported elsewhere): everything the set carries.
     expect(
       visibleVersions(stacked, { multiLanguage: true, language: "ja", language2: "ko" }),
@@ -75,10 +75,10 @@ describe("visibleVersions", () => {
     ).toEqual(["CUNPS"]);
   });
 
-  it("falls back to the set's primary when no version is in the workspace language", () => {
+  it("shows everything the set has when no version is in the system language", () => {
     expect(
       visibleVersions(stacked, { multiLanguage: false, language: "ko", language2: null }),
-    ).toEqual(["NIV"]);
+    ).toEqual(["NIV", "CUNPS"]);
   });
 });
 

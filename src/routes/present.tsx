@@ -21,6 +21,7 @@ import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { useAccountSlug } from "@/hooks/use-account-slug";
 import { visibleVersions } from "@/lib/versions";
+import { VersionWarning } from "@/components/VersionWarning";
 import { NumberStepper } from "@/components/NumberStepper";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -778,6 +779,7 @@ function Presenter() {
                   {activeSet.name}
                 </span>
                 <KindBadge kind={activeSet.kind} />
+                <VersionWarning set={activeSet} className="pointer-events-auto" />
                 <Link
                   to="/set/$setId"
                   params={{ setId: activeSet.id }}
@@ -1345,6 +1347,7 @@ function Presenter() {
                         {d.name}
                       </h3>
                       <KindBadge kind={d.kind} />
+                      <VersionWarning set={d} />
                       <div className="flex items-center gap-1.5">
                         <Link
                           to="/set/$setId"

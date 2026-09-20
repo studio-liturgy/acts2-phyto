@@ -92,11 +92,10 @@ export function hasStackedVersions(set: VersionedSet | null | undefined): boolea
 /**
  * Which of a set's versions the workspace shows, in order. Undefined when the
  * set doesn't stack versions (render from `lines`).
- *  - Multi-language on: the set's versions that are in the workspace's two
- *    languages, in the SET's order (its 1st version on top). If the set has
- *    neither language (imported elsewhere), every version it carries.
- *  - Off: the version in the workspace's system language, or the set's
- *    primary when none is.
+ *  - Multi-language on: every version the set carries, in the SET's order
+ *    (its 1st version on top; "Swap versions" flips it).
+ *  - Off: the version in the workspace's system language; a set with none
+ *    (it's flagged with a warning) shows everything it carries.
  */
 export function visibleVersions(
   set: VersionedSet | null | undefined,
@@ -108,15 +107,14 @@ export function visibleVersions(
     lang ? all.find((code) => langOfTranslation(code) === lang) : undefined;
   if (settings.multiLanguage) {
     // The set's own order (1st version on top, 2nd below; "Swap versions" in
-    // the editor flips it), keeping the ones in the workspace's languages.
-    const langs = new Set([settings.language, settings.language2].filter(Boolean));
-    const picked = all.filter((code) => {
-      const l = langOfTranslation(code);
-      return !!l && langs.has(l);
-    });
-    return picked.length ? picked : all;
+    // the editor flips it). A set that doesn't fit the workspace's languages
+    // (it shows a warning) still projects everything it has.
+    return all;
   }
-  return [inLang(settings.language) ?? all[0]];
+  // Off: the version in the system language; a set that has none (warned)
+  // still shows everything it has rather than a version picked at random.
+  const match = inLang(settings.language);
+  return match ? [match] : all;
 }
 
 /**
