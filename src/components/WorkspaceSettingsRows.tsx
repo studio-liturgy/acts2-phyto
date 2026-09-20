@@ -35,7 +35,7 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
         />
       </div>
       <div className={ROW}>
-        <div className={LABEL}>Language</div>
+        <div className={LABEL}>Main language</div>
         <LanguagePicker
           value={settings.language}
           disabled={disabled}

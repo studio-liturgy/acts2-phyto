@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
 import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
+import { ToggleAddButton } from "@/components/ToggleAddButton";
 import {
   fetchGroupMembers,
   fetchMemberGroupSetIds,
@@ -226,14 +227,12 @@ export function GroupPanelDialog({
                 placeholder="name@email.com"
                 className="mono uppercase flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
               />
-              <button
-                type="button"
-                onClick={invite}
+              <ToggleAddButton
+                on={false}
                 disabled={busy || !email.trim()}
-                className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-40"
-              >
-                Invite
-              </button>
+                onClick={invite}
+                addLabel="Invite this email"
+              />
             </div>
           </>
         )}
