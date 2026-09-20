@@ -5,7 +5,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LANGS, type LangCode, langColor, langDef } from "@/lib/langs";
+import { WORKSPACE_LANGS, type LangCode, langColor, langDef } from "@/lib/langs";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,8 +25,7 @@ export function LanguagePicker({
   className?: string;
 }) {
   const def = langDef(value);
-  // Transliterations (romaji etc.) aren't a workspace language.
-  const options = LANGS.filter((l) => !l.derivedFrom);
+  const options = WORKSPACE_LANGS;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={disabled}>

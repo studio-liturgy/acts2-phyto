@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Switch } from "@/components/ui/switch";
+import { PillSwitch } from "@/components/PillSwitch";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { useLibrary } from "@/lib/store";
 
@@ -27,11 +27,11 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
     <div>
       <div className={ROW}>
         <div className={LABEL}>Multi-language</div>
-        <Switch
+        <PillSwitch
           checked={settings.multiLanguage}
           disabled={disabled}
           onCheckedChange={(on) => apply({ multiLanguage: on })}
-          aria-label="Multi-language"
+          label="Multi-language"
         />
       </div>
       <div className={ROW}>

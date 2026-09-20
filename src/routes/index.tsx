@@ -724,21 +724,21 @@ function Library() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {isSignedIn && activeGroup && (
-              <button
-                onClick={() => setShowGroupPanel(true)}
-                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-                title="Manage group members"
-              >
-                Manage
-              </button>
-            )}
             {isSignedIn && (
               <button
                 onClick={() => setShowSignOutDialog(true)}
                 className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
               >
                 Sign out
+              </button>
+            )}
+            {isSignedIn && activeGroup && (
+              <button
+                onClick={() => setShowGroupPanel(true)}
+                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                title="Manage group"
+              >
+                Manage
               </button>
             )}
             {/* Settings is for the personal workspace; a group's own settings

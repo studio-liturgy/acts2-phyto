@@ -111,6 +111,13 @@ export const LANGS: readonly LangDef[] = [
   { code: "fr", label: "French", short: "FR", dir: "ltr", fontFallback: "" },
 ];
 
+/** The languages a WORKSPACE can be set to: every real language, both Chinese
+ *  scripts included (a congregation reads one or the other), but not the
+ *  transliterations, which only exist as a second line under their source. */
+export const WORKSPACE_LANGS: readonly LangDef[] = LANGS.filter(
+  (l) => !l.derivedFrom || l.code === "zh-Hant",
+);
+
 /** Canonical order, used to lay out the chip bar. Selection order is the user's. */
 export const DEFAULT_LANG_ORDER: LangCode[] = LANGS.map((l) => l.code);
 

@@ -9,7 +9,7 @@ import { deleteAccount, fetchStorageUsage, formatBytes, type StorageUsage } from
 
 const ROW = "flex items-center justify-between gap-4 py-2";
 const LABEL = "mono text-xs uppercase tracking-wider";
-const DIVIDER = "mt-4 border-t border-foreground/15 pt-4";
+const GROUP = "mt-2";
 
 /**
  * Settings, opened from the home header while in the Personal workspace (a
@@ -67,11 +67,11 @@ export function SettingsDialog({
         <DialogTitle className="text-2xl font-normal leading-tight">Settings</DialogTitle>
 
         {/* Personal workspace settings work signed out too (kept on the device). */}
-        <div className="mt-6">
+        <div className="mt-4">
           <WorkspaceSettingsRows />
         </div>
 
-        <div className={DIVIDER}>
+        <div className={GROUP}>
           <div className={ROW}>
             <div className={LABEL}>Light / dark mode</div>
             <ThemeToggle />
@@ -79,7 +79,7 @@ export function SettingsDialog({
         </div>
 
         {isSignedIn && (
-          <div className={DIVIDER}>
+          <div className={GROUP}>
             <div className="py-2">
               <div className="flex items-center justify-between gap-4">
                 <div className={LABEL}>Storage</div>
@@ -97,7 +97,7 @@ export function SettingsDialog({
               </div>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-3">
               {!confirmingDelete ? (
                 <button
                   type="button"
