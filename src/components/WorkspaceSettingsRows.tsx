@@ -129,8 +129,8 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
             {importedScriptures === 1
               ? "1 scripture set you've already imported keeps the bible versions it was imported in."
               : `${importedScriptures} scripture sets you've already imported keep the bible versions they were imported in.`}{" "}
-            Only new imports use the new language. To bring an existing set across, open it and
-            re-import it with the new versions.
+            Only new imports use the new language. To bring an existing set across, open it and use
+            Update versions.
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button

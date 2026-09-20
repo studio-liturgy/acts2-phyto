@@ -92,9 +92,9 @@ export function hasStackedVersions(set: VersionedSet | null | undefined): boolea
 /**
  * Which of a set's versions the workspace shows, in order. Undefined when the
  * set doesn't stack versions (render from `lines`).
- *  - Multi-language on: the set's version in the workspace's 1st language,
- *    then its version in the 2nd, in that order. If the set has neither
- *    (imported elsewhere), every version it carries.
+ *  - Multi-language on: the set's versions that are in the workspace's two
+ *    languages, in the SET's order (its 1st version on top). If the set has
+ *    neither language (imported elsewhere), every version it carries.
  *  - Off: the version in the workspace's system language, or the set's
  *    primary when none is.
  */
@@ -107,10 +107,35 @@ export function visibleVersions(
   const inLang = (lang: LangCode | null) =>
     lang ? all.find((code) => langOfTranslation(code) === lang) : undefined;
   if (settings.multiLanguage) {
-    const picked = [inLang(settings.language), inLang(settings.language2)].filter(
-      (v, i, arr): v is string => !!v && arr.indexOf(v) === i,
-    );
+    // The set's own order (1st version on top, 2nd below; "Swap versions" in
+    // the editor flips it), keeping the ones in the workspace's languages.
+    const langs = new Set([settings.language, settings.language2].filter(Boolean));
+    const picked = all.filter((code) => {
+      const l = langOfTranslation(code);
+      return !!l && langs.has(l);
+    });
     return picked.length ? picked : all;
   }
   return [inLang(settings.language) ?? all[0]];
+}
+
+/**
+ * Does the set's choice of bible versions sit outside the workspace's
+ * languages? Multi-language on: any version in a language the workspace
+ * doesn't name. Off: the primary version isn't in the system language. False
+ * for sets that record no versions (nothing to update).
+ */
+export function versionsMismatchWorkspace(
+  versions: string[] | undefined,
+  settings: WorkspaceSettings,
+): boolean {
+  if (!versions?.length) return false;
+  if (settings.multiLanguage) {
+    const langs = new Set([settings.language, settings.language2].filter(Boolean));
+    return versions.some((code) => {
+      const l = langOfTranslation(code);
+      return !l || !langs.has(l);
+    });
+  }
+  return langOfTranslation(versions[0]) !== settings.language;
 }

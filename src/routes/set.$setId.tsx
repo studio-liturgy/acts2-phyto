@@ -1494,6 +1494,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
 
   const [ref, setRef] = useState("");
   const [version2Open, setVersion2Open] = useState(false);
+  const [showUpdateVersions, setShowUpdateVersions] = useState(false);
   // Scripture: boxes, imports, versions (see the hook).
   const scripture = useScriptureVersions({ setId, kind });
   const {
@@ -2129,6 +2130,53 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           {alignNote && (
             <p className="mono mt-2 text-xs tracking-wider text-amber-600">{alignNote}</p>
           )}
+          {scripture.versionsMismatch && (
+            <div className="mono mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-foreground/30 px-4 py-2 text-[10px] uppercase tracking-wider">
+              <span className="text-muted-foreground">
+                Imported in {(scripture.storedVersions ?? []).join(" / ")}, not this
+                workspace&rsquo;s language{scripture.multi ? "s" : ""}
+              </span>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setShowUpdateVersions(true)}
+                className="rounded-full bg-foreground px-3 py-1 text-background transition hover:opacity-90 disabled:opacity-40"
+              >
+                Update versions
+              </button>
+            </div>
+          )}
+          <AlertDialog open={showUpdateVersions} onOpenChange={setShowUpdateVersions}>
+            <AlertDialogContent className="gap-0 rounded-3xl p-8">
+              <AlertDialogTitle className="text-2xl font-normal leading-tight">
+                Re-import in {scripture.workspaceVersions.v1}
+                {scripture.workspaceVersions.v2 ? ` / ${scripture.workspaceVersions.v2}` : ""}?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="mt-4 text-base text-foreground">
+                Every passage in this set is fetched again in the workspace&rsquo;s bible versions.
+                Any verses you edited by hand go back to the translation&rsquo;s text.
+              </AlertDialogDescription>
+              <div className="mt-8 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUpdateVersions(false);
+                    void scripture.updateVersionsToWorkspace();
+                  }}
+                  className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
+                >
+                  Re-import
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowUpdateVersions(false)}
+                  className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+                >
+                  Cancel
+                </button>
+              </div>
+            </AlertDialogContent>
+          </AlertDialog>
           {err && (
             <p className="mono uppercase mt-2 text-xs tracking-wider text-destructive">{err}</p>
           )}

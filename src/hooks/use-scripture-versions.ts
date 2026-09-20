@@ -13,7 +13,7 @@ import {
   slidesToVersionText,
   versionTextToSlides,
 } from "@/lib/slide-text";
-import { hasStackedVersions, visibleVersions } from "@/lib/versions";
+import { hasStackedVersions, versionsMismatchWorkspace, visibleVersions } from "@/lib/versions";
 import type { SetKind, Slide } from "@/lib/types";
 import { langDef, type LangCode } from "@/lib/langs";
 
@@ -499,6 +499,36 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     updateSet(setId, { versions: [t2, t1] });
   };
 
+  // The set's versions sit outside the workspace's languages (the workspace
+  // changed language after this set was imported). "Update versions" re-fetches
+  // its passages in the workspace's languages' first bibles; the boxes (and any
+  // manual verse edits) are rebuilt from bolls.
+  const versionsMismatch = versionsMismatchWorkspace(storedVersions, settings);
+  const workspaceVersions = useMemo(() => {
+    const v1 = translationsForLang(settings.language)[0]?.code ?? "NIV";
+    const v2 =
+      multi && settings.language2 ? (translationsForLang(settings.language2)[0]?.code ?? "") : "";
+    return { v1, v2: v2 === v1 ? "" : v2 };
+  }, [settings.language, settings.language2, multi]);
+  const updateVersionsToWorkspace = async () => {
+    const { v1, v2 } = workspaceVersions;
+    // Take over the pickers without the picker effect re-fetching on top.
+    prevPickerKey.current = (v2 ? [v1, v2] : [v1]).join("|");
+    setTranslation(v1);
+    setTranslation2(v2);
+    if (kind === "message") {
+      await rebuildMessageVersions(v1, v2);
+      return;
+    }
+    const currentRefs = manualText
+      .split("\n")
+      .map((l) => /^\s*\[(.+?)\]\s*$/.exec(l)?.[1]?.trim())
+      .filter((r): r is string => !!r);
+    const refs = currentRefs.length ? currentRefs : (storedImports ?? []);
+    updateSet(setId, { versions: v2 ? [v1, v2] : [v1], scriptureImports: refs });
+    await rebuildScripture(refs, v1, v2);
+  };
+
   const clearBoxes = () => {
     setManualText("");
     setManualText2("");
@@ -533,6 +563,10 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     importScripture,
     swapVersions,
     clearBoxes,
+    versionsMismatch,
+    storedVersions,
+    workspaceVersions,
+    updateVersionsToWorkspace,
   };
 }
 
