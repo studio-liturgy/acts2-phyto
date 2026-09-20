@@ -2,17 +2,14 @@ import { useState } from "react";
 import { PillSwitch } from "@/components/PillSwitch";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { useLibrary } from "@/lib/store";
-import { WORKSPACE_LANGS, type LangCode } from "@/lib/langs";
-import type { WorkspaceSettings } from "@/lib/workspace-settings";
+import { otherWorkspaceLang, type WorkspaceSettings } from "@/lib/workspace-settings";
 
 const ROW = "flex items-center justify-between gap-4 py-2";
 const LABEL = "mono text-xs uppercase tracking-wider";
 
 /** A 2nd language to start with when multi-language is switched on: the first
  *  in the list that isn't the 1st. */
-function defaultSecond(first: LangCode): LangCode {
-  return WORKSPACE_LANGS.find((l) => l.code !== first)?.code ?? first;
-}
+const defaultSecond = otherWorkspaceLang;
 
 /**
  * The per-workspace rows for the ACTIVE workspace, wired to the store.
@@ -49,7 +46,7 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
           onCheckedChange={(on) =>
             // Switching on fills in a 2nd language so both are always set.
             applyLanguage(
-              on && !settings.language2
+              on && (!settings.language2 || settings.language2 === settings.language)
                 ? { multiLanguage: true, language2: defaultSecond(settings.language) }
                 : { multiLanguage: on },
             )

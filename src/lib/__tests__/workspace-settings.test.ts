@@ -53,6 +53,29 @@ describe("fetchWorkspaceSettings", () => {
     });
   });
 
+  it("never reads the same language twice: both Chinese scripts become Chinese + another", async () => {
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        workspace_settings: [
+          {
+            id: "p",
+            user_id: USER_ID,
+            group_id: null,
+            multi_language: true,
+            language: "zh-Hant",
+            language2: "zh-Hans",
+          },
+        ],
+      },
+    });
+    expect((await fetchWorkspaceSettings({ groupId: null }))?.settings).toEqual({
+      multiLanguage: true,
+      language: "zh-Hans",
+      language2: "en",
+    });
+  });
+
   it("falls back to English for an unknown language code", async () => {
     supabaseMock.configure({
       session: fakeSession,

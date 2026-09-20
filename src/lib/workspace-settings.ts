@@ -4,7 +4,13 @@
 
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
-import { isLangCode, workspaceLang, workspaceLangLabel, type LangCode } from "./langs";
+import {
+  isLangCode,
+  WORKSPACE_LANGS,
+  workspaceLang,
+  workspaceLangLabel,
+  type LangCode,
+} from "./langs";
 import type { SlugScope } from "./account-slug";
 
 export type WorkspaceSettings = {
@@ -39,12 +45,26 @@ export function workspaceLanguagesLabel(s: WorkspaceSettings): string {
     .join(" / ");
 }
 
+/** Another workspace language than `first`: the first in the list. */
+export function otherWorkspaceLang(first: LangCode): LangCode {
+  return WORKSPACE_LANGS.find((l) => l.code !== first)?.code ?? first;
+}
+
+/** The two languages are never the same: a 2nd equal to the 1st (settings
+ *  saved when the Chinese scripts were separate, say) becomes another one. */
+export function distinctLanguages(s: WorkspaceSettings): WorkspaceSettings {
+  if (s.language2 !== null && s.language2 === s.language) {
+    return { ...s, language2: otherWorkspaceLang(s.language) };
+  }
+  return s;
+}
+
 function fromRow(row: Row): WorkspaceSettings {
-  return {
+  return distinctLanguages({
     multiLanguage: !!row.multi_language,
     language: isLangCode(row.language) ? workspaceLang(row.language) : "en",
     language2: isLangCode(row.language2) ? workspaceLang(row.language2) : null,
-  };
+  });
 }
 
 function scoped<T extends { eq: (c: string, v: unknown) => T; is: (c: string, v: null) => T }>(
@@ -70,11 +90,11 @@ export function readLocalPersonalSettings(): WorkspaceSettings {
     const raw = localStorage.getItem(LOCAL_KEY);
     if (!raw) return DEFAULT_WORKSPACE_SETTINGS;
     const parsed = JSON.parse(raw) as Partial<WorkspaceSettings>;
-    return {
+    return distinctLanguages({
       multiLanguage: !!parsed.multiLanguage,
       language: isLangCode(parsed.language) ? workspaceLang(parsed.language) : "en",
       language2: isLangCode(parsed.language2) ? workspaceLang(parsed.language2) : null,
-    };
+    });
   } catch {
     return DEFAULT_WORKSPACE_SETTINGS;
   }
