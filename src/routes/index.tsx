@@ -240,6 +240,9 @@ function Library() {
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const activeGroup = groups.find((g) => g.id === activeWorkspace);
+  // True as soon as the app loads (the workspace id is persisted), before the
+  // group list has been fetched and `activeGroup` resolves.
+  const inGroupWorkspace = activeWorkspace !== "personal";
   // A "guest" is a non-admin member viewing a group they joined. They may browse
   // and share their own sets, but not run library-wide destructive actions on
   // the shared catalogue (fix duplicates / clear empty / delete / import /
@@ -732,10 +735,15 @@ function Library() {
                 Sign out
               </button>
             )}
-            {isSignedIn && activeGroup && (
+            {/* Decided on the workspace ID (known instantly from localStorage),
+                not on the fetched group list, so a reload in a group shows
+                Manage from the first paint instead of flashing Settings while
+                the groups load. Manage waits for the list before it can open. */}
+            {isSignedIn && inGroupWorkspace && (
               <button
                 onClick={() => setShowGroupPanel(true)}
-                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                disabled={!activeGroup}
+                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background disabled:opacity-60"
                 title="Manage group"
               >
                 Manage
@@ -743,7 +751,7 @@ function Library() {
             )}
             {/* Settings is for the personal workspace; a group's own settings
                 live in its Manage panel, so the pill hides while in a group. */}
-            {isSignedIn && !activeGroup && (
+            {isSignedIn && !inGroupWorkspace && (
               <button
                 onClick={() => setShowSettings(true)}
                 className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
