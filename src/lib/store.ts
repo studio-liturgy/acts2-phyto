@@ -701,6 +701,14 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
           .eq("id", id)
           .eq("user_id", session.user.id);
         if (error) console.error("[deleteSet] Supabase delete error:", error);
+        // The grants and shares cascade with the row; delete them explicitly
+        // too, so members and grantees stop seeing the set even on a database
+        // where the cascade is missing (a lingering grant kept a deleted set
+        // in a member's catalogue).
+        await Promise.all([
+          supabase.from("group_sets").delete().eq("set_id", id),
+          supabase.from("set_shares").delete().eq("set_id", id),
+        ]);
         // Tombstone so other devices holding a copy delete it instead of
         // pushing it back (sync.ts remotelyDeleted).
         await recordDeletions("set", [id]);

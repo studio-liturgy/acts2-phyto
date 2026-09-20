@@ -1807,22 +1807,27 @@ async function fetchSetContent(ids: string[]): Promise<PhytoSet[] | null> {
 }
 
 /** The subset of `ids` whose remote row is newer than the local copy (or has no
- *  local copy, when `fetchAbsent`), downloaded. Ids the server doesn't return
- *  (unreadable / deleted) are skipped: grant bookkeeping is the caller's job.
- *  Null on a fetch failure so the caller leaves everything as it was. */
+ *  local copy, when `fetchAbsent`), downloaded, plus the ids the server didn't
+ *  return at all (`missing`: deleted, or unreadable to me) so the caller can
+ *  drop copies of rows that no longer exist. Null on a fetch failure so the
+ *  caller leaves everything as it was. */
 async function pullNewerSets(opts: {
   ids: string[];
   localById: Map<string, PhytoSet>;
   fetchAbsent: boolean;
-}): Promise<PhytoSet[] | null> {
+}): Promise<{ sets: PhytoSet[]; missing: string[] } | null> {
   const ids = [...new Set(opts.ids)];
-  if (!ids.length) return [];
+  if (!ids.length) return { sets: [], missing: [] };
   const meta = await fetchSetMeta(ids);
   if (!meta) return null;
   const need: string[] = [];
+  const missing: string[] = [];
   for (const id of ids) {
     const remoteUpdatedAt = meta.get(id);
-    if (remoteUpdatedAt === undefined) continue;
+    if (remoteUpdatedAt === undefined) {
+      missing.push(id);
+      continue;
+    }
     const local = opts.localById.get(id);
     if (!local) {
       if (opts.fetchAbsent) need.push(id);
@@ -1830,7 +1835,9 @@ async function pullNewerSets(opts: {
       need.push(id);
     }
   }
-  return need.length ? fetchSetContent(need) : [];
+  const sets = need.length ? await fetchSetContent(need) : [];
+  if (!sets) return null;
+  return { sets, missing };
 }
 
 /** Refresh person-shares, both directions, last-write-wins by updatedAt:
@@ -1890,15 +1897,19 @@ export async function syncSharedSets(): Promise<void> {
       ...stillShared.map((s): [string, PhytoSet] => [s.id, s]),
       ...sharedOutIds.map((id): [string, PhytoSet] => [id, localOwnById.get(id)!]),
     ]);
-    const fetched = await pullNewerSets({
+    const pulled = await pullNewerSets({
       ids: [...stillShared.map((s) => s.id), ...sharedOutIds],
       localById,
       fetchAbsent: false,
     });
-    if (!fetched) return;
+    if (!pulled) return;
+    // A share whose set row is gone (the owner deleted it) even though the
+    // share row lingers: drop my copy.
+    const deadShared = pulled.missing.filter((id) => accessible.has(id));
+    if (deadShared.length) await db.sets.bulkDelete(deadShared);
 
     const toWrite: PhytoSet[] = [];
-    for (const parsed of fetched) {
+    for (const parsed of pulled.sets) {
       if (accessible.has(parsed.id)) {
         // Foreign: tag as such, with the owner's email for display.
         toWrite.push({
@@ -2139,15 +2150,21 @@ export async function syncGroups(): Promise<void> {
       ...new Set(grants.filter((g) => g.owner_id === uid).map((g) => g.set_id)),
     ].filter((id) => localOwnById.has(id));
     const localForeignById = new Map(localForeignGroup.map((s) => [s.id, s]));
-    const fetched = await pullNewerSets({
+    const pulled = await pullNewerSets({
       ids: [...foreignSetIds, ...ownGrantedIds],
       localById: new Map<string, PhytoSet>([...localForeignById, ...localOwnById]),
       fetchAbsent: true, // only foreign ids can be absent: own ids were filtered to local ones
     });
-    if (!fetched) return;
+    if (!pulled) return;
+    const fetched = pulled.sets;
     const fetchedById = new Map(fetched.map((s) => [s.id, s]));
+    // A grant whose set row is gone (the owner deleted the set; the grant
+    // should have gone with it): the set no longer exists for anyone, so it
+    // isn't accessible whatever the grant says.
+    const dead = new Set(pulled.missing);
     const toWrite: PhytoSet[] = [];
     for (const id of foreignSetIds) {
+      if (dead.has(id)) continue;
       const gids = groupsBySet.get(id) ?? [];
       const email = ownerEmailBySet.get(id) ?? undefined;
       const fresh = fetchedById.get(id);
@@ -2175,8 +2192,8 @@ export async function syncGroups(): Promise<void> {
       });
     }
     if (toWrite.length) await db.sets.bulkPut(toWrite);
-    // Prune foreign group sets no longer granted to me.
-    const accessible = new Set(foreignSetIds);
+    // Prune foreign group sets no longer granted to me, or deleted upstream.
+    const accessible = new Set(foreignSetIds.filter((id) => !dead.has(id)));
     const gone = localForeignGroup.filter((s) => !accessible.has(s.id));
     if (gone.length) await db.sets.bulkDelete(gone.map((s) => s.id));
 

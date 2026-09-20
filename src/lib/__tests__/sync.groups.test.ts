@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { supabaseMock } from "@/test/supabase-mock";
-import { fakeSession, makeGathering, makeSet, USER_ID } from "@/test/fixtures";
+import { fakeSession, makeGathering, makeSet, setRow, USER_ID } from "@/test/fixtures";
 import { resetDb } from "@/test/db-utils";
 
 vi.mock("@/lib/supabase", async () => {
@@ -79,6 +79,34 @@ describe("syncGroups", () => {
 
   it("keeps a group I'm still in", async () => {
     const { foreignSet } = await seedGroupContent();
+    const grant = {
+      group_id: GROUP_ID,
+      set_id: foreignSet.id,
+      owner_id: OTHER_USER,
+      owner_email: "b@x.com",
+    };
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        group_members: [membership],
+        group_sets: [grant],
+        sets: [setRow(foreignSet, OTHER_USER)],
+        gatherings: [],
+        gathering_sets: [],
+      },
+    });
+
+    await syncGroups();
+
+    // Still granted and the row is there, so my copy stays (no newer content).
+    expect(await db.sets.get(foreignSet.id)).toBeDefined();
+  });
+
+  it("drops a granted set whose row is gone (deleted by its owner)", async () => {
+    // The grant should cascade away with the set; if it lingers, the set still
+    // no longer exists, and a copy that stayed was the "ghost" in a member's
+    // catalogue.
+    const { foreignSet } = await seedGroupContent();
     supabaseMock.configure({
       session: fakeSession,
       tables: {
@@ -99,8 +127,7 @@ describe("syncGroups", () => {
 
     await syncGroups();
 
-    // Still granted, so my copy stays (content wasn't returned, so untouched).
-    expect(await db.sets.get(foreignSet.id)).toBeDefined();
+    expect(await db.sets.get(foreignSet.id)).toBeUndefined();
   });
 });
 
@@ -143,7 +170,6 @@ describe("loadGroups", () => {
 // that are newer than my copy.
 // ---------------------------------------------------------------------------
 
-import { setRow } from "@/test/fixtures";
 import { syncSharedSets } from "@/lib/sync";
 
 const grant = (setId: string, ownerId: string) => ({
