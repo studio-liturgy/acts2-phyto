@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2, Maximize2, Minimize2 } from "lucide-react";
 import {
   DropdownMenu,
@@ -145,6 +145,19 @@ const FIELD =
 
 /** An auto-growing, borderless textarea styled like a scripture verse cell.
  *  Optionally participates in column drag-selection (data attrs + highlight). */
+/** Size a textarea to its content without disturbing the scroll position of
+ *  the nearest scrolling ancestor. Shared by the verse editors. */
+export function autosizeTextarea(el: HTMLTextAreaElement | null): void {
+  if (!el) return;
+  let scroller: HTMLElement | null = el.parentElement;
+  while (scroller && scroller.scrollHeight <= scroller.clientHeight)
+    scroller = scroller.parentElement;
+  const top = scroller?.scrollTop ?? 0;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+  if (scroller && scroller.scrollTop !== top) scroller.scrollTop = top;
+}
+
 export function AutoTextarea({
   value,
   onChange,
@@ -167,18 +180,20 @@ export function AutoTextarea({
   selected?: boolean;
   disabled?: boolean;
 }) {
-  const size = (el: HTMLTextAreaElement | null) => {
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  };
+  // Grow to fit. Sizing sets the height to "auto" for an instant, which lets
+  // a scrolling ancestor shrink and clamp its scroll position (the list jumped
+  // to the top on every edit), so the ancestor's scrollTop is kept across the
+  // measurement, and sizing runs only when the text changes, not every render.
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    autosizeTextarea(ref.current);
+  }, [value]);
   return (
     <textarea
-      ref={size}
+      ref={ref}
       rows={1}
       value={value}
       disabled={disabled}
-      onInput={(e) => size(e.currentTarget)}
       onChange={(e) => onChange(e.target.value)}
       onMouseDown={onMouseDown}
       onKeyDown={onKeyDown}

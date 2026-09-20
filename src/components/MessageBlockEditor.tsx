@@ -80,9 +80,28 @@ export function MessageBlockEditor({
   const display = liveOrder ?? slides;
   const blocks = useMemo(() => toBlocks(display), [display]);
 
-  const dragOver = (i: number) => {
+  // Moving a block reflows what's under the cursor (an image leaving the 2-up
+  // grid turns the grid into a single card), and a naive "move on any
+  // dragover" then moves it straight back: the two positions flicker. So a move
+  // only happens once the pointer has crossed the target's midpoint in the
+  // direction of travel, and never twice within a short cooldown.
+  const lastMoveAt = useRef(0);
+  const dragOver = (i: number, e?: React.DragEvent) => {
     const from = dragFrom.current;
     if (from === null || from === i) return;
+    if (e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const forward = i > from;
+      const midY = rect.top + rect.height / 2;
+      const midX = rect.left + rect.width / 2;
+      // Past the midpoint on the main axis (down/up), or, for targets side by
+      // side in the image grid, on the cross axis (right/left).
+      const crossedY = forward ? e.clientY > midY : e.clientY < midY;
+      const crossedX = forward ? e.clientX > midX : e.clientX < midX;
+      if (!crossedY && !crossedX) return;
+      if (performance.now() - lastMoveAt.current < 150) return;
+      lastMoveAt.current = performance.now();
+    }
     const next = [...blocks];
     const [m] = next.splice(from, 1);
     next.splice(i, 0, m);
@@ -193,7 +212,7 @@ export function MessageBlockEditor({
     onDragOver: (e: React.DragEvent) => {
       if (dragFrom.current === null) return;
       e.preventDefault();
-      dragOver(i);
+      dragOver(i, e);
     },
     // Commit on drop as well as dragend: the live reorder re-renders the list
     // under the cursor, and if the dragged node is remounted meanwhile the

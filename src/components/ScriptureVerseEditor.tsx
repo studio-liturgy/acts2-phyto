@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { DotsGrip, hideDragGhost } from "@/components/DragBits";
+import { autosizeTextarea } from "@/components/MessageElements";
 import { type VerseRow, fromVerseRows, toVerseRows } from "@/lib/slide-text";
 
 // Import colours, matching the tints the live slide grid uses.
@@ -57,11 +58,12 @@ export function ScriptureVerseEditor({
   const cellKey = (ri: number, v: string) => `${ri}:${v}`;
   const dragGroup = useRef<number | null>(null);
 
-  const autosize = (el: HTMLTextAreaElement | null) => {
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  };
+  const autosize = autosizeTextarea;
+  // Re-size every cell when the text changes (not on every render: see
+  // autosizeTextarea on why that matters for the scroll position).
+  useEffect(() => {
+    for (const el of cells.current.values()) autosize(el);
+  }, [text]);
 
   const commit = (next: VerseRow[]) => {
     const boxes = fromVerseRows(next, versions);
@@ -243,10 +245,8 @@ export function ScriptureVerseEditor({
                               data-verse-version={v}
                               data-verse-row={index}
                               ref={(el) => {
-                                if (el) {
-                                  cells.current.set(cellKey(index, v), el);
-                                  autosize(el);
-                                } else cells.current.delete(cellKey(index, v));
+                                if (el) cells.current.set(cellKey(index, v), el);
+                                else cells.current.delete(cellKey(index, v));
                               }}
                               rows={1}
                               disabled={readOnly}
