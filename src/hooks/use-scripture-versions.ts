@@ -274,15 +274,17 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       const v1 = translation;
       const v2 = multi ? translation2 : "";
       const versions = v2 ? [v1, v2] : [v1];
+      // Two stacked versions: at most two verses per slide.
+      const vPer = v2 ? Math.min(versesPer, 2) : versesPer;
 
       if (kind === "message") {
         // A message owns its slides: append a fresh verse block (its own
         // importIndex) at the end; the user drags it into place.
-        const b = await fetchImportBlocks(q, v1, v2, versesPer);
+        const b = await fetchImportBlocks(q, v1, v2, vPer);
         const existing = readSet()?.slides ?? [];
         const built = boxMode
           ? versionTextToSlides(v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 }, versions)
-          : parseScriptureFromText(b.box1, versesPer);
+          : parseScriptureFromText(b.box1, vPer);
         const nextIdx = existing.reduce((m, s) => Math.max(m, s.importIndex ?? 0), -1) + 1;
         updateSet(setId, {
           slides: [...existing, ...built.map((s) => ({ ...s, importIndex: nextIdx }))],
@@ -295,7 +297,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       if (boxMode) {
         // A box per version; remember the query so the version can be changed
         // later (re-fetching), and a repeat import adds a fresh group.
-        const b = await fetchImportBlocks(q, v1, v2, versesPer);
+        const b = await fetchImportBlocks(q, v1, v2, vPer);
         const hadText = manualText.trim() !== "" || manualText2.trim() !== "";
         setManualText((prev) => joinBlocks(prev, b.box1));
         if (v2) setManualText2((prev) => joinBlocks(prev, b.box2));
@@ -350,8 +352,9 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       let box1 = "";
       let box2 = "";
       let unmatched = 0;
+      const vPer = v2 ? Math.min(versesPer, 2) : versesPer;
       for (const q of imports) {
-        const b = await fetchImportBlocks(q, v1, v2, versesPer);
+        const b = await fetchImportBlocks(q, v1, v2, vPer);
         box1 = joinBlocks(box1, b.box1);
         if (v2) box2 = joinBlocks(box2, b.box2);
         unmatched += b.unmatched;
@@ -396,7 +399,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
           result.push(...run);
           continue;
         }
-        const b = await fetchImportBlocks(query, v1, v2, versesPer);
+        const b = await fetchImportBlocks(query, v1, v2, v2 ? Math.min(versesPer, 2) : versesPer);
         unmatched += b.unmatched;
         const built = versionTextToSlides(
           v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },

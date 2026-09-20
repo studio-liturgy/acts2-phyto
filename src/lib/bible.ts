@@ -455,7 +455,12 @@ export async function fetchScriptureBolls(
       // Skip non-verse entries (e.g. pericope-only rows that some bolls
       // translations include with verse === 0 or empty text).
       if (!v || typeof v.verse !== "number" || v.verse <= 0) continue;
-      const text = cleanVerseText(v.text ?? "", { removeLineBreaks });
+      const text = cleanVerseText(v.text ?? "", {
+        removeLineBreaks,
+        // Psalm superscriptions ("For the director of music…") ride along in
+        // verse 1 of a psalm; the reader doesn't want them on a slide.
+        superscription: parsed.bookId === 19 && v.verse === 1,
+      });
       if (!text) continue;
       if (v.verse >= lo && v.verse <= hi) {
         collected.push({ verse: v.verse, chapter: ch, text });
@@ -490,8 +495,56 @@ function stripTags(s: string): string {
   return s;
 }
 
-function cleanVerseText(s: string, { removeLineBreaks }: { removeLineBreaks: boolean }) {
+/** An English psalm superscription: the musical/authorship note that precedes
+ *  the words of many psalms ("For the director of music. Of David. A psalm."),
+ *  and the "Psalm N" title some translations prepend. */
+const SUPERSCRIPTION =
+  /^(psalms?\s+\d+\b|for the (director|choir|leader|chief)\b|to the chief musician\b|a (psalm|song|prayer|maskil|maschil|miktam|michtam|shiggaion|contemplation|petition)\b|an? (psalm|song|prayer)\b|of (david|asaph|solomon|moses|heman|ethan|the sons of korah|jeduthun)\b|a song of ascents\b|according to\b)/i;
+
+/** Opening/closing bracket pairs used for superscriptions in CJK editions. */
+const CJK_BRACKETS: [string, string][] = [
+  ["〔", "〕"],
+  ["［", "］"],
+  ["【", "】"],
+  ["（", "）"],
+];
+
+export function cleanVerseText(
+  s: string,
+  {
+    removeLineBreaks,
+    superscription = false,
+  }: { removeLineBreaks: boolean; superscription?: boolean },
+) {
   let out = s;
+
+  if (superscription) {
+    // NKJV-style: the note in italics ahead of the verse.
+    out = out.replace(/^\s*<i>([\s\S]*?)<\/i>(\s*<\/i>)?\s*/i, (m, inner: string) =>
+      SUPERSCRIPTION.test(stripTags(inner).trim()) ? "" : m,
+    );
+    // CJK editions: the note in fullwidth brackets, with or without a <br/>
+    // after it (CUNPS/JPNICT break, CUV runs on inline). Only at the very
+    // start of verse 1 of a psalm, so a verse that is itself parenthetical is
+    // never touched.
+    for (const [open, close] of CJK_BRACKETS) {
+      if (out.trimStart().startsWith(open)) {
+        const end = out.indexOf(close);
+        if (end > 0) out = out.slice(end + close.length).replace(/^\s*(<br\s*\/?>)?\s*/i, "");
+        break;
+      }
+    }
+    // NIV-style: "Psalm 5<br/>For the director of music…<br/>verse". Drop
+    // leading <br/>-separated segments while they read as a superscription.
+    for (let guard = 0; guard < 3; guard++) {
+      const brIdx = out.search(/<br\s*\/?>/i);
+      if (brIdx <= 0) break;
+      const head = stripTags(out.slice(0, brIdx)).trim();
+      if (!SUPERSCRIPTION.test(head)) break;
+      out = out.slice(brIdx).replace(/^<br\s*\/?>/i, "");
+    }
+  }
+
   // Strip paired tags that contain non-verse metadata (header, pericope,
   // footnotes, Strong's numbers, translator notes, paragraph breaks, etc.)
   // including any nested attributes.

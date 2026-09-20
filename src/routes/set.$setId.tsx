@@ -958,17 +958,20 @@ function PillInput({
   );
 }
 
-/** The scripture importer's options row: verses per slide and line breaks. */
+/** The scripture importer's options row: verses per slide and line breaks.
+ *  Two stacked versions halve the room on a slide, so the ceiling drops to 2. */
 function ImportOptions({
   versesPer,
   setVersesPer,
   keepLineBreaks,
   setKeepLineBreaks,
+  maxVerses = 3,
 }: {
   versesPer: number;
   setVersesPer: (n: number) => void;
   keepLineBreaks: boolean;
   setKeepLineBreaks: (on: boolean) => void;
+  maxVerses?: number;
 }) {
   return (
     <div className="flex flex-col justify-end">
@@ -976,10 +979,10 @@ function ImportOptions({
         <div className="flex items-center gap-2">
           <div className="mono text-[10px] uppercase tracking-wider">Verses per slide</div>
           <NumberStepper
-            value={versesPer}
-            onChange={(n) => setVersesPer(Math.min(3, Math.max(1, Math.round(n))))}
+            value={Math.min(versesPer, maxVerses)}
+            onChange={(n) => setVersesPer(Math.min(maxVerses, Math.max(1, Math.round(n))))}
             min={1}
-            max={3}
+            max={maxVerses}
             decrementLabel="Fewer verses per slide"
             incrementLabel="More verses per slide"
           />
@@ -2106,6 +2109,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 setVersesPer={setVersesPer}
                 keepLineBreaks={keepLineBreaks}
                 setKeepLineBreaks={setKeepLineBreaks}
+                maxVerses={scripture.bilingual ? 2 : 3}
               />
             </div>
           )}
