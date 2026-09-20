@@ -15,6 +15,7 @@ import {
 } from "@/lib/media";
 import { prepareImageFile, prepareRenderedImage } from "@/lib/image-upload";
 import { useScriptureVersions } from "@/hooks/use-scripture-versions";
+import { audienceLabel, useSetAudience } from "@/hooks/use-set-audience";
 import { languagesOfVersions, visibleVersions } from "@/lib/versions";
 import { searchSongs, preloadSongs, parseQuery, songPreview, type SongResult } from "@/lib/songs";
 import {
@@ -171,6 +172,8 @@ function SetHeader({
   const isSignedIn = useIsSignedIn();
   const groups = useLibrary((s) => s.groups);
   const activeWorkspace = useLibrary((s) => s.activeWorkspace);
+  // Refetched when the share dialog closes, so the header follows a change.
+  const audience = useSetAudience(phytoSet, showShareDialog);
   const unshareSetFromGroup = useLibrary((s) => s.unshareSetFromGroup);
   // What the destructive action means here:
   //   "remove-shared" — a set shared WITH me: drop my access.
@@ -240,10 +243,22 @@ function SetHeader({
         </span>
         <VersionWarning set={phytoSet} hint="Click Update to unfreeze." />
 
-        {phytoSet.shared && (
+        {/* Who else sees it: the owner of a set shared with me, or, for my
+            own set viewed in Personal, the groups and people it's shared with. */}
+        {phytoSet.shared ? (
           <span className="mono shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
             Shared by {phytoSet.shared_by ?? "someone"}
           </span>
+        ) : (
+          activeWorkspace === "personal" &&
+          audienceLabel(audience) && (
+            <span
+              className="mono min-w-0 truncate text-[10px] uppercase tracking-wider text-muted-foreground"
+              title={`Shared with ${audienceLabel(audience)}`}
+            >
+              Shared with {audienceLabel(audience)}
+            </span>
+          )
         )}
       </div>
 
@@ -1602,6 +1617,10 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [ref, setRef] = useState("");
   const [version2Open, setVersion2Open] = useState(false);
   const [showUpdateVersions, setShowUpdateVersions] = useState(false);
+  // Who else sees the set, named in the re-import dialog (a re-import changes
+  // it for everyone it's shared with). Fetched when the dialog opens.
+  const audienceSet = useLibrary((s) => s.sets[setId]);
+  const updateAudience = useSetAudience(showUpdateVersions ? audienceSet : null);
   // The versions the Update dialog will re-import in, seeded from the
   // workspace's when it opens and adjustable there.
   const [updateV1, setUpdateV1] = useState("");
@@ -2276,6 +2295,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               <AlertDialogDescription className="mt-4 text-base text-foreground">
                 Every passage in this set is fetched again in these bible versions. Any verses you
                 edited by hand go back to the translation&rsquo;s text.
+                {updateAudience.owner
+                  ? ` This set is shared by ${updateAudience.owner}, who will see the change too.`
+                  : audienceLabel(updateAudience)
+                    ? ` This set is shared with ${audienceLabel(updateAudience)}, who will see the change too.`
+                    : ""}
               </AlertDialogDescription>
               <div className={`mt-6 grid gap-3 ${scripture.multi ? "grid-cols-2" : "grid-cols-1"}`}>
                 <VersionPicker
