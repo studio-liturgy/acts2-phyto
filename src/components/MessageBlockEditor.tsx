@@ -4,6 +4,12 @@ import { DotsGrip, hideDragGhost } from "@/components/DragBits";
 import { AutoTextarea, BlockFrame, ElementCard, AddElementBar } from "@/components/MessageElements";
 import { joinVerse } from "@/components/ScriptureVerseEditor";
 import { SlideView } from "@/components/SlideView";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useLibrary } from "@/lib/store";
 import type { Slide } from "@/lib/types";
 
@@ -12,7 +18,10 @@ const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"]
 
 type Block =
   | { kind: "import"; idx: number; key: string; slides: Slide[] }
-  | { kind: "element"; key: string; slide: Slide };
+  | { kind: "element"; key: string; slide: Slide }
+  /** Two or more consecutive images: one block, dragged and deleted as a
+   *  unit; the images inside reorder among themselves only. */
+  | { kind: "images"; key: string; slides: Slide[] };
 
 /** Group a message's slides into blocks in their stored order: consecutive
  *  scripture verses of one import become one block; each point/image is its own.
@@ -37,11 +46,40 @@ function toBlocks(slides: Slide[]): Block[] {
       blocks.push({ kind: "element", key: s.id, slide: s });
     }
   }
-  return blocks;
+  // Coalesce runs of two or more images. The key is order-independent within
+  // the run (sorted ids), so reordering images inside it doesn't remount the
+  // block mid-drag.
+  const out: Block[] = [];
+  for (let i = 0; i < blocks.length; ) {
+    let n = 0;
+    while (i + n < blocks.length) {
+      const b = blocks[i + n];
+      if (b.kind !== "element" || b.slide.kind !== "image") break;
+      n += 1;
+    }
+    if (n >= 2) {
+      const run = blocks
+        .slice(i, i + n)
+        .map((b) => (b as Extract<Block, { kind: "element" }>).slide);
+      out.push({
+        kind: "images",
+        key: `images-${run
+          .map((sl) => sl.id)
+          .sort()
+          .join("+")}`,
+        slides: run,
+      });
+      i += n;
+    } else {
+      out.push(blocks[i]);
+      i += 1;
+    }
+  }
+  return out;
 }
 
 const flatten = (blocks: Block[]): Slide[] =>
-  blocks.flatMap((b) => (b.kind === "import" ? b.slides : [b.slide]));
+  blocks.flatMap((b) => (b.kind === "element" ? [b.slide] : b.slides));
 
 /**
  * The message editor. Every imported passage, point and image is a draggable
@@ -180,12 +218,43 @@ export function MessageBlockEditor({
   }, [colSel, display]);
 
   const removeBlock = (b: Block) => {
-    if (b.kind === "import") {
+    if (b.kind === "element") {
+      removeSlide(setId, b.slide.id);
+    } else {
       const ids = new Set(b.slides.map((s) => s.id));
       updateSet(setId, { slides: slides.filter((s) => !ids.has(s.id)) });
-    } else {
-      removeSlide(setId, b.slide.id);
     }
+  };
+  // Deleting a whole run of images asks first.
+  const [confirmImages, setConfirmImages] = useState<Block | null>(null);
+
+  // Reordering an image INSIDE its run: a separate, contained drag, so it
+  // never reflows the blocks around it (the cause of the flicker).
+  const tileDrag = useRef<{ block: number; from: number } | null>(null);
+  const tileOver = (blockIdx: number, to: number, e: React.DragEvent) => {
+    const t = tileDrag.current;
+    if (!t || t.block !== blockIdx || t.from === to) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const forward = to > t.from;
+    const mid = rect.left + rect.width / 2;
+    const midY = rect.top + rect.height / 2;
+    if (!(forward ? e.clientX > mid || e.clientY > midY : e.clientX < mid || e.clientY < midY)) {
+      return;
+    }
+    const block = blocks[blockIdx];
+    if (block.kind !== "images") return;
+    const run = [...block.slides];
+    const [m] = run.splice(t.from, 1);
+    run.splice(to, 0, m);
+    tileDrag.current = { block: blockIdx, from: to };
+    const next = blocks.map((b, i) => (i === blockIdx ? { ...b, slides: run } : b)) as Block[];
+    const flat = flatten(next);
+    liveRef.current = flat;
+    setLiveOrder(flat);
+  };
+  const tileCommit = () => {
+    tileDrag.current = null;
+    commitOrder();
   };
 
   // Colour by block: each scripture import is its own colour; a run of consecutive
@@ -197,7 +266,11 @@ export function MessageBlockEditor({
   let lastColorKey: string | undefined;
   for (const b of blocks) {
     const colorKey =
-      b.kind === "import" ? `i${b.idx}` : b.slide.kind === "image" ? "images" : "points";
+      b.kind === "import"
+        ? `i${b.idx}`
+        : b.kind === "images" || b.slide.kind === "image"
+          ? "images"
+          : "points";
     if (colorKey !== lastColorKey) colorIndex += 1;
     lastColorKey = colorKey;
     tints.push(TINTS[colorIndex % TINTS.length]);
@@ -225,90 +298,88 @@ export function MessageBlockEditor({
     },
   });
 
-  // Render blocks in order, but coalesce a run of TWO OR MORE consecutive
-  // image blocks into a 2-up grid of 16:9 thumbnails (matching the media set
-  // editor and the projected proportions). A single image is an ordinary card
-  // with the grip and delete button, like a point or a passage.
+  // Render the blocks in order. A run of images is one block: a frame with the
+  // grip (drags the whole run) and the delete (removes the whole run), holding
+  // a 2-up grid of 16:9 thumbnails that reorder among themselves.
   const rows: React.ReactNode[] = [];
-  let imageRunNo = 0;
-  for (let i = 0; i < blocks.length; ) {
+  for (let i = 0; i < blocks.length; i += 1) {
     const b = blocks[i];
-    const runLength = (() => {
-      let n = 0;
-      while (i + n < blocks.length) {
-        const bi = blocks[i + n];
-        if (bi.kind !== "element" || bi.slide.kind !== "image") break;
-        n += 1;
-      }
-      return n;
-    })();
-    if (runLength >= 2) {
-      const run: { slide: Slide; key: string; i: number }[] = [];
-      for (let n = 0; n < runLength; n += 1) {
-        const bi = blocks[i + n] as Extract<Block, { kind: "element" }>;
-        run.push({ slide: bi.slide, key: bi.key, i: i + n });
-      }
-      i += runLength;
-      // Keyed by the run's ordinal, not its first image, so reordering inside
-      // the grid doesn't remount the grid (and the element being dragged).
-      imageRunNo += 1;
-      const dropOnRun = dragProps(run[0].i).onDrop;
+    if (b.kind === "images") {
+      const grip = <Grip onDragStart={dragProps(i).onDragStart} onDragEnd={commitOrder} />;
       rows.push(
-        <div
-          key={`images-run-${imageRunNo}`}
-          className="grid grid-cols-2 gap-2 p-3"
-          style={{ backgroundColor: `color-mix(in oklab, ${tints[run[0].i]} 45%, transparent)` }}
-          onDrop={dropOnRun}
-        >
-          {run.map(({ slide, key, i: bi }) => {
-            const dp = dragProps(bi);
-            return (
-              <div
-                key={key}
-                draggable
-                onDragStart={dp.onDragStart}
-                onDragEnd={dp.onDragEnd}
-                onDragOver={dp.onDragOver}
-                onDrop={dp.onDrop}
-                className="group relative aspect-video cursor-grab overflow-hidden rounded-md border border-foreground/10"
-              >
-                <SlideView
-                  slide={slide}
-                  versions={versions[0] === "_" ? undefined : versions}
-                  variant="thumb"
-                />
-                <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition group-hover:opacity-100">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateSlide(setId, slide.id, {
-                        imageFit: slide.imageFit === "cover" ? "contain" : "cover",
-                      })
-                    }
-                    className="rounded-full bg-black/60 p-1 text-white"
-                    aria-label={
-                      slide.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"
-                    }
-                    title={slide.imageFit === "cover" ? "Fit image" : "Fill frame"}
-                  >
-                    {slide.imageFit === "cover" ? (
-                      <Minimize2 className="h-3 w-3" />
-                    ) : (
-                      <Maximize2 className="h-3 w-3" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeSlide(setId, slide.id)}
-                    className="rounded-full bg-black/60 p-1 text-white"
-                    aria-label="Remove image"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+        <div key={b.key} onDragOver={dragProps(i).onDragOver} onDrop={dragProps(i).onDrop}>
+          <BlockFrame
+            label="Images"
+            grip={grip}
+            onRemove={() => setConfirmImages(b)}
+            tint={tints[i]}
+          >
+            <div className="grid grid-cols-2 gap-2 px-3 py-2">
+              {b.slides.map((slide, ti) => (
+                <div
+                  key={slide.id}
+                  draggable={!readOnly}
+                  onDragStart={(e) => {
+                    if (readOnly) return;
+                    e.stopPropagation();
+                    tileDrag.current = { block: i, from: ti };
+                    hideDragGhost(e);
+                  }}
+                  onDragOver={(e) => {
+                    if (!tileDrag.current) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    tileOver(i, ti, e);
+                  }}
+                  onDrop={(e) => {
+                    if (!tileDrag.current) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    tileCommit();
+                  }}
+                  onDragEnd={() => {
+                    if (tileDrag.current) tileCommit();
+                  }}
+                  className={`group relative aspect-video overflow-hidden rounded-md border border-foreground/10 ${readOnly ? "" : "cursor-grab"}`}
+                >
+                  <SlideView
+                    slide={slide}
+                    versions={versions[0] === "_" ? undefined : versions}
+                    variant="thumb"
+                  />
+                  <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateSlide(setId, slide.id, {
+                          imageFit: slide.imageFit === "cover" ? "contain" : "cover",
+                        })
+                      }
+                      className="rounded-full bg-black/60 p-1 text-white"
+                      aria-label={
+                        slide.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"
+                      }
+                      title={slide.imageFit === "cover" ? "Fit image" : "Fill frame"}
+                    >
+                      {slide.imageFit === "cover" ? (
+                        <Minimize2 className="h-3 w-3" />
+                      ) : (
+                        <Maximize2 className="h-3 w-3" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeSlide(setId, slide.id)}
+                      className="rounded-full bg-black/60 p-1 text-white"
+                      aria-label="Remove image"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          </BlockFrame>
         </div>,
       );
       continue;
@@ -382,7 +453,6 @@ export function MessageBlockEditor({
         )}
       </div>,
     );
-    i += 1;
   }
 
   return (
@@ -390,6 +460,35 @@ export function MessageBlockEditor({
       {/* Frozen: nothing in a message can be edited, deleted or reordered
           (points and images included) until the versions are updated. */}
       {readOnly ? <div className="pointer-events-none opacity-50">{rows}</div> : rows}
+      <AlertDialog open={confirmImages !== null} onOpenChange={(o) => !o && setConfirmImages(null)}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Delete {confirmImages?.kind === "images" ? confirmImages.slides.length : ""} images?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            Every image in this section is removed from the message. This cannot be undone.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                if (confirmImages) removeBlock(confirmImages);
+                setConfirmImages(null);
+              }}
+              className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+            >
+              Delete
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmImages(null)}
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+            >
+              Cancel
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
       {!readOnly && (
         <div className="p-4">
           <AddElementBar setId={setId} />

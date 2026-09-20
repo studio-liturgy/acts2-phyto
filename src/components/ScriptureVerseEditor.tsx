@@ -202,7 +202,7 @@ export function ScriptureVerseEditor({
                 moveGroup(gi);
               }}
               className="flex border-b border-foreground/15"
-              style={{ backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }}
+              style={{ backgroundColor: `color-mix(in oklab, ${tint} 30%, transparent)` }}
             >
               <span
                 draggable={!readOnly}
