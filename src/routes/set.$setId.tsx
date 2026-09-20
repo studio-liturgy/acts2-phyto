@@ -554,12 +554,16 @@ function SetEditor() {
                 const groups: { label: string | undefined; slides: Slide[] }[] = [];
                 let lastKey: string | undefined;
                 for (const s of phytoSet.slides) {
+                  // A scripture group is one IMPORT (the same passage imported
+                  // twice is two groups, as on the left), not one reference.
                   const key =
                     s.kind === "image"
                       ? "images"
                       : s.kind === "point"
                         ? "points"
-                        : (s.section ?? "");
+                        : s.kind === "scripture" && s.importIndex !== undefined
+                          ? `import:${s.importIndex}`
+                          : (s.section ?? "");
                   const last = groups[groups.length - 1];
                   if (!last || key !== lastKey) {
                     groups.push({ label: s.reference ?? s.section, slides: [s] });
@@ -2242,7 +2246,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                   onPick={setTranslation2}
                   onClear={() => setTranslation2("")}
                   exclude={translation}
-                  groups={[{ language: "", translations: scripture.secondChoices }]}
+                  groups={scripture.secondGroups}
                 />
               ) : (
                 <ImportOptions

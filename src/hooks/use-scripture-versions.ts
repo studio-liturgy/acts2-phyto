@@ -88,6 +88,12 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     () => (secondLang ? translationsForLang(secondLang) : []),
     [secondLang],
   );
+  /** The 2nd picker's list: one language, so ungrouped, except Chinese by
+   *  script. */
+  const secondGroups = useMemo(
+    () => (secondLang ? ungroupSingle(translationGroupsForLang(secondLang)) : []),
+    [secondLang],
+  );
   const firstChoices = useMemo(
     () =>
       multi && !translation2 && settings.language2
@@ -531,12 +537,16 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   // Importing more is frozen until the mismatch is resolved: UPDATE, or every
   // verse removed (which also clears the set's recorded versions below).
   const frozen = versionsMismatch;
+  // Only once the boxes are empty too: an import records the versions a
+  // render before its verses land, and clearing on that render lost the 2nd
+  // version of a set's first import (it only showed up with the next one).
+  const boxesEmpty = manualText.trim() === "" && manualText2.trim() === "";
   useEffect(() => {
-    if (!scriptureKind || hasVerses) return;
+    if (!scriptureKind || hasVerses || !boxesEmpty) return;
     if (storedVersions?.length || storedImports?.length) {
       updateSet(setId, { versions: undefined, scriptureImports: undefined });
     }
-  }, [scriptureKind, hasVerses, storedVersions, storedImports, setId, updateSet]);
+  }, [scriptureKind, hasVerses, boxesEmpty, storedVersions, storedImports, setId, updateSet]);
   // What Update re-imports in: a version already in one of the workspace's
   // languages is kept; the other slot gets the remaining language's first
   // bible. A single-version set stays single.
@@ -627,6 +637,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     firstChoices,
     firstGroups,
     secondChoices,
+    secondGroups,
     manualText,
     setManualText,
     manualText2,
