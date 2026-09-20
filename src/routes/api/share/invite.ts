@@ -67,11 +67,12 @@ export const Route = createFileRoute("/api/share/invite")({
         // Apple Mail's data detector turns anything that looks like an email
         // address into a blue underlined link, ignoring the styling (it rewrites
         // hrefless anchors too). The only thing that stops it is making the text
-        // not look like an address: an invisible word joiner after the "@"
-        // breaks the pattern without showing or wrapping. The plain-text part
-        // keeps the clean address.
+        // not look like an address: an invisible word joiner after the "@" and
+        // before each "." breaks the pattern (the bare domain would otherwise
+        // still be picked up as a web link) without showing or wrapping. The
+        // plain-text part keeps the clean address.
         const emailLink = (addr: string) =>
-          `<span style="color:inherit;text-decoration:none;white-space:nowrap;">${escapeHtml(addr).replace("@", "@&#8288;")}</span>`;
+          `<span style="color:inherit;text-decoration:none;white-space:nowrap;">${escapeHtml(addr).replace(/@/g, "@&#8288;").replace(/\./g, "&#8288;.")}</span>`;
         const byText = ownerEmail ? `${ownerEmail} shared` : "Someone shared";
         const byHtml = ownerEmail ? `${emailLink(ownerEmail)} shared` : "Someone shared";
         const subject = isBulk

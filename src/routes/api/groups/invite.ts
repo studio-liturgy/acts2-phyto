@@ -61,10 +61,11 @@ export const Route = createFileRoute("/api/groups/invite")({
         // Render email addresses inside an hrefless <a>: not clickable, and mail
         // clients leave text already inside an anchor alone (no blue auto-link).
         // Apple Mail's data detector turns anything that looks like an email
-        // address into a blue underlined link whatever the styling; an invisible
-        // word joiner after the "@" stops it matching (see share/invite.ts).
+        // address (or a domain) into a blue underlined link whatever the styling;
+        // an invisible word joiner after the "@" and before each "." stops it
+        // matching (see share/invite.ts).
         const emailLink = (addr: string) =>
-          `<span style="color:inherit;text-decoration:none;white-space:nowrap;">${escapeHtml(addr).replace("@", "@&#8288;")}</span>`;
+          `<span style="color:inherit;text-decoration:none;white-space:nowrap;">${escapeHtml(addr).replace(/@/g, "@&#8288;").replace(/\./g, "&#8288;.")}</span>`;
         const byText = ownerEmail ? `${ownerEmail} invited` : "You were invited";
         const byHtml = ownerEmail ? `${emailLink(ownerEmail)} invited` : "You were invited";
         const subject = "You were invited to a group | phyto";
