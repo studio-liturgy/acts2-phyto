@@ -23,32 +23,49 @@ describe("visibleVersions", () => {
     expect(
       visibleVersions(
         { versions: ["NIV"], slides: stacked.slides },
-        { multiLanguage: true, language: "en" },
+        { multiLanguage: true, language: "en", language2: "zh-Hans" },
       ),
     ).toBeUndefined();
     const plain: Slide = { id: "x", kind: "scripture", lines: ["plain"] };
     expect(
-      visibleVersions({ slides: [plain] }, { multiLanguage: true, language: "en" }),
+      visibleVersions(
+        { slides: [plain] },
+        { multiLanguage: true, language: "en", language2: "zh-Hans" },
+      ),
     ).toBeUndefined();
     expect(hasStackedVersions(stacked)).toBe(true);
   });
 
-  it("shows every version when the workspace is multi-language", () => {
-    expect(visibleVersions(stacked, { multiLanguage: true, language: "en" })).toEqual([
-      "NIV",
-      "CUNPS",
-    ]);
+  it("multi-language: the version in the 1st language, then the 2nd, in that order", () => {
+    expect(
+      visibleVersions(stacked, { multiLanguage: true, language: "en", language2: "zh-Hans" }),
+    ).toEqual(["NIV", "CUNPS"]);
+    expect(
+      visibleVersions(stacked, { multiLanguage: true, language: "zh-Hans", language2: "en" }),
+    ).toEqual(["CUNPS", "NIV"]);
+    // Only one of the two present: just that one.
+    expect(
+      visibleVersions(stacked, { multiLanguage: true, language: "en", language2: "ko" }),
+    ).toEqual(["NIV"]);
+    // Neither present (imported elsewhere): everything the set carries.
+    expect(
+      visibleVersions(stacked, { multiLanguage: true, language: "ja", language2: "ko" }),
+    ).toEqual(["NIV", "CUNPS"]);
   });
 
   it("shows the version in the workspace language when multi-language is off", () => {
-    expect(visibleVersions(stacked, { multiLanguage: false, language: "en" })).toEqual(["NIV"]);
-    expect(visibleVersions(stacked, { multiLanguage: false, language: "zh-Hans" })).toEqual([
-      "CUNPS",
-    ]);
+    expect(
+      visibleVersions(stacked, { multiLanguage: false, language: "en", language2: null }),
+    ).toEqual(["NIV"]);
+    expect(
+      visibleVersions(stacked, { multiLanguage: false, language: "zh-Hans", language2: null }),
+    ).toEqual(["CUNPS"]);
   });
 
   it("falls back to the set's primary when no version is in the workspace language", () => {
-    expect(visibleVersions(stacked, { multiLanguage: false, language: "ko" })).toEqual(["NIV"]);
+    expect(
+      visibleVersions(stacked, { multiLanguage: false, language: "ko", language2: null }),
+    ).toEqual(["NIV"]);
   });
 });
 

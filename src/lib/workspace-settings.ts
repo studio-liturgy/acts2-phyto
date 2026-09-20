@@ -8,24 +8,29 @@ import { isLangCode, type LangCode } from "./langs";
 import type { SlugScope } from "./account-slug";
 
 export type WorkspaceSettings = {
-  /** false: project one bible version, the one in `language`. true: stack every
-   *  version a scripture set carries. */
+  /** false: one language (`language`, the system language) and scriptures
+   *  project the version in it. true: two languages (1st `language`, 2nd
+   *  `language2`) and scriptures stack the version in each. */
   multiLanguage: boolean;
-  /** The workspace's language. */
+  /** The workspace's (system / 1st) language. */
   language: LangCode;
+  /** The 2nd language; only meaningful while multiLanguage is on. */
+  language2: LangCode | null;
 };
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   multiLanguage: false,
   language: "en",
+  language2: null,
 };
 
-type Row = { id: string; multi_language: boolean; language: string };
+type Row = { id: string; multi_language: boolean; language: string; language2?: string | null };
 
 function fromRow(row: Row): WorkspaceSettings {
   return {
     multiLanguage: !!row.multi_language,
     language: isLangCode(row.language) ? row.language : "en",
+    language2: isLangCode(row.language2) ? row.language2 : null,
   };
 }
 
@@ -55,6 +60,7 @@ export function readLocalPersonalSettings(): WorkspaceSettings {
     return {
       multiLanguage: !!parsed.multiLanguage,
       language: isLangCode(parsed.language) ? parsed.language : "en",
+      language2: isLangCode(parsed.language2) ? parsed.language2 : null,
     };
   } catch {
     return DEFAULT_WORKSPACE_SETTINGS;
@@ -84,13 +90,16 @@ export async function fetchWorkspaceSettings(
   userId: string | null = useAuthStore.getState().session?.user.id ?? null,
 ): Promise<FetchedWorkspaceSettings | null> {
   if (!scope.groupId && !userId) return { settings: readLocalPersonalSettings(), exists: false };
-  const base = supabase.from("workspace_settings").select("id, multi_language, language");
+  const base = supabase
+    .from("workspace_settings")
+    .select("id, multi_language, language, language2");
   const { data, error } = await scoped(base, scope, userId).limit(1).maybeSingle();
   if (error) {
-    // 42P01 / PGRST205: the table doesn't exist yet (migration not applied).
-    // Degrade to "unknown" quietly rather than logging on every poll.
+    // 42P01 / PGRST205: the table doesn't exist yet; 42703: a column (language2)
+    // doesn't. A migration isn't applied: degrade to "unknown" quietly rather
+    // than logging on every poll.
     const code = (error as { code?: string }).code;
-    if (code !== "42P01" && code !== "PGRST205") {
+    if (code !== "42P01" && code !== "PGRST205" && code !== "42703") {
       console.error("[workspace-settings] read failed:", error);
     }
     return null;
@@ -112,6 +121,7 @@ export async function saveWorkspaceSettings(
   const values: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (patch.multiLanguage !== undefined) values.multi_language = patch.multiLanguage;
   if (patch.language !== undefined) values.language = patch.language;
+  if (patch.language2 !== undefined) values.language2 = patch.language2;
 
   // The unique keys are partial indexes, which PostgREST's upsert can't target,
   // so: find the row, update it, or insert a fresh one.

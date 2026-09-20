@@ -29,6 +29,8 @@ create table if not exists workspace_settings (
   group_id       uuid        references groups     on delete cascade,
   multi_language boolean     not null default false,
   language       text        not null default 'en',
+  -- The 2nd language, used only while multi_language is on.
+  language2      text,
   updated_at     timestamptz not null default now(),
   constraint workspace_settings_one_scope check ((user_id is null) <> (group_id is null))
 );

@@ -9,6 +9,7 @@
 import type { Slide } from "./types";
 import { langOfTranslation, type AlignedVerse } from "./bible";
 import type { WorkspaceSettings } from "./workspace-settings";
+import type { LangCode } from "./langs";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -90,9 +91,12 @@ export function hasStackedVersions(set: VersionedSet | null | undefined): boolea
 
 /**
  * Which of a set's versions the workspace shows, in order. Undefined when the
- * set doesn't stack versions (render from `lines`). Multi-language on: all of
- * them. Off: the version whose translation is in the workspace's language, or
- * the set's primary when none is.
+ * set doesn't stack versions (render from `lines`).
+ *  - Multi-language on: the set's version in the workspace's 1st language,
+ *    then its version in the 2nd, in that order. If the set has neither
+ *    (imported elsewhere), every version it carries.
+ *  - Off: the version in the workspace's system language, or the set's
+ *    primary when none is.
  */
 export function visibleVersions(
   set: VersionedSet | null | undefined,
@@ -100,7 +104,13 @@ export function visibleVersions(
 ): string[] | undefined {
   if (!hasStackedVersions(set)) return undefined;
   const all = set!.versions!;
-  if (settings.multiLanguage) return all;
-  const match = all.find((code) => langOfTranslation(code) === settings.language);
-  return [match ?? all[0]];
+  const inLang = (lang: LangCode | null) =>
+    lang ? all.find((code) => langOfTranslation(code) === lang) : undefined;
+  if (settings.multiLanguage) {
+    const picked = [inLang(settings.language), inLang(settings.language2)].filter(
+      (v, i, arr): v is string => !!v && arr.indexOf(v) === i,
+    );
+    return picked.length ? picked : all;
+  }
+  return [inLang(settings.language) ?? all[0]];
 }

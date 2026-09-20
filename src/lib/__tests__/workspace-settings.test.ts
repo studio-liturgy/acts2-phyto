@@ -44,11 +44,11 @@ describe("fetchWorkspaceSettings", () => {
       },
     });
     expect(await fetchWorkspaceSettings({ groupId: null })).toEqual({
-      settings: { multiLanguage: true, language: "ja" },
+      settings: { multiLanguage: true, language: "ja", language2: null },
       exists: true,
     });
     expect(await fetchWorkspaceSettings({ groupId: GROUP_ID })).toEqual({
-      settings: { multiLanguage: false, language: "fr" },
+      settings: { multiLanguage: false, language: "fr", language2: null },
       exists: true,
     });
   });
@@ -72,7 +72,7 @@ describe("fetchWorkspaceSettings", () => {
       JSON.stringify({ multiLanguage: true, language: "es" }),
     );
     expect(await fetchWorkspaceSettings({ groupId: null })).toEqual({
-      settings: { multiLanguage: true, language: "es" },
+      settings: { multiLanguage: true, language: "es", language2: null },
       exists: false,
     });
     expect(supabaseMock.callsFor("workspace_settings", "select")).toHaveLength(0);
@@ -164,10 +164,12 @@ describe("store: personal settings across sign-in", () => {
     expect(useLibrary.getState().workspaceSettings).toEqual({
       multiLanguage: true,
       language: "ja",
+      language2: null,
     });
     expect(JSON.parse(localStorage.getItem("workspace-settings-personal-v1") ?? "{}")).toEqual({
       multiLanguage: true,
       language: "ja",
+      language2: null,
     });
   });
 });

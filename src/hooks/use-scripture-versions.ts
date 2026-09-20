@@ -5,7 +5,6 @@ import {
   fetchScriptureBolls,
   langOfTranslation,
   translationsForLang,
-  TRANSLATION_GROUPS,
 } from "@/lib/bible";
 import {
   parseScriptureFromText,
@@ -49,26 +48,41 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
 
   const readSet = useCallback(() => useLibrary.getState().sets[setId], [setId]);
 
-  // The single-version picker offers the workspace language's translations;
-  // multi-language offers every group.
-  const singleChoices = useMemo(() => translationsForLang(settings.language), [settings.language]);
+  // Each picker offers only its language's bible versions: the system
+  // language's when multi-language is off, the 1st and 2nd languages' when on.
+  const firstChoices = useMemo(() => translationsForLang(settings.language), [settings.language]);
+  const secondChoices = useMemo(
+    () => (settings.language2 ? translationsForLang(settings.language2) : []),
+    [settings.language2],
+  );
   const [translation, setTranslation] = useState(() => {
     const stored = readSet()?.versions?.[0];
     if (stored) return stored;
-    const first = translationsForLang(settings.language)[0]?.code;
-    return first ?? "NIV";
+    return translationsForLang(settings.language)[0]?.code ?? "NIV";
   });
-  const [translation2, setTranslation2] = useState<string>(() => readSet()?.versions?.[1] ?? "");
-  // Off-mode translation should be in the workspace language (a set with no
-  // stored version, opened in a Chinese workspace, imports Chinese).
+  // A new set in a multi-language workspace starts bilingual: the 2nd
+  // language's first version. A stored set keeps what it has (including none).
+  const [translation2, setTranslation2] = useState<string>(() => {
+    const set = readSet();
+    if (set?.versions?.length) return set.versions[1] ?? "";
+    return multi && settings.language2
+      ? (translationsForLang(settings.language2)[0]?.code ?? "")
+      : "";
+  });
+  // A set with no stored version follows the workspace's languages (a fresh
+  // set opened in a Chinese workspace imports Chinese).
   useEffect(() => {
-    if (multi || storedVersions?.length) return;
+    if (storedVersions?.length) return;
     if (langOfTranslation(translation) !== settings.language) {
-      const first = singleChoices[0]?.code;
+      const first = firstChoices[0]?.code;
       if (first) setTranslation(first);
     }
+    if (multi && settings.language2 && langOfTranslation(translation2) !== settings.language2) {
+      const first = secondChoices[0]?.code;
+      if (first) setTranslation2(first);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.language, multi]);
+  }, [settings.language, settings.language2, multi]);
 
   const stacked = hasStackedVersions(readSet());
   const boxMode = scriptureKind && (multi || stacked);
@@ -191,21 +205,30 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     async (q: string, v1: string, v2: string, vPer: number) => {
       if (v2) {
         const [first, second] = await Promise.all([
-          fetchScriptureBolls(q, v1, { removeLineBreaks: true, hints: [v2] }),
-          fetchScriptureBolls(q, v2, { removeLineBreaks: true, hints: [v1] }),
+          fetchScriptureBolls(q, v1, { removeLineBreaks: !keepLineBreaks, hints: [v2] }),
+          fetchScriptureBolls(q, v2, { removeLineBreaks: !keepLineBreaks, hints: [v1] }),
         ]);
         const { rows, unmatched } = alignVerses(
           { code: v1, verses: first.verses },
           { code: v2, verses: second.verses },
         );
+        // "Verses per slide" applies to the aligned pairs: each block holds the
+        // same verses in both versions.
         const b1: string[] = [];
         const b2: string[] = [];
-        rows.forEach((r, i) => {
-          const t1 = r.byVersion[v1] ?? "";
-          const t2 = r.byVersion[v2] ?? "";
+        for (let i = 0; i < rows.length; i += vPer) {
+          const chunk = rows.slice(i, i + vPer);
+          const t1 = chunk
+            .map((r) => r.byVersion[v1] ?? "")
+            .filter(Boolean)
+            .join(" ");
+          const t2 = chunk
+            .map((r) => r.byVersion[v2] ?? "")
+            .filter(Boolean)
+            .join(" ");
           b1.push(i === 0 ? `[${first.reference}]\n${t1}` : t1);
           b2.push(i === 0 ? `[${second.reference}]\n${t2}` : t2);
-        });
+        }
         return {
           box1: b1.join("\n---\n"),
           box2: b2.join("\n---\n"),
@@ -450,8 +473,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     setTranslation,
     translation2,
     setTranslation2,
-    singleChoices,
-    translationGroups: TRANSLATION_GROUPS,
+    firstChoices,
+    secondChoices,
     manualText,
     setManualText,
     manualText2,

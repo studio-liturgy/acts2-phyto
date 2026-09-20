@@ -958,6 +958,45 @@ function PillInput({
   );
 }
 
+/** The scripture importer's options row: verses per slide and line breaks. */
+function ImportOptions({
+  versesPer,
+  setVersesPer,
+  keepLineBreaks,
+  setKeepLineBreaks,
+}: {
+  versesPer: number;
+  setVersesPer: (n: number) => void;
+  keepLineBreaks: boolean;
+  setKeepLineBreaks: (on: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-col justify-end">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
+        <div className="flex items-center gap-2">
+          <div className="mono text-[10px] uppercase tracking-wider">Verses per slide</div>
+          <NumberStepper
+            value={versesPer}
+            onChange={(n) => setVersesPer(Math.min(3, Math.max(1, Math.round(n))))}
+            min={1}
+            max={3}
+            decrementLabel="Fewer verses per slide"
+            incrementLabel="More verses per slide"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="mono text-[10px] uppercase tracking-wider">Line breaks</span>
+          <PillSwitch
+            label="Line breaks"
+            checked={keepLineBreaks}
+            onCheckedChange={setKeepLineBreaks}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function kindColor(kind?: SetKind): string {
   if (kind === "song") return "var(--brand-blue)";
   if (kind === "scripture") return "var(--brand-green)";
@@ -2029,28 +2068,19 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               if (ref.trim() && !busy) importScripture();
             }}
           />
-          <div
-            className={`mt-3 grid gap-3 ${scripture.multi && !scripture.bilingual ? "grid-cols-3" : "grid-cols-2"}`}
-          >
+          <div className="mt-3 grid grid-cols-2 gap-3">
             <VersionPicker
-              label="Version"
+              label={scripture.multi ? "1st version" : "Version"}
               value={translation}
               open={versionOpen}
               setOpen={setVersionOpen}
               onPick={setTranslation}
               exclude={scripture.multi ? translation2 : ""}
-              groups={
-                scripture.multi
-                  ? scripture.translationGroups.map((g) => ({
-                      language: g.language,
-                      translations: [...g.translations],
-                    }))
-                  : [{ language: "", translations: scripture.singleChoices }]
-              }
+              groups={[{ language: "", translations: scripture.firstChoices }]}
             />
-            {scripture.multi && (
+            {scripture.multi ? (
               <VersionPicker
-                label="Second version"
+                label="2nd version"
                 value={translation2}
                 placeholder="None"
                 open={version2Open}
@@ -2058,40 +2088,27 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 onPick={setTranslation2}
                 onClear={() => setTranslation2("")}
                 exclude={translation}
-                groups={scripture.translationGroups.map((g) => ({
-                  language: g.language,
-                  translations: [...g.translations],
-                }))}
+                groups={[{ language: "", translations: scripture.secondChoices }]}
+              />
+            ) : (
+              <ImportOptions
+                versesPer={versesPer}
+                setVersesPer={setVersesPer}
+                keepLineBreaks={keepLineBreaks}
+                setKeepLineBreaks={setKeepLineBreaks}
               />
             )}
-            {!scripture.bilingual && (
-              <div className="flex flex-col justify-end">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
-                  <div className="flex items-center gap-2">
-                    <div className="mono text-[10px] uppercase tracking-wider">
-                      Verses per slide
-                    </div>
-                    <NumberStepper
-                      value={versesPer}
-                      onChange={(n) => setVersesPer(Math.min(3, Math.max(1, Math.round(n))))}
-                      min={1}
-                      max={3}
-                      decrementLabel="Fewer verses per slide"
-                      incrementLabel="More verses per slide"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="mono text-[10px] uppercase tracking-wider">Line breaks</span>
-                    <PillSwitch
-                      label="Line breaks"
-                      checked={keepLineBreaks}
-                      onCheckedChange={setKeepLineBreaks}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
+          {scripture.multi && (
+            <div className="mt-2">
+              <ImportOptions
+                versesPer={versesPer}
+                setVersesPer={setVersesPer}
+                keepLineBreaks={keepLineBreaks}
+                setKeepLineBreaks={setKeepLineBreaks}
+              />
+            </div>
+          )}
           {scripture.bilingual && (
             <button
               type="button"

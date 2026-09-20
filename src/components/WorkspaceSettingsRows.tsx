@@ -2,15 +2,23 @@ import { useState } from "react";
 import { PillSwitch } from "@/components/PillSwitch";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { useLibrary } from "@/lib/store";
+import { WORKSPACE_LANGS, type LangCode } from "@/lib/langs";
 
 const ROW = "flex items-center justify-between gap-4 py-2";
 const LABEL = "mono text-xs uppercase tracking-wider";
 
+/** A 2nd language to start with when multi-language is switched on: the first
+ *  in the list that isn't the 1st. */
+function defaultSecond(first: LangCode): LangCode {
+  return WORKSPACE_LANGS.find((l) => l.code !== first)?.code ?? first;
+}
+
 /**
- * The two per-workspace rows (multi-language, language) for the ACTIVE
- * workspace, wired to the store. Rendered in Settings for the personal
- * workspace and in a group's Manage panel; `disabled` for members of a group,
- * whose owner is the only one who may change them.
+ * The per-workspace rows for the ACTIVE workspace, wired to the store.
+ * Multi-language off: a System language. On: a 1st and a 2nd language, both
+ * required (the scripture importer offers each one's bible versions, and a
+ * two-version scripture stacks the version in each, in that order). Rendered
+ * in Settings for the personal workspace and in a group's Manage panel.
  */
 export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean }) {
   const settings = useLibrary((s) => s.workspaceSettings);
@@ -23,6 +31,8 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
     if (!ok) setError("Could not save. Check your connection and try again.");
   };
 
+  const second = settings.language2 ?? defaultSecond(settings.language);
+
   return (
     <div>
       <div className={ROW}>
@@ -30,18 +40,55 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
         <PillSwitch
           checked={settings.multiLanguage}
           disabled={disabled}
-          onCheckedChange={(on) => apply({ multiLanguage: on })}
+          onCheckedChange={(on) =>
+            // Switching on fills in a 2nd language so both are always set.
+            apply(
+              on && !settings.language2
+                ? { multiLanguage: true, language2: defaultSecond(settings.language) }
+                : { multiLanguage: on },
+            )
+          }
           label="Multi-language"
         />
       </div>
-      <div className={ROW}>
-        <div className={LABEL}>Main language</div>
-        <LanguagePicker
-          value={settings.language}
-          disabled={disabled}
-          onChange={(language) => apply({ language })}
-        />
-      </div>
+      {settings.multiLanguage ? (
+        <>
+          <div className={ROW}>
+            <div className={LABEL}>1st language</div>
+            <LanguagePicker
+              value={settings.language}
+              disabled={disabled}
+              onChange={(language) =>
+                // The two must differ: picking the 2nd as the 1st swaps them.
+                apply(
+                  language === second ? { language, language2: settings.language } : { language },
+                )
+              }
+            />
+          </div>
+          <div className={ROW}>
+            <div className={LABEL}>2nd language</div>
+            <LanguagePicker
+              value={second}
+              disabled={disabled}
+              onChange={(language2) =>
+                apply(
+                  language2 === settings.language ? { language2, language: second } : { language2 },
+                )
+              }
+            />
+          </div>
+        </>
+      ) : (
+        <div className={ROW}>
+          <div className={LABEL}>System language</div>
+          <LanguagePicker
+            value={settings.language}
+            disabled={disabled}
+            onChange={(language) => apply({ language })}
+          />
+        </div>
+      )}
       {error && (
         <p className="mono mt-1 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
           {error}
