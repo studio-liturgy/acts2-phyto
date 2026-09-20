@@ -5,12 +5,15 @@
 //
 //   **bold**   *italic*   __underline__
 //
-// Markers may nest one level (a bold phrase inside an underlined one), which
-// is as far as a slide ever needs.
+// Markers nest (underline outermost, then bold, then italic: the editor writes
+// them in that one order whatever order they were applied in).
 
 import { Fragment, type ReactNode } from "react";
 
+// "***" (bold italic) is its own token so the parser never has to decide
+// whether "***x***" opens with "**" or "*".
 const MARKERS = [
+  { token: "***", tag: "strong-em" },
   { token: "**", tag: "strong" },
   { token: "__", tag: "u" },
   { token: "*", tag: "em" },
@@ -20,7 +23,7 @@ type Tag = (typeof MARKERS)[number]["tag"];
 
 /** The text with every marker removed (search, previews, copying). */
 export function stripInlineFormat(text: string): string {
-  return text.replace(/\*\*|__|\*/g, "");
+  return text.replace(/\*{1,3}|__/g, "");
 }
 
 /** Does the text carry any marker at all? Cheap gate for the renderer. */
@@ -52,7 +55,7 @@ function parse(text: string, depth: number): ReactNode[] {
     plain = "";
   };
   while (i < text.length) {
-    const m = depth < 2 ? MARKERS.find((k) => text.startsWith(k.token, i)) : undefined;
+    const m = depth < 3 ? MARKERS.find((k) => text.startsWith(k.token, i)) : undefined;
     if (m) {
       // The matching closer must exist, after at least one character.
       const close = text.indexOf(m.token, i + m.token.length + 1);
@@ -75,62 +78,174 @@ function wrap(tag: Tag, children: ReactNode[], key: number): ReactNode {
   const body = children.map((c, i) => <Fragment key={i}>{c}</Fragment>);
   if (tag === "strong") return <strong key={key}>{body}</strong>;
   if (tag === "em") return <em key={key}>{body}</em>;
+  if (tag === "strong-em")
+    return (
+      <strong key={key}>
+        <em>{body}</em>
+      </strong>
+    );
   return <u key={key}>{body}</u>;
 }
 
-/**
- * Handle Cmd/Ctrl + B / I / U in a text box: wrap the selection in the marker
- * (or unwrap it when it already is), keeping the selection. With nothing
- * selected, insert a marker pair and put the caret between them. Returns the
- * new value, or null when the key wasn't a formatting shortcut.
- */
-export function applyFormatShortcut(
-  e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>,
-): string | null {
-  if (!(e.metaKey || e.ctrlKey) || e.altKey) return null;
-  const token =
-    e.key === "b" || e.key === "B"
-      ? "**"
-      : e.key === "i" || e.key === "I"
-        ? "*"
-        : e.key === "u" || e.key === "U"
-          ? "__"
-          : null;
-  if (!token) return null;
-  e.preventDefault();
-  const el = e.currentTarget;
-  const value = el.value;
-  const start = el.selectionStart ?? value.length;
-  const end = el.selectionEnd ?? start;
-  const selected = value.slice(start, end);
-  const n = token.length;
+// ---------------------------------------------------------------------------
+// Rich-text cells. The boxes in the scripture/message editors are
+// contentEditable, so formatting is applied in the DOM (the browser nests
+// <b>/<i>/<u> properly whatever order they're toggled in) and the DOM is
+// serialised back to markup in ONE canonical form on every edit (see
+// runsToMarkup), so the stored text is clean regardless of how it was typed.
+// ---------------------------------------------------------------------------
 
-  let next: string;
-  let selStart: number;
-  let selEnd: number;
-  if (selected.startsWith(token) && selected.endsWith(token) && selected.length >= 2 * n) {
-    // Selected with its markers: unwrap.
-    const inner = selected.slice(n, selected.length - n);
-    next = value.slice(0, start) + inner + value.slice(end);
-    selStart = start;
-    selEnd = start + inner.length;
-  } else if (value.slice(start - n, start) === token && value.slice(end, end + n) === token) {
-    // Markers just outside the selection: unwrap.
-    next = value.slice(0, start - n) + selected + value.slice(end + n);
-    selStart = start - n;
-    selEnd = selStart + selected.length;
-  } else {
-    next = value.slice(0, start) + token + selected + token + value.slice(end);
-    selStart = start + n;
-    selEnd = selStart + selected.length;
-  }
-  // Restore the selection once React has re-rendered the new value.
-  requestAnimationFrame(() => {
-    try {
-      el.setSelectionRange(selStart, selEnd);
-    } catch {
-      // detached
+export type Styles = { b: boolean; i: boolean; u: boolean };
+type Run = { text: string; s: Styles };
+
+const escapeHtml = (t: string) =>
+  t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** Markup to HTML for a contentEditable box. Newlines become <br>. */
+export function markupToHtml(markup: string): string {
+  const runs = markupToRuns(markup);
+  return runs
+    .map(({ text, s }) => {
+      let h = escapeHtml(text).replace(/\n/g, "<br>");
+      if (s.i) h = `<i>${h}</i>`;
+      if (s.b) h = `<b>${h}</b>`;
+      if (s.u) h = `<u>${h}</u>`;
+      return h;
+    })
+    .join("");
+}
+
+/** Parse markup into styled runs (the same grammar renderInline uses). */
+export function markupToRuns(markup: string): Run[] {
+  const runs: Run[] = [];
+  const walk = (text: string, s: Styles, depth: number) => {
+    let i = 0;
+    let plain = "";
+    const flush = () => {
+      if (plain) runs.push({ text: plain, s });
+      plain = "";
+    };
+    while (i < text.length) {
+      const m = depth < 3 ? MARKERS.find((k) => text.startsWith(k.token, i)) : undefined;
+      if (m) {
+        const close = text.indexOf(m.token, i + m.token.length + 1);
+        if (close !== -1) {
+          flush();
+          const inner = text.slice(i + m.token.length, close);
+          const ns = { ...s };
+          if (m.tag === "strong") ns.b = true;
+          else if (m.tag === "em") ns.i = true;
+          else if (m.tag === "strong-em") ns.b = ns.i = true;
+          else ns.u = true;
+          walk(inner, ns, depth + 1);
+          i = close + m.token.length;
+          continue;
+        }
+      }
+      plain += text[i];
+      i += 1;
     }
-  });
-  return next;
+    flush();
+  };
+  walk(markup, { b: false, i: false, u: false }, 0);
+  return mergeRuns(runs);
+}
+
+function mergeRuns(runs: Run[]): Run[] {
+  const out: Run[] = [];
+  for (const r of runs) {
+    const last = out[out.length - 1];
+    if (last && last.s.b === r.s.b && last.s.i === r.s.i && last.s.u === r.s.u) last.text += r.text;
+    else out.push({ text: r.text, s: { ...r.s } });
+  }
+  return out;
+}
+
+/** Runs back to canonical markup: an underlined stretch is one "__…__"
+ *  (so its spaces stay underlined), and inside or outside it each run is
+ *  "***x***", "**x**", "*x*" or plain. Bold and italic never nest, which is
+ *  what keeps "**" and "*" unambiguous to parse. */
+export function runsToMarkup(runs: Run[]): string {
+  const emphasis = ({ text, s }: Run) =>
+    s.b && s.i ? `***${text}***` : s.b ? `**${text}**` : s.i ? `*${text}*` : text;
+  let out = "";
+  let group = "";
+  const closeGroup = () => {
+    if (group) out += `__${group}__`;
+    group = "";
+  };
+  for (const r of mergeRuns(runs)) {
+    if (r.s.u) group += emphasis(r);
+    else {
+      closeGroup();
+      out += emphasis(r);
+    }
+  }
+  closeGroup();
+  return out;
+}
+
+/** A contentEditable box's DOM to canonical markup. <b>/<strong>, <i>/<em>,
+ *  <u> (and the equivalent inline styles browsers sometimes emit) become
+ *  styles; <br> and block boundaries become newlines. */
+export function htmlToMarkup(root: HTMLElement): string {
+  const runs: Run[] = [];
+  const walk = (node: Node, s: Styles) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const t = node.textContent ?? "";
+      if (t) runs.push({ text: t, s });
+      return;
+    }
+    if (!(node instanceof HTMLElement)) return;
+    const tag = node.tagName.toLowerCase();
+    if (tag === "br") {
+      runs.push({ text: "\n", s });
+      return;
+    }
+    const ns = { ...s };
+    const style = node.style;
+    if (
+      tag === "b" ||
+      tag === "strong" ||
+      style.fontWeight === "bold" ||
+      Number(style.fontWeight) >= 600
+    )
+      ns.b = true;
+    if (tag === "i" || tag === "em" || style.fontStyle === "italic") ns.i = true;
+    if (tag === "u" || style.textDecoration.includes("underline")) ns.u = true;
+    const block = tag === "div" || tag === "p";
+    // A block after other content starts on a new line.
+    if (block && runs.length && !runs[runs.length - 1].text.endsWith("\n")) {
+      runs.push({ text: "\n", s });
+    }
+    node.childNodes.forEach((c) => walk(c, ns));
+  };
+  root.childNodes.forEach((c) => walk(c, { b: false, i: false, u: false }));
+  // A trailing <br> the browser adds to keep the box open isn't content.
+  const markup = runsToMarkup(runs);
+  return markup.replace(/\n$/, "");
+}
+
+/** The plain-text length of markup (markers don't count). */
+export function plainLength(markup: string): number {
+  return stripInlineFormat(markup).length;
+}
+
+/** Markup split at a plain-text offset, each side with its own well-formed
+ *  markers (splitting "**bo|ld**" gives "**bo**" and "**ld**"). */
+export function splitMarkup(markup: string, plainAt: number): [string, string] {
+  const head: Run[] = [];
+  const tail: Run[] = [];
+  let n = 0;
+  for (const r of markupToRuns(markup)) {
+    const end = n + r.text.length;
+    if (end <= plainAt) head.push(r);
+    else if (n >= plainAt) tail.push(r);
+    else {
+      head.push({ text: r.text.slice(0, plainAt - n), s: r.s });
+      tail.push({ text: r.text.slice(plainAt - n), s: r.s });
+    }
+    n = end;
+  }
+  return [runsToMarkup(head), runsToMarkup(tail)];
 }

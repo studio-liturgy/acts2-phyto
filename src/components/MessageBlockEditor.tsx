@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, Minimize2, Plus, Trash2 } from "lucide-react";
 import { DotsGrip, hideDragGhost } from "@/components/DragBits";
-import { AutoTextarea, BlockFrame, ElementCard, AddElementBar } from "@/components/MessageElements";
+import { BlockFrame, ElementCard, AddElementBar } from "@/components/MessageElements";
+import { RichText } from "@/components/RichText";
+import { currentCaret, useUndo } from "@/hooks/use-undo";
+import { plainLength, splitMarkup } from "@/lib/inline-format";
+import { focusCell } from "@/lib/rich-caret";
 import { joinVerse } from "@/components/ScriptureVerseEditor";
 import { SlideView } from "@/components/SlideView";
 import {
@@ -109,6 +113,19 @@ export function MessageBlockEditor({
   const updateSlide = useLibrary((s) => s.updateSlide);
   const removeSlide = useLibrary((s) => s.removeSlide);
 
+  // Cmd/Ctrl+Z over the message: text, formatting, joins and splits, adding
+  // and deleting elements, reordering.
+  const scope = useRef<HTMLDivElement | null>(null);
+  const history = useUndo({
+    value: slides,
+    apply: (next) => updateSet(setId, { slides: next }),
+    scope,
+    // The library re-derives the slides from Dexie after a write: the same
+    // content in a fresh array isn't a change.
+    equals: (a, b) => a === b || JSON.stringify(a) === JSON.stringify(b),
+  });
+  const record = (key?: string) => history.record(currentCaret(scope.current), key);
+
   // During a drag we reorder a local copy of the slides so the list follows the
   // pointer, and only write the final order to the store on drop (rather than on
   // every dragover, which would thrash sync).
@@ -150,7 +167,10 @@ export function MessageBlockEditor({
   };
   const commitOrder = () => {
     dragFrom.current = null;
-    if (liveRef.current) updateSet(setId, { slides: liveRef.current });
+    if (liveRef.current) {
+      record();
+      updateSet(setId, { slides: liveRef.current });
+    }
     liveRef.current = null;
     setLiveOrder(null);
   };
@@ -218,6 +238,7 @@ export function MessageBlockEditor({
   }, [colSel, display]);
 
   const removeBlock = (b: Block) => {
+    record();
     if (b.kind === "element") {
       removeSlide(setId, b.slide.id);
     } else {
@@ -400,18 +421,20 @@ export function MessageBlockEditor({
             colSel={colSel}
             onCellMouseDown={onCellMouseDown}
             onEdit={(slide, v, val) => {
+              record(`type:${slide.id}:${v}`);
               const patch: Partial<Slide> = {
                 linesByVersion: { ...(slide.linesByVersion ?? {}), [v]: val },
               };
               if (v === primaryVersion) patch.lines = [val];
               updateSlide(setId, slide.id, patch);
             }}
-            onMergeUp={(slide) => {
+            onMergeUp={(slide, v) => {
               // Join this verse onto the one above, within its import, in every
               // version; the slide below goes away.
               const idx = b.slides.findIndex((x) => x.id === slide.id);
               if (idx <= 0) return;
               const prev = b.slides[idx - 1];
+              record();
               const all = new Set([
                 ...Object.keys(prev.linesByVersion ?? {}),
                 ...Object.keys(slide.linesByVersion ?? {}),
@@ -437,6 +460,13 @@ export function MessageBlockEditor({
                   )
                   .filter((x) => x.id !== slide.id),
               });
+              // The caret lands at the seam, where the verse was split.
+              const seam = plainLength(
+                (
+                  prev.linesByVersion?.[v] ?? (v === primaryVersion ? (prev.lines?.[0] ?? "") : "")
+                ).trimEnd(),
+              );
+              focusCell(scope.current, `${prev.id}:${v}`, seam);
             }}
             onSplit={(slide, v, at) => {
               // The tail after the caret goes to the verse below: into the
@@ -447,9 +477,9 @@ export function MessageBlockEditor({
               const textOf = (x: Slide, version: string) =>
                 x.linesByVersion?.[version] ??
                 (version === primaryVersion ? (x.lines?.[0] ?? "") : "");
-              const full = textOf(slide, v);
-              const head = full.slice(0, at).trimEnd();
-              const tail = full.slice(at).trimStart();
+              const [rawHead, rawTail] = splitMarkup(textOf(slide, v), at);
+              const head = rawHead.trimEnd();
+              const tail = rawTail.trimStart();
               const withText = (x: Slide, version: string, text: string): Slide => {
                 const linesByVersion = { ...(x.linesByVersion ?? {}), [version]: text };
                 const pText = linesByVersion[primaryVersion] ?? "";
@@ -461,6 +491,8 @@ export function MessageBlockEditor({
                 below.kind === "scripture" &&
                 below.importIndex === slide.importIndex &&
                 !textOf(below, v).trim();
+              const freshId = Math.random().toString(36).slice(2, 10);
+              record();
               const next = blankBelow
                 ? slides.map((x, j) =>
                     j === i ? withText(x, v, head) : j === i + 1 ? withText(x, v, tail) : x,
@@ -471,7 +503,7 @@ export function MessageBlockEditor({
                     withText(
                       {
                         ...slide,
-                        id: Math.random().toString(36).slice(2, 10),
+                        id: freshId,
                         lines: [],
                         linesByVersion: Object.fromEntries(versions.map((ver) => [ver, ""])),
                       },
@@ -481,13 +513,18 @@ export function MessageBlockEditor({
                     ...slides.slice(i + 1),
                   ];
               updateSet(setId, { slides: next });
+              // The caret moves down to the start of the verse below.
+              focusCell(scope.current, `${blankBelow ? below.id : freshId}:${v}`, 0);
             }}
             onRemove={() => removeBlock(b)}
           />
         ) : (
           <ElementCard
             slide={b.slide}
-            onChange={(patch) => updateSlide(setId, b.slide.id, patch)}
+            onChange={(patch, typing) => {
+              record(typing ? `type:${b.slide.id}:${typing}` : undefined);
+              updateSlide(setId, b.slide.id, patch);
+            }}
             onRemove={() => removeBlock(b)}
             grip={grip}
             tint={tints[i]}
@@ -500,7 +537,15 @@ export function MessageBlockEditor({
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div
+      ref={scope}
+      data-rich-cells
+      onKeyDown={(e) => {
+        if (readOnly) return;
+        history.onKeyDown(e, () => currentCaret(scope.current));
+      }}
+      className="min-h-0 flex-1 overflow-y-auto"
+    >
       {/* Frozen: nothing in a message can be edited, deleted or reordered
           (points and images included) until the versions are updated. */}
       {readOnly ? <div className="pointer-events-none opacity-50">{rows}</div> : rows}
@@ -590,7 +635,7 @@ function ImportBlock({
   onCellMouseDown: (version: string, seq: number) => void;
   onEdit: (slide: Slide, version: string, value: string) => void;
   /** Backspace at the start of a verse: join it onto the verse above. */
-  onMergeUp: (slide: Slide) => void;
+  onMergeUp: (slide: Slide, version: string) => void;
   onRemove: () => void;
 }) {
   const primary = primaryVersion;
@@ -604,7 +649,11 @@ function ImportBlock({
     else {
       const last = slides[slides.length - 1];
       if (last)
-        onSplit(last, primary, (last.linesByVersion?.[primary] ?? last.lines?.[0] ?? "").length);
+        onSplit(
+          last,
+          primary,
+          plainLength(last.linesByVersion?.[primary] ?? last.lines?.[0] ?? ""),
+        );
     }
   };
 
@@ -638,23 +687,26 @@ function ImportBlock({
             style={{ gridTemplateColumns: cols }}
           >
             {versions.map((v) => (
-              <AutoTextarea
+              <RichText
                 key={v}
+                cellId={`${s.id}:${v}`}
+                col={v}
+                colFirst={v === versions[0]}
                 value={s.linesByVersion?.[v] ?? (v === primary ? (s.lines?.[0] ?? "") : "")}
                 onChange={(val) => onEdit(s, v, val)}
                 disabled={readOnly}
-                onFocus={(el) => (lastCaret.current = { slide: s, v, at: el.selectionStart ?? 0 })}
-                onSelectCaret={(at) => (lastCaret.current = { slide: s, v, at })}
-                onKeyDown={(e) => {
-                  const el = e.currentTarget;
+                onFocus={(at) => (lastCaret.current = { slide: s, v, at })}
+                onCaret={(at) => (lastCaret.current = { slide: s, v, at })}
+                onKeyDown={({ e, at, collapsed }) => {
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                     e.preventDefault();
-                    onSplit(s, v, el.selectionStart ?? el.value.length);
-                    return;
+                    onSplit(s, v, at);
+                    return true;
                   }
-                  if (e.key === "Backspace" && el.selectionStart === 0 && el.selectionEnd === 0) {
+                  if (e.key === "Backspace" && collapsed && at === 0) {
                     e.preventDefault();
-                    onMergeUp(s);
+                    onMergeUp(s, v);
+                    return true;
                   }
                 }}
                 data={

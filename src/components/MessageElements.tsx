@@ -10,7 +10,7 @@ import { PillSwitch } from "@/components/PillSwitch";
 import { prepareImageFile } from "@/lib/image-upload";
 import { useLibrary } from "@/lib/store";
 import { SlideView } from "@/components/SlideView";
-import { applyFormatShortcut } from "@/lib/inline-format";
+import { FIELD, RichText } from "@/components/RichText";
 import type { PointType, Slide } from "@/lib/types";
 
 const POINT_TYPES: { type: PointType; label: string }[] = [
@@ -140,91 +140,6 @@ export function MessageElements({ setId, hasVerses }: { setId: string; hasVerses
 // (no rounded pills), so points and images sit consistently beside the verses.
 export const GRAB = "1.75rem";
 export const DEL = "2rem";
-// A borderless field matching the verse cells.
-const FIELD =
-  "mono w-full resize-none overflow-hidden bg-transparent px-3 py-2 text-xs outline-none";
-
-/** An auto-growing, borderless textarea styled like a scripture verse cell.
- *  Optionally participates in column drag-selection (data attrs + highlight). */
-/** Size a textarea to its content without disturbing the scroll position of
- *  the nearest scrolling ancestor. Shared by the verse editors. */
-export function autosizeTextarea(el: HTMLTextAreaElement | null): void {
-  if (!el) return;
-  let scroller: HTMLElement | null = el.parentElement;
-  while (scroller && scroller.scrollHeight <= scroller.clientHeight)
-    scroller = scroller.parentElement;
-  const top = scroller?.scrollTop ?? 0;
-  el.style.height = "auto";
-  el.style.height = `${el.scrollHeight}px`;
-  if (scroller && scroller.scrollTop !== top) scroller.scrollTop = top;
-}
-
-export function AutoTextarea({
-  value,
-  onChange,
-  placeholder,
-  className = FIELD,
-  data,
-  onMouseDown,
-  onKeyDown,
-  selected,
-  disabled = false,
-  onFocus,
-  onSelectCaret,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  className?: string;
-  /** data-* attributes, e.g. for identifying the cell during a drag-select. */
-  data?: Record<string, string | number>;
-  onMouseDown?: () => void;
-  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  selected?: boolean;
-  disabled?: boolean;
-  onFocus?: (el: HTMLTextAreaElement) => void;
-  /** The caret moved (click, keys): its new position. */
-  onSelectCaret?: (at: number) => void;
-}) {
-  // Grow to fit. Sizing sets the height to "auto" for an instant, which lets
-  // a scrolling ancestor shrink and clamp its scroll position (the list jumped
-  // to the top on every edit), so the ancestor's scrollTop is kept across the
-  // measurement, and sizing runs only when the text changes, not every render.
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    autosizeTextarea(ref.current);
-  }, [value]);
-  return (
-    <textarea
-      ref={ref}
-      rows={1}
-      value={value}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value)}
-      onMouseDown={onMouseDown}
-      onFocus={(e) => onFocus?.(e.currentTarget)}
-      onSelect={(e) => onSelectCaret?.(e.currentTarget.selectionStart ?? 0)}
-      onKeyDown={(e) => {
-        // Cmd/Ctrl + B / I / U: bold, italic, underline (see lib/inline-format).
-        const next = applyFormatShortcut(e);
-        if (next !== null) {
-          onChange(next);
-          return;
-        }
-        onKeyDown?.(e);
-      }}
-      placeholder={placeholder}
-      className={`${className} disabled:opacity-40`}
-      style={
-        selected
-          ? { backgroundColor: "color-mix(in oklab, var(--foreground) 18%, transparent)" }
-          : undefined
-      }
-      {...data}
-    />
-  );
-}
-
 /** The grip + content + delete frame every message block uses. */
 export function BlockFrame({
   label,
@@ -240,7 +155,7 @@ export function BlockFrame({
   /** A brand-colour token; when set the block gets the same faint tint the
    *  scripture editor gives each imported passage. */
   tint?: string;
-  /** Extra per-block controls, shown just left of the delete button. */
+  /** Extra per-block controls, shown beside the delete button. */
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -255,20 +170,20 @@ export function BlockFrame({
         {grip}
       </span>
       <div className="min-w-0 flex-1">
-        {/* The actions sit in the label row, so the content below (and any
-            rule under a heading) runs the full width, as in every block. */}
-        <div className="flex items-center justify-between gap-2 px-3 pt-2">
-          <div className="mono text-[10px] uppercase tracking-wider opacity-50">{label}</div>
-          {actions}
+        <div className="mono px-3 pt-2 text-[10px] uppercase tracking-wider opacity-50">
+          {label}
         </div>
         {children}
       </div>
-      <div className="flex shrink-0 items-start justify-center pt-1.5" style={{ width: DEL }}>
+      {/* The actions sit right beside the delete button, in the same column,
+          so the content (and any rule under a heading) runs the full width. */}
+      <div className="flex shrink-0 items-center pt-1.5" style={{ minWidth: DEL }}>
+        {actions}
         <button
           type="button"
           aria-label={`Delete ${label.toLowerCase()}`}
           onClick={onRemove}
-          className="flex h-6 w-6 items-center justify-center rounded-full text-foreground/60 transition hover:bg-foreground/15 hover:text-foreground"
+          className="mr-1 flex h-6 w-6 items-center justify-center rounded-full text-foreground/60 transition hover:bg-foreground/15 hover:text-foreground"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -288,7 +203,9 @@ export function ElementCard({
   versions,
 }: {
   slide: Slide;
-  onChange: (patch: Partial<Slide>) => void;
+  /** `typing` names the field when the change is a keystroke, so undo can
+   *  gather a run of them into one step. */
+  onChange: (patch: Partial<Slide>, typing?: string) => void;
   onRemove: () => void;
   grip?: React.ReactNode;
   tint?: string;
@@ -359,47 +276,44 @@ export function ElementCard({
       ) : slide.pointType === "quote" ? (
         <>
           <div className="border-b">
-            <AutoTextarea
+            <RichText
+              cellId={`${slide.id}:text`}
               value={slide.lines?.[0] ?? ""}
-              onChange={(v) => onChange({ lines: [v] })}
+              onChange={(v) => onChange({ lines: [v] }, "text")}
               placeholder="The quotation"
             />
           </div>
-          <input
+          <RichText
+            cellId={`${slide.id}:attribution`}
+            singleLine
             value={slide.attribution ?? ""}
-            onChange={(e) => onChange({ attribution: e.target.value })}
-            onKeyDown={(e) => {
-              const next = applyFormatShortcut(e);
-              if (next !== null) onChange({ attribution: next });
-            }}
+            onChange={(v) => onChange({ attribution: v }, "attribution")}
             placeholder="Who said it (optional)"
-            className={FIELD}
           />
         </>
       ) : slide.pointType === "bullets" ? (
         <>
           <div className="border-b">
-            <input
+            <RichText
+              cellId={`${slide.id}:title`}
+              singleLine
               value={slide.title ?? ""}
-              onChange={(e) => onChange({ title: e.target.value })}
-              onKeyDown={(e) => {
-                const next = applyFormatShortcut(e);
-                if (next !== null) onChange({ title: next });
-              }}
+              onChange={(v) => onChange({ title: v }, "title")}
               placeholder="Heading (optional)"
-              className={FIELD}
             />
           </div>
-          <AutoTextarea
+          <RichText
+            cellId={`${slide.id}:text`}
             value={(slide.lines ?? []).join("\n")}
-            onChange={(v) => onChange({ lines: v.split("\n") })}
+            onChange={(v) => onChange({ lines: v.split("\n") }, "text")}
             placeholder="One bullet per line"
           />
         </>
       ) : (
-        <AutoTextarea
+        <RichText
+          cellId={`${slide.id}:text`}
           value={slide.lines?.[0] ?? ""}
-          onChange={(v) => onChange({ lines: [v] })}
+          onChange={(v) => onChange({ lines: [v] }, "text")}
           placeholder="A short statement"
         />
       )}
