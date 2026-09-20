@@ -2293,14 +2293,30 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 Re-import?
               </AlertDialogTitle>
               <AlertDialogDescription className="mt-4 text-base text-foreground">
-                Every passage in this set is fetched again in these bible versions. Any verses you
-                edited by hand go back to the translation&rsquo;s text.
-                {updateAudience.owner
-                  ? ` This set is shared by ${updateAudience.owner}, who will see the change too.`
-                  : audienceLabel(updateAudience)
-                    ? ` This set is shared with ${audienceLabel(updateAudience)}, who will see the change too.`
-                    : ""}
+                Every passage in this set is fetched again in these bible versions.
               </AlertDialogDescription>
+              {/* Who else sees the change: each group and person the set is
+                  shared with (or its owner), with their workspace languages. */}
+              {(updateAudience.owner ||
+                updateAudience.groups.length > 0 ||
+                updateAudience.people.length > 0) && (
+                <div className="mono mt-5 text-[10px] uppercase tracking-wider">
+                  <div className="text-muted-foreground">Changes affect</div>
+                  <ul className="mt-1 space-y-0.5">
+                    {updateAudience.owner && <li>{updateAudience.owner}</li>}
+                    {[...updateAudience.groups, ...updateAudience.people].map((name) => (
+                      <li key={name} className="flex gap-3">
+                        <span className="min-w-0 truncate">{name}</span>
+                        {updateAudience.languages[name] && (
+                          <span className="shrink-0 text-muted-foreground">
+                            {updateAudience.languages[name]}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className={`mt-6 grid gap-3 ${scripture.multi ? "grid-cols-2" : "grid-cols-1"}`}>
                 <VersionPicker
                   label={scripture.multi ? "1st version" : "Version"}

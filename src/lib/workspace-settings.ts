@@ -4,7 +4,7 @@
 
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
-import { isLangCode, type LangCode } from "./langs";
+import { isLangCode, langDef, type LangCode } from "./langs";
 import type { SlugScope } from "./account-slug";
 
 export type WorkspaceSettings = {
@@ -25,6 +25,19 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
 };
 
 type Row = { id: string; multi_language: boolean; language: string; language2?: string | null };
+
+export function workspaceSettingsFromRow(row: Row): WorkspaceSettings {
+  return fromRow(row);
+}
+
+/** "English / Japanese" (multi-language) or "English". */
+export function workspaceLanguagesLabel(s: WorkspaceSettings): string {
+  const codes = s.multiLanguage ? [s.language, s.language2] : [s.language];
+  return codes
+    .filter((c): c is LangCode => !!c)
+    .map((c) => langDef(c).label)
+    .join(" / ");
+}
 
 function fromRow(row: Row): WorkspaceSettings {
   return {
