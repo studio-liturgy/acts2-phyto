@@ -66,13 +66,12 @@ export function SettingsDialog({
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
         <DialogTitle className="text-2xl font-normal leading-tight">Settings</DialogTitle>
 
-        {isSignedIn && (
-          <div className="mt-6">
-            <WorkspaceSettingsRows />
-          </div>
-        )}
+        {/* Personal workspace settings work signed out too (kept on the device). */}
+        <div className="mt-6">
+          <WorkspaceSettingsRows />
+        </div>
 
-        <div className={isSignedIn ? DIVIDER : "mt-6"}>
+        <div className={DIVIDER}>
           <div className={ROW}>
             <div className={LABEL}>Light / dark mode</div>
             <ThemeToggle />

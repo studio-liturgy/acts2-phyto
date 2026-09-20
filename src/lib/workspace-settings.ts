@@ -39,6 +39,42 @@ function scoped<T extends { eq: (c: string, v: unknown) => T; is: (c: string, v:
     : q.eq("user_id", userId as string).is("group_id", null);
 }
 
+// --- Signed-out (device) copy of the PERSONAL workspace's settings ---
+// The app works without an account, so the personal workspace's preferences
+// live on the device too. When signed in, the account row is authoritative
+// and is mirrored here; a choice made signed out is carried up to the account
+// the first time it has no row of its own.
+const LOCAL_KEY = "workspace-settings-personal-v1";
+
+export function readLocalPersonalSettings(): WorkspaceSettings {
+  if (typeof window === "undefined") return DEFAULT_WORKSPACE_SETTINGS;
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw) return DEFAULT_WORKSPACE_SETTINGS;
+    const parsed = JSON.parse(raw) as Partial<WorkspaceSettings>;
+    return {
+      multiLanguage: !!parsed.multiLanguage,
+      language: isLangCode(parsed.language) ? parsed.language : "en",
+    };
+  } catch {
+    return DEFAULT_WORKSPACE_SETTINGS;
+  }
+}
+
+export function writeLocalPersonalSettings(settings: WorkspaceSettings): void {
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(settings));
+  } catch {
+    // ignore: private mode / blocked storage
+  }
+}
+
+export type FetchedWorkspaceSettings = {
+  settings: WorkspaceSettings;
+  /** False when the scope has no row yet (settings are the defaults). */
+  exists: boolean;
+};
+
 /** The scope's settings, or the defaults when no row exists. Null on a read
  *  error (including the table not existing yet), so callers keep what they
  *  have rather than snapping back to the defaults on a blip. Works signed out
@@ -46,8 +82,8 @@ function scoped<T extends { eq: (c: string, v: unknown) => T; is: (c: string, v:
 export async function fetchWorkspaceSettings(
   scope: SlugScope,
   userId: string | null = useAuthStore.getState().session?.user.id ?? null,
-): Promise<WorkspaceSettings | null> {
-  if (!scope.groupId && !userId) return DEFAULT_WORKSPACE_SETTINGS;
+): Promise<FetchedWorkspaceSettings | null> {
+  if (!scope.groupId && !userId) return { settings: readLocalPersonalSettings(), exists: false };
   const base = supabase.from("workspace_settings").select("id, multi_language, language");
   const { data, error } = await scoped(base, scope, userId).limit(1).maybeSingle();
   if (error) {
@@ -59,7 +95,9 @@ export async function fetchWorkspaceSettings(
     }
     return null;
   }
-  return data ? fromRow(data as Row) : DEFAULT_WORKSPACE_SETTINGS;
+  return data
+    ? { settings: fromRow(data as Row), exists: true }
+    : { settings: DEFAULT_WORKSPACE_SETTINGS, exists: false };
 }
 
 /** Write a partial update for the scope (insert the row on first use). RLS

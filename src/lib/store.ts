@@ -24,7 +24,9 @@ import { isLiveNow, type LiveWindow } from "./live-session";
 import {
   DEFAULT_WORKSPACE_SETTINGS,
   fetchWorkspaceSettings,
+  readLocalPersonalSettings,
   saveWorkspaceSettings,
+  writeLocalPersonalSettings,
   type WorkspaceSettings,
 } from "./workspace-settings";
 import { isInlineImage } from "./image-upload";
@@ -308,7 +310,8 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   activeWorkspace: typeof window !== "undefined" ? readActiveWorkspace() : "personal",
   activeWorkspaceName: typeof window !== "undefined" ? readActiveWorkspaceName() : "",
   groups: [],
-  workspaceSettings: DEFAULT_WORKSPACE_SETTINGS,
+  workspaceSettings:
+    typeof window !== "undefined" ? readLocalPersonalSettings() : DEFAULT_WORKSPACE_SETTINGS,
   songTemplate: typeof window !== "undefined" ? readSongTemplate() : { ...DEFAULT_SONG_TEMPLATE },
   scriptureTemplate:
     typeof window !== "undefined" ? readScriptureTemplate() : { ...DEFAULT_SCRIPTURE_TEMPLATE },
@@ -355,18 +358,43 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
 
   refreshWorkspaceSettings: async () => {
     const ws = get().activeWorkspace;
-    const fetched = await fetchWorkspaceSettings({ groupId: ws === "personal" ? null : ws });
+    const personal = ws === "personal";
+    const fetched = await fetchWorkspaceSettings({ groupId: personal ? null : ws });
     // Only apply if the user is still on this workspace (a switch may have
     // raced the read), and only when the read succeeded.
-    if (fetched && get().activeWorkspace === ws) set({ workspaceSettings: fetched });
+    if (!fetched || get().activeWorkspace !== ws) return;
+    const signedIn = !!useAuthStore.getState().session;
+    if (personal && signedIn && !fetched.exists) {
+      // First sign-in with no account row: a choice made signed out on this
+      // device becomes the account's, rather than being reset to the defaults.
+      const local = readLocalPersonalSettings();
+      set({ workspaceSettings: local });
+      if (
+        local.multiLanguage !== DEFAULT_WORKSPACE_SETTINGS.multiLanguage ||
+        local.language !== DEFAULT_WORKSPACE_SETTINGS.language
+      ) {
+        await saveWorkspaceSettings({ groupId: null }, local);
+      }
+      return;
+    }
+    set({ workspaceSettings: fetched.settings });
+    if (personal) writeLocalPersonalSettings(fetched.settings);
   },
 
   updateWorkspaceSettings: async (patch) => {
     const ws = get().activeWorkspace;
+    const personal = ws === "personal";
     const before = get().workspaceSettings;
-    set({ workspaceSettings: { ...before, ...patch } });
-    const ok = await saveWorkspaceSettings({ groupId: ws === "personal" ? null : ws }, patch);
-    if (!ok && get().activeWorkspace === ws) set({ workspaceSettings: before });
+    const next = { ...before, ...patch };
+    set({ workspaceSettings: next });
+    if (personal) writeLocalPersonalSettings(next);
+    // Signed out, the device copy IS the personal workspace's settings.
+    if (!useAuthStore.getState().session) return personal;
+    const ok = await saveWorkspaceSettings({ groupId: personal ? null : ws }, patch);
+    if (!ok && get().activeWorkspace === ws) {
+      set({ workspaceSettings: before });
+      if (personal) writeLocalPersonalSettings(before);
+    }
     return ok;
   },
 

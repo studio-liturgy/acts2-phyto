@@ -23,8 +23,14 @@ beforeEach(() => {
 
 describe("fetchWorkspaceSettings", () => {
   it("returns the defaults when the scope has no row yet", async () => {
-    expect(await fetchWorkspaceSettings({ groupId: null })).toEqual(DEFAULT_WORKSPACE_SETTINGS);
-    expect(await fetchWorkspaceSettings({ groupId: GROUP_ID })).toEqual(DEFAULT_WORKSPACE_SETTINGS);
+    expect(await fetchWorkspaceSettings({ groupId: null })).toEqual({
+      settings: DEFAULT_WORKSPACE_SETTINGS,
+      exists: false,
+    });
+    expect(await fetchWorkspaceSettings({ groupId: GROUP_ID })).toEqual({
+      settings: DEFAULT_WORKSPACE_SETTINGS,
+      exists: false,
+    });
   });
 
   it("reads the personal row and the group row separately", async () => {
@@ -38,12 +44,12 @@ describe("fetchWorkspaceSettings", () => {
       },
     });
     expect(await fetchWorkspaceSettings({ groupId: null })).toEqual({
-      multiLanguage: true,
-      language: "ja",
+      settings: { multiLanguage: true, language: "ja" },
+      exists: true,
     });
     expect(await fetchWorkspaceSettings({ groupId: GROUP_ID })).toEqual({
-      multiLanguage: false,
-      language: "fr",
+      settings: { multiLanguage: false, language: "fr" },
+      exists: true,
     });
   });
 
@@ -56,7 +62,20 @@ describe("fetchWorkspaceSettings", () => {
         ],
       },
     });
-    expect((await fetchWorkspaceSettings({ groupId: null }))?.language).toBe("en");
+    expect((await fetchWorkspaceSettings({ groupId: null }))?.settings.language).toBe("en");
+  });
+
+  it("signed out, the personal scope reads the device copy", async () => {
+    useAuthStore.setState({ session: null, isLoading: false });
+    localStorage.setItem(
+      "workspace-settings-personal-v1",
+      JSON.stringify({ multiLanguage: true, language: "es" }),
+    );
+    expect(await fetchWorkspaceSettings({ groupId: null })).toEqual({
+      settings: { multiLanguage: true, language: "es" },
+      exists: false,
+    });
+    expect(supabaseMock.callsFor("workspace_settings", "select")).toHaveLength(0);
   });
 
   it("returns null (unknown) on a read error, so callers keep what they have", async () => {
@@ -98,5 +117,57 @@ describe("saveWorkspaceSettings", () => {
       errors: [{ table: "workspace_settings", op: "insert", error: { code: "42501" } }],
     });
     expect(await saveWorkspaceSettings({ groupId: GROUP_ID }, { multiLanguage: true })).toBe(false);
+  });
+});
+
+describe("store: personal settings across sign-in", () => {
+  it("carries a signed-out choice up to the account when it has no row yet", async () => {
+    const { useLibrary } = await import("@/lib/store");
+    useAuthStore.setState({ session: null, isLoading: false });
+    useLibrary.setState({ activeWorkspace: "personal" });
+
+    // Signed out: the change lands on the device only.
+    expect(await useLibrary.getState().updateWorkspaceSettings({ language: "ko" })).toBe(true);
+    expect(supabaseMock.tables.workspace_settings).toHaveLength(0);
+    expect(
+      JSON.parse(localStorage.getItem("workspace-settings-personal-v1") ?? "{}"),
+    ).toMatchObject({ language: "ko" });
+
+    // Sign in with no account row: the device's choice becomes the account's.
+    useAuthStore.setState({ session: fakeSession, isLoading: false });
+    await useLibrary.getState().refreshWorkspaceSettings();
+    expect(useLibrary.getState().workspaceSettings.language).toBe("ko");
+    expect(supabaseMock.tables.workspace_settings[0]).toMatchObject({
+      user_id: USER_ID,
+      language: "ko",
+    });
+  });
+
+  it("mirrors the account row over the device copy once one exists", async () => {
+    const { useLibrary } = await import("@/lib/store");
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        workspace_settings: [
+          { id: "p", user_id: USER_ID, group_id: null, multi_language: true, language: "ja" },
+        ],
+      },
+    });
+    localStorage.setItem(
+      "workspace-settings-personal-v1",
+      JSON.stringify({ multiLanguage: false, language: "es" }),
+    );
+    useLibrary.setState({ activeWorkspace: "personal" });
+
+    await useLibrary.getState().refreshWorkspaceSettings();
+
+    expect(useLibrary.getState().workspaceSettings).toEqual({
+      multiLanguage: true,
+      language: "ja",
+    });
+    expect(JSON.parse(localStorage.getItem("workspace-settings-personal-v1") ?? "{}")).toEqual({
+      multiLanguage: true,
+      language: "ja",
+    });
   });
 });

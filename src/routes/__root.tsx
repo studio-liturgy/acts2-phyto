@@ -24,7 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
-import { DEFAULT_WORKSPACE_SETTINGS } from "@/lib/workspace-settings";
+import { readLocalPersonalSettings } from "@/lib/workspace-settings";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import {
   applyMerge,
@@ -424,7 +424,8 @@ function RootComponent() {
         nullLocalLiveState();
         // Groups are account-scoped: drop them and return to the personal library.
         useLibrary.getState().setActiveWorkspace("personal");
-        useLibrary.setState({ groups: [], workspaceSettings: DEFAULT_WORKSPACE_SETTINGS });
+        // Back to the device's own personal settings.
+        useLibrary.setState({ groups: [], workspaceSettings: readLocalPersonalSettings() });
         stopGroupChannels();
       }
       if (event === "SIGNED_IN" && s) {
