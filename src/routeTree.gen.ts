@@ -32,9 +32,11 @@ import { Route as ApiShareInviteRouteImport } from './routes/api/share/invite'
 import { Route as ApiPublicStatsRouteImport } from './routes/api/public/stats'
 import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedback'
 import { Route as ApiPublicContributeRouteImport } from './routes/api/public/contribute'
+import { Route as ApiMediaUsageRouteImport } from './routes/api/media/usage'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
 import { Route as ApiGroupsInviteRouteImport } from './routes/api/groups/invite'
 import { Route as ApiAuthWelcomeRouteImport } from './routes/api/auth/welcome'
+import { Route as ApiAccountDeleteRouteImport } from './routes/api/account/delete'
 
 const UpdatesRoute = UpdatesRouteImport.update({
   id: '/updates',
@@ -151,6 +153,11 @@ const ApiPublicContributeRoute = ApiPublicContributeRouteImport.update({
   path: '/api/public/contribute',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaUsageRoute = ApiMediaUsageRouteImport.update({
+  id: '/api/media/usage',
+  path: '/api/media/usage',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMediaUploadRoute = ApiMediaUploadRouteImport.update({
   id: '/api/media/upload',
   path: '/api/media/upload',
@@ -164,6 +171,11 @@ const ApiGroupsInviteRoute = ApiGroupsInviteRouteImport.update({
 const ApiAuthWelcomeRoute = ApiAuthWelcomeRouteImport.update({
   id: '/api/auth/welcome',
   path: '/api/auth/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAccountDeleteRoute = ApiAccountDeleteRouteImport.update({
+  id: '/api/account/delete',
+  path: '/api/account/delete',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -186,9 +198,11 @@ export interface FileRoutesByFullPath {
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
   '/set/$setId': typeof SetSetIdRoute
+  '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
+  '/api/media/usage': typeof ApiMediaUsageRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
   '/api/public/stats': typeof ApiPublicStatsRoute
@@ -214,9 +228,11 @@ export interface FileRoutesByTo {
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
   '/set/$setId': typeof SetSetIdRoute
+  '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
+  '/api/media/usage': typeof ApiMediaUsageRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
   '/api/public/stats': typeof ApiPublicStatsRoute
@@ -243,9 +259,11 @@ export interface FileRoutesById {
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
   '/set/$setId': typeof SetSetIdRoute
+  '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
+  '/api/media/usage': typeof ApiMediaUsageRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
   '/api/public/stats': typeof ApiPublicStatsRoute
@@ -273,9 +291,11 @@ export interface FileRouteTypes {
     | '/g/$token'
     | '/s/$shareId'
     | '/set/$setId'
+    | '/api/account/delete'
     | '/api/auth/welcome'
     | '/api/groups/invite'
     | '/api/media/upload'
+    | '/api/media/usage'
     | '/api/public/contribute'
     | '/api/public/feedback'
     | '/api/public/stats'
@@ -301,9 +321,11 @@ export interface FileRouteTypes {
     | '/g/$token'
     | '/s/$shareId'
     | '/set/$setId'
+    | '/api/account/delete'
     | '/api/auth/welcome'
     | '/api/groups/invite'
     | '/api/media/upload'
+    | '/api/media/usage'
     | '/api/public/contribute'
     | '/api/public/feedback'
     | '/api/public/stats'
@@ -329,9 +351,11 @@ export interface FileRouteTypes {
     | '/g/$token'
     | '/s/$shareId'
     | '/set/$setId'
+    | '/api/account/delete'
     | '/api/auth/welcome'
     | '/api/groups/invite'
     | '/api/media/upload'
+    | '/api/media/usage'
     | '/api/public/contribute'
     | '/api/public/feedback'
     | '/api/public/stats'
@@ -358,9 +382,11 @@ export interface RootRouteChildren {
   GTokenRoute: typeof GTokenRoute
   SShareIdRoute: typeof SShareIdRoute
   SetSetIdRoute: typeof SetSetIdRoute
+  ApiAccountDeleteRoute: typeof ApiAccountDeleteRoute
   ApiAuthWelcomeRoute: typeof ApiAuthWelcomeRoute
   ApiGroupsInviteRoute: typeof ApiGroupsInviteRoute
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
+  ApiMediaUsageRoute: typeof ApiMediaUsageRoute
   ApiPublicContributeRoute: typeof ApiPublicContributeRoute
   ApiPublicFeedbackRoute: typeof ApiPublicFeedbackRoute
   ApiPublicStatsRoute: typeof ApiPublicStatsRoute
@@ -531,6 +557,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicContributeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media/usage': {
+      id: '/api/media/usage'
+      path: '/api/media/usage'
+      fullPath: '/api/media/usage'
+      preLoaderRoute: typeof ApiMediaUsageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/media/upload': {
       id: '/api/media/upload'
       path: '/api/media/upload'
@@ -550,6 +583,13 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/welcome'
       fullPath: '/api/auth/welcome'
       preLoaderRoute: typeof ApiAuthWelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/account/delete': {
+      id: '/api/account/delete'
+      path: '/api/account/delete'
+      fullPath: '/api/account/delete'
+      preLoaderRoute: typeof ApiAccountDeleteRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -574,9 +614,11 @@ const rootRouteChildren: RootRouteChildren = {
   GTokenRoute: GTokenRoute,
   SShareIdRoute: SShareIdRoute,
   SetSetIdRoute: SetSetIdRoute,
+  ApiAccountDeleteRoute: ApiAccountDeleteRoute,
   ApiAuthWelcomeRoute: ApiAuthWelcomeRoute,
   ApiGroupsInviteRoute: ApiGroupsInviteRoute,
   ApiMediaUploadRoute: ApiMediaUploadRoute,
+  ApiMediaUsageRoute: ApiMediaUsageRoute,
   ApiPublicContributeRoute: ApiPublicContributeRoute,
   ApiPublicFeedbackRoute: ApiPublicFeedbackRoute,
   ApiPublicStatsRoute: ApiPublicStatsRoute,
