@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
+import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
 import {
   fetchGroupMembers,
   fetchMemberGroupSetIds,
@@ -197,6 +198,15 @@ export function GroupPanelDialog({
                 Group renamed.
               </p>
             )}
+          </div>
+        )}
+
+        {/* The group's own preferences (multi-language, language). Only the
+            owner can change them; members see where they stand. Not shown in
+            the just-created invite step, which is about people. */}
+        {!isInvite && (
+          <div className="mt-6">
+            <WorkspaceSettingsRows disabled={!isOwner} />
           </div>
         )}
 

@@ -741,7 +741,9 @@ function Library() {
                 Sign out
               </button>
             )}
-            {isSignedIn && (
+            {/* Settings is for the personal workspace; a group's own settings
+                live in its Manage panel, so the pill hides while in a group. */}
+            {isSignedIn && !activeGroup && (
               <button
                 onClick={() => setShowSettings(true)}
                 className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"

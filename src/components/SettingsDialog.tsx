@@ -1,24 +1,20 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useAuthStore, useIsSignedIn, useUserEmail } from "@/lib/authStore";
+import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
+import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
-import { LANGS, isLangCode } from "@/lib/langs";
 import { deleteAccount, fetchStorageUsage, formatBytes, type StorageUsage } from "@/lib/account";
 
-const SECTION = "mono mb-3 text-[10px] uppercase tracking-wider text-muted-foreground";
 const ROW = "flex items-center justify-between gap-4 py-2";
 const LABEL = "mono text-xs uppercase tracking-wider";
-const HINT = "mono mt-1 text-[10px] uppercase tracking-wider text-muted-foreground";
+const DIVIDER = "mt-4 border-t border-foreground/15 pt-4";
 
 /**
- * Settings, opened from the header. Three groups:
- *  - Workspace: per-workspace preferences (multi-language, language) for the
- *    active workspace. A group's are the owner's to change; members read them.
- *  - Appearance: the light/dark theme (per device).
- *  - Account: storage used against the media quota, and account deletion.
+ * Settings, opened from the home header while in the Personal workspace (a
+ * group's own settings live in its Manage panel). Personal multi-language and
+ * language, the light/dark theme, storage used, and account deletion.
  */
 export function SettingsDialog({
   open,
@@ -30,19 +26,7 @@ export function SettingsDialog({
   const navigate = useNavigate();
   const isSignedIn = useIsSignedIn();
   const userEmail = useUserEmail();
-  const userId = useAuthStore((s) => s.session?.user.id ?? null);
-  const activeWorkspace = useLibrary((s) => s.activeWorkspace);
-  const activeWorkspaceName = useLibrary((s) => s.activeWorkspaceName);
-  const groups = useLibrary((s) => s.groups);
-  const settings = useLibrary((s) => s.workspaceSettings);
-  const updateWorkspaceSettings = useLibrary((s) => s.updateWorkspaceSettings);
   const refreshWorkspaceSettings = useLibrary((s) => s.refreshWorkspaceSettings);
-
-  const activeGroup = groups.find((g) => g.id === activeWorkspace);
-  const workspaceLabel =
-    activeWorkspace === "personal" ? "Personal" : (activeGroup?.name ?? activeWorkspaceName);
-  const canEditWorkspace = isSignedIn && (!activeGroup || activeGroup.owner_id === userId);
-  const [settingsError, setSettingsError] = useState<string | null>(null);
 
   const [usage, setUsage] = useState<StorageUsage | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -52,7 +36,6 @@ export function SettingsDialog({
 
   useEffect(() => {
     if (!open) return;
-    setSettingsError(null);
     setConfirmingDelete(false);
     setConfirmEmail("");
     setDeleteError(null);
@@ -62,12 +45,6 @@ export function SettingsDialog({
       fetchStorageUsage().then(setUsage);
     }
   }, [open, isSignedIn, refreshWorkspaceSettings]);
-
-  const applyWorkspace = async (patch: Parameters<typeof updateWorkspaceSettings>[0]) => {
-    setSettingsError(null);
-    const ok = await updateWorkspaceSettings(patch);
-    if (!ok) setSettingsError("Could not save. Check your connection and try again.");
-  };
 
   const runDelete = async () => {
     setDeleting(true);
@@ -89,67 +66,21 @@ export function SettingsDialog({
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
         <DialogTitle className="text-2xl font-normal leading-tight">Settings</DialogTitle>
 
-        {/* Workspace */}
-        <div className="mt-6">
-          <div className={SECTION}>Workspace: {workspaceLabel}</div>
-          <div className={ROW}>
-            <div>
-              <div className={LABEL}>Multi-language</div>
-              <div className={HINT}>
-                {settings.multiLanguage
-                  ? "Scriptures show every version they carry"
-                  : "Scriptures show one version, in the workspace language"}
-              </div>
-            </div>
-            <Switch
-              checked={settings.multiLanguage}
-              disabled={!canEditWorkspace}
-              onCheckedChange={(on) => applyWorkspace({ multiLanguage: on })}
-              aria-label="Multi-language"
-            />
+        {isSignedIn && (
+          <div className="mt-6">
+            <WorkspaceSettingsRows />
           </div>
-          <div className={ROW}>
-            <div className={LABEL}>Language</div>
-            <select
-              value={settings.language}
-              disabled={!canEditWorkspace}
-              onChange={(e) => {
-                if (isLangCode(e.target.value)) applyWorkspace({ language: e.target.value });
-              }}
-              aria-label="Workspace language"
-              className="mono rounded-full border border-foreground bg-background px-3 py-1.5 text-xs uppercase tracking-wider outline-none disabled:opacity-50"
-            >
-              {LANGS.filter((l) => !l.derivedFrom).map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {!isSignedIn && <p className={HINT}>Sign in to set workspace preferences.</p>}
-          {isSignedIn && activeGroup && !canEditWorkspace && (
-            <p className={HINT}>Only the group owner can change these.</p>
-          )}
-          {settingsError && (
-            <p className="mono mt-1 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
-              {settingsError}
-            </p>
-          )}
-        </div>
+        )}
 
-        {/* Appearance */}
-        <div className="mt-6">
-          <div className={SECTION}>Appearance</div>
+        <div className={isSignedIn ? DIVIDER : "mt-6"}>
           <div className={ROW}>
             <div className={LABEL}>Light / dark mode</div>
             <ThemeToggle />
           </div>
         </div>
 
-        {/* Account */}
         {isSignedIn && (
-          <div className="mt-6">
-            <div className={SECTION}>Account: {userEmail}</div>
+          <div className={DIVIDER}>
             <div className="py-2">
               <div className="flex items-center justify-between gap-4">
                 <div className={LABEL}>Storage</div>
@@ -165,7 +96,6 @@ export function SettingsDialog({
                   style={{ width: `${usage ? Math.max(pct, usage.used > 0 ? 1 : 0) : 0}%` }}
                 />
               </div>
-              <div className={HINT}>Uploaded images and videos count; text does not.</div>
             </div>
 
             <div className="mt-4">
@@ -175,11 +105,11 @@ export function SettingsDialog({
                   onClick={() => setConfirmingDelete(true)}
                   className="mono uppercase rounded-full border border-[var(--brand-red)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
                 >
-                  Delete account
+                  Delete {userEmail}
                 </button>
               ) : (
                 <div className="rounded-2xl border border-[var(--brand-red)] p-4">
-                  <div className={LABEL}>Delete this account?</div>
+                  <div className={LABEL}>Delete {userEmail}?</div>
                   <p className="mt-2 text-sm">
                     This permanently deletes your sets, gatherings, uploaded media, shares, and any
                     groups you own (their members keep their own sets). It cannot be undone. Type
