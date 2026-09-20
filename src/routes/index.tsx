@@ -3,6 +3,8 @@ import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useAccountPull, useSyncStatus } from "@/hooks/use-sync-status";
+import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
+import { fetchWorkspaceSettings, saveWorkspaceSettings } from "@/lib/workspace-settings";
 import { exportCatalogue, importCatalogue } from "@/lib/catalogue-io";
 import { APP_NAME } from "@/lib/appConfig";
 import { isLiveNow } from "@/lib/live-session";
@@ -278,6 +280,10 @@ function Library() {
     setShowNewGroup(false);
     setNewGroupName("");
     if (id) {
+      // The group starts with the creator's personal languages (adjustable in
+      // the next dialog, and later under Manage).
+      const personal = await fetchWorkspaceSettings({ groupId: null });
+      if (personal) await saveWorkspaceSettings({ groupId: id }, personal.settings);
       await loadGroups();
       await setActiveWorkspace(id);
       setCatalogueShareGroupId(id);
@@ -1678,6 +1684,11 @@ function Library() {
             Add all your personal sets to this group so everyone can use them. You can retract any
             set later.
           </AlertDialogDescription>
+          {/* The group's languages, started from the creator's own; the same
+              rows as under Manage. */}
+          <div className="mt-6 border-t border-foreground/15 pt-4">
+            <WorkspaceSettingsRows />
+          </div>
           <div className="mt-8 flex gap-3">
             <button
               type="button"
