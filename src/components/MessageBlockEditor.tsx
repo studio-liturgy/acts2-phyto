@@ -195,28 +195,51 @@ export function MessageBlockEditor({
       e.preventDefault();
       dragOver(i);
     },
+    // Commit on drop as well as dragend: the live reorder re-renders the list
+    // under the cursor, and if the dragged node is remounted meanwhile the
+    // browser never fires dragend on it. Drop fires on the target, which is
+    // always mounted. The ref guard makes the second call a no-op.
+    onDrop: (e: React.DragEvent) => {
+      if (dragFrom.current === null) return;
+      e.preventDefault();
+      commitOrder();
+    },
   });
 
-  // Render blocks in order, but coalesce a run of consecutive IMAGE blocks into a
-  // single 2-up grid of 16:9 thumbnails (matching the media set editor and the
-  // projected proportions) instead of one full-width card each. Points and
-  // imports keep the stacked card layout.
+  // Render blocks in order, but coalesce a run of TWO OR MORE consecutive
+  // image blocks into a 2-up grid of 16:9 thumbnails (matching the media set
+  // editor and the projected proportions). A single image is an ordinary card
+  // with the grip and delete button, like a point or a passage.
   const rows: React.ReactNode[] = [];
+  let imageRunNo = 0;
   for (let i = 0; i < blocks.length; ) {
     const b = blocks[i];
-    if (b.kind === "element" && b.slide.kind === "image") {
-      const run: { slide: Slide; key: string; i: number }[] = [];
-      while (i < blocks.length) {
-        const bi = blocks[i];
+    const runLength = (() => {
+      let n = 0;
+      while (i + n < blocks.length) {
+        const bi = blocks[i + n];
         if (bi.kind !== "element" || bi.slide.kind !== "image") break;
-        run.push({ slide: bi.slide, key: bi.key, i });
-        i += 1;
+        n += 1;
       }
+      return n;
+    })();
+    if (runLength >= 2) {
+      const run: { slide: Slide; key: string; i: number }[] = [];
+      for (let n = 0; n < runLength; n += 1) {
+        const bi = blocks[i + n] as Extract<Block, { kind: "element" }>;
+        run.push({ slide: bi.slide, key: bi.key, i: i + n });
+      }
+      i += runLength;
+      // Keyed by the run's ordinal, not its first image, so reordering inside
+      // the grid doesn't remount the grid (and the element being dragged).
+      imageRunNo += 1;
+      const dropOnRun = dragProps(run[0].i).onDrop;
       rows.push(
         <div
-          key={`images-${run[0].key}`}
+          key={`images-run-${imageRunNo}`}
           className="grid grid-cols-2 gap-2 p-3"
           style={{ backgroundColor: `color-mix(in oklab, ${tints[run[0].i]} 8%, transparent)` }}
+          onDrop={dropOnRun}
         >
           {run.map(({ slide, key, i: bi }) => {
             const dp = dragProps(bi);
@@ -227,6 +250,7 @@ export function MessageBlockEditor({
                 onDragStart={dp.onDragStart}
                 onDragEnd={dp.onDragEnd}
                 onDragOver={dp.onDragOver}
+                onDrop={dp.onDrop}
                 className="group relative aspect-video cursor-grab overflow-hidden rounded-md border border-foreground/10"
               >
                 <SlideView
@@ -273,7 +297,7 @@ export function MessageBlockEditor({
 
     const grip = <Grip onDragStart={dragProps(i).onDragStart} onDragEnd={commitOrder} />;
     rows.push(
-      <div key={b.key} onDragOver={dragProps(i).onDragOver}>
+      <div key={b.key} onDragOver={dragProps(i).onDragOver} onDrop={dragProps(i).onDrop}>
         {b.kind === "import" ? (
           <ImportBlock
             versions={versions}
