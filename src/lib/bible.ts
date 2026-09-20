@@ -597,6 +597,15 @@ export function cleanVerseText(
   out = stripTags(out);
   // Drop markdown-style bold headers a few translations smuggle in
   out = out.replace(/^\s*\*\*[^*\n]+\*\*\s*/g, "");
+  // Some CJK editions (CUV) put a space between every character. Browsers
+  // then break at any of them, stranding a 。 or 」 at the start of a line;
+  // without the spaces the text wraps under CJK line-breaking rules. Only
+  // between Han/kana characters and CJK punctuation: Korean spaces words and
+  // keeps them.
+  out = out.replace(
+    /(?<=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u3000-\u303f\uff00-\uffef])[ \t]+(?=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u3000-\u303f\uff00-\uffef])/gu,
+    "",
+  );
   if (removeLineBreaks) {
     out = out.replace(/\s+/g, " ");
   } else {

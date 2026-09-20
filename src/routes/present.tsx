@@ -1743,7 +1743,9 @@ function PresenterThumb({
   // edited text (the same LCS reattach the full editor uses for its
   // chords-hidden mode), so editing a line keeps its chords rather than dropping
   // them.
-  const canEdit = slide.kind === "lyric" || slide.kind === "scripture";
+  // Song lines and message points; a scripture's text is the translation's and
+  // may be stacked in two versions, so it's edited in the set editor only.
+  const canEdit = slide.kind === "lyric" || slide.kind === "point";
   const editingId = useFastEditSlide((s) => s.editingId);
   const draft = useFastEditSlide((s) => s.draft);
   const openEdit = useFastEditSlide((s) => s.open);

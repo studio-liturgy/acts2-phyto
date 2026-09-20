@@ -49,7 +49,7 @@ describe("psalm superscriptions are dropped from verse 1", () => {
         "（ 大 衛 的 詩 ， 交 與 伶 長 。 ） 耶 和 華 啊 ， 求 你 留 心 聽 我 的 言 語 ！",
         o,
       ),
-    ).toBe("耶 和 華 啊 ， 求 你 留 心 聽 我 的 言 語 ！");
+    ).toBe("耶和華啊，求你留心聽我的言語！");
   });
 
   it("leaves a verse alone outside a psalm's first verse, and italic supplied words", () => {
@@ -96,5 +96,24 @@ describe("other translations' headings", () => {
     ).toBe("悪しき者のはかりごとに");
     // Furigana are stripped in every verse, not only a psalm's first.
     expect(cleanVerseText("<i>神</i><sup>,かみ</sup>は", { removeLineBreaks: true })).toBe("神は");
+  });
+});
+
+describe("CJK spacing", () => {
+  it("collapses CUV's per-character spaces so lines break by kinsoku, not at spaces", () => {
+    expect(
+      cleanVerseText("酒 用 盡 了 ， 耶 穌 的 母 親 對 他 說 ： 「 他 們 沒 有 酒 了 。 」", {
+        removeLineBreaks: true,
+      }),
+    ).toBe("酒用盡了，耶穌的母親對他說：「他們沒有酒了。」");
+  });
+
+  it("keeps Korean word spaces and Latin text untouched", () => {
+    expect(cleanVerseText("포도주가 모자란지라 예수의 어머니가", { removeLineBreaks: true })).toBe(
+      "포도주가 모자란지라 예수의 어머니가",
+    );
+    expect(cleanVerseText("When the wine was gone", { removeLineBreaks: true })).toBe(
+      "When the wine was gone",
+    );
   });
 });

@@ -2083,7 +2083,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               setOpen={setVersionOpen}
               onPick={setTranslation}
               exclude={scripture.multi ? translation2 : ""}
-              groups={[{ language: "", translations: scripture.firstChoices }]}
+              groups={scripture.firstGroups}
             />
             {scripture.multi ? (
               <VersionPicker

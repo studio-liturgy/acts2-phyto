@@ -434,10 +434,13 @@ export function SlideView({
                           )}
                           <div
                             className="font-medium leading-snug"
+                            lang={vLang}
                             style={{
                               fontSize: `${3.75 * fontScale}rem`,
                               whiteSpace: "pre-line",
                               wordBreak: vLang ? langWordBreak(vLang) : undefined,
+                              // Never open a line with 。」etc. (kinsoku).
+                              lineBreak: "strict",
                               fontFamily: vLang
                                 ? langFontStack(vLang, template?.fontFamily)
                                 : undefined,

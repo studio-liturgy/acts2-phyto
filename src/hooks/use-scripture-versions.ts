@@ -15,6 +15,7 @@ import {
 } from "@/lib/slide-text";
 import { hasStackedVersions, visibleVersions } from "@/lib/versions";
 import type { SetKind, Slide } from "@/lib/types";
+import { langDef, type LangCode } from "@/lib/langs";
 
 /**
  * The scripture importer's state and behaviour, with the two-version support
@@ -55,27 +56,59 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     if (stored) return stored;
     return translationsForLang(settings.language)[0]?.code ?? "NIV";
   });
-  // A new set in a multi-language workspace starts bilingual: the 2nd
-  // language's first version. A stored set keeps what it has (including none).
-  const [translation2, setTranslation2] = useState<string>(() => {
-    const set = readSet();
-    if (set?.versions?.length) return set.versions[1] ?? "";
-    return multi && settings.language2
-      ? (translationsForLang(settings.language2)[0]?.code ?? "")
-      : "";
-  });
+  // A new set starts with no 2nd version; a stored set keeps what it has.
+  const [translation2, setTranslation2] = useState<string>(() => readSet()?.versions?.[1] ?? "");
+  // The two languages take turns: whichever language the 1st version is in,
+  // the 2nd version comes from the other. With no 2nd version chosen, the 1st
+  // slot lists both languages (grouped, so the boundary is visible).
+  const firstLang = useMemo<LangCode>(() => {
+    if (!multi) return settings.language;
+    const l = langOfTranslation(translation);
+    return l === settings.language2 ? settings.language2 : settings.language;
+  }, [multi, translation, settings.language, settings.language2]);
+  const secondLang = useMemo<LangCode | null>(() => {
+    if (!multi || !settings.language2) return null;
+    return firstLang === settings.language ? settings.language2 : settings.language;
+  }, [multi, firstLang, settings.language, settings.language2]);
   const secondChoices = useMemo(
-    () => (settings.language2 ? translationsForLang(settings.language2) : []),
-    [settings.language2],
+    () => (secondLang ? translationsForLang(secondLang) : []),
+    [secondLang],
   );
-  // With no 2nd version chosen, the single slot may take a version from either
-  // language; once a 2nd is chosen, each slot is its own language's.
-  const firstChoices = useMemo(() => {
-    const own = translationsForLang(settings.language);
-    if (!multi || translation2 || !settings.language2) return own;
-    const seen = new Set(own.map((t) => t.code));
-    return [...own, ...secondChoices.filter((t) => !seen.has(t.code))];
-  }, [settings.language, settings.language2, multi, translation2, secondChoices]);
+  const firstChoices = useMemo(
+    () =>
+      multi && !translation2 && settings.language2
+        ? [...translationsForLang(settings.language), ...translationsForLang(settings.language2)]
+        : translationsForLang(firstLang),
+    [multi, translation2, settings.language, settings.language2, firstLang],
+  );
+  /** The 1st picker's list, grouped by language when it spans both. */
+  const firstGroups = useMemo(
+    () =>
+      multi && !translation2 && settings.language2
+        ? [
+            {
+              language: langDef(settings.language).label,
+              translations: translationsForLang(settings.language),
+            },
+            {
+              language: langDef(settings.language2).label,
+              translations: translationsForLang(settings.language2),
+            },
+          ]
+        : [{ language: "", translations: firstChoices }],
+    [multi, translation2, settings.language, settings.language2, firstChoices],
+  );
+  // Picking a 1st version in the other language moves the 2nd version over to
+  // the remaining language (its first bible version), so the pair still spans
+  // both languages.
+  useEffect(() => {
+    if (!multi || !translation2 || !secondLang) return;
+    if (langOfTranslation(translation2) !== secondLang) {
+      const first = translationsForLang(secondLang)[0]?.code;
+      if (first && first !== translation) setTranslation2(first);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondLang]);
   // A set with no stored version follows the workspace's languages (a fresh
   // set opened in a Chinese workspace imports Chinese).
   useEffect(() => {
@@ -84,7 +117,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       const first = firstChoices[0]?.code;
       if (first) setTranslation(first);
     }
-    if (multi && settings.language2 && langOfTranslation(translation2) !== settings.language2) {
+    if (multi && translation2 && secondLang && langOfTranslation(translation2) !== secondLang) {
       const first = secondChoices[0]?.code;
       if (first) setTranslation2(first);
     }
@@ -484,6 +517,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     translation2,
     setTranslation2,
     firstChoices,
+    firstGroups,
     secondChoices,
     manualText,
     setManualText,
