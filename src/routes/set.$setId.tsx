@@ -29,6 +29,7 @@ import { MessageElements } from "@/components/MessageElements";
 import { MessageBlockEditor } from "@/components/MessageBlockEditor";
 import { ScriptureVerseEditor } from "@/components/ScriptureVerseEditor";
 import { VersionPicker } from "@/components/VersionPicker";
+import { VersionWarning } from "@/components/VersionWarning";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PillSwitch } from "@/components/PillSwitch";
@@ -155,6 +156,8 @@ function SetHeader({
     shared?: boolean;
     shared_by?: string;
     groupIds?: string[];
+    versions?: string[];
+    slides: Slide[];
   };
   redirectTo?: string;
   editingName: boolean;
@@ -235,6 +238,7 @@ function SetHeader({
         >
           {phytoSet.kind}
         </span>
+        <VersionWarning set={phytoSet} />
 
         {phytoSet.shared && (
           <span className="mono shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -2079,68 +2083,73 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         {/* API lookup section — persistent, above the verse/block editor, so you
             can import more passages while adding points and images. */}
         <div className="relative z-20 shrink-0 border-b border-foreground/20 p-4">
-          <PillInput
-            value={ref}
-            onChange={setRef}
-            placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2"
-            onEnter={() => {
-              if (ref.trim() && !busy) importScripture();
-            }}
-          />
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <VersionPicker
-              label={scripture.multi ? "1st version" : "Version"}
-              value={translation}
-              open={versionOpen}
-              setOpen={setVersionOpen}
-              onPick={setTranslation}
-              exclude={scripture.multi ? translation2 : ""}
-              groups={scripture.firstGroups}
+          {/* While the set's versions don't match the workspace, importing more
+              is frozen (greyed, inert) until it's resolved: UPDATE below, or
+              delete the verses. */}
+          <div className={scripture.frozen ? "pointer-events-none opacity-40" : ""}>
+            <PillInput
+              value={ref}
+              onChange={setRef}
+              placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2"
+              onEnter={() => {
+                if (ref.trim() && !busy && !scripture.frozen) importScripture();
+              }}
             />
-            {scripture.multi ? (
+            <div className="mt-3 grid grid-cols-2 gap-3">
               <VersionPicker
-                label="2nd version"
-                value={translation2}
-                placeholder="None"
-                open={version2Open}
-                setOpen={setVersion2Open}
-                onPick={setTranslation2}
-                onClear={() => setTranslation2("")}
-                exclude={translation}
-                groups={[{ language: "", translations: scripture.secondChoices }]}
+                label={scripture.multi ? "1st version" : "Version"}
+                value={translation}
+                open={versionOpen}
+                setOpen={setVersionOpen}
+                onPick={setTranslation}
+                exclude={scripture.multi ? translation2 : ""}
+                groups={scripture.firstGroups}
               />
-            ) : (
-              <ImportOptions
-                versesPer={versesPer}
-                setVersesPer={setVersesPer}
-                keepLineBreaks={keepLineBreaks}
-                setKeepLineBreaks={setKeepLineBreaks}
-              />
+              {scripture.multi ? (
+                <VersionPicker
+                  label="2nd version"
+                  value={translation2}
+                  placeholder="None"
+                  open={version2Open}
+                  setOpen={setVersion2Open}
+                  onPick={setTranslation2}
+                  onClear={() => setTranslation2("")}
+                  exclude={translation}
+                  groups={[{ language: "", translations: scripture.secondChoices }]}
+                />
+              ) : (
+                <ImportOptions
+                  versesPer={versesPer}
+                  setVersesPer={setVersesPer}
+                  keepLineBreaks={keepLineBreaks}
+                  setKeepLineBreaks={setKeepLineBreaks}
+                />
+              )}
+            </div>
+            {scripture.multi && (
+              <div className="mt-2">
+                <ImportOptions
+                  versesPer={versesPer}
+                  setVersesPer={setVersesPer}
+                  keepLineBreaks={keepLineBreaks}
+                  setKeepLineBreaks={setKeepLineBreaks}
+                  maxVerses={scripture.bilingual ? 2 : 3}
+                />
+              </div>
+            )}
+            {scripture.bilingual && (
+              <button
+                type="button"
+                onClick={scripture.swapVersions}
+                className="mono mt-2 flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeftRight className="h-3 w-3" /> Swap versions
+              </button>
+            )}
+            {alignNote && (
+              <p className="mono mt-2 text-xs tracking-wider text-amber-600">{alignNote}</p>
             )}
           </div>
-          {scripture.multi && (
-            <div className="mt-2">
-              <ImportOptions
-                versesPer={versesPer}
-                setVersesPer={setVersesPer}
-                keepLineBreaks={keepLineBreaks}
-                setKeepLineBreaks={setKeepLineBreaks}
-                maxVerses={scripture.bilingual ? 2 : 3}
-              />
-            </div>
-          )}
-          {scripture.bilingual && (
-            <button
-              type="button"
-              onClick={scripture.swapVersions}
-              className="mono mt-2 flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeftRight className="h-3 w-3" /> Swap versions
-            </button>
-          )}
-          {alignNote && (
-            <p className="mono mt-2 text-xs tracking-wider text-amber-600">{alignNote}</p>
-          )}
           {scripture.versionsMismatch && (
             <div className="mono mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-foreground/30 px-4 py-2 text-[10px] uppercase tracking-wider">
               <span className="text-muted-foreground">
@@ -2227,7 +2236,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           )}
           <button
             onClick={importScripture}
-            disabled={!ref.trim() || busy}
+            disabled={!ref.trim() || busy || scripture.frozen}
             className="mono uppercase pill mt-3 w-full bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
           >
             {busy ? "Fetching…" : "Import"}

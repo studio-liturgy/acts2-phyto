@@ -523,7 +523,17 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     () => inferredVersions({ kind, versions: storedVersions, slides: storeSlides ?? [] }),
     [kind, storedVersions, storeSlides],
   );
-  const versionsMismatch = versionsMismatchWorkspace(inferred, settings);
+  const hasVerses = (storeSlides ?? []).some((sl) => sl.kind === "scripture");
+  const versionsMismatch = hasVerses && versionsMismatchWorkspace(inferred, settings);
+  // Importing more is frozen until the mismatch is resolved: UPDATE, or every
+  // verse removed (which also clears the set's recorded versions below).
+  const frozen = versionsMismatch;
+  useEffect(() => {
+    if (!scriptureKind || hasVerses) return;
+    if (storedVersions?.length || storedImports?.length) {
+      updateSet(setId, { versions: undefined, scriptureImports: undefined });
+    }
+  }, [scriptureKind, hasVerses, storedVersions, storedImports, setId, updateSet]);
   // What Update re-imports in: a version already in one of the workspace's
   // languages is kept; the other slot gets the remaining language's first
   // bible. A single-version set stays single.
@@ -629,6 +639,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     swapVersions,
     clearBoxes,
     versionsMismatch,
+    frozen,
     storedVersions: inferred,
     workspaceVersions,
     updateGroupsFor,

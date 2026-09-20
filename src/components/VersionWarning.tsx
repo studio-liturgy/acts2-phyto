@@ -13,9 +13,17 @@ import type { Set as PhytoSet } from "@/lib/types";
  * the list stays quiet in the normal case. Open the set and press Update to
  * re-import it. Carries its own TooltipProvider: the app has none at the root.
  */
-export function VersionWarning({ set, className = "" }: { set: PhytoSet; className?: string }) {
+export function VersionWarning({
+  set,
+  className = "",
+}: {
+  set: Pick<PhytoSet, "kind" | "versions" | "slides">;
+  className?: string;
+}) {
   const settings = useLibrary((s) => s.workspaceSettings);
   const versions = inferredVersions(set);
+  // No verses, nothing to warn about (a set that had them all deleted).
+  if (!set.slides.some((sl) => sl.kind === "scripture")) return null;
   if (!versionsMismatchWorkspace(versions, settings)) return null;
 
   // The set's languages (from its versions), each once.
