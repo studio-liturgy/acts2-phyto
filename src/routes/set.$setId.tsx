@@ -361,6 +361,8 @@ function SetEditor() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
+  // The media editor's "Add image" picker.
+  const mediaFileRef = useRef<HTMLInputElement>(null);
   const [groupView, setGroupView] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [showFileSizeDialog, setShowFileSizeDialog] = useState(false);
@@ -806,7 +808,51 @@ function SetEditor() {
                     {uploading ? "Uploading…" : "Drop to add media"}
                   </p>
                 )}
-                <div className="mb-3 flex justify-end">
+                <div className="mb-3 flex justify-end gap-2">
+                  {/* Fit for EVERY image at once: fills the frame unless they all
+                      already do, in which case it fits them instead. */}
+                  {phytoSet.slides.some((sl) => sl.kind === "image") &&
+                    (() => {
+                      const images = phytoSet.slides.filter((sl) => sl.kind === "image");
+                      const allCover = images.every((sl) => sl.imageFit === "cover");
+                      const nextFit = allCover ? "contain" : "cover";
+                      return (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSet(phytoSet.id, {
+                              slides: phytoSet.slides.map((sl) =>
+                                sl.kind === "image" ? { ...sl, imageFit: nextFit } : sl,
+                              ),
+                            })
+                          }
+                          className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                          title={allCover ? "Fit every image" : "Fill the frame with every image"}
+                        >
+                          {allCover ? "Fit image" : "Fill frame"}
+                        </button>
+                      );
+                    })()}
+                  <button
+                    type="button"
+                    onClick={() => mediaFileRef.current?.click()}
+                    disabled={converting || uploading}
+                    className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background disabled:opacity-50"
+                  >
+                    Add image
+                  </button>
+                  <input
+                    ref={mediaFileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm"
+                    multiple
+                    disabled={converting || uploading}
+                    className="hidden"
+                    onChange={(e) => {
+                      handleMediaFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
                   <button
                     type="button"
                     onClick={() => {
@@ -824,7 +870,7 @@ function SetEditor() {
                     }}
                     className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
                   >
-                    <Plus className="h-4 w-4" /> Add section
+                    Add section
                   </button>
                 </div>
                 <SlideGrid
