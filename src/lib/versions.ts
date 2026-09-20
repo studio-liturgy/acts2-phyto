@@ -6,7 +6,7 @@
 // primary). Groups get this for free: the set carries both, each member's
 // workspace picks.
 
-import type { Slide, Set as PhytoSet } from "./types";
+import type { Slide } from "./types";
 import { langOfTranslation, type AlignedVerse } from "./bible";
 import type { WorkspaceSettings } from "./workspace-settings";
 
@@ -77,9 +77,14 @@ export function displayLinesForVersions(slide: Slide, versions: string[]): Displ
 
 /** Does this set stack translations at all? A set with one (or no) recorded
  *  version renders the plain way from `lines`, exactly as before versions. */
-export function hasStackedVersions(
-  set: Pick<PhytoSet, "versions" | "slides"> | undefined,
-): boolean {
+/** The shape the visibility rules need: the versions, and slides that may
+ *  carry per-version text (the viewer's raw rows qualify too). */
+export type VersionedSet = {
+  versions?: string[];
+  slides: Array<{ linesByVersion?: Record<string, string> }>;
+};
+
+export function hasStackedVersions(set: VersionedSet | null | undefined): boolean {
   return !!set && (set.versions?.length ?? 0) > 1 && set.slides.some((s) => !!s.linesByVersion);
 }
 
@@ -90,7 +95,7 @@ export function hasStackedVersions(
  * the set's primary when none is.
  */
 export function visibleVersions(
-  set: Pick<PhytoSet, "versions" | "slides"> | undefined,
+  set: VersionedSet | null | undefined,
   settings: WorkspaceSettings,
 ): string[] | undefined {
   if (!hasStackedVersions(set)) return undefined;

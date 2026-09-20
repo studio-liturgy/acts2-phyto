@@ -1,10 +1,19 @@
 import type { Slide, SetTemplate } from "@/lib/types";
 import { stripChords } from "@/lib/chords";
 import { STAGE_H, STAGE_W, fitOrigin, fitScale } from "@/lib/slide-fit";
+import { displayLinesForVersions } from "@/lib/versions";
+import { langOfTranslation } from "@/lib/bible";
+import { langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
   slide?: Slide | null;
+  /**
+   * Scripture: the bible versions to stack on this slide, in order (what the
+   * workspace shows: see lib/versions.ts visibleVersions). Undefined, or a
+   * slide with no `linesByVersion`, renders the plain way from `lines`.
+   */
+  versions?: string[];
   /** "stage" = fullscreen output, "preview" = editor preview, "thumb" = small card. */
   variant?: "stage" | "thumb" | "preview";
   className?: string;
@@ -249,6 +258,7 @@ function PlayGlyph() {
  */
 export function SlideView({
   slide,
+  versions,
   variant = "preview",
   className = "",
   imageFit = "contain",
@@ -311,7 +321,16 @@ export function SlideView({
     return lines.map(stripChords).filter((l) => l.trim());
   }, [slide?.lines, slide?.kind]);
 
-  const hasText = !!(displayLines.some((l) => l.trim()) || slide?.title);
+  // A scripture that stacks translations shows one verse per version, each
+  // with its own (localized) reference, in the workspace's order.
+  const versionLines = useMemo(
+    () =>
+      versions && versions.length > 0 && slide ? displayLinesForVersions(slide, versions) : [],
+    [slide, versions],
+  );
+  const stacked = versionLines.length > 0;
+
+  const hasText = !!(displayLines.some((l) => l.trim()) || stacked || slide?.title);
   const bg = slide?.imageUrl
     ? {
         backgroundImage: `url(${slide.imageUrl})`,
@@ -393,21 +412,60 @@ export function SlideView({
                     {slide.title}
                   </div>
                 )}
-                {slide?.reference && slide.kind === "scripture" && refAbove && (
+                {slide?.reference && slide.kind === "scripture" && refAbove && !stacked && (
                   <div className="mb-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
                     {slide.reference}
                   </div>
                 )}
-                {displayLines.map((l, i) => (
-                  <div
-                    key={i}
-                    className="font-medium leading-snug"
-                    style={{ fontSize: `${3.75 * fontScale}rem`, textTransform: lyricCase }}
-                  >
-                    {l}
-                  </div>
-                ))}
-                {slide?.reference && slide.kind === "scripture" && !refAbove && (
+                {stacked
+                  ? // Each version shows its own verse with its own (localized)
+                    // reference, so the stack reads verse / ref / verse / ref.
+                    versionLines.map((l) => {
+                      const vLang = langOfTranslation(l.version);
+                      return (
+                        <div key={l.key} className="mb-10 last:mb-0">
+                          {refAbove && l.reference && (
+                            <div
+                              className="mb-3 opacity-80"
+                              style={{ fontSize: `${1.875 * fontScale}rem` }}
+                            >
+                              {l.reference}
+                            </div>
+                          )}
+                          <div
+                            className="font-medium leading-snug"
+                            style={{
+                              fontSize: `${3.75 * fontScale}rem`,
+                              whiteSpace: "pre-line",
+                              wordBreak: vLang ? langWordBreak(vLang) : undefined,
+                              fontFamily: vLang
+                                ? langFontStack(vLang, template?.fontFamily)
+                                : undefined,
+                            }}
+                          >
+                            {vLang ? typesetLine(vLang, l.text) : l.text}
+                          </div>
+                          {!refAbove && l.reference && (
+                            <div
+                              className="mt-3 opacity-80"
+                              style={{ fontSize: `${1.875 * fontScale}rem` }}
+                            >
+                              {l.reference}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  : displayLines.map((l, i) => (
+                      <div
+                        key={i}
+                        className="font-medium leading-snug"
+                        style={{ fontSize: `${3.75 * fontScale}rem`, textTransform: lyricCase }}
+                      >
+                        {l}
+                      </div>
+                    ))}
+                {slide?.reference && slide.kind === "scripture" && !refAbove && !stacked && (
                   <div className="mt-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
                     {slide.reference}
                   </div>
@@ -429,6 +487,7 @@ export function SlideView({
  */
 export function DissolveSlide({
   slide,
+  versions,
   variant = "stage",
   durationMs = 0,
   className = "",
@@ -546,6 +605,7 @@ export function DissolveSlide({
       <div className="absolute inset-0" style={layerStyle(front === "a")}>
         <SlideView
           slide={a}
+          versions={versions}
           variant={variant}
           imageFit={imageFit}
           template={templateA}
@@ -559,6 +619,7 @@ export function DissolveSlide({
       <div className="absolute inset-0" style={layerStyle(front === "b")}>
         <SlideView
           slide={b}
+          versions={versions}
           variant={variant}
           imageFit={imageFit}
           template={templateB}

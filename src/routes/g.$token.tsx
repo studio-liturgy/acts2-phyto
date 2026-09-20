@@ -4,6 +4,12 @@ import { supabase } from "@/lib/supabase";
 import { isLiveNow } from "@/lib/live-session";
 import { PhoneViewer, type PhoneSet } from "@/components/PhoneViewer";
 import type { SongChords } from "@/lib/chords";
+import { visibleVersions } from "@/lib/versions";
+import {
+  DEFAULT_WORKSPACE_SETTINGS,
+  fetchWorkspaceSettings,
+  type WorkspaceSettings,
+} from "@/lib/workspace-settings";
 
 // Per-gathering share view — private, ephemeral links. Keep out of search.
 
@@ -15,6 +21,10 @@ interface GatheringRow {
   id: string;
   title: string;
   share_token: string;
+  /** The workspace the gathering belongs to: its contributor, and its group
+   *  (null for personal). Decides which bible versions scriptures show. */
+  user_id: string | null;
+  group_id: string | null;
   is_live: boolean;
   /** Epoch ms, or null. Paired with `is_live` to give the 24h auto-expiry. */
   live_started_at: number | null;
@@ -32,6 +42,9 @@ interface GatheringSetRow {
 interface SlideRow {
   id?: string;
   kind: string;
+  linesByVersion?: Record<string, string>;
+  referencesByVersion?: Record<string, string>;
+  importIndex?: number;
   title?: string;
   lines?: string[];
   section?: string;
@@ -46,7 +59,7 @@ interface SetRow {
   id: string;
   title: string;
   type: string;
-  content: { slides: SlideRow[]; chords?: SongChords };
+  content: { slides: SlideRow[]; chords?: SongChords; versions?: string[] };
 }
 
 interface ViewerSet {
@@ -71,7 +84,8 @@ export const Route = createFileRoute("/g/$token")({
 // Supabase fetchers — no auth required
 // ---------------------------------------------------------------------------
 
-const GATHERING_COLS = "id, title, share_token, is_live, live_started_at, hidden_sections";
+const GATHERING_COLS =
+  "id, title, share_token, user_id, group_id, is_live, live_started_at, hidden_sections";
 
 function toGatheringRow(data: Record<string, unknown>): GatheringRow {
   return {
@@ -166,13 +180,17 @@ async function fetchViewerSets(gatheringId: string): Promise<ViewerSet[]> {
 }
 
 /** Flatten a fetched set row into the shape PhoneViewer renders. */
-function toPhoneSet(set: SetRow): PhoneSet {
+function toPhoneSet(set: SetRow, settings: WorkspaceSettings): PhoneSet {
+  const slides = set.content?.slides ?? [];
   return {
     id: set.id,
     title: set.title,
     type: set.type,
-    slides: set.content?.slides ?? [],
+    slides,
     chords: set.content?.chords,
+    // Which versions a stacked scripture shows follows the gathering's
+    // workspace, exactly as the leader's screen does.
+    versions: visibleVersions({ versions: set.content?.versions, slides }, settings),
   };
 }
 
@@ -186,6 +204,7 @@ function GatheringViewer() {
   const [gatheringName, setGatheringName] = useState<string | null>(null);
   const [sets, setSets] = useState<ViewerSet[]>([]);
   const [hiddenBySet, setHiddenBySet] = useState<Record<string, string[]>>({});
+  const [settings, setSettings] = useState<WorkspaceSettings>(DEFAULT_WORKSPACE_SETTINGS);
   const prevLiveRef = useRef<boolean | null>(null);
   const stoppedRef = useRef(false);
 
@@ -242,6 +261,11 @@ function GatheringViewer() {
       if (live) {
         const viewerSets = await fetchViewerSets(g.id);
         if (stoppedRef.current) return;
+        // The gathering's workspace settings (public read), refreshed with each
+        // poll so a leader's change reaches phones without a reload.
+        const fetched = await fetchWorkspaceSettings({ groupId: g.group_id }, g.user_id);
+        if (stoppedRef.current) return;
+        if (fetched) setSettings(fetched.settings);
         setSets(viewerSets);
         setHiddenBySet(g.hidden_sections);
         setStatus("live");
@@ -291,5 +315,7 @@ function GatheringViewer() {
   }
 
   // Live
-  return <PhoneViewer sets={sets.map((vs) => toPhoneSet(vs.set))} hiddenBySet={hiddenBySet} />;
+  return (
+    <PhoneViewer sets={sets.map((vs) => toPhoneSet(vs.set, settings))} hiddenBySet={hiddenBySet} />
+  );
 }

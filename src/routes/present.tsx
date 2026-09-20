@@ -20,6 +20,7 @@ import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { useAccountSlug } from "@/hooks/use-account-slug";
+import { visibleVersions } from "@/lib/versions";
 import { NumberStepper } from "@/components/NumberStepper";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -181,6 +182,8 @@ const usePresenterKindFilter = create<{ kind: PresenterKind; setKind: (k: Presen
 function Presenter() {
   const { set: setFromUrl, gathering: gatheringFromUrl, view: viewFromUrl } = Route.useSearch();
   const sets = useLibrary((s) => s.sets);
+  // Which bible versions a scripture projects follows the workspace settings.
+  const workspaceSettings = useLibrary((s) => s.workspaceSettings);
   const order = useLibrary((s) => s.order);
   const gatherings = useLibrary((s) => s.gatherings);
   const gatheringOrder = useLibrary((s) => s.gatheringOrder);
@@ -413,8 +416,9 @@ function Presenter() {
         type: d.kind,
         slides: d.slides,
         chords: d.chords,
+        versions: visibleVersions(d, workspaceSettings),
       }));
-  }, [activeGathering, activeSetId, sets]);
+  }, [activeGathering, activeSetId, sets, workspaceSettings]);
 
   // Mobile preview only makes sense for a gathering (it's the multi-set phone
   // view). Viewing a single set falls back to slides, and the toggle is hidden.
@@ -1417,6 +1421,7 @@ function Presenter() {
               <div className="relative overflow-hidden rounded-lg bg-[var(--brand-black)]">
                 <DissolveSlide
                   slide={liveSlide}
+                  versions={visibleVersions(liveSet, workspaceSettings)}
                   variant="preview"
                   durationMs={fadeMs}
                   videoCmd={live.videoCmd}
@@ -1719,6 +1724,7 @@ function PresenterThumb({
 }) {
   const isLive = live.setId === phytoSet.id && live.slideId === slide.id;
   const updateSlide = useLibrary((s) => s.updateSlide);
+  const workspaceSettings = useLibrary((s) => s.workspaceSettings);
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
   const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
@@ -1771,7 +1777,12 @@ function PresenterThumb({
               : "border-transparent hover:border-white dark:hover:border-foreground"
         } ${disabled ? "cursor-default" : ""}`}
       >
-        <SlideView slide={slide} variant="thumb" template={template} />
+        <SlideView
+          slide={slide}
+          versions={visibleVersions(phytoSet, workspaceSettings)}
+          variant="thumb"
+          template={template}
+        />
         <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
           {isLive && (
             <span

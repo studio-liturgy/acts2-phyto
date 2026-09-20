@@ -37,6 +37,10 @@ export interface PhoneSlide {
   listStyle?: "bullets" | "numbers";
   /** Scripture-only: which import this verse came from (for grouping). */
   importIndex?: number;
+  /** Scripture: one verse text per bible version, and each version's own
+   *  (localized) reference. See PhoneSet.versions. */
+  linesByVersion?: Record<string, string>;
+  referencesByVersion?: Record<string, string>;
 }
 
 export interface PhoneSet {
@@ -47,6 +51,28 @@ export interface PhoneSet {
   slides: PhoneSlide[];
   /** Set by the leader in the song editor; absent = no chords configured. */
   chords?: SongChords;
+  /** Scripture: the bible versions to show for each passage, in order (what the
+   *  gathering's workspace shows). Absent = render the plain `lines`. */
+  versions?: string[];
+}
+
+/** One passage (a run of verses) as it reads in each shown version: its
+ *  reference and the verses joined, per version, skipping versions the run has
+ *  no text for. */
+function passageByVersion(
+  run: PhoneSlide[],
+  versions: string[],
+): { version: string; ref?: string; text: string }[] {
+  const out: { version: string; ref?: string; text: string }[] = [];
+  for (const v of versions) {
+    const text = run
+      .map((s) => s.linesByVersion?.[v]?.trim() ?? "")
+      .filter(Boolean)
+      .join(" ");
+    if (!text) continue;
+    out.push({ version: v, ref: run[0]?.referencesByVersion?.[v] ?? run[0]?.reference, text });
+  }
+  return out;
 }
 
 type FontFamily = "sans" | "serif" | "mono";
@@ -662,14 +688,38 @@ function SetContent({
 
   if (set.type === "scripture") {
     // Group slides by section, preserving order
-    const groups: { section: string | undefined; lines: string[] }[] = [];
+    const groups: { section: string | undefined; lines: string[]; run: PhoneSlide[] }[] = [];
     for (const slide of slides) {
       const last = groups[groups.length - 1];
-      if (last && last.section === slide.section) {
+      const key = slide.importIndex !== undefined ? `i${slide.importIndex}` : slide.section;
+      const lastKey =
+        last &&
+        (last.run[0]?.importIndex !== undefined ? `i${last.run[0].importIndex}` : last.section);
+      if (last && lastKey === key) {
         last.lines.push(...(slide.lines ?? []));
+        last.run.push(slide);
       } else {
-        groups.push({ section: slide.section, lines: [...(slide.lines ?? [])] });
+        groups.push({ section: slide.section, lines: [...(slide.lines ?? [])], run: [slide] });
       }
+    }
+
+    const refClass = `text-xs uppercase tracking-widest ${isDark ? "opacity-40" : "opacity-50"}`;
+    if (set.versions?.length) {
+      // A stacked scripture: each passage in every version the workspace shows.
+      return (
+        <div className="space-y-6 px-4 py-6">
+          {groups.map((group, i) => (
+            <div key={i} className="space-y-3">
+              {passageByVersion(group.run, set.versions!).map((p) => (
+                <div key={p.version} className="space-y-1">
+                  {p.ref && <p className={refClass}>{p.ref}</p>}
+                  <p className="leading-relaxed">{p.text}</p>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
     }
 
     return (
@@ -725,7 +775,13 @@ function SetContent({
     // Consecutive verses of the same passage flow together; each point/image is
     // rendered on its own so the reader sees the same sequence as the screen.
     type Blk =
-      | { kind: "scripture"; key: string | number | undefined; ref?: string; lines: string[] }
+      | {
+          kind: "scripture";
+          key: string | number | undefined;
+          ref?: string;
+          lines: string[];
+          run: PhoneSlide[];
+        }
       | { kind: "element"; slide: PhoneSlide };
     const blocks: Blk[] = [];
     for (const slide of slides) {
@@ -735,12 +791,14 @@ function SetContent({
         const last = blocks[blocks.length - 1];
         if (last && last.kind === "scripture" && last.key === key) {
           last.lines.push(...slideLines);
+          last.run.push(slide);
         } else {
           blocks.push({
             kind: "scripture",
             key,
             ref: slide.reference ?? slide.section,
             lines: [...slideLines],
+            run: [slide],
           });
         }
       } else {
@@ -753,6 +811,19 @@ function SetContent({
       <div className="space-y-6 px-4 py-6">
         {blocks.map((b, i) => {
           if (b.kind === "scripture") {
+            const stacked = set.versions?.length ? passageByVersion(b.run, set.versions) : [];
+            if (stacked.length) {
+              return (
+                <div key={i} className="space-y-3">
+                  {stacked.map((p) => (
+                    <div key={p.version} className="space-y-1">
+                      {p.ref && <p className={refClass}>{p.ref}</p>}
+                      <p className="leading-relaxed">{p.text}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
             return (
               <div key={i} className="space-y-1">
                 {b.ref && <p className={refClass}>{b.ref}</p>}

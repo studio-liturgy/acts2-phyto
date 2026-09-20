@@ -26,11 +26,9 @@ describe("visibleVersions", () => {
         { multiLanguage: true, language: "en" },
       ),
     ).toBeUndefined();
+    const plain: Slide = { id: "x", kind: "scripture", lines: ["plain"] };
     expect(
-      visibleVersions(
-        { slides: [{ id: "x", kind: "scripture", lines: ["plain"] }] },
-        { multiLanguage: true, language: "en" },
-      ),
+      visibleVersions({ slides: [plain] }, { multiLanguage: true, language: "en" }),
     ).toBeUndefined();
     expect(hasStackedVersions(stacked)).toBe(true);
   });
