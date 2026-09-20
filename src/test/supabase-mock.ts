@@ -11,7 +11,7 @@
 //   beforeEach(() => supabaseMock.configure({ tables: {...}, session: {...} }));
 
 export type Row = Record<string, unknown>;
-type Op = "select" | "upsert" | "update" | "delete";
+type Op = "select" | "insert" | "upsert" | "update" | "delete";
 
 export type InjectedError = {
   table: string;
@@ -101,6 +101,11 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
   upsert(rows: Row[], _opts?: { onConflict?: string }) {
     this.op = "upsert";
     this.rows = rows;
+    return this;
+  }
+  insert(rows: Row | Row[]) {
+    this.op = "insert";
+    this.rows = Array.isArray(rows) ? rows : [rows];
     return this;
   }
   update(patch: Row) {
@@ -203,6 +208,12 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
     if (injected) return { data: null, error: injected };
 
     const table = (this.mock.tables[this.table] ??= []);
+
+    if (this.op === "insert") {
+      const added = (this.rows ?? []).map((row) => ({ id: crypto.randomUUID(), ...row }));
+      table.push(...added.map((r) => ({ ...r })));
+      return this.returning ? this.finish(added) : { data: null, error: null };
+    }
 
     if (this.op === "upsert") {
       for (const row of this.rows ?? []) {

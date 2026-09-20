@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import wordmark from "@/assets/wordmark.svg";
 import wordmarkTest from "@/assets/wordmark-test.svg";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const linkCls = "mono uppercase transition-opacity duration-200 hover:opacity-60";
@@ -64,7 +63,6 @@ export function Footer({ className }: { className?: string }) {
           <Link to="/terms" className={`${linkCls} whitespace-nowrap`}>
             Legal
           </Link>
-          <ThemeToggle />
         </nav>
       </div>
     </footer>

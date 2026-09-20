@@ -7,7 +7,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 import type { SetKind } from "@/lib/types";
@@ -1057,7 +1056,6 @@ export function FirstTimeLanding({
             >
               Source
             </a>
-            <ThemeToggle />
           </nav>
         </div>
       </section>

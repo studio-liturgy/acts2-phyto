@@ -21,6 +21,12 @@ import {
   type MyGroup,
 } from "./sync";
 import { isLiveNow, type LiveWindow } from "./live-session";
+import {
+  DEFAULT_WORKSPACE_SETTINGS,
+  fetchWorkspaceSettings,
+  saveWorkspaceSettings,
+  type WorkspaceSettings,
+} from "./workspace-settings";
 import { isInlineImage } from "./image-upload";
 import { hasInlineImages, migrateSetImagesToR2 } from "./migrate-images";
 
@@ -223,6 +229,13 @@ interface LibraryState {
   /** Groups I belong to (for the workspace switcher). */
   groups: MyGroup[];
   loadGroups: () => Promise<void>;
+  /** The active workspace's preferences (multi-language, language). Defaults
+   *  until fetched; re-read on every workspace switch and collab tick. */
+  workspaceSettings: WorkspaceSettings;
+  refreshWorkspaceSettings: () => Promise<void>;
+  /** Write a change for the active workspace (owner-only for groups, by RLS).
+   *  Applies optimistically; reverts and returns false if the write fails. */
+  updateWorkspaceSettings: (patch: Partial<WorkspaceSettings>) => Promise<boolean>;
   /** Share my own sets to a group (creates grants; sets stay in my library). */
   shareSetsToGroup: (setIds: string[], groupId: string) => Promise<void>;
   /** Remove a set from a group (owner retract, or group admin). */
@@ -295,6 +308,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   activeWorkspace: typeof window !== "undefined" ? readActiveWorkspace() : "personal",
   activeWorkspaceName: typeof window !== "undefined" ? readActiveWorkspaceName() : "",
   groups: [],
+  workspaceSettings: DEFAULT_WORKSPACE_SETTINGS,
   songTemplate: typeof window !== "undefined" ? readSongTemplate() : { ...DEFAULT_SONG_TEMPLATE },
   scriptureTemplate:
     typeof window !== "undefined" ? readScriptureTemplate() : { ...DEFAULT_SCRIPTURE_TEMPLATE },
@@ -327,6 +341,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       activeWorkspaceName: name,
       ...buildLibraryState(allSets, allGatherings, ws),
     });
+    void get().refreshWorkspaceSettings();
     if (ws !== "personal") {
       (async () => {
         try {
@@ -336,6 +351,23 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
         } catch {}
       })();
     }
+  },
+
+  refreshWorkspaceSettings: async () => {
+    const ws = get().activeWorkspace;
+    const fetched = await fetchWorkspaceSettings({ groupId: ws === "personal" ? null : ws });
+    // Only apply if the user is still on this workspace (a switch may have
+    // raced the read), and only when the read succeeded.
+    if (fetched && get().activeWorkspace === ws) set({ workspaceSettings: fetched });
+  },
+
+  updateWorkspaceSettings: async (patch) => {
+    const ws = get().activeWorkspace;
+    const before = get().workspaceSettings;
+    set({ workspaceSettings: { ...before, ...patch } });
+    const ok = await saveWorkspaceSettings({ groupId: ws === "personal" ? null : ws }, patch);
+    if (!ok && get().activeWorkspace === ws) set({ workspaceSettings: before });
+    return ok;
   },
 
   loadGroups: async () => {

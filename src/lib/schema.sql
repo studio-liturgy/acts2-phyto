@@ -505,3 +505,42 @@ $$;
 
 revoke all on function public.get_transparency_stats() from public;
 grant execute on function public.get_transparency_stats() to service_role;
+
+-- ============================================================
+-- Table: workspace_settings
+-- Per-workspace preferences: one row per personal account
+-- (user_id) and per group (group_id). multi_language decides
+-- whether a scripture projects every version it carries or only
+-- the one in `language`. Publicly readable so the phone view can
+-- follow the live gathering's workspace; written by the account
+-- owner / group owner. See migration 2026-09-20-workspace-settings.sql.
+-- ============================================================
+create table if not exists workspace_settings (
+  id             uuid        primary key default gen_random_uuid(),
+  user_id        uuid        references auth.users on delete cascade,
+  group_id       uuid        references groups     on delete cascade,
+  multi_language boolean     not null default false,
+  language       text        not null default 'en',
+  updated_at     timestamptz not null default now(),
+  constraint workspace_settings_one_scope check ((user_id is null) <> (group_id is null))
+);
+create unique index if not exists workspace_settings_user_key
+  on workspace_settings (user_id) where user_id is not null;
+create unique index if not exists workspace_settings_group_key
+  on workspace_settings (group_id) where group_id is not null;
+alter table workspace_settings enable row level security;
+create policy "workspace_settings: public select"
+  on workspace_settings for select using (true);
+create policy "workspace_settings: personal insert"
+  on workspace_settings for insert with check (user_id = auth.uid() and group_id is null);
+create policy "workspace_settings: personal update"
+  on workspace_settings for update
+  using (user_id = auth.uid() and group_id is null)
+  with check (user_id = auth.uid() and group_id is null);
+create policy "workspace_settings: group insert"
+  on workspace_settings for insert
+  with check (group_id is not null and is_group_owner(group_id, auth.uid()));
+create policy "workspace_settings: group update"
+  on workspace_settings for update
+  using (group_id is not null and is_group_owner(group_id, auth.uid()))
+  with check (group_id is not null and is_group_owner(group_id, auth.uid()));

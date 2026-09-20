@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
+import { DEFAULT_WORKSPACE_SETTINGS } from "@/lib/workspace-settings";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import {
   applyMerge,
@@ -391,6 +392,7 @@ function RootComponent() {
     await syncSharedSets();
     await syncGroups();
     await useLibrary.getState().loadGroups();
+    await useLibrary.getState().refreshWorkspaceSettings();
   };
 
   useEffect(() => {
@@ -422,7 +424,7 @@ function RootComponent() {
         nullLocalLiveState();
         // Groups are account-scoped: drop them and return to the personal library.
         useLibrary.getState().setActiveWorkspace("personal");
-        useLibrary.setState({ groups: [] });
+        useLibrary.setState({ groups: [], workspaceSettings: DEFAULT_WORKSPACE_SETTINGS });
         stopGroupChannels();
       }
       if (event === "SIGNED_IN" && s) {
@@ -470,6 +472,8 @@ function RootComponent() {
         await syncSharedSets();
         await syncGroups();
         await useLibrary.getState().loadGroups();
+        // A group owner's settings change reaches members on the next tick.
+        await useLibrary.getState().refreshWorkspaceSettings();
       } catch {
         // Transient (offline/RLS) — the next tick retries.
       } finally {

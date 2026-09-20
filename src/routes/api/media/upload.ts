@@ -6,58 +6,13 @@ import {
   MEDIA_USER_QUOTA_BYTES,
   UPLOAD_EXT_BY_TYPE,
 } from "@/lib/media";
-
-// Minimal R2 binding surface we rely on — avoids pulling in @cloudflare/workers-types.
-interface R2ListResult {
-  objects: Array<{ size: number }>;
-  truncated: boolean;
-  cursor?: string;
-}
-interface R2BucketLike {
-  put(
-    key: string,
-    value: ReadableStream | ArrayBuffer | null,
-    options?: { httpMetadata?: { contentType?: string } },
-  ): Promise<unknown>;
-  list(options?: { prefix?: string; cursor?: string }): Promise<R2ListResult>;
-  delete(key: string): Promise<void>;
-}
-
-// Sums the total bytes a user already has stored under their `${userId}/`
-// prefix, paginating through R2's truncated list responses.
-async function usedBytes(bucket: R2BucketLike, userId: string): Promise<number> {
-  let total = 0;
-  let cursor: string | undefined;
-  do {
-    const page = await bucket.list({ prefix: `${userId}/`, cursor });
-    for (const obj of page.objects) total += obj.size;
-    cursor = page.truncated ? page.cursor : undefined;
-  } while (cursor);
-  return total;
-}
-
-// Reads the Cloudflare Worker runtime env (string vars + bindings). The
-// `cloudflare:workers` module only exists in the Worker runtime, so it's
-// imported dynamically to keep it out of the client bundle. Falls back to
-// process.env for string vars when running outside the Worker (dev tooling).
-async function getWorkerEnv(): Promise<Record<string, unknown>> {
-  try {
-    const { env } = (await import("cloudflare:workers")) as {
-      env: Record<string, unknown>;
-    };
-    if (env) return env;
-  } catch {
-    // not running in the Worker runtime — fall through
-  }
-  return process.env as unknown as Record<string, unknown>;
-}
-
-function readString(env: Record<string, unknown>, key: string): string | undefined {
-  const v = env[key];
-  if (typeof v === "string" && v.length > 0) return v;
-  const p = process.env[key];
-  return p && p.length > 0 ? p : undefined;
-}
+import {
+  getUserId,
+  getWorkerEnv,
+  readString,
+  usedBytes,
+  type R2BucketLike,
+} from "@/lib/worker-media";
 
 // Naive in-memory rate limit, per user. Sized for images rather than videos:
 // importing a single multi-page PDF fans out into one upload per page, so the
@@ -77,28 +32,6 @@ function rateLimited(id: string): boolean {
   arr.push(now);
   hits.set(id, arr);
   return false;
-}
-
-// Validates the caller's Supabase access token against the auth REST endpoint
-// and returns their user id, or null if the token is missing/invalid.
-async function getUserId(
-  request: Request,
-  supabaseUrl: string,
-  apiKey: string,
-): Promise<string | null> {
-  const auth = request.headers.get("authorization") ?? "";
-  const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
-  if (!token) return null;
-  try {
-    const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${token}`, apikey: apiKey },
-    });
-    if (!res.ok) return null;
-    const user = (await res.json()) as { id?: string };
-    return typeof user.id === "string" ? user.id : null;
-  } catch {
-    return null;
-  }
 }
 
 export const Route = createFileRoute("/api/media/upload")({

@@ -61,6 +61,7 @@ import { SharedInboxList } from "@/components/SharedInboxList";
 import { BulkShareSetsDialog } from "@/components/BulkShareSetsDialog";
 import { ScrollingName } from "@/components/ScrollingName";
 import { GroupPanelDialog } from "@/components/GroupPanelDialog";
+import { SettingsDialog } from "@/components/SettingsDialog";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
 const KIND_COLOR: Record<string, string> = {
@@ -228,6 +229,7 @@ function Library() {
   const accountPull = useAccountPull();
   const [showGoLivePrompt, setShowGoLivePrompt] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Share-a-set: the owned set currently open in the Share dialog.
   const [shareSet, setShareSet] = useState<PhytoSet | null>(null);
@@ -671,12 +673,20 @@ function Library() {
         <header className="pt-6 md:pt-10">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6">
             {!isSignedIn && (
-              <Link
-                to="/login"
-                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-              >
-                Sign in
-              </Link>
+              <>
+                <Link
+                  to="/login"
+                  className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                >
+                  Sign in
+                </Link>
+                <button
+                  onClick={() => setShowSettings(true)}
+                  className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                >
+                  Settings
+                </button>
+              </>
             )}
             {isSignedIn && (
               <DropdownMenu>
@@ -729,6 +739,14 @@ function Library() {
                 className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
               >
                 Sign out
+              </button>
+            )}
+            {isSignedIn && (
+              <button
+                onClick={() => setShowSettings(true)}
+                className="pill mono uppercase border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+              >
+                Settings
               </button>
             )}
             {isSignedIn && syncStatus !== "offline" && (
@@ -1546,6 +1564,8 @@ function Library() {
         groups={duplicateGroups}
         onResolve={handleResolveDuplicates}
       />
+
+      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
 
       {activeGroup && (
         <GroupPanelDialog
