@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { MEDIA_USER_QUOTA_BYTES } from "@/lib/media";
+import { quotaForAccount } from "@/lib/media";
 import {
-  getUserId,
+  getUser,
   getWorkerEnv,
   readString,
   usedBytes,
@@ -29,13 +29,13 @@ export const Route = createFileRoute("/api/media/usage")({
             { status: 500 },
           );
         }
-        const userId = await getUserId(request, SUPABASE_URL, SUPABASE_KEY);
-        if (!userId) {
+        const caller = await getUser(request, SUPABASE_URL, SUPABASE_KEY);
+        if (!caller) {
           return Response.json({ ok: false, error: "Unauthorized." }, { status: 401 });
         }
         try {
-          const used = await usedBytes(bucket, userId);
-          return Response.json({ ok: true, used, quota: MEDIA_USER_QUOTA_BYTES });
+          const used = await usedBytes(bucket, caller.id);
+          return Response.json({ ok: true, used, quota: quotaForAccount(caller.createdAt) });
         } catch (err) {
           console.error("R2 usage listing failed", err);
           return Response.json({ ok: false, error: "Could not read usage." }, { status: 500 });

@@ -917,8 +917,9 @@ function SetEditor() {
             Storage limit reached
           </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            Each account can store up to 300 MB of video. To make room for this upload, delete some
-            of your previous videos, images, or slides, then try again.
+            Your account's media storage is full (you can see how much you're using in Settings). To
+            make room for this upload, delete some of your previous videos, images, or slides, then
+            try again.
           </AlertDialogDescription>
           <div className="mt-8 flex justify-end">
             <button

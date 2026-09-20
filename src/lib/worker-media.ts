@@ -65,13 +65,16 @@ export function readString(env: Record<string, unknown>, key: string): string | 
   return p && p.length > 0 ? p : undefined;
 }
 
+export type CallerUser = { id: string; createdAt: string | null };
+
 /** Validates the caller's Supabase access token against the auth REST endpoint
- *  and returns their user id, or null if the token is missing/invalid. */
-export async function getUserId(
+ *  and returns their user id and account creation time, or null if the token
+ *  is missing/invalid. */
+export async function getUser(
   request: Request,
   supabaseUrl: string,
   apiKey: string,
-): Promise<string | null> {
+): Promise<CallerUser | null> {
   const auth = request.headers.get("authorization") ?? "";
   const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
   if (!token) return null;
@@ -80,9 +83,19 @@ export async function getUserId(
       headers: { Authorization: `Bearer ${token}`, apikey: apiKey },
     });
     if (!res.ok) return null;
-    const user = (await res.json()) as { id?: string };
-    return typeof user.id === "string" ? user.id : null;
+    const user = (await res.json()) as { id?: string; created_at?: string };
+    if (typeof user.id !== "string") return null;
+    return { id: user.id, createdAt: typeof user.created_at === "string" ? user.created_at : null };
   } catch {
     return null;
   }
+}
+
+/** Just the caller's user id (see getUser). */
+export async function getUserId(
+  request: Request,
+  supabaseUrl: string,
+  apiKey: string,
+): Promise<string | null> {
+  return (await getUser(request, supabaseUrl, apiKey))?.id ?? null;
 }

@@ -55,10 +55,11 @@ export const Route = createFileRoute("/api/media/upload")({
           );
         }
 
-        const userId = await getUserId(request, SUPABASE_URL, SUPABASE_KEY);
-        if (!userId) {
+        const caller = await getUser(request, SUPABASE_URL, SUPABASE_KEY);
+        if (!caller) {
           return Response.json({ ok: false, error: "Unauthorized." }, { status: 401 });
         }
+        const userId = caller.id;
         if (rateLimited(userId)) {
           return Response.json(
             { ok: false, error: "Too many uploads. Please try again shortly." },
@@ -94,8 +95,9 @@ export const Route = createFileRoute("/api/media/upload")({
           console.error("R2 list failed", err);
           return Response.json({ ok: false, error: "Upload failed." }, { status: 500 });
         }
-        if (used + declaredLength > MEDIA_USER_QUOTA_BYTES) {
-          const limitMb = Math.round(MEDIA_USER_QUOTA_BYTES / (1024 * 1024));
+        const quota = quotaForAccount(caller.createdAt);
+        if (used + declaredLength > quota) {
+          const limitMb = Math.round(quota / (1024 * 1024));
           return Response.json(
             {
               ok: false,

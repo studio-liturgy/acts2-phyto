@@ -8,7 +8,22 @@ export const MEDIA_MAX_BYTES = 100 * 1024 * 1024; // 100 MB
 
 /** Total stored media a single user may keep in R2, summed across all their
  *  uploads. Enforced server-side before each upload. */
-export const MEDIA_USER_QUOTA_BYTES = 300 * 1024 * 1024; // 300 MB
+export const MEDIA_USER_QUOTA_BYTES = 50 * 1024 * 1024; // 50 MB
+
+/** The allowance accounts had before the quota was lowered. Accounts created
+ *  before QUOTA_CUTOFF keep it (grandfathered), so nobody who uploaded under
+ *  the old limit is suddenly locked out of uploading. */
+export const MEDIA_USER_QUOTA_BYTES_LEGACY = 300 * 1024 * 1024; // 300 MB
+
+/** Accounts created before this instant keep MEDIA_USER_QUOTA_BYTES_LEGACY.
+ *  Set to the moment the lower quota reached production. */
+export const QUOTA_CUTOFF = "2026-09-22T00:00:00Z";
+
+/** The media quota for an account, given its auth `created_at`. */
+export function quotaForAccount(createdAt: string | null | undefined): number {
+  if (createdAt && createdAt < QUOTA_CUTOFF) return MEDIA_USER_QUOTA_BYTES_LEGACY;
+  return MEDIA_USER_QUOTA_BYTES;
+}
 
 /** Accepted video MIME types → file extension used in the R2 object key. */
 export const VIDEO_EXT_BY_TYPE: Record<string, string> = {
@@ -38,7 +53,7 @@ export const UPLOAD_EXT_BY_TYPE: Record<string, string> = {
 
 /** Per-file cap for images. Far below MEDIA_MAX_BYTES because slide images are
  *  downscaled to IMAGE_MAX_DIM before upload; anything near this is a bug. */
-export const IMAGE_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+export const IMAGE_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
 /** Longest edge, in px, that a slide image is downscaled to before upload. */
 export const IMAGE_MAX_DIM = 1920;

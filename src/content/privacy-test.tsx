@@ -353,8 +353,9 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
               <h2 className="text-2xl">5. Uploaded Media</h2>
               <p className="mt-2">
                 Signed-in users can upload short video clips to use as slide media. Uploaded videos
-                are stored in Cloudflare R2 (object storage) rather than on your device. Each
-                account can store up to 300 MB of video.
+                are stored in Cloudflare R2 (object storage) rather than on your device, subject to
+                a limit of 5 MB per image or PDF, 100 MB per video, and 50 MB total per account
+                (accounts created before 22 September 2026 keep their earlier 300 MB allowance).
               </p>
               <p className="mt-2">
                 Each uploaded file is served from its own public URL containing a random,
