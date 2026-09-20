@@ -202,12 +202,12 @@ export function GroupPanelDialog({
           </div>
         )}
 
-        {/* The group's own preferences (multi-language, language). Only the
-            owner can change them; members see where they stand. Not shown in
-            the just-created invite step, which is about people. */}
-        {!isInvite && (
-          <div className="mt-6">
-            <WorkspaceSettingsRows disabled={!isOwner} />
+        {/* The group's own preferences (multi-language, main language): the
+            owner's to set, so members don't see them. Not shown in the
+            just-created invite step, which is about people. */}
+        {isOwner && !isInvite && (
+          <div className="mt-6 border-b border-foreground/15 pb-4">
+            <WorkspaceSettingsRows />
           </div>
         )}
 
