@@ -2223,10 +2223,22 @@ export async function syncGroups(): Promise<void> {
         const localCopy = localGathById.get(parsed.id);
         // Last-write-wins by content updatedAt. `shared` marks foreign rows only
         // (mine stay owned). is_live/live_started_at always adopt the server's
-        // (session state is authoritative, never a content conflict).
+        // (session state is authoritative, never a content conflict). An EQUAL
+        // timestamp adopts the server's set list too: deleting a set removes
+        // its gathering_sets rows by cascade without touching updated_at, so a
+        // copy with no pending edit would otherwise keep listing a set that no
+        // longer exists.
         const tag = (g: Gathering): Gathering =>
           mine ? { ...g, shared: undefined } : { ...g, shared: true };
-        if (!localCopy || parsed.updatedAt > localCopy.updatedAt) {
+        const sameList =
+          !!localCopy &&
+          localCopy.setIds.length === parsed.setIds.length &&
+          localCopy.setIds.every((id, i) => id === parsed.setIds[i]);
+        if (
+          !localCopy ||
+          parsed.updatedAt > localCopy.updatedAt ||
+          (parsed.updatedAt === localCopy.updatedAt && !sameList)
+        ) {
           toWrite.push(tag(parsed));
         } else if (
           localCopy.is_live !== parsed.is_live ||
