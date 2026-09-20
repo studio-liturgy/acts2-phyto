@@ -708,7 +708,9 @@ function Library() {
                     className="pill mono uppercase flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
                     title="Switch group"
                   >
-                    {activeWorkspaceLabel}
+                    <span className={activeWorkspace === "personal" ? "" : "normal-case"}>
+                      {activeWorkspaceLabel}
+                    </span>
                     <ChevronDown className="h-3.5 w-3.5" />
                   </button>
                 </DropdownMenuTrigger>
@@ -723,7 +725,7 @@ function Library() {
                     <DropdownMenuItem
                       key={g.id}
                       onClick={() => setActiveWorkspace(g.id)}
-                      className="mono uppercase text-xs tracking-wider"
+                      className="mono text-xs tracking-wider"
                     >
                       {g.name}
                     </DropdownMenuItem>

@@ -178,7 +178,7 @@ export function ShareSetDialog({
                 const inGroup = groupGrants.includes(g.id);
                 return (
                   <li key={g.id} className="flex items-center gap-2">
-                    <span className="mono flex-1 truncate text-sm uppercase">{g.name}</span>
+                    <span className="mono flex-1 truncate text-sm">{g.name}</span>
                     <ToggleAddButton
                       on={inGroup}
                       onClick={() => toggleGroup(g.id)}

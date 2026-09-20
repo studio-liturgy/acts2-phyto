@@ -183,7 +183,7 @@ export function GroupPanelDialog({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") saveName();
                 }}
-                className="mono uppercase flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
+                className="mono flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
               />
               <button
                 type="button"

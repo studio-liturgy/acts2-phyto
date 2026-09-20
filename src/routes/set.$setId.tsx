@@ -256,7 +256,15 @@ function SetHeader({
               className="mono min-w-0 truncate text-[10px] uppercase tracking-wider text-muted-foreground"
               title={`Shared with ${audienceLabel(audience)}`}
             >
-              Shared with {audienceLabel(audience)}
+              Shared with{" "}
+              {[...audience.groups, ...audience.people].map((name, i, all) => (
+                <Fragment key={name}>
+                  <span className={audience.groups.includes(name) ? "normal-case" : ""}>
+                    {name}
+                  </span>
+                  {i < all.length - 2 ? ", " : i === all.length - 2 ? " and " : ""}
+                </Fragment>
+              ))}
             </span>
           )
         )}
@@ -2318,7 +2326,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                       ...updateAudience.people,
                     ].map((name) => (
                       <Fragment key={name}>
-                        <span className="min-w-0 truncate">{name}</span>
+                        {/* Group names keep their case; emails read in caps. */}
+                        <span
+                          className={`min-w-0 truncate ${updateAudience.groups.includes(name) ? "normal-case" : ""}`}
+                        >
+                          {name}
+                        </span>
                         <span className="text-muted-foreground">
                           {updateAudience.languages[name] ?? ""}
                         </span>

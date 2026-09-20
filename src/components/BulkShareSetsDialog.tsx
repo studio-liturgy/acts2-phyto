@@ -257,7 +257,7 @@ export function BulkShareSetsDialog({
                 const canRemove = inCount > 0; // some selected sets are in the group
                 return (
                   <li key={g.id} className="flex items-center gap-2">
-                    <span className="mono flex-1 truncate text-sm uppercase">{g.name}</span>
+                    <span className="mono flex-1 truncate text-sm">{g.name}</span>
                     {canAdd && (
                       <button
                         type="button"
