@@ -32,6 +32,8 @@ export interface SetAudience {
 export function useSetAudience(
   set: Pick<PhytoSet, "id" | "groupIds" | "shared" | "shared_by"> | null | undefined,
   refreshKey?: unknown,
+  /** A group to leave out: the one the set is being viewed in. */
+  excludeGroupId?: string | null,
 ): SetAudience {
   const groups = useLibrary((s) => s.groups);
   const session = useAuthStore((s) => s.session);
@@ -39,7 +41,8 @@ export function useSetAudience(
   const [languages, setLanguages] = useState<Record<string, string>>({});
   const setId = set?.id;
   const me = (session?.user.email ?? "").toLowerCase();
-  const groupKey = (set?.groupIds ?? []).join("|");
+  const groupKey = (set?.groupIds ?? []).filter((id) => id !== excludeGroupId).join("|");
+  const ownerEmail = set?.shared ? (set.shared_by ?? null) : null;
 
   useEffect(() => {
     if (!setId || !session) {
@@ -60,7 +63,23 @@ export function useSetAudience(
       // Workspace languages: the groups' rows and each claimed grantee's
       // personal row (both readable; a missing row is the default).
       const groupIds = groupKey ? groupKey.split("|") : [];
+      // A share the person hasn't claimed yet still has an account behind
+      // it if they've signed up: look their id up by email.
+      for (const r of rows) {
+        if (r.uid) continue;
+        const { data: uid } = await supabase.rpc("user_id_for_email", { p_email: r.email });
+        if (typeof uid === "string") r.uid = uid;
+      }
       const userIds = [...new Set(rows.map((r) => r.uid).filter((u): u is string => !!u))];
+      // The owner of a set shared with me: their id comes from their email.
+      let ownerUid: string | null = null;
+      if (ownerEmail) {
+        const { data: uid } = await supabase.rpc("user_id_for_email", { p_email: ownerEmail });
+        if (typeof uid === "string") {
+          ownerUid = uid;
+          userIds.push(uid);
+        }
+      }
       const langs: Record<string, string> = {};
       if (groupIds.length || userIds.length) {
         const ors = [
@@ -91,6 +110,7 @@ export function useSetAudience(
           if (name) langs[name] = byGroup.get(id) ?? fallback;
         }
         for (const r of rows) if (r.uid) langs[r.email] = byUser.get(r.uid) ?? fallback;
+        if (ownerUid && ownerEmail) langs[ownerEmail] = byUser.get(ownerUid) ?? fallback;
       }
       if (cancelled) return;
       setPeople(emails);
@@ -102,9 +122,9 @@ export function useSetAudience(
     };
     // `groups` only resolves names; it needn't retrigger the fetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setId, session, me, groupKey, refreshKey]);
+  }, [setId, session, me, groupKey, ownerEmail, refreshKey]);
 
-  const groupNames = (set?.groupIds ?? [])
+  const groupNames = (groupKey ? groupKey.split("|") : [])
     .map((id) => groups.find((g) => g.id === id)?.name)
     .filter((n): n is string => !!n);
   return {

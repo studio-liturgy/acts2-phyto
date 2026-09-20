@@ -1620,7 +1620,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   // Who else sees the set, named in the re-import dialog (a re-import changes
   // it for everyone it's shared with). Fetched when the dialog opens.
   const audienceSet = useLibrary((s) => s.sets[setId]);
-  const updateAudience = useSetAudience(showUpdateVersions ? audienceSet : null);
+  const audienceWorkspace = useLibrary((s) => s.activeWorkspace);
+  const updateAudience = useSetAudience(
+    showUpdateVersions ? audienceSet : null,
+    undefined,
+    audienceWorkspace === "personal" ? null : audienceWorkspace,
+  );
   // The versions the Update dialog will re-import in, seeded from the
   // workspace's when it opens and adjustable there.
   const [updateV1, setUpdateV1] = useState("");
@@ -2302,19 +2307,20 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 updateAudience.people.length > 0) && (
                 <div className="mono mt-5 text-[10px] uppercase tracking-wider">
                   <div className="text-muted-foreground">Changes affect</div>
-                  <ul className="mt-1 space-y-0.5">
-                    {updateAudience.owner && <li>{updateAudience.owner}</li>}
-                    {[...updateAudience.groups, ...updateAudience.people].map((name) => (
-                      <li key={name} className="flex gap-3">
+                  <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-6 gap-y-0.5">
+                    {[
+                      ...(updateAudience.owner ? [updateAudience.owner] : []),
+                      ...updateAudience.groups,
+                      ...updateAudience.people,
+                    ].map((name) => (
+                      <Fragment key={name}>
                         <span className="min-w-0 truncate">{name}</span>
-                        {updateAudience.languages[name] && (
-                          <span className="shrink-0 text-muted-foreground">
-                            {updateAudience.languages[name]}
-                          </span>
-                        )}
-                      </li>
+                        <span className="text-muted-foreground">
+                          {updateAudience.languages[name] ?? ""}
+                        </span>
+                      </Fragment>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
               <div className={`mt-6 grid gap-3 ${scripture.multi ? "grid-cols-2" : "grid-cols-1"}`}>
