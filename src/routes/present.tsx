@@ -20,7 +20,7 @@ import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { useAccountSlug } from "@/hooks/use-account-slug";
-import { visibleVersions } from "@/lib/versions";
+import { inferredVersions, versionsMismatchWorkspace, visibleVersions } from "@/lib/versions";
 import { VersionWarning } from "@/components/VersionWarning";
 import { NumberStepper } from "@/components/NumberStepper";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -163,6 +163,17 @@ const searchSchema = z.object({
    *  going back from an edit lands on the mobile preview, not slides. */
   view: z.enum(["slides", "mobile"]).optional(),
 });
+
+/** The sidebar's colour dot for a set, or a warning triangle in its place when
+ *  the set's bible versions sit outside the workspace's languages. */
+function KindDotOrWarning({ set }: { set: PhytoSet }) {
+  const settings = useLibrary((s) => s.workspaceSettings);
+  const hasVerses = set.slides.some((sl) => sl.kind === "scripture");
+  if (hasVerses && versionsMismatchWorkspace(inferredVersions(set), settings)) {
+    return <VersionWarning set={set} silent />;
+  }
+  return <KindDot kind={set.kind} />;
+}
 
 export const Route = createFileRoute("/present")({
   validateSearch: searchSchema,
@@ -1012,7 +1023,7 @@ function Presenter() {
                         >
                           <span className="truncate">{d.name}</span>
                           <span className="flex items-center gap-1">
-                            <KindDot kind={d.kind} />
+                            <KindDotOrWarning set={d} />
                             <Plus className="h-4 w-4 opacity-40 group-hover:opacity-100" />
                           </span>
                         </button>
@@ -1149,7 +1160,7 @@ function Presenter() {
                           <ScrollingName text={d.name} className="min-w-0 flex-1" />
                         </span>
                         <span className="flex shrink-0 items-center gap-1">
-                          <KindDot kind={d.kind} />
+                          <KindDotOrWarning set={d} />
                           {inGathering && activeGathering && (
                             <span
                               role="button"

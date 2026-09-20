@@ -15,17 +15,31 @@ export function VersionWarning({
   set,
   className = "",
   hint = "Click edit to update.",
+  silent = false,
 }: {
   set: Pick<PhytoSet, "kind" | "versions" | "slides">;
   className?: string;
   /** The second line: where to go from here. */
   hint?: string;
+  /** Just the triangle, no hover text (the presenter's sidebar). */
+  silent?: boolean;
 }) {
   const settings = useLibrary((s) => s.workspaceSettings);
   const versions = inferredVersions(set);
   // No verses, nothing to warn about (a set that had them all deleted).
   if (!set.slides.some((sl) => sl.kind === "scripture")) return null;
   if (!versionsMismatchWorkspace(versions, settings)) return null;
+
+  if (silent) {
+    return (
+      <span
+        className={`inline-flex shrink-0 ${className}`}
+        aria-label="Versions outside this workspace"
+      >
+        <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+      </span>
+    );
+  }
 
   const setLangs = languagesOfVersions(versions);
   const label = `This set is in ${setLangs}. ${hint}`;
@@ -38,7 +52,10 @@ export function VersionWarning({
             <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
           </span>
         </TooltipTrigger>
-        <TooltipContent side="top" className="mono text-[10px] uppercase tracking-wider">
+        <TooltipContent
+          side="top"
+          className="mono rounded-2xl border border-foreground bg-background p-3 text-[10px] uppercase tracking-wider text-foreground shadow-lg"
+        >
           <span className="block">This set is in {setLangs}.</span>
           <span className="block">{hint}</span>
         </TooltipContent>
