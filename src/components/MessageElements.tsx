@@ -169,6 +169,8 @@ export function AutoTextarea({
   onKeyDown,
   selected,
   disabled = false,
+  onFocus,
+  onSelectCaret,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -180,6 +182,9 @@ export function AutoTextarea({
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   selected?: boolean;
   disabled?: boolean;
+  onFocus?: (el: HTMLTextAreaElement) => void;
+  /** The caret moved (click, keys): its new position. */
+  onSelectCaret?: (at: number) => void;
 }) {
   // Grow to fit. Sizing sets the height to "auto" for an instant, which lets
   // a scrolling ancestor shrink and clamp its scroll position (the list jumped
@@ -197,6 +202,8 @@ export function AutoTextarea({
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
       onMouseDown={onMouseDown}
+      onFocus={(e) => onFocus?.(e.currentTarget)}
+      onSelect={(e) => onSelectCaret?.(e.currentTarget.selectionStart ?? 0)}
       onKeyDown={(e) => {
         // Cmd/Ctrl + B / I / U: bold, italic, underline (see lib/inline-format).
         const next = applyFormatShortcut(e);

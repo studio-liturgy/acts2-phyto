@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Maximize2, Minimize2, Trash2 } from "lucide-react";
+import { Maximize2, Minimize2, Plus, Trash2 } from "lucide-react";
 import { DotsGrip, hideDragGhost } from "@/components/DragBits";
 import { AutoTextarea, BlockFrame, ElementCard, AddElementBar } from "@/components/MessageElements";
 import { joinVerse } from "@/components/ScriptureVerseEditor";
@@ -438,6 +438,50 @@ export function MessageBlockEditor({
                   .filter((x) => x.id !== slide.id),
               });
             }}
+            onSplit={(slide, v, at) => {
+              // The tail after the caret goes to the verse below: into the
+              // next verse of this passage when its cell for `v` is blank,
+              // else into a new verse (blank in the other versions).
+              const i = slides.findIndex((x) => x.id === slide.id);
+              if (i === -1) return;
+              const textOf = (x: Slide, version: string) =>
+                x.linesByVersion?.[version] ??
+                (version === primaryVersion ? (x.lines?.[0] ?? "") : "");
+              const full = textOf(slide, v);
+              const head = full.slice(0, at).trimEnd();
+              const tail = full.slice(at).trimStart();
+              const withText = (x: Slide, version: string, text: string): Slide => {
+                const linesByVersion = { ...(x.linesByVersion ?? {}), [version]: text };
+                const pText = linesByVersion[primaryVersion] ?? "";
+                return { ...x, linesByVersion, lines: pText ? [pText] : [] };
+              };
+              const below = slides[i + 1];
+              const blankBelow =
+                !!below &&
+                below.kind === "scripture" &&
+                below.importIndex === slide.importIndex &&
+                !textOf(below, v).trim();
+              const next = blankBelow
+                ? slides.map((x, j) =>
+                    j === i ? withText(x, v, head) : j === i + 1 ? withText(x, v, tail) : x,
+                  )
+                : [
+                    ...slides.slice(0, i),
+                    withText(slide, v, head),
+                    withText(
+                      {
+                        ...slide,
+                        id: Math.random().toString(36).slice(2, 10),
+                        lines: [],
+                        linesByVersion: Object.fromEntries(versions.map((ver) => [ver, ""])),
+                      },
+                      v,
+                      tail,
+                    ),
+                    ...slides.slice(i + 1),
+                  ];
+              updateSet(setId, { slides: next });
+            }}
             onRemove={() => removeBlock(b)}
           />
         ) : (
@@ -529,12 +573,15 @@ function ImportBlock({
   onCellMouseDown,
   onEdit,
   onMergeUp,
+  onSplit,
   onRemove,
   readOnly = false,
 }: {
   versions: string[];
   primaryVersion: string;
   readOnly?: boolean;
+  /** Split a verse at a caret position in one version (Cmd/Ctrl+Enter, +). */
+  onSplit: (slide: Slide, version: string, at: number) => void;
   slides: Slide[];
   tint: string;
   grip: React.ReactNode;
@@ -549,9 +596,39 @@ function ImportBlock({
   const primary = primaryVersion;
   const reference = slides[0]?.referencesByVersion?.[primary] ?? slides[0]?.reference ?? "Passage";
   const cols = `repeat(${versions.length}, minmax(0, 1fr))`;
+  // Where the caret last was in this passage, for the + button.
+  const lastCaret = useRef<{ slide: Slide; v: string; at: number } | null>(null);
+  const splitAtCaret = () => {
+    const c = lastCaret.current;
+    if (c && slides.some((sl) => sl.id === c.slide.id)) onSplit(c.slide, c.v, c.at);
+    else {
+      const last = slides[slides.length - 1];
+      if (last)
+        onSplit(last, primary, (last.linesByVersion?.[primary] ?? last.lines?.[0] ?? "").length);
+    }
+  };
 
   return (
-    <BlockFrame label={reference} grip={grip} onRemove={onRemove} tint={tint}>
+    <BlockFrame
+      label={reference}
+      grip={grip}
+      onRemove={onRemove}
+      tint={tint}
+      actions={
+        readOnly ? undefined : (
+          <button
+            type="button"
+            aria-label="Split the verse at the cursor"
+            title="Split the verse at the cursor (Cmd/Ctrl+Enter)"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={splitAtCaret}
+            className="flex h-6 w-6 items-center justify-center rounded-full text-foreground/60 transition hover:bg-foreground/15 hover:text-foreground"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        )
+      }
+    >
       {slides.map((s) => {
         const seq = seqOf(s.id);
         return (
@@ -566,8 +643,15 @@ function ImportBlock({
                 value={s.linesByVersion?.[v] ?? (v === primary ? (s.lines?.[0] ?? "") : "")}
                 onChange={(val) => onEdit(s, v, val)}
                 disabled={readOnly}
+                onFocus={(el) => (lastCaret.current = { slide: s, v, at: el.selectionStart ?? 0 })}
+                onSelectCaret={(at) => (lastCaret.current = { slide: s, v, at })}
                 onKeyDown={(e) => {
                   const el = e.currentTarget;
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    onSplit(s, v, el.selectionStart ?? el.value.length);
+                    return;
+                  }
                   if (e.key === "Backspace" && el.selectionStart === 0 && el.selectionEnd === 0) {
                     e.preventDefault();
                     onMergeUp(s);

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { DotsGrip, hideDragGhost } from "@/components/DragBits";
 import { autosizeTextarea } from "@/components/MessageElements";
 import { applyFormatShortcut } from "@/lib/inline-format";
@@ -90,6 +90,55 @@ export function ScriptureVerseEditor({
       el.setSelectionRange(at, at);
     });
   };
+  // Where the caret last was, so the + button can split there.
+  const lastCaret = useRef<{ ri: number; v: string; at: number } | null>(null);
+  const noteCaret = (ri: number, v: string, el: HTMLTextAreaElement) => {
+    lastCaret.current = { ri, v, at: el.selectionStart ?? el.value.length };
+  };
+  /** Split verse `ri` at `at` in version `v`: the text after the caret goes to
+   *  the verse below. In the other versions the new verse is blank, UNLESS the
+   *  verse below already exists (same import) and is blank in `v`, in which
+   *  case the tail fills that blank instead of opening another row. That is
+   *  how the second language catches up: split the first version, then put the
+   *  caret in the second and press the same shortcut. */
+  const splitRow = (ri: number, v: string, at: number) => {
+    const row = rows[ri];
+    if (!row) return;
+    const full = row.text[v] ?? "";
+    const head = full.slice(0, at).trimEnd();
+    const tail = full.slice(at).trimStart();
+    const below = rows[ri + 1];
+    const fillBelow = !!below && !below.starts && !(below.text[v] ?? "").trim();
+    let next: VerseRow[];
+    if (fillBelow) {
+      next = rows.map((r, i) =>
+        i === ri
+          ? { ...r, text: { ...r.text, [v]: head } }
+          : i === ri + 1
+            ? { ...r, text: { ...r.text, [v]: tail } }
+            : r,
+      );
+    } else {
+      const fresh: VerseRow = {
+        refs: { ...row.refs },
+        starts: false,
+        text: Object.fromEntries(versions.map((ver) => [ver, ver === v ? tail : ""])),
+      };
+      next = [
+        ...rows.slice(0, ri),
+        { ...row, text: { ...row.text, [v]: head } },
+        fresh,
+        ...rows.slice(ri + 1),
+      ];
+    }
+    commit(next);
+    requestAnimationFrame(() => {
+      const el = cells.current.get(cellKey(ri + 1, v));
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(0, 0);
+    });
+  };
   const moveCaret = (ri: number, v: string, dir: -1 | 1) => {
     const el = cells.current.get(cellKey(ri + dir, v));
     if (!el) return;
@@ -154,6 +203,15 @@ export function ScriptureVerseEditor({
     else groups[groups.length - 1].push(r);
   }
   const cols = `repeat(${versions.length}, minmax(0, 1fr))`;
+  // The running verse index each group starts at.
+  const groupStart: number[] = [];
+  {
+    let n = 0;
+    for (const g of groups) {
+      groupStart.push(n);
+      n += g.length;
+    }
+  }
   const commitGroups = (gs: VerseRow[][]) => commit(gs.flat());
   const moveGroup = (to: number) => {
     const from = dragGroup.current;
@@ -255,11 +313,19 @@ export function ScriptureVerseEditor({
                               onMouseDown={() => onCellMouseDown(v, index)}
                               onInput={(e) => autosize(e.currentTarget)}
                               onChange={(e) => editCell(index, v, e.target.value)}
+                              onFocus={(e) => noteCaret(index, v, e.currentTarget)}
+                              onSelect={(e) => noteCaret(index, v, e.currentTarget)}
                               onKeyDown={(e) => {
                                 const el = e.currentTarget;
                                 const formatted = applyFormatShortcut(e);
                                 if (formatted !== null) {
                                   editCell(index, v, formatted);
+                                  return;
+                                }
+                                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                                  e.preventDefault();
+                                  if (!readOnly)
+                                    splitRow(index, v, el.selectionStart ?? el.value.length);
                                   return;
                                 }
                                 if (
@@ -298,6 +364,31 @@ export function ScriptureVerseEditor({
                 })}
               </div>
 
+              {/* Split at the caret (the last place you clicked or typed in
+                  this passage); with no caret in it, a blank verse at its end. */}
+              {!readOnly && (
+                <div
+                  className="flex shrink-0 items-start justify-center pt-1.5"
+                  style={{ width: DEL }}
+                >
+                  <button
+                    type="button"
+                    aria-label="Split the verse at the cursor"
+                    title="Split the verse at the cursor (Cmd/Ctrl+Enter)"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      const first = groupStart[gi];
+                      const last = first + groups[gi].length - 1;
+                      const c = lastCaret.current;
+                      if (c && c.ri >= first && c.ri <= last) splitRow(c.ri, c.v, c.at);
+                      else splitRow(last, v1, (rows[last]?.text[v1] ?? "").length);
+                    }}
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-foreground/60 transition hover:bg-foreground/15 hover:text-foreground"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
               <div
                 className="flex shrink-0 items-start justify-center pt-1.5"
                 style={{ width: DEL }}
