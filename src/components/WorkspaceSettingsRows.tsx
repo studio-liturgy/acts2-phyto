@@ -59,7 +59,7 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
             <LanguagePicker
               value={settings.language}
               disabled={disabled}
-              exclude={[settings.language, second]}
+              exclude={[settings.language]}
               onChange={(language) =>
                 // The two must differ: picking the 2nd as the 1st swaps them.
                 apply(
@@ -73,7 +73,7 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
             <LanguagePicker
               value={second}
               disabled={disabled}
-              exclude={[settings.language, second]}
+              exclude={[second]}
               onChange={(language2) =>
                 apply(
                   language2 === settings.language ? { language2, language: second } : { language2 },
