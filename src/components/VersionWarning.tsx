@@ -2,6 +2,7 @@ import { AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { langDef, type LangCode } from "@/lib/langs";
 import { inferredVersions, versionsMismatchWorkspace } from "@/lib/versions";
+import { langOfTranslation } from "@/lib/bible";
 import { useLibrary } from "@/lib/store";
 import type { Set as PhytoSet } from "@/lib/types";
 
@@ -17,11 +18,16 @@ export function VersionWarning({ set, className = "" }: { set: PhytoSet; classNa
   const versions = inferredVersions(set);
   if (!versionsMismatchWorkspace(versions, settings)) return null;
 
-  const wanted = [settings.language, settings.multiLanguage ? settings.language2 : null]
-    .filter((l): l is LangCode => !!l)
-    .map((l) => langDef(l).label)
-    .join(" / ");
-  const label = `Imported in ${versions!.join(" / ")}; this workspace uses ${wanted}`;
+  // The set's languages (from its versions), each once.
+  const setLangs = [
+    ...new Set(
+      versions!
+        .map((code) => langOfTranslation(code))
+        .filter((l): l is LangCode => !!l)
+        .map((l) => langDef(l).label),
+    ),
+  ].join(" / ");
+  const label = `This set is in ${setLangs}. Click edit to update.`;
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -32,9 +38,8 @@ export function VersionWarning({ set, className = "" }: { set: PhytoSet; classNa
           </span>
         </TooltipTrigger>
         <TooltipContent side="top" className="mono text-[10px] uppercase tracking-wider">
-          <span className="block">Imported in {versions!.join(" / ")}</span>
-          <span className="block">This workspace uses {wanted}</span>
-          <span className="block opacity-70">Open the set and press Update</span>
+          <span className="block">This set is in {setLangs}.</span>
+          <span className="block">Click edit to update.</span>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
