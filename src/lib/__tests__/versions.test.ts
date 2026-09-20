@@ -101,18 +101,19 @@ describe("versionsMismatchWorkspace", () => {
   const on = (language: "en" | "fr" | "zh-Hant", language2: "en" | "fr" | "ja") =>
     ({ multiLanguage: true, language, language2 }) as const;
 
-  it("is fine when the set covers every workspace language, extras included", () => {
+  it("off: fine when the set has the system language, extras included", () => {
     expect(versionsMismatchWorkspace(["FRLSG", "NIV"], off("en"))).toBe(false);
-    expect(versionsMismatchWorkspace(["NIV", "FRLSG"], on("fr", "en"))).toBe(false);
     expect(versionsMismatchWorkspace(["NIV", "ESV"], off("en"))).toBe(false);
-  });
-
-  it("warns when a workspace language has no version in the set", () => {
-    expect(versionsMismatchWorkspace(["CUNPS", "NIV"], on("fr", "en"))).toBe(true);
-    expect(versionsMismatchWorkspace(["NIV"], on("fr", "en"))).toBe(true);
     expect(versionsMismatchWorkspace(["FRLSG"], off("en"))).toBe(true);
     expect(versionsMismatchWorkspace(["CUNPS"], off("zh-Hant"))).toBe(true);
-    expect(versionsMismatchWorkspace(undefined, off("fr"))).toBe(false);
+  });
+
+  it("multi: fine when every version is one of the two languages, one version included", () => {
+    expect(versionsMismatchWorkspace(["NIV", "FRLSG"], on("fr", "en"))).toBe(false);
+    expect(versionsMismatchWorkspace(["NIV"], on("fr", "en"))).toBe(false);
+    expect(versionsMismatchWorkspace(["CUNPS", "NIV"], on("fr", "en"))).toBe(true);
+    expect(versionsMismatchWorkspace(["CUNPS"], on("fr", "en"))).toBe(true);
+    expect(versionsMismatchWorkspace(undefined, on("fr", "en"))).toBe(false);
   });
 });
 

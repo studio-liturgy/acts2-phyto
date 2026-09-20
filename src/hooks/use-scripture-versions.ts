@@ -550,7 +550,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     const lang1: LangCode = keep1 && l1 ? l1 : settings.language;
     const remaining: LangCode =
       lang1 === settings.language ? settings.language2 : settings.language;
-    // A single-version set missing the other language gains it.
+    // A single-version set stays single (2nd version: none).
+    if (!translation2) return { v1, v2: "" };
     const v2 = langOfTranslation(translation2) === remaining ? translation2 : first(remaining);
     return { v1, v2: v2 === v1 ? "" : v2 };
   }, [multi, settings.language, settings.language2, translation, translation2]);

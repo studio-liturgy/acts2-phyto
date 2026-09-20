@@ -169,20 +169,23 @@ export function languagesOfVersions(versions: string[] | undefined): string {
 }
 
 /**
- * Can the set NOT show every language the workspace names? A set may carry
- * extra languages (a French / English set is fine in an English workspace);
- * what warns is a workspace language the set has no version in (a Chinese /
- * English set in a French / English workspace lacks French). False for sets
- * that record no versions (nothing to judge).
+ * Would the set's versions be wrong for this workspace?
+ *  - Multi-language: every version must be in one of the two languages (a
+ *    Chinese / English set in a French / English workspace has a Chinese
+ *    version that would be stacked). An English-only set is fine there.
+ *  - Off: the set must have a version in the system language (extras are
+ *    simply not projected, so French / English is fine in English).
+ * False for sets that record no versions (nothing to judge).
  */
 export function versionsMismatchWorkspace(
   versions: string[] | undefined,
   settings: WorkspaceSettings,
 ): boolean {
   if (!versions?.length) return false;
-  const have = new Set(versions.map((code) => langOfTranslation(code)));
-  const wanted: LangCode[] = settings.multiLanguage
-    ? [settings.language, ...(settings.language2 ? [settings.language2] : [])]
-    : [settings.language];
-  return wanted.some((l) => !have.has(l));
+  const langs = versions.map((code) => langOfTranslation(code));
+  if (settings.multiLanguage) {
+    const allowed = new Set([settings.language, settings.language2].filter(Boolean));
+    return langs.some((l) => !l || !allowed.has(l));
+  }
+  return !langs.includes(settings.language);
 }
