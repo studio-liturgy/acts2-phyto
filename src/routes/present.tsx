@@ -570,8 +570,9 @@ function Presenter() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!liveSet || !liveSlide) return;
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
       const hidden = hiddenSlideIds(liveSet.slides, hiddenBySet[liveSet.id] ?? []);
       const idx = liveSet.slides.findIndex((s) => s.id === liveSlide.id);
       const advance = () => {

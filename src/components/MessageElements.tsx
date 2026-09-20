@@ -177,7 +177,7 @@ export function BlockFrame({
       </div>
       {/* The actions sit right beside the delete button, in the same column,
           so the content (and any rule under a heading) runs the full width. */}
-      <div className="flex shrink-0 items-center pt-1.5" style={{ minWidth: DEL }}>
+      <div className="flex shrink-0 items-start pt-1.5" style={{ minWidth: DEL }}>
         {actions}
         <button
           type="button"

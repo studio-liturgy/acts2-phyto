@@ -141,7 +141,41 @@ export function MessageBlockEditor({
   // only happens once the pointer has crossed the target's midpoint in the
   // direction of travel, and never twice within a short cooldown.
   const lastMoveAt = useRef(0);
+  const pulledId = useRef<string | null>(null);
   const dragOver = (i: number, e?: React.DragEvent) => {
+    // An image dragged out of its run over another block leaves the run and
+    // becomes a block of its own, placed next to that block; from here on it
+    // moves like any block (and joins another run if dropped beside images).
+    const t = tileDrag.current;
+    if (t) {
+      if (t.block === i) return;
+      const run = blocks[t.block];
+      if (run.kind !== "images") return;
+      const slide = run.slides[t.from];
+      const rest = run.slides.filter((_, k) => k !== t.from);
+      const next = blocks.map((b, k) => (k === t.block ? { ...b, slides: rest } : b)) as Block[];
+      const at = i < t.block ? i : i + 1;
+      next.splice(at, 0, { kind: "element", key: slide.id, slide });
+      tileDrag.current = null;
+      dragFrom.current = at;
+      pulledId.current = slide.id;
+      lastMoveAt.current = performance.now();
+      const flat = flatten(next);
+      liveRef.current = flat;
+      setLiveOrder(flat);
+      return;
+    }
+    // A pulled-out image may since have joined a run of images (blocks
+    // re-derive from the live order), so find its block by id.
+    if (pulledId.current !== null) {
+      const id = pulledId.current;
+      const k = blocks.findIndex((b) =>
+        b.kind === "element"
+          ? b.slide.id === id
+          : b.kind === "images" && b.slides.some((x) => x.id === id),
+      );
+      if (k !== -1) dragFrom.current = k;
+    }
     const from = dragFrom.current;
     if (from === null || from === i) return;
     if (e) {
@@ -167,6 +201,7 @@ export function MessageBlockEditor({
   };
   const commitOrder = () => {
     dragFrom.current = null;
+    pulledId.current = null;
     if (liveRef.current) {
       record();
       updateSet(setId, { slides: liveRef.current });
@@ -304,7 +339,7 @@ export function MessageBlockEditor({
     },
     onDragEnd: commitOrder,
     onDragOver: (e: React.DragEvent) => {
-      if (dragFrom.current === null) return;
+      if (dragFrom.current === null && !tileDrag.current) return;
       e.preventDefault();
       dragOver(i, e);
     },
@@ -543,6 +578,18 @@ export function MessageBlockEditor({
       onKeyDown={(e) => {
         if (readOnly) return;
         history.onKeyDown(e, () => currentCaret(scope.current));
+      }}
+      // A drop anywhere in the editor (below the last block, say) commits the
+      // live order: the dragged node may have been remounted mid-drag, in
+      // which case the browser never fires dragend on it.
+      onDragOver={(e) => {
+        if (dragFrom.current !== null || tileDrag.current) e.preventDefault();
+      }}
+      onDrop={(e) => {
+        if (dragFrom.current === null && !tileDrag.current) return;
+        e.preventDefault();
+        tileDrag.current = null;
+        commitOrder();
       }}
       className="min-h-0 flex-1 overflow-y-auto"
     >

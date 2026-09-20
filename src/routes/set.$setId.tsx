@@ -381,8 +381,9 @@ function SetEditor() {
   useEffect(() => {
     if (!phytoSet) return;
     const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
       if (e.key === "ArrowRight" || e.key === "ArrowDown") {
         e.preventDefault();
         const idx = phytoSet.slides.findIndex((s) => s.id === (selected?.id ?? ""));
