@@ -4,6 +4,7 @@ import {
   alignVerses,
   fetchScriptureBolls,
   langOfTranslation,
+  splitRefLabel,
   translationsForLang,
 } from "@/lib/bible";
 import {
@@ -13,7 +14,13 @@ import {
   slidesToVersionText,
   versionTextToSlides,
 } from "@/lib/slide-text";
-import { hasStackedVersions, versionsMismatchWorkspace, visibleVersions } from "@/lib/versions";
+import {
+  hasStackedVersions,
+  inferredVersions,
+  reimportQueries,
+  versionsMismatchWorkspace,
+  visibleVersions,
+} from "@/lib/versions";
 import type { SetKind, Slide } from "@/lib/types";
 import { langDef, type LangCode } from "@/lib/langs";
 
@@ -434,7 +441,9 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
           run.push(cur[i]);
           i++;
         }
-        const query = run[0].reference ?? Object.values(run[0].referencesByVersion ?? {})[0] ?? "";
+        const query = splitRefLabel(
+          run[0].reference ?? Object.values(run[0].referencesByVersion ?? {})[0] ?? "",
+        ).ref;
         if (!query) {
           result.push(...run);
           continue;
@@ -475,10 +484,15 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     }
     // Re-fetch the passages that CURRENTLY exist (the [ref] headers in the
     // box), not the full import history, so a deleted passage stays deleted.
-    const currentRefs = manualText
-      .split("\n")
-      .map((l) => /^\s*\[(.+?)\]\s*$/.exec(l)?.[1]?.trim())
-      .filter((r): r is string => !!r);
+    const currentRefs = [
+      ...new Set(
+        manualText
+          .split("\n")
+          .map((l) => /^\s*\[(.+?)\]\s*$/.exec(l)?.[1]?.trim())
+          .filter((r): r is string => !!r)
+          .map((r) => splitRefLabel(r).ref),
+      ),
+    ];
     updateSet(setId, {
       versions: v2 ? [translation, v2] : [translation],
       scriptureImports: currentRefs,
@@ -503,7 +517,11 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   // changed language after this set was imported). "Update versions" re-fetches
   // its passages in the workspace's languages' first bibles; the boxes (and any
   // manual verse edits) are rebuilt from bolls.
-  const versionsMismatch = versionsMismatchWorkspace(storedVersions, settings);
+  const inferred = useMemo(
+    () => inferredVersions({ kind, versions: storedVersions, slides: storeSlides ?? [] }),
+    [kind, storedVersions, storeSlides],
+  );
+  const versionsMismatch = versionsMismatchWorkspace(inferred, settings);
   const workspaceVersions = useMemo(() => {
     const v1 = translationsForLang(settings.language)[0]?.code ?? "NIV";
     const v2 =
@@ -516,15 +534,16 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     prevPickerKey.current = (v2 ? [v1, v2] : [v1]).join("|");
     setTranslation(v1);
     setTranslation2(v2);
+    // From scratch: the passages recorded at import (else the references on
+    // the verses, minus any version label), fetched again whole, so merged or
+    // edited verses come back as the translation has them.
+    const set = readSet();
+    const refs = reimportQueries({ scriptureImports: storedImports, slides: set?.slides ?? [] });
+    if (!refs.length) return;
     if (kind === "message") {
       await rebuildMessageVersions(v1, v2);
       return;
     }
-    const currentRefs = manualText
-      .split("\n")
-      .map((l) => /^\s*\[(.+?)\]\s*$/.exec(l)?.[1]?.trim())
-      .filter((r): r is string => !!r);
-    const refs = currentRefs.length ? currentRefs : (storedImports ?? []);
     updateSet(setId, { versions: v2 ? [v1, v2] : [v1], scriptureImports: refs });
     await rebuildScripture(refs, v1, v2);
   };
@@ -564,7 +583,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     swapVersions,
     clearBoxes,
     versionsMismatch,
-    storedVersions,
+    storedVersions: inferred,
     workspaceVersions,
     updateVersionsToWorkspace,
   };

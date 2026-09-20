@@ -96,6 +96,19 @@ export const TRANSLATION_GROUPS = [
   },
 ] as const;
 
+/** Every translation code we offer. */
+export const TRANSLATION_CODES: ReadonlySet<string> = new Set(
+  TRANSLATION_GROUPS.flatMap((g) => g.translations.map((t) => t.code)),
+);
+
+/** "Psalms 100:4 NIV" -> { ref: "Psalms 100:4", code: "NIV" }: the label the
+ *  single-version importer writes puts the translation after the reference. */
+export function splitRefLabel(label: string): { ref: string; code?: string } {
+  const m = /^(.*?)\s+([A-Za-z0-9]+)$/.exec(label.trim());
+  if (m && TRANSLATION_CODES.has(m[2])) return { ref: m[1].trim(), code: m[2] };
+  return { ref: label.trim() };
+}
+
 /** Human label for a translation code, falling back to the code itself. */
 export function translationLabel(code: string): string {
   for (const group of TRANSLATION_GROUPS) {

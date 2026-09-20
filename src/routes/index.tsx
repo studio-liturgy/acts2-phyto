@@ -62,6 +62,7 @@ import { BulkShareSetsDialog } from "@/components/BulkShareSetsDialog";
 import { ScrollingName } from "@/components/ScrollingName";
 import { GroupPanelDialog } from "@/components/GroupPanelDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
+import { VersionWarning } from "@/components/VersionWarning";
 import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
 
 const KIND_COLOR: Record<string, string> = {
@@ -1313,6 +1314,7 @@ function Library() {
                           </span>
                         ) : null}
                         <span className="min-w-0 flex-1 truncate text-base">{d.name}</span>
+                        <VersionWarning set={d} />
                         {/* Right side: fixed-width columns so meta, share and edit
                             line up down the list — the share slot is reserved even
                             when a row has no share button. */}

@@ -7,7 +7,7 @@
 // workspace picks.
 
 import type { Slide } from "./types";
-import { langOfTranslation, type AlignedVerse } from "./bible";
+import { langOfTranslation, splitRefLabel, type AlignedVerse } from "./bible";
 import type { WorkspaceSettings } from "./workspace-settings";
 import type { LangCode } from "./langs";
 
@@ -117,6 +117,45 @@ export function visibleVersions(
     return picked.length ? picked : all;
   }
   return [inLang(settings.language) ?? all[0]];
+}
+
+/**
+ * The bible versions a scripture/message set was imported in. Recorded on the
+ * set for anything imported since versions existed; older single-version sets
+ * carry the code in their reference label ("Psalms 100:4 NIV"), so it's read
+ * from there. Undefined when nothing tells.
+ */
+export function inferredVersions(set: {
+  kind?: string;
+  versions?: string[];
+  slides: Array<{ reference?: string; kind?: string }>;
+}): string[] | undefined {
+  if (set.versions?.length) return set.versions;
+  if (set.kind !== "scripture" && set.kind !== "message") return undefined;
+  const codes: string[] = [];
+  for (const s of set.slides) {
+    if (s.kind !== "scripture" || !s.reference) continue;
+    const { code } = splitRefLabel(s.reference);
+    if (code && !codes.includes(code)) codes.push(code);
+  }
+  return codes.length ? codes : undefined;
+}
+
+/** The reference queries to fetch again when a set is re-imported: the ones
+ *  recorded at import, else the references on its verses (labels stripped of
+ *  the version code), each once. */
+export function reimportQueries(set: {
+  scriptureImports?: string[];
+  slides: Array<{ reference?: string; kind?: string }>;
+}): string[] {
+  if (set.scriptureImports?.length) return [...new Set(set.scriptureImports)];
+  const out: string[] = [];
+  for (const s of set.slides) {
+    if (s.kind !== "scripture" || !s.reference) continue;
+    const { ref } = splitRefLabel(s.reference);
+    if (ref && !out.includes(ref)) out.push(ref);
+  }
+  return out;
 }
 
 /**

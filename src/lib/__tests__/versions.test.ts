@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { hasStackedVersions, versionsMismatchWorkspace, visibleVersions } from "@/lib/versions";
+import {
+  hasStackedVersions,
+  inferredVersions,
+  reimportQueries,
+  versionsMismatchWorkspace,
+  visibleVersions,
+} from "@/lib/versions";
 import { slidesToVersionText, versionTextToSlides } from "@/lib/slide-text";
 import type { Slide } from "@/lib/types";
 
@@ -118,5 +124,35 @@ describe("versionsMismatchWorkspace", () => {
         language2: null,
       }),
     ).toBe(false);
+  });
+});
+
+describe("legacy single-version sets", () => {
+  const legacy = {
+    kind: "scripture",
+    slides: [
+      { id: "a", kind: "scripture", reference: "Psalms 100:4 NIV", lines: ["Enter his gates"] },
+      { id: "b", kind: "scripture", reference: "Psalms 100:4 NIV", lines: ["with thanksgiving"] },
+      { id: "c", kind: "scripture", reference: "John 3:16 NIV", lines: ["For God"] },
+    ],
+  };
+
+  it("reads the version off the reference label", () => {
+    expect(inferredVersions(legacy)).toEqual(["NIV"]);
+    expect(
+      versionsMismatchWorkspace(inferredVersions(legacy), {
+        multiLanguage: false,
+        language: "zh-Hant",
+        language2: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("re-imports from the recorded queries, else the references without the label", () => {
+    expect(reimportQueries(legacy)).toEqual(["Psalms 100:4", "John 3:16"]);
+    expect(reimportQueries({ ...legacy, scriptureImports: ["Ps 100", "Jn 3:16-18"] })).toEqual([
+      "Ps 100",
+      "Jn 3:16-18",
+    ]);
   });
 });

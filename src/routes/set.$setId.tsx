@@ -2140,9 +2140,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 type="button"
                 disabled={busy}
                 onClick={() => setShowUpdateVersions(true)}
-                className="rounded-full bg-foreground px-3 py-1 text-background transition hover:opacity-90 disabled:opacity-40"
+                className="rounded-full bg-foreground px-3 py-1 uppercase text-background transition hover:opacity-90 disabled:opacity-40"
               >
-                Update versions
+                Update
               </button>
             </div>
           )}
