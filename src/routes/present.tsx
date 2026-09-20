@@ -68,6 +68,7 @@ import {
   transposeLyrics,
   guessKey,
 } from "@/lib/chords";
+import { stripInlineFormat } from "@/lib/inline-format";
 import { create } from "zustand";
 import { groupSlides, hiddenSlideIds } from "@/lib/sections";
 import { hideDragGhost } from "@/components/DragBits";
@@ -152,7 +153,7 @@ function KindDot({ kind }: { kind: SetKind }) {
  *  `(G)` are stripped first so they can't break a phrase mid-search. */
 function setMatchesLyric(s: PhytoSet, q: string): boolean {
   return s.slides.some((slide) =>
-    slide.lines?.some((line) => stripChords(line).toLowerCase().includes(q)),
+    slide.lines?.some((line) => stripInlineFormat(stripChords(line)).toLowerCase().includes(q)),
   );
 }
 

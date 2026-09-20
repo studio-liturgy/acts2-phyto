@@ -10,6 +10,7 @@ import { PillSwitch } from "@/components/PillSwitch";
 import { prepareImageFile } from "@/lib/image-upload";
 import { useLibrary } from "@/lib/store";
 import { SlideView } from "@/components/SlideView";
+import { applyFormatShortcut } from "@/lib/inline-format";
 import type { PointType, Slide } from "@/lib/types";
 
 const POINT_TYPES: { type: PointType; label: string }[] = [
@@ -196,7 +197,15 @@ export function AutoTextarea({
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
       onMouseDown={onMouseDown}
-      onKeyDown={onKeyDown}
+      onKeyDown={(e) => {
+        // Cmd/Ctrl + B / I / U: bold, italic, underline (see lib/inline-format).
+        const next = applyFormatShortcut(e);
+        if (next !== null) {
+          onChange(next);
+          return;
+        }
+        onKeyDown?.(e);
+      }}
       placeholder={placeholder}
       className={`${className} disabled:opacity-40`}
       style={
@@ -239,12 +248,14 @@ export function BlockFrame({
         {grip}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="mono px-3 pt-2 text-[10px] uppercase tracking-wider opacity-50">
-          {label}
+        {/* The actions sit in the label row, so the content below (and any
+            rule under a heading) runs the full width, as in every block. */}
+        <div className="flex items-center justify-between gap-2 px-3 pt-2">
+          <div className="mono text-[10px] uppercase tracking-wider opacity-50">{label}</div>
+          {actions}
         </div>
         {children}
       </div>
-      {actions && <div className="flex shrink-0 items-start pt-2 pr-1">{actions}</div>}
       <div className="flex shrink-0 items-start justify-center pt-1.5" style={{ width: DEL }}>
         <button
           type="button"
@@ -294,7 +305,7 @@ export function ElementCard({
   const listToggle =
     slide.kind === "point" && slide.pointType === "bullets" ? (
       <label
-        className="mono flex cursor-pointer items-center gap-1.5 text-[11px] leading-none text-foreground/60"
+        className="mono flex cursor-pointer items-center gap-1.5 text-[11px] leading-none"
         title={numbered ? "Numbered list" : "Bullet dots"}
       >
         <span aria-hidden>{"\u2022"}</span>
@@ -302,6 +313,7 @@ export function ElementCard({
           checked={numbered}
           onCheckedChange={(on) => onChange({ listStyle: on ? "numbers" : "bullets" })}
           label="Numbered list"
+          dimWhenOff={false}
         />
         <span aria-hidden>1.</span>
       </label>
@@ -349,6 +361,10 @@ export function ElementCard({
           <input
             value={slide.attribution ?? ""}
             onChange={(e) => onChange({ attribution: e.target.value })}
+            onKeyDown={(e) => {
+              const next = applyFormatShortcut(e);
+              if (next !== null) onChange({ attribution: next });
+            }}
             placeholder="Who said it (optional)"
             className={FIELD}
           />
@@ -359,6 +375,10 @@ export function ElementCard({
             <input
               value={slide.title ?? ""}
               onChange={(e) => onChange({ title: e.target.value })}
+              onKeyDown={(e) => {
+                const next = applyFormatShortcut(e);
+                if (next !== null) onChange({ title: next });
+              }}
               placeholder="Heading (optional)"
               className={FIELD}
             />

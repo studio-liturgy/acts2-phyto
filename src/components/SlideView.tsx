@@ -2,6 +2,7 @@ import type { Slide, SetTemplate } from "@/lib/types";
 import { stripChords } from "@/lib/chords";
 import { STAGE_H, STAGE_W, fitOrigin, fitScale } from "@/lib/slide-fit";
 import { displayLinesForVersions } from "@/lib/versions";
+import { renderInline } from "@/lib/inline-format";
 import { langOfTranslation } from "@/lib/bible";
 import { langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -409,7 +410,7 @@ export function SlideView({
                     className="mb-10 font-semibold leading-tight"
                     style={{ fontSize: `${4.5 * fontScale}rem` }}
                   >
-                    {slide.title}
+                    {renderInline(slide.title)}
                   </div>
                 )}
                 {slide?.reference && slide.kind === "scripture" && refAbove && !stacked && (
@@ -446,7 +447,7 @@ export function SlideView({
                                 : undefined,
                             }}
                           >
-                            {vLang ? typesetLine(vLang, l.text) : l.text}
+                            {renderInline(vLang ? typesetLine(vLang, l.text) : l.text)}
                           </div>
                           {!refAbove && l.reference && (
                             <div
@@ -471,7 +472,7 @@ export function SlideView({
                           whiteSpace: "pre-line",
                         }}
                       >
-                        {l}
+                        {renderInline(l)}
                       </div>
                     ))}
                 {slide?.reference && slide.kind === "scripture" && !refAbove && !stacked && (
@@ -659,11 +660,11 @@ function PointBody({ slide, fontScale }: { slide: Slide; fontScale: number }) {
           className="font-semibold leading-tight"
           style={{ fontSize: `${4 * fontScale}rem`, whiteSpace: "pre-line" }}
         >
-          {`“${lines.join("\n")}”`}
+          “{renderInline(lines.join("\n"))}”
         </div>
         {slide.attribution?.trim() && (
           <div className="mt-12 opacity-70" style={{ fontSize: `${2 * fontScale}rem` }}>
-            {`— ${slide.attribution.trim()}`}
+            — {renderInline(slide.attribution.trim())}
           </div>
         )}
       </>
@@ -678,7 +679,7 @@ function PointBody({ slide, fontScale }: { slide: Slide; fontScale: number }) {
             className="mb-12 font-semibold leading-tight"
             style={{ fontSize: `${3.5 * fontScale}rem` }}
           >
-            {slide.title}
+            {renderInline(slide.title)}
           </div>
         )}
         <ul className="flex flex-col gap-8 text-left">
@@ -691,7 +692,7 @@ function PointBody({ slide, fontScale }: { slide: Slide; fontScale: number }) {
               <span className="opacity-50">
                 {slide.listStyle === "numbers" ? `${i + 1}.` : "\u2022"}
               </span>
-              <span>{l}</span>
+              <span>{renderInline(l)}</span>
             </li>
           ))}
         </ul>
@@ -705,7 +706,7 @@ function PointBody({ slide, fontScale }: { slide: Slide; fontScale: number }) {
       className="font-bold leading-tight"
       style={{ fontSize: `${5 * fontScale}rem`, whiteSpace: "pre-line" }}
     >
-      {lines.join("\n")}
+      {renderInline(lines.join("\n"))}
     </div>
   );
 }

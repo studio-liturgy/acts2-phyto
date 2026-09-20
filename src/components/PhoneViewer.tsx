@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChordLine } from "@/components/ChordLine";
 import { guessKey, KEYS, parseChordLine, transposeLyrics, type SongChords } from "@/lib/chords";
 import { groupSlides, hiddenSlideIndices } from "@/lib/sections";
+import { renderInline } from "@/lib/inline-format";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -716,7 +717,7 @@ function SetContent({
               {passageByVersion(group.run, set.versions!).map((p) => (
                 <div key={p.version} className="space-y-1">
                   {p.ref && <p className={refClass}>{p.ref}</p>}
-                  <p className="leading-relaxed">{p.text}</p>
+                  <p className="leading-relaxed">{renderInline(p.text)}</p>
                 </div>
               ))}
             </div>
@@ -736,7 +737,7 @@ function SetContent({
                 {group.section}
               </p>
             )}
-            <p className="leading-relaxed">{group.lines.join(" ")}</p>
+            <p className="leading-relaxed">{renderInline(group.lines.join(" "))}</p>
           </div>
         ))}
       </div>
@@ -821,7 +822,7 @@ function SetContent({
                   {stacked.map((p) => (
                     <div key={p.version} className="space-y-1">
                       {p.ref && <p className={refClass}>{p.ref}</p>}
-                      <p className="leading-relaxed">{p.text}</p>
+                      <p className="leading-relaxed">{renderInline(p.text)}</p>
                     </div>
                   ))}
                 </div>
@@ -830,7 +831,7 @@ function SetContent({
             return (
               <div key={i} className="space-y-1">
                 {b.ref && <p className={refClass}>{b.ref}</p>}
-                <p className="leading-relaxed">{b.lines.join(" ")}</p>
+                <p className="leading-relaxed">{renderInline(b.lines.join(" "))}</p>
               </div>
             );
           }
@@ -847,10 +848,10 @@ function SetContent({
           if (slide.pointType === "quote") {
             return (
               <div key={i} className="space-y-1">
-                <p className="font-semibold leading-relaxed">{`“${lines.join(" ")}”`}</p>
+                <p className="font-semibold leading-relaxed">“{renderInline(lines.join(" "))}”</p>
                 {slide.attribution?.trim() && (
                   <p className={`text-[0.8em] ${isDark ? "opacity-60" : "opacity-70"}`}>
-                    {`— ${slide.attribution.trim()}`}
+                    — {renderInline(slide.attribution.trim())}
                   </p>
                 )}
               </div>
@@ -859,13 +860,15 @@ function SetContent({
           if (slide.pointType === "bullets") {
             return (
               <div key={i} className="space-y-1 text-[0.85em]">
-                {slide.title?.trim() && <p className="font-semibold">{slide.title}</p>}
+                {slide.title?.trim() && (
+                  <p className="font-semibold">{renderInline(slide.title)}</p>
+                )}
                 <ul
                   className={`space-y-1 pl-5 ${slide.listStyle === "numbers" ? "list-decimal" : "list-disc"}`}
                 >
                   {lines.map((l, j) => (
                     <li key={j} className="leading-relaxed">
-                      {l}
+                      {renderInline(l)}
                     </li>
                   ))}
                 </ul>
@@ -874,7 +877,7 @@ function SetContent({
           }
           return (
             <p key={i} className="font-semibold leading-relaxed">
-              {lines.join(" ")}
+              {renderInline(lines.join(" "))}
             </p>
           );
         })}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { DotsGrip, hideDragGhost } from "@/components/DragBits";
 import { autosizeTextarea } from "@/components/MessageElements";
+import { applyFormatShortcut } from "@/lib/inline-format";
 import { type VerseRow, fromVerseRows, toVerseRows } from "@/lib/slide-text";
 
 // Import colours, matching the tints the live slide grid uses.
@@ -256,6 +257,11 @@ export function ScriptureVerseEditor({
                               onChange={(e) => editCell(index, v, e.target.value)}
                               onKeyDown={(e) => {
                                 const el = e.currentTarget;
+                                const formatted = applyFormatShortcut(e);
+                                if (formatted !== null) {
+                                  editCell(index, v, formatted);
+                                  return;
+                                }
                                 if (
                                   e.key === "Backspace" &&
                                   el.selectionStart === 0 &&

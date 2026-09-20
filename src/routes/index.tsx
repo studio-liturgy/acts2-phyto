@@ -8,6 +8,7 @@ import { APP_NAME } from "@/lib/appConfig";
 import { isLiveNow } from "@/lib/live-session";
 import { useAccountSlug } from "@/hooks/use-account-slug";
 import { stripChords } from "@/lib/chords";
+import { stripInlineFormat } from "@/lib/inline-format";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -610,7 +611,9 @@ function Library() {
           !q ||
           d.name.toLowerCase().includes(q) ||
           d.slides.some((slide) =>
-            slide.lines?.some((line) => stripChords(line).toLowerCase().includes(q)),
+            slide.lines?.some((line) =>
+              stripInlineFormat(stripChords(line)).toLowerCase().includes(q),
+            ),
           ),
       )
       // A group guest editing sees only their own sets (foreign group sets carry
