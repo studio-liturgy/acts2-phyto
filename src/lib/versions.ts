@@ -9,7 +9,7 @@
 import type { Slide } from "./types";
 import { langOfTranslation, splitRefLabel, type AlignedVerse } from "./bible";
 import type { WorkspaceSettings } from "./workspace-settings";
-import type { LangCode } from "./langs";
+import { langDef, type LangCode } from "./langs";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -154,6 +154,18 @@ export function reimportQueries(set: {
     if (ref && !out.includes(ref)) out.push(ref);
   }
   return out;
+}
+
+/** "English / Japanese": the languages of a set's versions, each once. */
+export function languagesOfVersions(versions: string[] | undefined): string {
+  return [
+    ...new Set(
+      (versions ?? [])
+        .map((code) => langOfTranslation(code))
+        .filter((l): l is LangCode => !!l)
+        .map((l) => langDef(l).label),
+    ),
+  ].join(" / ");
 }
 
 /**

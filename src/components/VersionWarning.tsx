@@ -1,8 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { langDef, type LangCode } from "@/lib/langs";
-import { inferredVersions, versionsMismatchWorkspace } from "@/lib/versions";
-import { langOfTranslation } from "@/lib/bible";
+import { inferredVersions, languagesOfVersions, versionsMismatchWorkspace } from "@/lib/versions";
 import { useLibrary } from "@/lib/store";
 import type { Set as PhytoSet } from "@/lib/types";
 
@@ -16,9 +14,12 @@ import type { Set as PhytoSet } from "@/lib/types";
 export function VersionWarning({
   set,
   className = "",
+  hint = "Click edit to update.",
 }: {
   set: Pick<PhytoSet, "kind" | "versions" | "slides">;
   className?: string;
+  /** The second line: where to go from here. */
+  hint?: string;
 }) {
   const settings = useLibrary((s) => s.workspaceSettings);
   const versions = inferredVersions(set);
@@ -26,16 +27,8 @@ export function VersionWarning({
   if (!set.slides.some((sl) => sl.kind === "scripture")) return null;
   if (!versionsMismatchWorkspace(versions, settings)) return null;
 
-  // The set's languages (from its versions), each once.
-  const setLangs = [
-    ...new Set(
-      versions!
-        .map((code) => langOfTranslation(code))
-        .filter((l): l is LangCode => !!l)
-        .map((l) => langDef(l).label),
-    ),
-  ].join(" / ");
-  const label = `This set is in ${setLangs}. Click edit to update.`;
+  const setLangs = languagesOfVersions(versions);
+  const label = `This set is in ${setLangs}. ${hint}`;
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -47,7 +40,7 @@ export function VersionWarning({
         </TooltipTrigger>
         <TooltipContent side="top" className="mono text-[10px] uppercase tracking-wider">
           <span className="block">This set is in {setLangs}.</span>
-          <span className="block">Click edit to update.</span>
+          <span className="block">{hint}</span>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

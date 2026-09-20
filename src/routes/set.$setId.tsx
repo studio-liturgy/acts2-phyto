@@ -15,7 +15,7 @@ import {
 } from "@/lib/media";
 import { prepareImageFile, prepareRenderedImage } from "@/lib/image-upload";
 import { useScriptureVersions } from "@/hooks/use-scripture-versions";
-import { visibleVersions } from "@/lib/versions";
+import { languagesOfVersions, visibleVersions } from "@/lib/versions";
 import { searchSongs, preloadSongs, parseQuery, songPreview, type SongResult } from "@/lib/songs";
 import {
   lyricsToSlides,
@@ -238,7 +238,7 @@ function SetHeader({
         >
           {phytoSet.kind}
         </span>
-        <VersionWarning set={phytoSet} />
+        <VersionWarning set={phytoSet} hint="Click Update to unfreeze." />
 
         {phytoSet.shared && (
           <span className="mono shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -2153,8 +2153,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           {scripture.versionsMismatch && (
             <div className="mono flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-foreground/30 px-4 py-2 text-[10px] uppercase tracking-wider">
               <span className="text-muted-foreground">
-                Imported in {(scripture.storedVersions ?? []).join(" / ")}, not this
-                workspace&rsquo;s language{scripture.multi ? "s" : ""}
+                This set is in {languagesOfVersions(scripture.storedVersions)}.
               </span>
               <button
                 type="button"
@@ -2169,8 +2168,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           <AlertDialog open={showUpdateVersions} onOpenChange={setShowUpdateVersions}>
             <AlertDialogContent className="gap-0 rounded-3xl p-8">
               <AlertDialogTitle className="text-2xl font-normal leading-tight">
-                Re-import in {updateV1}
-                {updateV2 ? ` / ${updateV2}` : ""}?
+                Re-import?
               </AlertDialogTitle>
               <AlertDialogDescription className="mt-4 text-base text-foreground">
                 Every passage in this set is fetched again in these bible versions. Any verses you
