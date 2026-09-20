@@ -33,7 +33,6 @@ export function LanguagePicker({
   /** Languages left out of the menu (the ones already taken by a slot). */
   exclude?: LangCode[];
 }) {
-  const def = langDef(value);
   const options = WORKSPACE_LANGS.filter((l) => !exclude.includes(l.code));
   return (
     <DropdownMenu>
@@ -41,7 +40,7 @@ export function LanguagePicker({
         <button
           type="button"
           className={cn(
-            "mono flex h-7 items-center gap-2 rounded-full border px-2.5 text-xs uppercase tracking-wider text-foreground disabled:cursor-not-allowed disabled:opacity-50",
+            "mono flex h-7 items-center gap-2 rounded-full border px-2.5 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-50",
             className,
           )}
           style={{
@@ -51,8 +50,11 @@ export function LanguagePicker({
           title={workspaceLangLabel(value)}
           aria-label={`Language: ${workspaceLangLabel(value)}`}
         >
-          <span>{def.short}</span>
-          <span className="text-[10px] text-muted-foreground">{workspaceLangLabel(value)}</span>
+          <span
+            className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: langColor(value) }}
+          />
+          <span>{workspaceLangLabel(value)}</span>
           <ChevronDown className="h-3 w-3 opacity-60" />
         </button>
       </DropdownMenuTrigger>
@@ -72,10 +74,7 @@ export function LanguagePicker({
               className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: langColor(l.code) }}
             />
-            <span className="mono shrink-0 uppercase">{l.short}</span>
-            <span className="mono ml-auto text-right text-[10px] uppercase tracking-wider text-muted-foreground">
-              {workspaceLangLabel(l.code)}
-            </span>
+            <span className="mono text-xs text-foreground">{workspaceLangLabel(l.code)}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
