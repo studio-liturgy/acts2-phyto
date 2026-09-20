@@ -6,6 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
 import { prepareImageFile } from "@/lib/image-upload";
 import { useLibrary } from "@/lib/store";
 import type { PointType, Slide } from "@/lib/types";
@@ -219,11 +220,7 @@ export function BlockFrame({
         </div>
         {children}
       </div>
-      {actions && (
-        <div className="flex shrink-0 items-start justify-center pt-1.5" style={{ width: DEL }}>
-          {actions}
-        </div>
-      )}
+      {actions && <div className="flex shrink-0 items-start pt-2 pr-1">{actions}</div>}
       <div className="flex shrink-0 items-start justify-center pt-1.5" style={{ width: DEL }}>
         <button
           type="button"
@@ -261,20 +258,24 @@ export function ElementCard({
           ? "Bullet points"
           : "Statement";
 
-  // Bullet points: switch between dots and numbers. The button shows the style
-  // it switches TO, like the image fit toggle.
+  // Bullet points: dots (left, off) or numbers (right, on), as a small switch
+  // like the chords toggle in the song editor.
   const numbered = slide.listStyle === "numbers";
   const listToggle =
     slide.kind === "point" && slide.pointType === "bullets" ? (
-      <button
-        type="button"
-        onClick={() => onChange({ listStyle: numbered ? "bullets" : "numbers" })}
-        aria-label={numbered ? "Use bullet dots" : "Use numbers"}
-        title={numbered ? "Use bullet dots" : "Use numbers"}
-        className="mono flex h-6 w-6 items-center justify-center rounded-full text-[11px] leading-none text-foreground/60 transition hover:bg-foreground/15 hover:text-foreground"
+      <label
+        className="mono flex cursor-pointer items-center gap-1.5 text-[11px] leading-none text-foreground/60"
+        title={numbered ? "Numbered list" : "Bullet dots"}
       >
-        {numbered ? "\u2022" : "1."}
-      </button>
+        <span aria-hidden>{"\u2022"}</span>
+        <Switch
+          checked={numbered}
+          onCheckedChange={(on) => onChange({ listStyle: on ? "numbers" : "bullets" })}
+          aria-label="Numbered list"
+          className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3"
+        />
+        <span aria-hidden>1.</span>
+      </label>
     ) : undefined;
 
   return (
