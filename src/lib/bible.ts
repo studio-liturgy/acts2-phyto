@@ -4,6 +4,7 @@
 //   "John 3:16-18"         range within a chapter
 //   "John 3"               whole chapter
 //   "John 3:21-John 4:2"   cross-chapter range (same book only)
+import type { LangCode } from "./langs";
 
 export const TRANSLATIONS = [
   { code: "NIV", label: "NIV — New International Version" },
@@ -16,6 +17,114 @@ export const TRANSLATIONS = [
   { code: "AMP", label: "AMP — Amplified Version" },
   { code: "MSG", label: "MSG — The Message" },
 ] as const;
+
+/**
+ * Every translation offered on watch, grouped by language. bolls.life serves
+ * all of these from the same endpoint as the English ones, so nothing about
+ * fetching changes: only the code in the URL.
+ *
+ * English stays first and unchanged, so a scripture set built on phyto.live
+ * keeps working with its stored translation code.
+ */
+export const TRANSLATION_GROUPS = [
+  { language: "English", translations: TRANSLATIONS },
+  {
+    language: "Japanese",
+    translations: [
+      { code: "JPNICT", label: "JPNICT — Japanese Contemporary" },
+      { code: "NJB", label: "NJB — New Japanese Bible" },
+      { code: "JPKJV", label: "JPKJV — Japanese King James" },
+    ],
+  },
+  {
+    language: "Chinese",
+    translations: [
+      { code: "CUNPS", label: "CUNPS — Union (simplified)" },
+      { code: "CUV", label: "CUV — Union (traditional)" },
+      { code: "CUNP", label: "CUNP — Union New Punctuation" },
+      { code: "PCBS", label: "PCBS — Pastoral (simplified)" },
+      { code: "PCB", label: "PCB — Pastoral (traditional)" },
+      { code: "ChiSB", label: "ChiSB — Studium Biblicum" },
+    ],
+  },
+  {
+    language: "Korean",
+    translations: [
+      { code: "KRV", label: "KRV — Korean Revised" },
+      { code: "RNKSV", label: "RNKSV — New Korean Standard" },
+    ],
+  },
+  {
+    language: "Indonesian",
+    translations: [{ code: "TB", label: "TB — Terjemahan Baru" }],
+  },
+  {
+    language: "Arabic",
+    translations: [
+      { code: "NAV", label: "NAV — Kitab al-Hayat" },
+      { code: "SVD", label: "SVD — Smith and Van Dyke" },
+    ],
+  },
+  {
+    language: "Spanish",
+    translations: [
+      { code: "RV1960", label: "RV1960 — Reina-Valera 1960" },
+      { code: "NVI", label: "NVI — Nueva Versión Internacional" },
+      { code: "NTV", label: "NTV — Nueva Traducción Viviente" },
+      { code: "LBLA", label: "LBLA — La Biblia de las Américas" },
+      { code: "PDT", label: "PDT — Palabra de Dios para Todos" },
+    ],
+  },
+  {
+    language: "Portuguese",
+    translations: [
+      { code: "NVIPT", label: "NVI-PT — Nova Versão Internacional" },
+      { code: "ARA", label: "ARA — Almeida Revista e Atualizada" },
+      { code: "NAA", label: "NAA — Nova Almeida Atualizada" },
+      { code: "NTLH", label: "NTLH — Nova Tradução na Linguagem de Hoje" },
+      { code: "NVT", label: "NVT — Nova Versão Transformadora" },
+    ],
+  },
+  {
+    language: "French",
+    translations: [
+      { code: "FRLSG", label: "LSG — Louis Segond" },
+      { code: "BDS", label: "BDS — Bible du Semeur" },
+      { code: "NBS", label: "NBS — Nouvelle Bible Segond" },
+      { code: "FRPDV17", label: "PDV — Parole de Vie" },
+    ],
+  },
+] as const;
+
+/** Human label for a translation code, falling back to the code itself. */
+export function translationLabel(code: string): string {
+  for (const group of TRANSLATION_GROUPS) {
+    for (const t of group.translations) if (t.code === code) return t.label;
+  }
+  return code;
+}
+
+// Which language a bible version is in — used so a stacked scripture line gets
+// the right typography (Korean word-break, French spacing, etc.). Maps each
+// TRANSLATION_GROUPS language to a representative LangCode.
+const GROUP_LANG: Record<string, LangCode> = {
+  English: "en",
+  Japanese: "ja",
+  Chinese: "zh-Hans",
+  Korean: "ko",
+  Indonesian: "id",
+  Arabic: "ar",
+  Spanish: "es",
+  Portuguese: "pt",
+  French: "fr",
+};
+
+export function langOfTranslation(code: string): LangCode | undefined {
+  for (const group of TRANSLATION_GROUPS) {
+    if (group.translations.some((t) => t.code === code)) return GROUP_LANG[group.language];
+  }
+  return undefined;
+}
 
 const BOOKS: { id: number; names: string[] }[] = [
   { id: 1, names: ["genesis", "gen", "ge", "gn"] },
@@ -113,6 +222,25 @@ export interface ParsedRef {
 const BOOK_RE =
   /^(\d?\s*[A-Za-z][A-Za-z\s]*?)\s+(\d+)(?::(\d+))?(?:\s*[-–]\s*(?:(\d?\s*[A-Za-z][A-Za-z\s]*?)\s+(\d+):(\d+)|(\d+):(\d+)|(\d+)))?$/;
 
+function makeRef(
+  bookId: number,
+  startChapter: number,
+  startVerse: number | null,
+  endChapter: number,
+  endVerse: number,
+): ParsedRef {
+  const wholeChapter = startVerse === null;
+  return {
+    bookId,
+    bookName: bookDisplayName(bookId),
+    startChapter,
+    startVerse: startVerse ?? 1,
+    endChapter,
+    endVerse,
+    wholeChapter,
+  };
+}
+
 export function parseReference(input: string): ParsedRef | null {
   const m = input.trim().match(BOOK_RE);
   if (!m) return null;
@@ -120,11 +248,10 @@ export function parseReference(input: string): ParsedRef | null {
   if (!bookId) return null;
   const startChapter = Number(m[2]);
   const hasStartVerse = m[3] !== undefined;
-  const startVerse = hasStartVerse ? Number(m[3]) : 1;
+  const startVerse = hasStartVerse ? Number(m[3]) : null;
 
   let endChapter = startChapter;
-  let endVerse = hasStartVerse ? startVerse : 999;
-  let wholeChapter = !hasStartVerse;
+  let endVerse = hasStartVerse ? Number(m[3]) : 999;
 
   if (m[4]) {
     // cross-book/chapter "John 3:21 - John 4:2"
@@ -132,27 +259,49 @@ export function parseReference(input: string): ParsedRef | null {
     if (!otherBookId || otherBookId !== bookId) return null; // only same-book ranges supported
     endChapter = Number(m[5]);
     endVerse = Number(m[6]);
-    wholeChapter = false;
   } else if (m[7]) {
     // "John 3:21-4:2"
     endChapter = Number(m[7]);
     endVerse = Number(m[8]);
-    wholeChapter = false;
   } else if (m[9]) {
     // "John 3:16-18"
     endVerse = Number(m[9]);
-    wholeChapter = false;
   }
 
-  return {
-    bookId,
-    bookName: bookDisplayName(bookId),
-    startChapter,
-    startVerse,
-    endChapter,
-    endVerse,
-    wholeChapter,
-  };
+  return makeRef(bookId, startChapter, startVerse, endChapter, endVerse);
+}
+
+// A reference typed in the translation's own language, e.g. "约翰福音 3:16" or
+// "ヨハネ3:16". The book name can be any script, so this parser is looser than
+// BOOK_RE and resolves the book against the get-books list of the translation(s)
+// in play. Chapter/verse still use ASCII digits (bolls' own reference format).
+const LOC_BOOK_RE =
+  /^\s*(.+?)\s*(\d+)(?:[:：]\s*(\d+))?(?:\s*[-–—~]\s*(?:(\d+)[:：]\s*(\d+)|(\d+)))?\s*$/;
+
+export async function parseReferenceLocalized(
+  input: string,
+  translations: string[],
+): Promise<ParsedRef | null> {
+  const m = input.trim().match(LOC_BOOK_RE);
+  if (!m) return null;
+  const bookId = lookupBook(m[1]) ?? (await resolveLocalizedBookId(m[1], translations));
+  if (!bookId) return null;
+  const startChapter = Number(m[2]);
+  const hasStartVerse = m[3] !== undefined;
+  const startVerse = hasStartVerse ? Number(m[3]) : null;
+
+  let endChapter = startChapter;
+  let endVerse = hasStartVerse ? Number(m[3]) : 999;
+  if (m[4]) {
+    // "约翰福音 3:21-4:2"
+    endChapter = Number(m[4]);
+    endVerse = Number(m[5]);
+  } else if (m[6]) {
+    // "约翰福音 3:16-18"
+    endVerse = Number(m[6]);
+  }
+
+  return makeRef(bookId, startChapter, startVerse, endChapter, endVerse);
 }
 
 export interface FetchedVerse {
@@ -168,15 +317,114 @@ async function fetchChapter(translation: string, bookId: number, chapter: number
   return (await res.json()) as { verse: number; text: string }[];
 }
 
+// bolls returns book names in each translation's own language via get-books, so
+// this is how a reference shows a localized book name (e.g. "約翰福音"). Cached
+// per translation — the list is fetched at most once — and falls back to the
+// English display name if the request fails.
+const bookNamesByTranslation = new Map<string, Map<number, string>>();
+
+async function loadBooks(translation: string): Promise<Map<number, string>> {
+  let names = bookNamesByTranslation.get(translation);
+  if (!names) {
+    names = new Map<number, string>();
+    try {
+      const res = await fetch(`https://bolls.life/get-books/${encodeURIComponent(translation)}/`);
+      if (res.ok) {
+        const books = (await res.json()) as { bookid?: number; name?: string }[];
+        for (const b of books) {
+          if (typeof b.bookid === "number" && typeof b.name === "string")
+            names.set(b.bookid, b.name);
+        }
+      }
+    } catch {
+      // fall back to the English display name below
+    }
+    bookNamesByTranslation.set(translation, names);
+  }
+  return names;
+}
+
+async function localizedBookName(translation: string, bookId: number): Promise<string> {
+  const names = await loadBooks(translation);
+  return names.get(bookId) || bookDisplayName(bookId);
+}
+
+// Reverse of localizedBookName: find the book id for a name typed in a
+// translation's own language, so a reference like "요한복음 3:16" resolves. Checks
+// the given translations first (fast path — usually the one being imported), then
+// one representative translation per language so a reference can be typed in ANY
+// supported language even when the selected version is English.
+//
+// Matching ignores case and spaces and is fuzzy: a typed name that is a prefix
+// of (or contained in) the translation's own name still matches, because the
+// same book is spelled with small variations — bolls calls John "요한복음서" while
+// people type "요한복음", "1 Corinthians" vs "고린도전서", etc. The closest match
+// (exact, then a shared prefix, then any containment; ties broken by length)
+// wins, so "요한복음" lands on John rather than 1/2/3 John.
+async function resolveLocalizedBookId(
+  bookPart: string,
+  translations: string[],
+): Promise<number | null> {
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "").trim();
+  // A numeral marks a numbered book (1 John, 2 Corinthians). When the typed name
+  // has none, a numbered book is the wrong answer for it — so "ヨハネ" (John)
+  // must not resolve to 1 John just because that name happens to be shorter.
+  const hasNum = (s: string) => /[0-9０-９一二三四五六七八九壱壹弐貳参參]/.test(s);
+  const target = norm(bookPart);
+  if (!target) return null;
+  const tNum = hasNum(target);
+  // One translation per language, plus CUNP for traditional Chinese: bolls stores
+  // simplified book names for most Chinese versions (including CUV), so a
+  // traditional reference like "約翰福音" only matches a genuinely traditional list.
+  const representatives = [
+    ...TRANSLATION_GROUPS.map((g) => g.translations[0]?.code).filter(Boolean),
+    "CUNP",
+  ];
+  const seen = new Set<string>();
+  // Rank tuple, lower is better: [numeral mismatch, match tightness, book id].
+  // Book id breaks ties canonically — a bare name shared by a Gospel and a later
+  // book (e.g. "ヨハネ" → John, 1–3 John, Revelation) resolves to the Gospel.
+  let best: { id: number; rank: [number, number, number] } | null = null;
+  const better = (a: [number, number, number], b: [number, number, number]) =>
+    a[0] !== b[0] ? a[0] < b[0] : a[1] !== b[1] ? a[1] < b[1] : a[2] < b[2];
+  for (const t of [...translations, ...representatives]) {
+    if (!t || seen.has(t)) continue;
+    seen.add(t);
+    const names = await loadBooks(t);
+    for (const [id, name] of names) {
+      const a = norm(name);
+      if (!a) continue;
+      let score: number;
+      if (a === target && hasNum(a) === tNum)
+        return id; // exact, unambiguous
+      else if (a === target) score = 0;
+      else if (a.startsWith(target))
+        score = 1; // typed is a prefix (요한복음 → 요한복음서)
+      else if (target.startsWith(a)) score = 2;
+      else if (a.includes(target) || target.includes(a)) score = 3;
+      else continue;
+      const rank: [number, number, number] = [hasNum(a) === tNum ? 0 : 1, score, id];
+      if (!best || better(rank, best.rank)) best = { id, rank };
+    }
+  }
+  return best?.id ?? null;
+}
+
 export async function fetchScriptureBolls(
   ref: string,
   translation: string,
-  opts: { removeLineBreaks?: boolean } = {},
+  opts: { removeLineBreaks?: boolean; hints?: string[] } = {},
 ): Promise<{ reference: string; bookName: string; verses: FetchedVerse[] }> {
-  const parsed = parseReference(ref);
+  // English book names parse directly; otherwise resolve the name against this
+  // translation (and any hinted ones — e.g. the other version in a bilingual
+  // import) so a reference can be typed in the passage's own language.
+  const parsed =
+    parseReference(ref) ??
+    (await parseReferenceLocalized(ref, [translation, ...(opts.hints ?? [])]));
   if (!parsed)
     throw new Error(`Couldn't parse "${ref}". Try "John 3:16", "John 3", or "John 3:21-John 4:2".`);
   const removeLineBreaks = opts.removeLineBreaks ?? true;
+  const bookName = await localizedBookName(translation, parsed.bookId);
 
   const collected: FetchedVerse[] = [];
   for (let ch = parsed.startChapter; ch <= parsed.endChapter; ch++) {
@@ -203,16 +451,16 @@ export async function fetchScriptureBolls(
 
   let reference: string;
   if (parsed.wholeChapter) {
-    reference = `${parsed.bookName} ${parsed.startChapter}`;
+    reference = `${bookName} ${parsed.startChapter}`;
   } else if (parsed.startChapter === parsed.endChapter) {
     reference =
       parsed.startVerse === parsed.endVerse
-        ? `${parsed.bookName} ${parsed.startChapter}:${parsed.startVerse}`
-        : `${parsed.bookName} ${parsed.startChapter}:${parsed.startVerse}-${parsed.endVerse}`;
+        ? `${bookName} ${parsed.startChapter}:${parsed.startVerse}`
+        : `${bookName} ${parsed.startChapter}:${parsed.startVerse}-${parsed.endVerse}`;
   } else {
-    reference = `${parsed.bookName} ${parsed.startChapter}:${parsed.startVerse}-${parsed.endChapter}:${parsed.endVerse}`;
+    reference = `${bookName} ${parsed.startChapter}:${parsed.startVerse}-${parsed.endChapter}:${parsed.endVerse}`;
   }
-  return { reference, bookName: parsed.bookName, verses: collected };
+  return { reference, bookName: bookName, verses: collected };
 }
 
 // Strip HTML tags robustly by repeating until the string stops changing. A
@@ -273,4 +521,45 @@ function cleanVerseText(s: string, { removeLineBreaks }: { removeLineBreaks: boo
       .join("\n");
   }
   return out.trim();
+}
+
+/** One verse as it reads in each of the stacked translations. */
+export interface AlignedVerse {
+  chapter: number;
+  verse: number;
+  byVersion: Record<string, string>;
+}
+
+/**
+ * Line two translations up verse by verse.
+ *
+ * Verse number is the join key, which is right nearly always and known to be
+ * imperfect: translations occasionally merge two verses into one or move a
+ * clause across a boundary, so a verse present in one may be absent or shifted
+ * in the other. Rather than guess, a verse with no counterpart simply has no
+ * second line, and `unmatched` counts them so the editor can say so instead of
+ * letting it surface mid-service.
+ *
+ * The primary translation drives the set of verses: it decides what gets a
+ * slide, and the secondary fills in where it can.
+ */
+export function alignVerses(
+  primary: { code: string; verses: FetchedVerse[] },
+  secondary?: { code: string; verses: FetchedVerse[] } | null,
+): { rows: AlignedVerse[]; unmatched: number } {
+  const lookup = new Map<string, string>();
+  for (const v of secondary?.verses ?? []) lookup.set(`${v.chapter}:${v.verse}`, v.text);
+
+  let unmatched = 0;
+  const rows = primary.verses.map((v) => {
+    const byVersion: Record<string, string> = { [primary.code]: v.text };
+    if (secondary) {
+      const other = lookup.get(`${v.chapter}:${v.verse}`);
+      if (other) byVersion[secondary.code] = other;
+      else unmatched += 1;
+    }
+    return { chapter: v.chapter, verse: v.verse, byVersion };
+  });
+
+  return { rows, unmatched };
 }

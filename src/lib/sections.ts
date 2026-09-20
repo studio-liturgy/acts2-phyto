@@ -10,6 +10,9 @@ export interface SectionSlide {
   kind?: string;
   section?: string;
   reference?: string;
+  /** which scripture import this verse came from, so a message groups by
+   *  import (and colours per block) rather than by shared reference text. */
+  importIndex?: number;
 }
 
 export interface SlideGroup<T extends SectionSlide = SectionSlide> {
@@ -39,16 +42,27 @@ export function sectionOf(s: SectionSlide): string | null {
 export function groupSlides<T extends SectionSlide>(slides: T[]): SlideGroup<T>[] {
   const groups: SlideGroup<T>[] = [];
   let currentSection: string | null = null;
+  let lastBlockKey: string | null = null;
   slides.forEach((s, i) => {
     const sec = sectionOf(s);
     const resolvedSection = sec ?? currentSection;
+    // A block is: one scripture import (by importIndex), a run of consecutive
+    // points/images together, or a run of one section (songs). This keeps a
+    // message coloured the same way in the presenter, the phone and the editor.
+    const blockKey =
+      s.kind === "scripture" && s.importIndex !== undefined
+        ? `import:${s.importIndex}`
+        : s.kind === "point" || s.kind === "image"
+          ? "elements"
+          : `sec:${resolvedSection ?? ""}`;
     const last = groups[groups.length - 1];
-    if (!last || resolvedSection !== currentSection) {
+    if (!last || blockKey !== lastBlockKey) {
       groups.push({ section: resolvedSection, key: "", items: [{ slide: s, index: i }] });
       currentSection = resolvedSection;
     } else {
       last.items.push({ slide: s, index: i });
     }
+    lastBlockKey = blockKey;
   });
   // Assign stable keys: label + per-label occurrence index, so two distinct
   // "Chorus" sections stay independently hideable.

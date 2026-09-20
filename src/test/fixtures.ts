@@ -53,6 +53,8 @@ export function setRow(s: PhytoSet, userId = USER_ID): Row {
       autoAdvanceMs: s.autoAdvanceMs,
       loop: s.loop,
       dissolveMs: s.dissolveMs,
+      versions: s.versions,
+      scriptureImports: s.scriptureImports,
     },
     created_at: new Date(s.createdAt).toISOString(),
     updated_at: new Date(s.updatedAt).toISOString(),

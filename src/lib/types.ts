@@ -100,6 +100,14 @@ export interface Set {
   loop?: boolean;
   /** Media-only: cross-dissolve duration in ms between slides. */
   dissolveMs?: number;
+  /** Scripture/message: the bible versions (translation codes) on each verse
+   *  slide, in stacking order; one entry for a single translation, two when a
+   *  second was imported alongside. Which of them a workspace shows is decided
+   *  by its settings (see lib/versions.ts). */
+  versions?: string[];
+  /** Scripture/message: the reference queries imported so far, so a version
+   *  change can re-fetch the same passages. */
+  scriptureImports?: string[];
   /** Deprecated: the original single-workspace tag. Group membership now works
    *  through GRANTS (group_sets → local `groupIds`), so a set can live in Personal
    *  and several groups at once. Kept for backward compat / the RLS predicate. */

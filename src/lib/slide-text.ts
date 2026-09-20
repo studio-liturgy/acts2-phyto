@@ -146,31 +146,35 @@ export function slidesToScriptureText(slides: Slide[]): string {
   return slideParts.join("\n---\n");
 }
 
-const slideContentKey = (s: Slide) => stableStringify({ ...s, id: undefined });
-
 /**
- * Positionally reconcile freshly-parsed slides (random new ids) against the
- * stored ones: where the content at an index is identical, keep the STORED
- * slide object — preserving its id. `changed` is false iff every slide was
- * preserved, i.e. the parse round-trip produced no effective change.
- *
- * This is what keeps "open the editor, touch nothing" from writing: new slide
- * ids change the sync fingerprint (sync.ts setFingerprint) and would flag a
- * phantom conflict on every other device.
+ * The two-version scripture editor: one text box per translation, paired by
+ * slide position (each `---` block is the same verse in every version). Only the
+ * first version carries the `[ref]` headers; the others are plain, so they line
+ * up by position exactly like the multilingual song boxes.
  */
-export function reconcileSlideIds(
-  parsed: Slide[],
-  current: Slide[],
-): { slides: Slide[]; changed: boolean } {
-  let changed = parsed.length !== current.length;
-  const slides = parsed.map((p, i) => {
-    if (i < current.length && slideContentKey(p) === slideContentKey(current[i])) {
-      return current[i];
+export function slidesToVersionText(slides: Slide[], versions: string[]): Record<string, string> {
+  const primary = versions[0];
+  const out: Record<string, string[]> = {};
+  const lastRef: Record<string, string> = {};
+  for (const v of versions) out[v] = [];
+  // A header is written at every import boundary (importIndex change), not only
+  // when the reference text changes, so two imports of the same passage stay two
+  // separate blocks when the boxes are rebuilt from the stored slides.
+  let lastImportIndex: number | undefined;
+  for (const s of slides) {
+    const boundary = s.importIndex !== undefined && s.importIndex !== lastImportIndex;
+    for (const v of versions) {
+      // Each box carries its own (localized) reference header.
+      const ref = s.referencesByVersion?.[v] ?? s.reference ?? "";
+      const text = s.linesByVersion?.[v] ?? (v === primary ? (s.lines ?? []).join("\n") : "");
+      out[v].push(ref && (boundary || ref !== lastRef[v]) ? `[${ref}]\n${text}` : text);
+      lastRef[v] = ref;
     }
-    changed = true;
-    return p;
-  });
-  return { slides, changed };
+    lastImportIndex = s.importIndex;
+  }
+  const res: Record<string, string> = {};
+  for (const v of versions) res[v] = out[v].join("\n---\n");
+  return res;
 }
 
 /** Split one scripture box into its `---`-separated verse blocks, pulling a
@@ -244,4 +248,75 @@ export function fromVerseRows(rows: VerseRow[], versions: string[]): Record<stri
       .join("\n---\n");
   }
   return out;
+}
+
+/** Inverse of slidesToVersionText: pair the per-version boxes into one slide per
+ *  block by position, taking references from the first version's headers. */
+export function versionTextToSlides(
+  byVersionText: Record<string, string>,
+  versions: string[],
+): Slide[] {
+  const primary = versions[0];
+  const segsByVersion: Record<string, { ref?: string; text: string }[]> = {};
+  for (const v of versions) segsByVersion[v] = scriptureSegments(byVersionText[v] ?? "");
+  const count = Math.max(...versions.map((v) => segsByVersion[v].length), 0);
+
+  const slides: Slide[] = [];
+  const lastRef: Record<string, string> = {};
+  // Each explicit primary header opens a new import; importIndex separates two
+  // imports of the same reference, which a shared `section`/`reference` cannot.
+  let importIndex = -1;
+  for (let i = 0; i < count; i++) {
+    const byVersion: Record<string, string> = {};
+    const referencesByVersion: Record<string, string> = {};
+    if (i === 0 || segsByVersion[primary][i]?.ref !== undefined) importIndex += 1;
+    for (const v of versions) {
+      const seg = segsByVersion[v][i];
+      if (seg?.ref) lastRef[v] = seg.ref;
+      const ref = seg?.ref ?? lastRef[v] ?? "";
+      if (ref) referencesByVersion[v] = ref;
+      const t = (seg?.text ?? "").trim();
+      if (t) byVersion[v] = t;
+    }
+    if (Object.keys(byVersion).length === 0) continue;
+    const reference = referencesByVersion[primary] ?? Object.values(referencesByVersion)[0];
+    slides.push({
+      id: uid(),
+      kind: "scripture" as const,
+      reference: reference || undefined,
+      section: reference || undefined,
+      importIndex: Math.max(0, importIndex),
+      lines: byVersion[primary] ? [byVersion[primary]] : [],
+      linesByVersion: byVersion,
+      ...(Object.keys(referencesByVersion).length ? { referencesByVersion } : {}),
+    });
+  }
+  return slides;
+}
+
+const slideContentKey = (s: Slide) => stableStringify({ ...s, id: undefined });
+
+/**
+ * Positionally reconcile freshly-parsed slides (random new ids) against the
+ * stored ones: where the content at an index is identical, keep the STORED
+ * slide object — preserving its id. `changed` is false iff every slide was
+ * preserved, i.e. the parse round-trip produced no effective change.
+ *
+ * This is what keeps "open the editor, touch nothing" from writing: new slide
+ * ids change the sync fingerprint (sync.ts setFingerprint) and would flag a
+ * phantom conflict on every other device.
+ */
+export function reconcileSlideIds(
+  parsed: Slide[],
+  current: Slide[],
+): { slides: Slide[]; changed: boolean } {
+  let changed = parsed.length !== current.length;
+  const slides = parsed.map((p, i) => {
+    if (i < current.length && slideContentKey(p) === slideContentKey(current[i])) {
+      return current[i];
+    }
+    changed = true;
+    return p;
+  });
+  return { slides, changed };
 }

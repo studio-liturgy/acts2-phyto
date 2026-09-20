@@ -48,6 +48,8 @@ export function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
       autoAdvanceMs: s.autoAdvanceMs,
       loop: s.loop,
       dissolveMs: s.dissolveMs,
+      versions: s.versions,
+      scriptureImports: s.scriptureImports,
     },
     group_id: s.group_id ?? null,
     created_at: new Date(s.createdAt).toISOString(),
@@ -74,6 +76,8 @@ export function toSupabaseSetShared(s: PhytoSet, deviceId: string) {
       autoAdvanceMs: s.autoAdvanceMs,
       loop: s.loop,
       dissolveMs: s.dissolveMs,
+      versions: s.versions,
+      scriptureImports: s.scriptureImports,
     },
     updated_at: new Date(s.updatedAt).toISOString(),
     synced_at: new Date().toISOString(),
@@ -131,6 +135,8 @@ export function fromSupabaseSet(row: Record<string, unknown>): PhytoSet {
     autoAdvanceMs: content.autoAdvanceMs as number | undefined,
     loop: content.loop as boolean | undefined,
     dissolveMs: content.dissolveMs as number | undefined,
+    versions: content.versions as string[] | undefined,
+    scriptureImports: content.scriptureImports as string[] | undefined,
     group_id: row.group_id ? (row.group_id as string) : undefined,
     createdAt: new Date(row.created_at as string).getTime(),
     updatedAt: new Date(row.updated_at as string).getTime(),
@@ -560,6 +566,7 @@ export function setFingerprint(s: PhytoSet): string {
     autoAdvanceMs: s.autoAdvanceMs ?? null,
     loop: s.loop ?? null,
     dissolveMs: s.dissolveMs ?? null,
+    versions: s.versions ?? null,
   });
 }
 
