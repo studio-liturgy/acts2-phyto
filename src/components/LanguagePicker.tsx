@@ -18,14 +18,17 @@ export function LanguagePicker({
   onChange,
   disabled = false,
   className = "",
+  exclude = [],
 }: {
   value: LangCode;
   onChange: (code: LangCode) => void;
   disabled?: boolean;
   className?: string;
+  /** Languages left out of the menu (the ones already taken by a slot). */
+  exclude?: LangCode[];
 }) {
   const def = langDef(value);
-  const options = WORKSPACE_LANGS;
+  const options = WORKSPACE_LANGS.filter((l) => !exclude.includes(l.code));
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={disabled}>
