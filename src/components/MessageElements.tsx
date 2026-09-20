@@ -9,6 +9,7 @@ import {
 import { PillSwitch } from "@/components/PillSwitch";
 import { prepareImageFile } from "@/lib/image-upload";
 import { useLibrary } from "@/lib/store";
+import { SlideView } from "@/components/SlideView";
 import type { PointType, Slide } from "@/lib/types";
 
 const POINT_TYPES: { type: PointType; label: string }[] = [
@@ -248,12 +249,18 @@ export function ElementCard({
   onRemove,
   grip,
   tint,
+  dragHandle,
+  versions,
 }: {
   slide: Slide;
   onChange: (patch: Partial<Slide>) => void;
   onRemove: () => void;
   grip?: React.ReactNode;
   tint?: string;
+  /** Lets the image preview itself start the block's drag, like the grip. */
+  dragHandle?: { onDragStart: (e: React.DragEvent) => void; onDragEnd: () => void };
+  /** Bible versions to stack in a scripture preview; not used for images. */
+  versions?: string[];
 }) {
   const label =
     slide.kind === "image"
@@ -286,27 +293,32 @@ export function ElementCard({
   return (
     <BlockFrame label={label} grip={grip} onRemove={onRemove} tint={tint} actions={listToggle}>
       {slide.kind === "image" ? (
+        // The image as it projects (a 16:9 slide thumbnail), the same as one in
+        // a run of images; draggable by the preview as well as the grip.
         <div className="relative px-3 py-2">
-          <img
-            src={slide.imageUrl}
-            alt=""
-            className={`max-h-40 w-full rounded border border-foreground/10 ${
-              slide.imageFit === "cover" ? "object-cover" : "object-contain"
-            }`}
-          />
-          <button
-            type="button"
-            onClick={() => onChange({ imageFit: slide.imageFit === "cover" ? "contain" : "cover" })}
-            className="absolute right-4 top-3 rounded-full bg-black/60 p-1 text-white transition hover:opacity-90"
-            aria-label={slide.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"}
-            title={slide.imageFit === "cover" ? "Fit image" : "Fill frame"}
+          <div
+            draggable={!!dragHandle}
+            onDragStart={dragHandle?.onDragStart}
+            onDragEnd={dragHandle?.onDragEnd}
+            className={`group relative aspect-video w-1/2 overflow-hidden rounded-md border border-foreground/10 ${dragHandle ? "cursor-grab" : ""}`}
           >
-            {slide.imageFit === "cover" ? (
-              <Minimize2 className="h-3 w-3" />
-            ) : (
-              <Maximize2 className="h-3 w-3" />
-            )}
-          </button>
+            <SlideView slide={slide} versions={versions} variant="thumb" />
+            <button
+              type="button"
+              onClick={() =>
+                onChange({ imageFit: slide.imageFit === "cover" ? "contain" : "cover" })
+              }
+              className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
+              aria-label={slide.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"}
+              title={slide.imageFit === "cover" ? "Fit image" : "Fill frame"}
+            >
+              {slide.imageFit === "cover" ? (
+                <Minimize2 className="h-3 w-3" />
+              ) : (
+                <Maximize2 className="h-3 w-3" />
+              )}
+            </button>
+          </div>
         </div>
       ) : slide.pointType === "quote" ? (
         <>

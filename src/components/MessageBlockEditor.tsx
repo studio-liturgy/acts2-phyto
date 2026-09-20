@@ -357,6 +357,8 @@ export function MessageBlockEditor({
             onRemove={() => removeBlock(b)}
             grip={grip}
             tint={tints[i]}
+            dragHandle={{ onDragStart: dragProps(i).onDragStart, onDragEnd: commitOrder }}
+            versions={versions[0] === "_" ? undefined : versions}
           />
         )}
       </div>,
