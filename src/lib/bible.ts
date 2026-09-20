@@ -518,7 +518,24 @@ export function cleanVerseText(
 ) {
   let out = s;
 
+  // Superscripts are never verse text: footnote markers, and in JPKJV the
+  // furigana reading after every kanji (<i>第</i><sup>,だい</sup>), which
+  // stripTags would otherwise leave inline as garbage.
+  out = out.replace(/<sup\b[^>]*>[\s\S]*?<\/sup>/gi, "");
+  // Centred paragraphs are headings (PDT: book division, pericope title, the
+  // psalm's note), set apart from the verse that follows them.
+  out = out.replace(/<p\b[^>]*align=['"]center['"][^>]*>[\s\S]*?<\/p>/gi, "");
+
   if (superscription) {
+    // Inline book division + title, no break before the words: NTV "LIBRO
+    // PRIMERO (Salmos 1–41) Salmo 1 Qué alegría…", and the Japanese "第一巻".
+    out = out.replace(/^\s*(?:LIBRO|LIVRO|LIVRE)\s+[^()<]*\([^)]*\)\s*/i, "");
+    out = out.replace(/^\s*(?:Salmos?|Psaume|Psalm)\s+\d+\s+(?=[^\d<])/i, "");
+    // (JPKJV wraps each kanji in <i>…</i>, so allow tags between them.)
+    out = out.replace(
+      /^\s*(?:<i>)?第(?:<\/i>)?\s*(?:<i>)?[一二三四五1-5](?:<\/i>)?\s*(?:<i>)?巻(?:<\/i>)?\s*/,
+      "",
+    );
     // NKJV-style: the note in italics ahead of the verse.
     out = out.replace(/^\s*<i>([\s\S]*?)<\/i>(\s*<\/i>)?\s*/i, (m, inner: string) =>
       SUPERSCRIPTION.test(stripTags(inner).trim()) ? "" : m,

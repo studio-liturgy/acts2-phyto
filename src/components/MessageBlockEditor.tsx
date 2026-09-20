@@ -225,7 +225,11 @@ export function MessageBlockEditor({
                 onDragOver={dp.onDragOver}
                 className="group relative aspect-video cursor-grab overflow-hidden rounded-md border border-foreground/10"
               >
-                <SlideView slide={slide} variant="thumb" />
+                <SlideView
+                  slide={slide}
+                  versions={versions[0] === "_" ? undefined : versions}
+                  variant="thumb"
+                />
                 <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition group-hover:opacity-100">
                   <button
                     type="button"

@@ -61,3 +61,40 @@ describe("psalm superscriptions are dropped from verse 1", () => {
     expect(cleanVerseText("<i>Blessed</i> is the man", o)).toBe("Blessed is the man");
   });
 });
+
+describe("other translations' headings", () => {
+  it("NTV: inline book division and title", () => {
+    expect(
+      cleanVerseText(
+        "LIBRO PRIMERO (Salmos 1–41) Salmo 1 Qué alegría para los que <br>no siguen",
+        o,
+      ),
+    ).toBe("Qué alegría para los que no siguen");
+    expect(
+      cleanVerseText(
+        "LIBRO SEGUNDO (Salmos 42–72) Salmo 42 Como el ciervo anhela, <br>así te anhelo.<br>",
+        o,
+      ),
+    ).toBe("Como el ciervo anhela, así te anhelo.");
+  });
+
+  it("PDT: centred paragraph headings, and the note", () => {
+    expect(
+      cleanVerseText(
+        "'<p align='center'><b><i>Libro 1</i></b></p><p align='center'><b><i>Justos y pecadores</i></b></p>Afortunado el que no sigue el consejo.'",
+        o,
+      ),
+    ).toBe("'Afortunado el que no sigue el consejo.'");
+  });
+
+  it("JPKJV: furigana superscripts go, and the book division", () => {
+    expect(
+      cleanVerseText(
+        "<i>第</i><sup>,だい</sup><i>一</i><sup>,いっ</sup><i>巻</i><sup>,かん</sup><i>悪</i><sup>,あ</sup>しき<i>者</i><sup>,もの</sup>のはかりごとに",
+        o,
+      ),
+    ).toBe("悪しき者のはかりごとに");
+    // Furigana are stripped in every verse, not only a psalm's first.
+    expect(cleanVerseText("<i>神</i><sup>,かみ</sup>は", { removeLineBreaks: true })).toBe("神は");
+  });
+});

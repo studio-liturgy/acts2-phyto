@@ -460,7 +460,13 @@ export function SlideView({
                       <div
                         key={i}
                         className="font-medium leading-snug"
-                        style={{ fontSize: `${3.75 * fontScale}rem`, textTransform: lyricCase }}
+                        // A verse kept with its line breaks arrives as one
+                        // line holding newlines; honour them.
+                        style={{
+                          fontSize: `${3.75 * fontScale}rem`,
+                          textTransform: lyricCase,
+                          whiteSpace: "pre-line",
+                        }}
                       >
                         {l}
                       </div>

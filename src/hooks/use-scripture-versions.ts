@@ -50,11 +50,6 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
 
   // Each picker offers only its language's bible versions: the system
   // language's when multi-language is off, the 1st and 2nd languages' when on.
-  const firstChoices = useMemo(() => translationsForLang(settings.language), [settings.language]);
-  const secondChoices = useMemo(
-    () => (settings.language2 ? translationsForLang(settings.language2) : []),
-    [settings.language2],
-  );
   const [translation, setTranslation] = useState(() => {
     const stored = readSet()?.versions?.[0];
     if (stored) return stored;
@@ -69,6 +64,18 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       ? (translationsForLang(settings.language2)[0]?.code ?? "")
       : "";
   });
+  const secondChoices = useMemo(
+    () => (settings.language2 ? translationsForLang(settings.language2) : []),
+    [settings.language2],
+  );
+  // With no 2nd version chosen, the single slot may take a version from either
+  // language; once a 2nd is chosen, each slot is its own language's.
+  const firstChoices = useMemo(() => {
+    const own = translationsForLang(settings.language);
+    if (!multi || translation2 || !settings.language2) return own;
+    const seen = new Set(own.map((t) => t.code));
+    return [...own, ...secondChoices.filter((t) => !seen.has(t.code))];
+  }, [settings.language, settings.language2, multi, translation2, secondChoices]);
   // A set with no stored version follows the workspace's languages (a fresh
   // set opened in a Chinese workspace imports Chinese).
   useEffect(() => {

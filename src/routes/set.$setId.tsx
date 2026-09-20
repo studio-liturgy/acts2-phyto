@@ -15,6 +15,7 @@ import {
 } from "@/lib/media";
 import { prepareImageFile, prepareRenderedImage } from "@/lib/image-upload";
 import { useScriptureVersions } from "@/hooks/use-scripture-versions";
+import { visibleVersions } from "@/lib/versions";
 import { searchSongs, preloadSongs, parseQuery, songPreview, type SongResult } from "@/lib/songs";
 import {
   lyricsToSlides,
@@ -332,6 +333,8 @@ function SetHeader({
 }
 
 function SetEditor() {
+  // Which bible versions a scripture preview stacks follows the workspace.
+  const workspaceSettings = useLibrary((s) => s.workspaceSettings);
   const { setId } = Route.useParams();
   const { redirectTo } = Route.useSearch();
   const navigate = useNavigate();
@@ -563,6 +566,7 @@ function SetEditor() {
                               <div key={s.id} className="overflow-hidden rounded-md">
                                 <SlideView
                                   slide={s}
+                                  versions={visibleVersions(phytoSet, workspaceSettings)}
                                   variant="thumb"
                                   template={effectiveScriptureTemplate}
                                 />
