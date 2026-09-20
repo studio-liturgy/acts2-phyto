@@ -1,11 +1,10 @@
 import { it, expect } from "vitest";
-import { WORKSPACE_LANGS } from "@/lib/langs";
-it("lists both Chinese scripts", () => {
+import { WORKSPACE_LANGS, workspaceLang, workspaceLangLabel } from "@/lib/langs";
+it("offers one Chinese (both scripts) and no transliterations", () => {
   expect(WORKSPACE_LANGS.map((l) => l.code)).toEqual([
     "en",
     "ja",
     "zh-Hans",
-    "zh-Hant",
     "ko",
     "ar",
     "id",
@@ -13,4 +12,6 @@ it("lists both Chinese scripts", () => {
     "pt",
     "fr",
   ]);
+  expect(workspaceLang("zh-Hant")).toBe("zh-Hans");
+  expect(workspaceLangLabel("zh-Hans")).toBe("Chinese");
 });

@@ -5,7 +5,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { WORKSPACE_LANGS, type LangCode, langColor, langDef } from "@/lib/langs";
+import {
+  WORKSPACE_LANGS,
+  type LangCode,
+  langColor,
+  langDef,
+  workspaceLangLabel,
+} from "@/lib/langs";
 import { cn } from "@/lib/utils";
 
 /**
@@ -42,11 +48,11 @@ export function LanguagePicker({
             borderColor: langColor(value),
             backgroundColor: `color-mix(in oklab, ${langColor(value)} 14%, transparent)`,
           }}
-          title={def.label}
-          aria-label={`Language: ${def.label}`}
+          title={workspaceLangLabel(value)}
+          aria-label={`Language: ${workspaceLangLabel(value)}`}
         >
           <span>{def.short}</span>
-          <span className="text-[10px] text-muted-foreground">{def.label}</span>
+          <span className="text-[10px] text-muted-foreground">{workspaceLangLabel(value)}</span>
           <ChevronDown className="h-3 w-3 opacity-60" />
         </button>
       </DropdownMenuTrigger>
@@ -68,7 +74,7 @@ export function LanguagePicker({
             />
             <span className="mono shrink-0 uppercase">{l.short}</span>
             <span className="mono ml-auto text-right text-[10px] uppercase tracking-wider text-muted-foreground">
-              {l.label}
+              {workspaceLangLabel(l.code)}
             </span>
           </DropdownMenuItem>
         ))}

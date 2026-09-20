@@ -9,7 +9,7 @@
 import type { Slide } from "./types";
 import { langOfTranslation, splitRefLabel, type AlignedVerse } from "./bible";
 import type { WorkspaceSettings } from "./workspace-settings";
-import { langDef, type LangCode } from "./langs";
+import { workspaceLangLabel, type LangCode } from "./langs";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -163,7 +163,7 @@ export function languagesOfVersions(versions: string[] | undefined): string {
       (versions ?? [])
         .map((code) => langOfTranslation(code))
         .filter((l): l is LangCode => !!l)
-        .map((l) => langDef(l).label),
+        .map((l) => workspaceLangLabel(l)),
     ),
   ].join(" / ");
 }

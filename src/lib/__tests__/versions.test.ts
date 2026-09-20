@@ -96,16 +96,19 @@ describe("version boxes round-trip", () => {
 });
 
 describe("versionsMismatchWorkspace", () => {
-  const off = (language: "en" | "fr" | "zh-Hant") =>
+  const off = (language: "en" | "fr" | "zh-Hans") =>
     ({ multiLanguage: false, language, language2: null }) as const;
-  const on = (language: "en" | "fr" | "zh-Hant", language2: "en" | "fr" | "ja") =>
+  const on = (language: "en" | "fr" | "zh-Hans", language2: "en" | "fr" | "ja") =>
     ({ multiLanguage: true, language, language2 }) as const;
 
   it("off: fine when the set has the system language, extras included", () => {
     expect(versionsMismatchWorkspace(["FRLSG", "NIV"], off("en"))).toBe(false);
     expect(versionsMismatchWorkspace(["NIV", "ESV"], off("en"))).toBe(false);
     expect(versionsMismatchWorkspace(["FRLSG"], off("en"))).toBe(true);
-    expect(versionsMismatchWorkspace(["CUNPS"], off("zh-Hant"))).toBe(true);
+    // Chinese is one language: either script fits a Chinese workspace.
+    expect(versionsMismatchWorkspace(["CUNPS"], off("zh-Hans"))).toBe(false);
+    expect(versionsMismatchWorkspace(["CUNP"], off("zh-Hans"))).toBe(false);
+    expect(versionsMismatchWorkspace(["CUNP", "CUNPS"], off("zh-Hans"))).toBe(false);
   });
 
   it("multi: fine when every version is one of the two languages, one version included", () => {
@@ -132,7 +135,7 @@ describe("legacy single-version sets", () => {
     expect(
       versionsMismatchWorkspace(inferredVersions(legacy), {
         multiLanguage: false,
-        language: "zh-Hant",
+        language: "zh-Hans",
         language2: null,
       }),
     ).toBe(true);

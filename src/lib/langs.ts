@@ -111,12 +111,23 @@ export const LANGS: readonly LangDef[] = [
   { code: "fr", label: "French", short: "FR", dir: "ltr", fontFallback: "" },
 ];
 
-/** The languages a WORKSPACE can be set to: every real language, both Chinese
- *  scripts included (a congregation reads one or the other), but not the
- *  transliterations, which only exist as a second line under their source. */
-export const WORKSPACE_LANGS: readonly LangDef[] = LANGS.filter(
-  (l) => !l.derivedFrom || l.code === "zh-Hant",
-);
+/** The languages a WORKSPACE can be set to: every real language, but not the
+ *  transliterations, which only exist as a second line under their source.
+ *  Chinese is one language here: both scripts count, so a congregation can
+ *  mix a traditional and a simplified version. */
+export const WORKSPACE_LANGS: readonly LangDef[] = LANGS.filter((l) => !l.derivedFrom);
+
+/** The stored workspace-language code for any language code: the Chinese
+ *  scripts fold into "zh-Hans" (settings saved before they were one language). */
+export function workspaceLang(code: LangCode): LangCode {
+  return code === "zh-Hant" || code === "zh-Latn" ? "zh-Hans" : code;
+}
+
+/** The label a workspace's language picker shows: plain "Chinese", since the
+ *  script isn't a workspace choice. */
+export function workspaceLangLabel(code: LangCode): string {
+  return code === "zh-Hans" ? "Chinese" : langDef(code).label;
+}
 
 /** Canonical order, used to lay out the chip bar. Selection order is the user's. */
 export const DEFAULT_LANG_ORDER: LangCode[] = LANGS.map((l) => l.code);

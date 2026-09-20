@@ -132,17 +132,26 @@ const GROUP_LANG: Record<string, LangCode> = {
   French: "fr",
 };
 
-// The Chinese group mixes scripts; a workspace is set to one of them, so each
-// translation needs its own. Union (CUV, CUNP), Pastoral (PCB) and Studium
+// The Chinese group mixes scripts. A workspace's language is just "Chinese"
+// (both scripts count, so a congregation can mix a traditional and a
+// simplified version); the script only matters for typography, which
+// scriptOfTranslation answers. Union (CUV, CUNP), Pastoral (PCB) and Studium
 // Biblicum (ChiSB) are traditional; the "S" editions are simplified.
 const TRADITIONAL_CHINESE = new Set(["CUV", "CUNP", "PCB", "ChiSB"]);
 
+/** The workspace language a translation belongs to. */
 export function langOfTranslation(code: string): LangCode | undefined {
-  if (TRADITIONAL_CHINESE.has(code)) return "zh-Hant";
   for (const group of TRANSLATION_GROUPS) {
     if (group.translations.some((t) => t.code === code)) return GROUP_LANG[group.language];
   }
   return undefined;
+}
+
+/** The language to typeset a translation in: as langOfTranslation, except
+ *  traditional Chinese versions get their own script (font, glyphs). */
+export function scriptOfTranslation(code: string): LangCode | undefined {
+  if (TRADITIONAL_CHINESE.has(code)) return "zh-Hant";
+  return langOfTranslation(code);
 }
 
 /** The translations offered for a workspace language (for the single-version

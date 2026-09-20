@@ -3,7 +3,7 @@ import { stripChords } from "@/lib/chords";
 import { STAGE_H, STAGE_W, fitOrigin, fitScale } from "@/lib/slide-fit";
 import { displayLinesForVersions } from "@/lib/versions";
 import { renderInline } from "@/lib/inline-format";
-import { langOfTranslation } from "@/lib/bible";
+import { scriptOfTranslation } from "@/lib/bible";
 import { langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -422,7 +422,7 @@ export function SlideView({
                   ? // Each version shows its own verse with its own (localized)
                     // reference, so the stack reads verse / ref / verse / ref.
                     versionLines.map((l) => {
-                      const vLang = langOfTranslation(l.version);
+                      const vLang = scriptOfTranslation(l.version);
                       return (
                         <div key={l.key} className="mb-10 last:mb-0">
                           {refAbove && l.reference && (

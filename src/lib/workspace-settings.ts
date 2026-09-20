@@ -4,7 +4,7 @@
 
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
-import { isLangCode, langDef, type LangCode } from "./langs";
+import { isLangCode, workspaceLang, workspaceLangLabel, type LangCode } from "./langs";
 import type { SlugScope } from "./account-slug";
 
 export type WorkspaceSettings = {
@@ -35,15 +35,15 @@ export function workspaceLanguagesLabel(s: WorkspaceSettings): string {
   const codes = s.multiLanguage ? [s.language, s.language2] : [s.language];
   return codes
     .filter((c): c is LangCode => !!c)
-    .map((c) => langDef(c).label)
+    .map((c) => workspaceLangLabel(c))
     .join(" / ");
 }
 
 function fromRow(row: Row): WorkspaceSettings {
   return {
     multiLanguage: !!row.multi_language,
-    language: isLangCode(row.language) ? row.language : "en",
-    language2: isLangCode(row.language2) ? row.language2 : null,
+    language: isLangCode(row.language) ? workspaceLang(row.language) : "en",
+    language2: isLangCode(row.language2) ? workspaceLang(row.language2) : null,
   };
 }
 
@@ -72,8 +72,8 @@ export function readLocalPersonalSettings(): WorkspaceSettings {
     const parsed = JSON.parse(raw) as Partial<WorkspaceSettings>;
     return {
       multiLanguage: !!parsed.multiLanguage,
-      language: isLangCode(parsed.language) ? parsed.language : "en",
-      language2: isLangCode(parsed.language2) ? parsed.language2 : null,
+      language: isLangCode(parsed.language) ? workspaceLang(parsed.language) : "en",
+      language2: isLangCode(parsed.language2) ? workspaceLang(parsed.language2) : null,
     };
   } catch {
     return DEFAULT_WORKSPACE_SETTINGS;
