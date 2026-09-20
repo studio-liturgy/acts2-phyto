@@ -2086,7 +2086,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           {/* While the set's versions don't match the workspace, importing more
               is frozen (greyed, inert) until it's resolved: UPDATE below, or
               delete the verses. */}
-          <div className={scripture.frozen ? "pointer-events-none opacity-40" : ""}>
+          <div className={scripture.frozen ? "hidden" : ""}>
             <PillInput
               value={ref}
               onChange={setRef}
@@ -2151,7 +2151,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             )}
           </div>
           {scripture.versionsMismatch && (
-            <div className="mono mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-foreground/30 px-4 py-2 text-[10px] uppercase tracking-wider">
+            <div className="mono flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-foreground/30 px-4 py-2 text-[10px] uppercase tracking-wider">
               <span className="text-muted-foreground">
                 Imported in {(scripture.storedVersions ?? []).join(" / ")}, not this
                 workspace&rsquo;s language{scripture.multi ? "s" : ""}
@@ -2234,13 +2234,15 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           {err && (
             <p className="mono uppercase mt-2 text-xs tracking-wider text-destructive">{err}</p>
           )}
-          <button
-            onClick={importScripture}
-            disabled={!ref.trim() || busy || scripture.frozen}
-            className="mono uppercase pill mt-3 w-full bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
-          >
-            {busy ? "Fetching…" : "Import"}
-          </button>
+          {!scripture.frozen && (
+            <button
+              onClick={importScripture}
+              disabled={!ref.trim() || busy}
+              className="mono uppercase pill mt-3 w-full bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
+            >
+              {busy ? "Fetching…" : "Import"}
+            </button>
+          )}
         </div>
 
         {/* Body: a message owns its slides (draggable block editor); a plain
@@ -2251,6 +2253,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             setId={setId}
             versions={scripture.boxMode ? scripture.editVersions : SINGLE_VERSION}
             primaryVersion={scripture.boxMode ? scripture.primaryVersion : undefined}
+            readOnly={scripture.frozen}
           />
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">
@@ -2264,18 +2267,22 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                   setText={(v, val) =>
                     v === scripture.editVersions[0] ? setManualText(val) : setManualText2(val)
                   }
+                  readOnly={scripture.frozen}
                 />
               ) : (
                 <ScriptureVerseEditor
                   versions={SINGLE_VERSION}
                   text={{ _: manualText }}
                   setText={(_v, val) => setManualText(val)}
+                  readOnly={scripture.frozen}
                 />
               ))}
-            <MessageElements
-              setId={setId}
-              hasVerses={!!(manualText.trim() || manualText2.trim())}
-            />
+            {!scripture.frozen && (
+              <MessageElements
+                setId={setId}
+                hasVerses={!!(manualText.trim() || manualText2.trim())}
+              />
+            )}
           </div>
         )}
       </div>

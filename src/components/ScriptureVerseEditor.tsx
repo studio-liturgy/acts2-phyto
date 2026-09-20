@@ -42,10 +42,14 @@ export function ScriptureVerseEditor({
   versions,
   text,
   setText,
+  readOnly = false,
 }: {
   versions: string[];
   text: Record<string, string>;
   setText: (version: string, value: string) => void;
+  /** Frozen: verses are shown greyed and can't be edited or reordered; an
+   *  import can still be deleted (the way out of a version mismatch). */
+  readOnly?: boolean;
 }) {
   const [v1] = versions;
   const rows = toVerseRows(text, versions);
@@ -199,15 +203,16 @@ export function ScriptureVerseEditor({
               style={{ backgroundColor: `color-mix(in oklab, ${tint} 8%, transparent)` }}
             >
               <span
-                draggable
+                draggable={!readOnly}
                 onDragStart={(e) => {
+                  if (readOnly) return;
                   dragGroup.current = gi;
                   hideDragGhost(e);
                 }}
                 onDragEnd={() => (dragGroup.current = null)}
-                className="flex shrink-0 cursor-grab items-start justify-center pt-2"
+                className={`flex shrink-0 items-start justify-center pt-2 ${readOnly ? "opacity-30" : "cursor-grab"}`}
                 style={{ width: GRAB }}
-                title="Drag to reorder this import"
+                title={readOnly ? undefined : "Drag to reorder this import"}
               >
                 <DotsGrip className="opacity-40" size={12} />
               </span>
@@ -244,6 +249,7 @@ export function ScriptureVerseEditor({
                                 } else cells.current.delete(cellKey(index, v));
                               }}
                               rows={1}
+                              disabled={readOnly}
                               value={row.text[v] ?? ""}
                               onMouseDown={() => onCellMouseDown(v, index)}
                               onInput={(e) => autosize(e.currentTarget)}
@@ -276,7 +282,7 @@ export function ScriptureVerseEditor({
                                     }
                                   : undefined
                               }
-                              className="mono w-full resize-none overflow-hidden bg-transparent px-3 py-2 text-xs outline-none"
+                              className="mono w-full resize-none overflow-hidden bg-transparent px-3 py-2 text-xs outline-none disabled:opacity-40"
                             />
                           );
                         })}

@@ -153,6 +153,7 @@ export function AutoTextarea({
   onMouseDown,
   onKeyDown,
   selected,
+  disabled = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -163,6 +164,7 @@ export function AutoTextarea({
   onMouseDown?: () => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   selected?: boolean;
+  disabled?: boolean;
 }) {
   const size = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
@@ -174,12 +176,13 @@ export function AutoTextarea({
       ref={size}
       rows={1}
       value={value}
+      disabled={disabled}
       onInput={(e) => size(e.currentTarget)}
       onChange={(e) => onChange(e.target.value)}
       onMouseDown={onMouseDown}
       onKeyDown={onKeyDown}
       placeholder={placeholder}
-      className={className}
+      className={`${className} disabled:opacity-40`}
       style={
         selected
           ? { backgroundColor: "color-mix(in oklab, var(--foreground) 18%, transparent)" }

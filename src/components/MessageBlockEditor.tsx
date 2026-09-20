@@ -54,6 +54,7 @@ export function MessageBlockEditor({
   setId,
   versions,
   primaryVersion = versions[0],
+  readOnly = false,
 }: {
   setId: string;
   /** The versions shown (and editable) in this workspace, in order. */
@@ -61,6 +62,9 @@ export function MessageBlockEditor({
   /** The set's first version, whose text also lives in the compat `lines`
    *  field. Differs from versions[0] when the workspace shows another one. */
   primaryVersion?: string;
+  /** Frozen (version mismatch): verses are greyed and can't be edited, nothing
+   *  can be added or reordered; blocks can still be deleted. */
+  readOnly?: boolean;
 }) {
   const slides = useLibrary((s) => s.sets[setId]?.slides ?? []);
   const updateSet = useLibrary((s) => s.updateSet);
@@ -274,6 +278,7 @@ export function MessageBlockEditor({
           <ImportBlock
             versions={versions}
             primaryVersion={primaryVersion}
+            readOnly={readOnly}
             slides={b.slides}
             tint={tints[i]}
             grip={grip}
@@ -338,9 +343,11 @@ export function MessageBlockEditor({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       {rows}
-      <div className="p-4">
-        <AddElementBar setId={setId} />
-      </div>
+      {!readOnly && (
+        <div className="p-4">
+          <AddElementBar setId={setId} />
+        </div>
+      )}
     </div>
   );
 }
@@ -377,9 +384,11 @@ function ImportBlock({
   onEdit,
   onMergeUp,
   onRemove,
+  readOnly = false,
 }: {
   versions: string[];
   primaryVersion: string;
+  readOnly?: boolean;
   slides: Slide[];
   tint: string;
   grip: React.ReactNode;
@@ -410,6 +419,7 @@ function ImportBlock({
                 key={v}
                 value={s.linesByVersion?.[v] ?? (v === primary ? (s.lines?.[0] ?? "") : "")}
                 onChange={(val) => onEdit(s, v, val)}
+                disabled={readOnly}
                 onKeyDown={(e) => {
                   const el = e.currentTarget;
                   if (e.key === "Backspace" && el.selectionStart === 0 && el.selectionEnd === 0) {
