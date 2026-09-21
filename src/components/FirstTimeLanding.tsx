@@ -21,23 +21,32 @@ const MOBILE_POPUP_DISMISSED_KEY = "phyto-mobile-popup-dismissed";
 const MOBILE_POPUP_SUBSCRIBED_KEY = "phyto-mobile-popup-subscribed";
 const MOBILE_POPUP_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
 
+type Clip = {
+  /** MP4 video src. Absent = grey placeholder until the clip is recorded. */
+  src?: string;
+  aspect: "4/3" | "square";
+};
+
 type Step = {
   n: number;
   navLabel: string;
   color: string;
-  textA: React.ReactNode;
+  /** Short paragraphs stacked top-right (top-left on mirrored cards). */
+  textA: React.ReactNode[];
+  /** Bottom-left line the card arrow points to. */
   textB: React.ReactNode;
-  /** MP4 video src. videoB is omitted on cards that show a single, wider video. */
-  videoA: string;
-  videoB?: string;
+  /** Up to three clips: A sits beside the textA stack, B under textA, C staggered below A
+   *  (overlapping B's lower edge) — the zig-zag from the design. */
+  clips: Clip[];
   /** Number glyph path from the design SVGs (viewBox 0 0 431 431). */
   svgPath: string;
 };
 
 /** Decorative card flow-arrow (viewBox 0 0 686 682), shared by all three cards (the source
  *  design drew a slightly different arrow per card, which read as visually inconsistent once
- *  built). The top horizontal hook's end-x is parameterised: card 1's textA box sits further
- *  right than cards 2/3's, so it needs a longer hook to "point toward" it without crossing it. */
+ *  built). The top horizontal hook's end-x is parameterised: on non-mirrored cards the textA
+ *  stack sits in the right column, so the hook runs longer to "point toward" it without
+ *  crossing it; mirrored cards keep textA at the left and use the short hook. */
 function cardArrowPath(hookEndX: number) {
   return `M93.9566 613.061C94.5424 612.475 94.5424 611.525 93.9566 610.939L84.4107 601.393C83.8249 600.808 82.8751 600.808 82.2894 601.393C81.7036 601.979 81.7036 602.929 82.2894 603.515L90.7746 612L82.2893 620.485C81.7036 621.071 81.7036 622.021 82.2893 622.607C82.8751 623.192 83.8249 623.192 84.4107 622.607L93.9566 613.061ZM64 612L64 613.5L92.896 613.5L92.896 612L92.896 610.5L64 610.5L64 612ZM${hookEndX} 61L${hookEndX} 59.5L64 59.5L64 61L64 62.5L${hookEndX} 62.5L${hookEndX} 61ZM34 91L32.5 91L32.5 582L34 582L35.5 582L35.5 91L34 91ZM64 61L64 59.5C46.603 59.5 32.5 73.6031 32.5 91L34 91L35.5 91C35.5 75.2599 48.2599 62.5 64 62.5L64 61ZM64 612L64 610.5C48.2599 610.5 35.5 597.74 35.5 582L34 582L32.5 582C32.5 599.397 46.603 613.5 64 613.5L64 612Z`;
 }
@@ -47,21 +56,30 @@ const STEPS: Step[] = [
     n: 1,
     navLabel: "Create Sets / Gathering",
     color: "var(--brand-blue)",
-    textA: "Create your sets by importing song lyrics, scriptures, or your own media",
-    textB: "Arrange those sets into a gathering to stay organized and present later on",
-    videoA: "/landing-1.mp4",
-    videoB: "/landing-2.mp4",
+    textA: [
+      "Create sets by importing lyrics, scripture or your own media, or build message slides from scratch",
+      "Arrange sets into a gathering",
+    ],
+    textB:
+      "Turn on multi-language to display scriptures (and lyrics soon) in different translations simultaneously",
+    clips: [
+      { src: "/landing-1.mp4", aspect: "4/3" },
+      { src: "/landing-2.mp4", aspect: "4/3" },
+      { aspect: "4/3" }, // TODO: message slides / multi-language clip
+    ],
     svgPath:
       "M164.889 305.578V285.157H216.772V131.996H213.627L183.493 200.853H161.745V199.282L196.071 122.309H238.783V285.157H290.665V305.578H164.889Z",
   },
   {
     n: 2,
-    navLabel: "Go Online (optional)",
+    navLabel: "Sync & Share (optional)",
     color: "var(--brand-green)",
-    textA: "Sign in to sync your content across devices or Make a gathering go live",
-    textB: "Now, your friends can view it on their own mobile device!",
-    videoA: "/landing-3.mp4",
-    videoB: "/landing-4.mp4",
+    textA: ["Sign in to sync your content across devices"],
+    textB: "Create a group to share a library with friends, or share a single set by email",
+    clips: [
+      { src: "/landing-3.mp4", aspect: "square" },
+      { aspect: "square" }, // TODO: groups / share-a-set clip
+    ],
     svgPath:
       "M154.115 308.229V276.884C154.115 265.739 156.553 256.509 161.429 249.195C166.305 241.881 173.184 235.96 182.065 231.433C190.946 226.731 201.482 223.074 213.671 220.462C229.17 216.979 240.315 212.016 247.107 205.573C254.072 198.955 257.555 191.032 257.555 181.802V180.235C257.555 173.966 256.162 167.958 253.376 162.212C250.589 156.291 246.149 151.502 240.054 147.845C234.133 144.014 226.384 142.098 216.806 142.098C203.571 142.098 193.21 146.191 185.722 154.375C178.234 162.56 174.49 173.444 174.49 187.027V198.52H152.548V185.459C152.548 174.314 154.986 163.953 159.862 154.375C164.738 144.623 171.965 136.787 181.542 130.866C191.12 124.771 202.875 121.724 216.806 121.724C230.911 121.724 242.579 124.51 251.808 130.082C261.038 135.481 267.917 142.446 272.444 150.979C277.146 159.512 279.497 168.481 279.497 177.884V182.586C279.497 196.343 275.143 208.185 266.436 218.111C257.729 228.037 243.798 235.09 224.642 239.269C208.099 242.926 195.822 247.802 187.811 253.897C179.975 259.818 176.057 268.525 176.057 280.018V287.855H277.93V308.229H154.115Z",
   },
@@ -69,9 +87,16 @@ const STEPS: Step[] = [
     n: 3,
     navLabel: "Start Presenting",
     color: "var(--brand-orange)",
-    textA: "Connect your computer to a TV or projector, then hit Present in the top right",
-    textB: "Drag the Output window to your display and control it through the presenter view",
-    videoA: "/landing-5.mp4",
+    textA: [
+      "Connect your computer to a TV or projector, then hit Present in the top right",
+      "Drag the Output window to your display and control it through the presenter view",
+    ],
+    textB: "Make a gathering go live and your friends can follow along on their own phone",
+    clips: [
+      { src: "/landing-5.mp4", aspect: "square" },
+      { aspect: "square" }, // TODO: go-live clip
+      { src: "/landing-4.mp4", aspect: "square" },
+    ],
     svgPath:
       "M218.635 311.888C204.878 311.888 193.036 309.189 183.11 303.791C173.184 298.218 165.522 290.904 160.123 281.849C154.899 272.619 152.287 262.432 152.287 251.287V237.182H174.229V249.72C174.229 262.78 178.408 273.055 186.767 280.543C195.126 287.857 205.574 291.514 218.112 291.514C225.775 291.514 232.653 289.859 238.748 286.551C245.017 283.068 249.893 278.54 253.376 272.968C257.033 267.221 258.861 260.865 258.861 253.899V252.332C258.861 241.361 255.379 232.828 248.413 226.733C241.447 220.464 232.74 217.329 222.292 217.329H197.738V187.029L257.294 148.892V145.757H153.854V125.383H276.101V158.818L216.545 196.955V200.089H226.994C236.223 200.089 244.93 202.092 253.115 206.097C261.299 210.103 267.917 215.936 272.967 223.599C278.191 231.087 280.803 240.403 280.803 251.548V256.25C280.803 266.699 278.104 276.189 272.706 284.722C267.307 293.081 259.906 299.698 250.503 304.574C241.099 309.45 230.476 311.888 218.635 311.888Z",
   },
@@ -118,33 +143,36 @@ const NAV_CHIP = [
   },
 ];
 
-/** Video slot, square by default (pass `aspectClassName` to override, e.g. a wider single-video
- *  card). Shows a translucent panel until the clip loads. The parent drives play/pause via ref. */
-const StepVideo = forwardRef<
-  HTMLVideoElement,
-  { src: string; className?: string; aspectClassName?: string }
->(function StepVideo({ src, className, aspectClassName = "aspect-square" }, ref) {
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <div
-      className={`relative overflow-hidden rounded-2xl bg-black/10 ${aspectClassName} ${className ?? ""}`}
-    >
-      <video
-        ref={ref}
-        muted
-        loop
-        playsInline
-        preload="auto"
-        onLoadedData={() => setLoaded(true)}
-        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
-          loaded ? "opacity-100" : "opacity-0"
-        }`}
+/** Video slot sized by the clip's aspect. Shows a translucent panel until the clip loads, and
+ *  stays a panel for a clip that has no src yet (placeholder). The parent drives play/pause
+ *  via ref. */
+const StepVideo = forwardRef<HTMLVideoElement, { clip: Clip; className?: string }>(
+  function StepVideo({ clip, className }, ref) {
+    const [loaded, setLoaded] = useState(false);
+    const aspect = clip.aspect === "4/3" ? "aspect-[4/3]" : "aspect-square";
+    return (
+      <div
+        className={`relative overflow-hidden rounded-2xl ${clip.src ? "bg-black/10" : "bg-white/70"} ${aspect} ${className ?? ""}`}
       >
-        <source src={src} type="video/mp4" />
-      </video>
-    </div>
-  );
-});
+        {clip.src && (
+          <video
+            ref={ref}
+            muted
+            loop
+            playsInline
+            preload="auto"
+            onLoadedData={() => setLoaded(true)}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+              loaded ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            <source src={clip.src} type="video/mp4" />
+          </video>
+        )}
+      </div>
+    );
+  },
+);
 
 export function FirstTimeLanding({
   onNewGathering,
@@ -321,7 +349,7 @@ export function FirstTimeLanding({
     };
   }, []);
 
-  // Only the active card's two clips play; everything else is paused.
+  // Only the active card's clips play; everything else is paused.
   useEffect(() => {
     videoRefs.current.forEach((pair, idx) => {
       for (const v of pair) {
@@ -718,14 +746,8 @@ export function FirstTimeLanding({
                     data-idx={i}
                     className={`relative snap-center overflow-hidden rounded-3xl p-8 text-[var(--brand-white)] transition-all duration-500 md:p-10 ${
                       isActive ? "scale-100 opacity-100" : "scale-[0.97] opacity-60"
-                    } ${i === 2 ? "flex flex-col" : ""}`}
-                    style={{
-                      backgroundColor: step.color,
-                      // card 3 dropped its second video (one wide video instead of two), which
-                      // would otherwise shrink the card; pin it back to its prior height so the
-                      // card size — and the arrow's stretch-mapped proportions — stay unchanged.
-                      ...(i === 2 ? { minHeight: 548 } : {}),
-                    }}
+                    }`}
+                    style={{ backgroundColor: step.color }}
                   >
                     {/* Decorative cream flow-arrow — same shape on every card (the source
                         design drew each card's arrow slightly differently, which read as
@@ -737,103 +759,67 @@ export function FirstTimeLanding({
                       aria-hidden
                     >
                       <path
-                        d={cardArrowPath(i === 0 ? 317 : 140)}
+                        d={cardArrowPath(mirror ? 140 : 317)}
                         className="fill-[var(--brand-white)] dark:fill-white"
                       />
                     </svg>
                     {/*
-                      3-row, 2-col grid matching SVG card structure:
-                      Row 1: textA (above its videoA column) | empty
-                      Row 2: videoA | videoB (staggered down ~74% of video height via pt-[36%])
-                      Row 3: textB (always bottom-left) | empty
-                      Non-mirror: videoA right, videoB staggered left
-                      Mirror:     videoA left, videoB staggered right
+                      2-col grid matching the design's zig-zag:
+                      Row 1: clip A (nudged down off the top hook) | textA stack, then clip B under it
+                      Row 2: clip C, inset and pulled up so it overlaps clip B's lower edge | empty
+                      Row 3: textB (always bottom-left, where the arrow points)
+                      Mirror swaps the columns of rows 1 and 2.
                     */}
-                    <div
-                      className={
-                        i === 2
-                          ? "relative z-10 flex flex-1 flex-col px-[5%]"
-                          : "relative z-10 grid grid-cols-2 items-start gap-x-8 gap-y-6 px-[5%]"
-                      }
-                    >
-                      {mirror ? (
-                        <>
-                          {/* mirror: textA top-left → videoA left → videoB staggered right → textB bottom-left */}
-                          <p className="mono col-span-2 max-w-[26rem] pl-[6rem] text-xs uppercase leading-relaxed">
-                            {step.textA}
+                    <div className="relative z-10 grid grid-cols-2 items-start gap-x-8 gap-y-6 px-[5%]">
+                      <div
+                        className={`mt-[10%] ${mirror ? "order-2 flex justify-end" : "order-1"}`}
+                      >
+                        <StepVideo
+                          clip={step.clips[0]}
+                          className="w-[74%]"
+                          ref={(el) => {
+                            videoRefs.current[i][0] = el;
+                          }}
+                        />
+                      </div>
+                      <div
+                        className={`flex flex-col gap-4 ${mirror ? "order-1 pl-[6rem]" : "order-2"}`}
+                      >
+                        {step.textA.map((text, j) => (
+                          <p key={j} className="mono text-xs uppercase leading-relaxed">
+                            {text}
                           </p>
+                        ))}
+                        {step.clips[1] && (
                           <StepVideo
-                            src={step.videoA}
-                            className="w-full"
+                            clip={step.clips[1]}
+                            className="mt-2 w-[74%]"
                             ref={(el) => {
-                              videoRefs.current[i][0] = el;
+                              videoRefs.current[i][1] = el;
                             }}
                           />
-                          <div className="pt-[36%]">
-                            <StepVideo
-                              src={step.videoB!}
-                              className="w-full"
-                              ref={(el) => {
-                                videoRefs.current[i][1] = el;
-                              }}
-                            />
-                          </div>
-                          <p className="mono col-span-2 max-w-[21rem] pl-[calc(6%+1rem)] text-xs uppercase leading-relaxed">
-                            {step.textB}
-                          </p>
-                        </>
-                      ) : i === 2 ? (
-                        <>
-                          {/* card 3: a single, wider video (design called for 2; replaced by
-                              choice with one video spanning both columns) instead of the
-                              videoA/videoB pair — card height is unchanged from this swap.
-                              Flex column (not the shared grid) so the video can sit in a
-                              flex-1 wrapper that centres it vertically in the leftover space,
-                              which also pushes textB down toward the bottom of the card. */}
-                          <p className="mono max-w-[26rem] pl-[6rem] text-xs uppercase leading-relaxed">
-                            {step.textA}
-                          </p>
-                          <div className="flex flex-1 items-center justify-center">
-                            <StepVideo
-                              src={step.videoA}
-                              aspectClassName="aspect-[2/1]"
-                              className="w-full"
-                              ref={(el) => {
-                                videoRefs.current[i][0] = el;
-                              }}
-                            />
-                          </div>
-                          <p className="mono max-w-none pl-[calc(6%+1rem)] pr-0 text-xs uppercase leading-relaxed">
-                            {step.textB}
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          {/* non-mirror: textA top-right → videoA right → videoB staggered left → textB bottom-left */}
-                          <p className="mono col-span-2 max-w-[34rem] pl-[calc(44%+1rem)] text-xs uppercase leading-relaxed">
-                            {step.textA}
-                          </p>
-                          <div className="pt-[36%]">
-                            <StepVideo
-                              src={step.videoB!}
-                              className="w-full"
-                              ref={(el) => {
-                                videoRefs.current[i][1] = el;
-                              }}
-                            />
-                          </div>
+                        )}
+                      </div>
+                      {step.clips[2] && (
+                        <div
+                          className={`order-3 -mt-[22%] ${
+                            mirror
+                              ? "col-start-2 flex justify-end pr-[16%]"
+                              : "col-start-1 pl-[16%]"
+                          }`}
+                        >
                           <StepVideo
-                            src={step.videoA}
-                            className="w-full"
+                            clip={step.clips[2]}
+                            className="w-[84%]"
                             ref={(el) => {
-                              videoRefs.current[i][0] = el;
+                              videoRefs.current[i][2] = el;
                             }}
                           />
-                          <p className="mono col-span-2 max-w-[21rem] pl-[calc(6%+1rem)] text-xs uppercase leading-relaxed">
-                            {step.textB}
-                          </p>
-                        </>
+                        </div>
                       )}
+                      <p className="mono order-4 col-span-2 max-w-[26rem] pl-[calc(6%+1rem)] text-xs uppercase leading-relaxed">
+                        {step.textB}
+                      </p>
                     </div>
                   </div>
                   {/* card-to-card connector: pure white bracket arrow + stub. */}
@@ -956,25 +942,25 @@ export function FirstTimeLanding({
                     }`}
                     style={{ backgroundColor: step.color }}
                   >
-                    <p className="mono text-xs uppercase leading-relaxed">{step.textA}</p>
-                    <StepVideo
-                      src={step.videoA}
-                      aspectClassName={i === 2 ? "aspect-[2/1]" : "aspect-square"}
-                      className="mt-4 w-full"
-                      ref={(el) => {
-                        mobileVideoRefs.current[i][0] = el;
-                      }}
-                    />
-                    <p className="mono mt-6 text-xs uppercase leading-relaxed">{step.textB}</p>
-                    {step.videoB && (
+                    {step.textA.map((text, j) => (
+                      <p
+                        key={j}
+                        className={`mono text-xs uppercase leading-relaxed ${j ? "mt-3" : ""}`}
+                      >
+                        {text}
+                      </p>
+                    ))}
+                    {step.clips.map((clip, j) => (
                       <StepVideo
-                        src={step.videoB}
+                        key={j}
+                        clip={clip}
                         className="mt-4 w-full"
                         ref={(el) => {
-                          mobileVideoRefs.current[i][1] = el;
+                          mobileVideoRefs.current[i][j] = el;
                         }}
                       />
-                    )}
+                    ))}
+                    <p className="mono mt-6 text-xs uppercase leading-relaxed">{step.textB}</p>
                   </div>
                 </div>
               </div>
