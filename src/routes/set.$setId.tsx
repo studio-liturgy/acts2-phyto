@@ -241,7 +241,7 @@ function SetHeader({
         >
           {phytoSet.kind}
         </span>
-        <VersionWarning set={phytoSet} hint="Click Update to unfreeze." />
+        <VersionWarning set={phytoSet} hint="Re-import or duplicate to unfreeze." />
 
         {/* Who else sees it: the owner of a set shared with me, or, for my
             own set viewed in Personal, the groups and people it's shared with. */}

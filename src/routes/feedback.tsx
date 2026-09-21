@@ -56,7 +56,7 @@ const PLACEHOLDER: Record<Category, string> = {
   Encouragement: "Share your encouragement...",
   "Bug Fix": "What went wrong, and what did you expect?",
   "Feature Request": "What would you like phyto to do?",
-  Language: "Which language, and what's missing or wrong?",
+  Language: "What language and bible versions are you looking for?",
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
