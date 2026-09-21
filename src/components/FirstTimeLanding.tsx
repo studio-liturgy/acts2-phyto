@@ -37,6 +37,8 @@ type Step = {
   textB: React.ReactNode;
   /** Three-clip card only: a line under clip B, in the empty right half of the clip C row. */
   textC?: React.ReactNode;
+  /** Mobile copy where the desktop line breaks / paragraph splits don't read well stacked. */
+  mobile?: { textA?: React.ReactNode[]; textC?: React.ReactNode };
   /** Two clips (A, B: the original staggered pair) or three (step 1: A beside the textA
    *  stack, B under textA, C staggered below A overlapping B's lower edge). */
   clips: Clip[];
@@ -48,6 +50,8 @@ type Step = {
     hookEndX: number;
     /** Two-clip cards: left padding of the textA block. Default pl-[calc(44%+1rem)]. */
     textAPl?: string;
+    /** Two-clip cards: max width of the textA block. Default max-w-[34rem]. */
+    textAMaxW?: string;
     /** Two-clip cards: max width of the textB block. Default max-w-[21rem]. */
     textBMaxW?: string;
     /** Two-clip cards: extra top padding on both clips. */
@@ -91,6 +95,12 @@ const STEPS: Step[] = [
         viewed on a mobile phone
       </>
     ),
+    mobile: {
+      textA: [
+        "Create sets by importing lyrics, scripture or your own media, or build message slides from scratch, then arrange them into gatherings",
+      ],
+      textC: "Add chords to songs, viewed on a mobile phone",
+    },
     desktop: { hookEndX: 317 },
     svgPath:
       "M164.889 305.578V285.157H216.772V131.996H213.627L183.493 200.853H161.745V199.282L196.071 122.309H238.783V285.157H290.665V305.578H164.889Z",
@@ -131,7 +141,17 @@ const STEPS: Step[] = [
       { src: "/landing-5.mp4", aspect: "square" },
       { src: "/landing-golive.mp4", aspect: "square" },
     ],
-    desktop: { hookEndX: 235, textAPl: "pl-[calc(30%+1rem)]", textBMaxW: "max-w-[28rem]" },
+    mobile: {
+      textA: [
+        "Connect to a TV or projector, hit Present, then Output and drag it to your extended screen",
+      ],
+    },
+    desktop: {
+      hookEndX: 235,
+      textAPl: "pl-[calc(30%+1rem)]",
+      textAMaxW: "max-w-[30rem]",
+      textBMaxW: "max-w-[28rem]",
+    },
     svgPath:
       "M218.635 311.888C204.878 311.888 193.036 309.189 183.11 303.791C173.184 298.218 165.522 290.904 160.123 281.849C154.899 272.619 152.287 262.432 152.287 251.287V237.182H174.229V249.72C174.229 262.78 178.408 273.055 186.767 280.543C195.126 287.857 205.574 291.514 218.112 291.514C225.775 291.514 232.653 289.859 238.748 286.551C245.017 283.068 249.893 278.54 253.376 272.968C257.033 267.221 258.861 260.865 258.861 253.899V252.332C258.861 241.361 255.379 232.828 248.413 226.733C241.447 220.464 232.74 217.329 222.292 217.329H197.738V187.029L257.294 148.892V145.757H153.854V125.383H276.101V158.818L216.545 196.955V200.089H226.994C236.223 200.089 244.93 202.092 253.115 206.097C261.299 210.103 267.917 215.936 272.967 223.599C278.191 231.087 280.803 240.403 280.803 251.548V256.25C280.803 266.699 278.104 276.189 272.706 284.722C267.307 293.081 259.906 299.698 250.503 304.574C241.099 309.45 230.476 311.888 218.635 311.888Z",
   },
@@ -868,7 +888,7 @@ export function FirstTimeLanding({
                           className={`col-span-2 flex flex-col gap-4 ${
                             mirror
                               ? "max-w-[26rem] pl-[6rem]"
-                              : `max-w-[34rem] ${step.desktop.textAPl ?? "pl-[calc(44%+1rem)]"}`
+                              : `${step.desktop.textAMaxW ?? "max-w-[34rem]"} ${step.desktop.textAPl ?? "pl-[calc(44%+1rem)]"}`
                           }`}
                         >
                           {step.textA.map((text, j) => (
@@ -1054,7 +1074,7 @@ export function FirstTimeLanding({
                     }`}
                     style={{ backgroundColor: step.color }}
                   >
-                    {step.textA.map((text, j) => (
+                    {(step.mobile?.textA ?? step.textA).map((text, j) => (
                       <p
                         key={j}
                         className={`mono text-xs uppercase leading-relaxed ${j ? "mt-3" : ""}`}
@@ -1072,8 +1092,10 @@ export function FirstTimeLanding({
                         }}
                       />
                     ))}
-                    {step.textC && (
-                      <p className="mono mt-6 text-xs uppercase leading-relaxed">{step.textC}</p>
+                    {(step.mobile?.textC ?? step.textC) && (
+                      <p className="mono mt-6 text-xs uppercase leading-relaxed">
+                        {step.mobile?.textC ?? step.textC}
+                      </p>
                     )}
                     <p className="mono mt-6 text-xs uppercase leading-relaxed">{step.textB}</p>
                     <StepVideo
