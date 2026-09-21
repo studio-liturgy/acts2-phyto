@@ -989,11 +989,11 @@ function SetEditor() {
             One or more files exceeds the limit (5 MB for images and PDFs, 100 MB for videos).
             Please resize or compress your files and try again.
           </AlertDialogDescription>
-          <div className="mt-8 flex justify-end">
+          <div className="mt-8">
             <button
               type="button"
               onClick={() => setShowFileSizeDialog(false)}
-              className="mono uppercase rounded-full border border-foreground bg-transparent px-8 py-2 text-sm transition hover:bg-foreground hover:text-background"
+              className="mono uppercase w-full rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
             >
               OK
             </button>
@@ -1010,11 +1010,11 @@ function SetEditor() {
             make room for this upload, delete some of your previous videos, images, or slides, then
             try again.
           </AlertDialogDescription>
-          <div className="mt-8 flex justify-end">
+          <div className="mt-8">
             <button
               type="button"
               onClick={() => setShowStorageLimitDialog(false)}
-              className="mono uppercase rounded-full border border-foreground bg-transparent px-8 py-2 text-sm transition hover:bg-foreground hover:text-background"
+              className="mono uppercase w-full rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
             >
               OK
             </button>

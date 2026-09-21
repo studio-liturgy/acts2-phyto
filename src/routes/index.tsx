@@ -1777,7 +1777,7 @@ function DuplicatesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+      <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
         <DialogTitle className="text-2xl font-normal leading-tight">Fix duplicates</DialogTitle>
         {groups.length === 0 ? (
           <>
