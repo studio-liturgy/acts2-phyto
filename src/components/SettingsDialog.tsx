@@ -102,7 +102,7 @@ export function SettingsDialog({
                 <button
                   type="button"
                   onClick={() => setConfirmingDelete(true)}
-                  className="mono uppercase rounded-full border border-[var(--brand-red)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  className="mono uppercase w-full rounded-full border border-[var(--brand-red)] py-2 text-sm text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
                 >
                   Delete {userEmail}
                 </button>
@@ -120,7 +120,7 @@ export function SettingsDialog({
                     value={confirmEmail}
                     onChange={(e) => setConfirmEmail(e.target.value)}
                     placeholder={userEmail ?? "your email"}
-                    className="mono mt-3 w-full rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
+                    className="mono uppercase mt-3 w-full rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
                   />
                   {deleteError && (
                     <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">

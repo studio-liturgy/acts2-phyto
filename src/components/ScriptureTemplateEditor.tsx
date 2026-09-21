@@ -78,7 +78,7 @@ export function ScriptureTemplateEditor() {
       <div className="space-y-4 text-sm">
         {/* Font size */}
         <div>
-          <div className="mono mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
+          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>Font size</span>
             <span className="text-muted-foreground">{draft.fontScale.toFixed(2)}×</span>
           </div>
@@ -95,7 +95,9 @@ export function ScriptureTemplateEditor() {
 
         {/* Font type */}
         <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider">Font type</div>
+          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            Font type
+          </div>
           <div className="grid grid-cols-1 gap-1">
             {FONT_OPTIONS.map((f) => {
               const active = draft.fontFamily === f.value;
@@ -119,7 +121,9 @@ export function ScriptureTemplateEditor() {
 
         {/* Background */}
         <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider">Background</div>
+          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            Background
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setDraft((d) => ({ ...d, bg: "black" }))}
@@ -146,7 +150,9 @@ export function ScriptureTemplateEditor() {
 
         {/* Alignment */}
         <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider">Alignment</div>
+          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            Alignment
+          </div>
           <div className="grid grid-cols-2 gap-2">
             {(["left", "center"] as const).map((a) => (
               <button
@@ -166,7 +172,9 @@ export function ScriptureTemplateEditor() {
 
         {/* Reference position */}
         <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider">Reference</div>
+          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            Reference
+          </div>
           <div className="grid grid-cols-2 gap-2">
             {(["above", "below"] as const).map((pos) => (
               <button

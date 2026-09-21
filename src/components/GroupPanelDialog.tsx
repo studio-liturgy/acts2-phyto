@@ -213,7 +213,7 @@ export function GroupPanelDialog({
 
         {isOwner && (
           <>
-            <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground mt-6">
               Invite
             </div>
             <div className="flex items-center gap-2">
@@ -237,7 +237,7 @@ export function GroupPanelDialog({
           </>
         )}
 
-        <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground mt-6">
           Members
         </div>
         <ul className="space-y-2">
@@ -305,7 +305,7 @@ export function GroupPanelDialog({
                   setRemoveTarget(null);
                   setRemoveSets(null);
                 }}
-                className="mono uppercase flex-1 rounded-full border border-foreground py-2 text-sm transition hover:bg-foreground hover:text-background"
+                className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
               >
                 Cancel
               </button>
@@ -314,12 +314,14 @@ export function GroupPanelDialog({
         )}
 
         {error && (
-          <p className="mono uppercase mt-3 text-[10px] tracking-wider text-[var(--brand-red)]">
+          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
             {error}
           </p>
         )}
         {done && (
-          <p className="mono mt-3 text-xs uppercase tracking-wider text-muted-foreground">{done}</p>
+          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {done}
+          </p>
         )}
 
         {!isInvite && (
@@ -350,7 +352,7 @@ export function GroupPanelDialog({
                   <button
                     type="button"
                     onClick={() => setConfirm(null)}
-                    className="mono uppercase flex-1 rounded-full border border-foreground py-2 text-sm transition hover:bg-foreground hover:text-background"
+                    className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
                   >
                     Cancel
                   </button>

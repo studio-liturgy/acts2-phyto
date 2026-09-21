@@ -790,7 +790,7 @@ function SetEditor() {
               </button>
             </div>
             {videoErr && (
-              <p className="mono uppercase mt-1 text-[10px] tracking-wider text-[var(--brand-red)]">
+              <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
                 {videoErr}
               </p>
             )}
@@ -1961,7 +1961,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             </button>
           </form>
           {songErr && resultsOpen && (
-            <p className="mono mt-2 text-xs uppercase text-destructive">{songErr}</p>
+            <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+              {songErr}
+            </p>
           )}
           {songResults.length > 0 && resultsOpen && (
             <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-2xl border border-foreground bg-background p-1">
@@ -2291,7 +2293,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               </button>
             )}
             {alignNote && (
-              <p className="mono mt-2 text-xs tracking-wider text-amber-600">{alignNote}</p>
+              <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                {alignNote}
+              </p>
             )}
           </div>
           {scripture.versionsMismatch && (
@@ -2421,7 +2425,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             </AlertDialogContent>
           </AlertDialog>
           {err && (
-            <p className="mono uppercase mt-2 text-xs tracking-wider text-destructive">{err}</p>
+            <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+              {err}
+            </p>
           )}
           {!scripture.frozen && (
             <button

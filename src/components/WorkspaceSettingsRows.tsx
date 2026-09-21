@@ -96,12 +96,12 @@ export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean
         </div>
       )}
       {languageChanged && (
-        <p className="mono mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
           If Scripture sets are in a different language, they remain frozen until updated.
         </p>
       )}
       {error && (
-        <p className="mono mt-1 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+        <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
           {error}
         </p>
       )}

@@ -164,7 +164,7 @@ export function ShareSetDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
         <DialogTitle className="text-2xl font-normal leading-tight">Share this set</DialogTitle>
-        <p className="mono uppercase mt-2 text-[10px] tracking-wider text-muted-foreground">
+        <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
           Anyone you add can view, save, and edit this set with you.
         </p>
 
@@ -192,7 +192,7 @@ export function ShareSetDialog({
           </div>
         )}
 
-        <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground mt-6">
           Share
         </div>
         <div className="flex items-center gap-2">
@@ -214,7 +214,7 @@ export function ShareSetDialog({
           />
         </div>
         {error && (
-          <p className="mono uppercase mt-2 text-[10px] tracking-wider text-[var(--brand-red)]">
+          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
             {error}
           </p>
         )}

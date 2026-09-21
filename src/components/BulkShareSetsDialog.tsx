@@ -240,7 +240,7 @@ export function BulkShareSetsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
         <DialogTitle className="text-2xl font-normal leading-tight">Share {label}!</DialogTitle>
-        <p className="mono uppercase mt-2 text-[10px] tracking-wider text-muted-foreground">
+        <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
           Add them to a group, or share with a person. Either way they can be viewed, saved, and
           edited together.
         </p>
@@ -283,14 +283,14 @@ export function BulkShareSetsDialog({
               })}
             </ul>
             {groupDone && (
-              <p className="mono mt-3 text-xs uppercase tracking-wider text-muted-foreground">
+              <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
                 {groupDone}
               </p>
             )}
           </div>
         )}
 
-        <div className="mono mb-2 mt-6 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground mt-6">
           Share
         </div>
         <div className="flex items-center gap-2">
@@ -312,7 +312,7 @@ export function BulkShareSetsDialog({
           />
         </div>
         {error && (
-          <p className="mono uppercase mt-2 text-[10px] tracking-wider text-[var(--brand-red)]">
+          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
             {error}
           </p>
         )}
@@ -341,7 +341,9 @@ export function BulkShareSetsDialog({
           </ul>
         )}
         {done && (
-          <p className="mono mt-3 text-xs uppercase tracking-wider text-muted-foreground">{done}</p>
+          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {done}
+          </p>
         )}
       </DialogContent>
     </Dialog>

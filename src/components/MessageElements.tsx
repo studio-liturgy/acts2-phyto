@@ -70,7 +70,7 @@ export function AddElementBar({ setId }: { setId: string }) {
   return (
     <div className="space-y-2">
       {err && (
-        <p className="mono uppercase text-center text-[10px] tracking-wider text-destructive">
+        <p className="mono uppercase text-center text-[10px] tracking-wider text-[var(--brand-red)]">
           {err}
         </p>
       )}

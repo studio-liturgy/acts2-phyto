@@ -198,7 +198,7 @@ export function ShareGatheringDialog({
         </div>
 
         {editable && editingSlug && slugError && (
-          <p className="mono mt-2 px-4 text-[10px] uppercase tracking-wider text-destructive">
+          <p className="mono mt-2 px-4 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
             {slugError}
           </p>
         )}

@@ -850,7 +850,7 @@ function Library() {
                       ))}
                     </ul>
                     {groupLimitMsg && (
-                      <p className="mono uppercase mt-2 text-[10px] tracking-wider text-[var(--brand-red)]">
+                      <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
                         {groupLimitMsg}
                       </p>
                     )}
@@ -1640,7 +1640,7 @@ function Library() {
       >
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
           <DialogTitle className="text-2xl font-normal leading-tight">New group</DialogTitle>
-          <p className="mono uppercase mt-2 text-[10px] tracking-wider text-muted-foreground">
+          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
             Invite people into a group and edit together.
           </p>
           <div className="mt-6 flex items-center gap-2">
@@ -1664,7 +1664,7 @@ function Library() {
             </button>
           </div>
           {groups.length >= MAX_GROUPS && (
-            <p className="mono uppercase mt-3 text-[10px] tracking-wider text-[var(--brand-red)]">
+            <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
               You can be in at most {MAX_GROUPS} groups. Leave one to create another.
             </p>
           )}
@@ -2233,7 +2233,7 @@ function GatheringCard({
                 setShowShareDialog(true);
               }}
               disabled={isGoingLive}
-              className="mono uppercase w-full rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90 disabled:opacity-70"
+              className="mono uppercase w-full rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-70"
             >
               {isGoingLive ? "Going Live..." : "Go Live"}
             </button>

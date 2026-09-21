@@ -628,7 +628,7 @@ function RootComponent() {
               <DialogTitle className="text-2xl font-normal leading-tight">
                 {SYNC_ACTION_LABEL[pendingAction]}
               </DialogTitle>
-              <DialogDescription className="mt-2 text-sm text-muted-foreground">
+              <DialogDescription className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
                 {applying ? "Applying…" : "Review what this will change before applying."}
               </DialogDescription>
               {pendingEffects && <EffectsSummary effects={pendingEffects} />}

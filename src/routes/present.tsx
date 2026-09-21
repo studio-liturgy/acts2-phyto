@@ -950,7 +950,7 @@ function Presenter() {
             <div className="catalogue-scroll flex-1 overflow-auto pr-1">
               {showAll && filteredGatherings.length > 0 && (
                 <div className="mb-5">
-                  <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">
+                  <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground px-1">
                     Gatherings
                   </div>
                   <div className="space-y-1">
@@ -1000,7 +1000,7 @@ function Presenter() {
 
               {activeGathering && q && (
                 <div className="mb-2">
-                  <div className="mono mb-2 flex items-center justify-between px-1 text-[10px] uppercase tracking-wider">
+                  <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between px-1">
                     <span>Catalogue</span>
                     {kindFilterDots}
                   </div>
@@ -1036,7 +1036,7 @@ function Presenter() {
               )}
 
               <div>
-                <div className="mono mb-2 px-1 text-[10px] uppercase tracking-wider">
+                <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground px-1">
                   {activeGathering ? (
                     <span className="inline-flex items-center gap-2">
                       <Link to="/present" title="Back to all" aria-label="Back to all">
@@ -1433,7 +1433,9 @@ function Presenter() {
         {effectiveViewMode === "slides" && (
           <aside className="h-[calc(100vh-73px)] space-y-4 overflow-auto border-l border-foreground bg-background p-4 md:sticky md:top-[73px]">
             <div>
-              <div className="mono mb-2 text-[10px] uppercase tracking-wider">Output preview</div>
+              <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                Output preview
+              </div>
               <div className="relative overflow-hidden rounded-lg bg-[var(--brand-black)]">
                 <DissolveSlide
                   slide={liveSlide}
@@ -1605,7 +1607,7 @@ function Presenter() {
                 setShowShareDialog(true);
               }}
               disabled={isGoingLive}
-              className="mono uppercase w-full rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90 disabled:opacity-70"
+              className="mono uppercase w-full rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-70"
             >
               {isGoingLive ? "Going Live..." : "Go Live"}
             </button>
