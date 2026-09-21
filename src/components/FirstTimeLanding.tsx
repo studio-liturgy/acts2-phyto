@@ -109,7 +109,7 @@ const STEPS: Step[] = [
     n: 2,
     navLabel: "Sync & Share (optional)",
     color: "var(--brand-green)",
-    textA: ["Sign in to sync your content across devices"],
+    textA: ["Access your sets anywhere by signing in and syncing your content across devices"],
     textB: "Create a group to share a library with friends, or share a single set",
     clips: [
       { src: "/landing-signin.mp4", aspect: "square" },
