@@ -790,7 +790,7 @@ export function FirstTimeLanding({
           {/* Center: the three snap cards. Cards sit in `1fr` rows (connectors in `auto`
               rows) so every card renders at the tallest card's height; each card's inner
               grid then stretches to fill it (see below). */}
-          <div className="relative z-10 grid grid-rows-[1fr_auto_1fr_auto_1fr] pt-[14vh] pb-[6vh]">
+          <div className="relative z-10 grid grid-rows-[1fr_auto_1fr_auto_1fr] pt-[10vh] pb-[6vh]">
             {STEPS.map((step, i) => {
               const isActive = i === activeIndex;
               const mirror = i % 2 === 1;
