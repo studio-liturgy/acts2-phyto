@@ -139,21 +139,31 @@ export function inferredVersions(set: {
   return codes.length ? codes : undefined;
 }
 
-/** The reference queries to fetch again when a set is re-imported: the ones
- *  recorded at import, else the references on its verses (labels stripped of
- *  the version code), each once. */
+/** The reference queries to fetch again when a set is re-imported: one per
+ *  passage CURRENTLY in the set (its verses' references, labels stripped of
+ *  the version code), in order, the same passage twice when it was imported
+ *  twice. The queries recorded at import are only a fallback for verses that
+ *  carry no reference: they are a history, and would bring back passages
+ *  the user has since deleted. */
 export function reimportQueries(set: {
   scriptureImports?: string[];
-  slides: Array<{ reference?: string; kind?: string }>;
+  slides: Array<{ reference?: string; kind?: string; importIndex?: number }>;
 }): string[] {
-  if (set.scriptureImports?.length) return [...new Set(set.scriptureImports)];
   const out: string[] = [];
+  let lastImport: number | undefined;
+  let lastRef: string | undefined;
   for (const s of set.slides) {
     if (s.kind !== "scripture" || !s.reference) continue;
     const { ref } = splitRefLabel(s.reference);
-    if (ref && !out.includes(ref)) out.push(ref);
+    if (!ref) continue;
+    // A new passage: a new import, or (without import numbers) a new reference.
+    const fresh = s.importIndex !== undefined ? s.importIndex !== lastImport : ref !== lastRef;
+    if (fresh || out.length === 0) out.push(ref);
+    lastImport = s.importIndex;
+    lastRef = ref;
   }
-  return out;
+  if (out.length) return out;
+  return [...new Set(set.scriptureImports ?? [])];
 }
 
 /** "English / Japanese": the languages of a set's versions, each once. */

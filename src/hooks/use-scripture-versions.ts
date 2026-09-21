@@ -615,6 +615,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     if (!refs.length) return;
     if (kind === "message") {
       await rebuildMessageVersions(v1, v2);
+      // The record of imports follows what's in the set now.
+      updateSet(setId, { scriptureImports: refs });
     } else {
       updateSet(setId, { versions: v2 ? [v1, v2] : [v1], scriptureImports: refs });
       await rebuildScripture(refs, v1, v2);

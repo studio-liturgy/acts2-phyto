@@ -141,11 +141,21 @@ describe("legacy single-version sets", () => {
     ).toBe(true);
   });
 
-  it("re-imports from the recorded queries, else the references without the label", () => {
+  it("re-imports what is in the set, never the import history", () => {
     expect(reimportQueries(legacy)).toEqual(["Psalms 100:4", "John 3:16"]);
-    expect(reimportQueries({ ...legacy, scriptureImports: ["Ps 100", "Jn 3:16-18"] })).toEqual([
-      "Ps 100",
-      "Jn 3:16-18",
-    ]);
+    // A passage deleted since import is not brought back by the record of it.
+    expect(
+      reimportQueries({ ...legacy, scriptureImports: ["Ps 100", "Jn 3:16-18", "Ruth 1"] }),
+    ).toEqual(["Psalms 100:4", "John 3:16"]);
+    // The same passage imported twice is two imports.
+    const twice = {
+      slides: [
+        { id: "a", kind: "scripture", reference: "John 3:16 NIV", importIndex: 0 },
+        { id: "b", kind: "scripture", reference: "John 3:16 NIV", importIndex: 1 },
+      ],
+    };
+    expect(reimportQueries(twice)).toEqual(["John 3:16", "John 3:16"]);
+    // Only verses without references fall back to the record.
+    expect(reimportQueries({ scriptureImports: ["Ps 100"], slides: [] })).toEqual(["Ps 100"]);
   });
 });
