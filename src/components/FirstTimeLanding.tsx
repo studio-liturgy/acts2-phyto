@@ -80,7 +80,7 @@ const STEPS: Step[] = [
     navLabel: "Sync & Share (optional)",
     color: "var(--brand-green)",
     textA: ["Sign in to sync your content across devices"],
-    textB: "Create a group to share a library with friends, or share a single set by email",
+    textB: "Create a group to share a library with friends, or share a single set",
     clips: [
       { src: "/landing-3.mp4", aspect: "square" },
       { aspect: "square" }, // TODO: groups / share-a-set clip
@@ -92,8 +92,20 @@ const STEPS: Step[] = [
     n: 3,
     navLabel: "Start Presenting",
     color: "var(--brand-orange)",
-    textA: ["Connect to a TV or projector, hit Present", "Make the gathering go live"],
-    textB: "Friends follow along on their own phone",
+    textA: [
+      <>
+        Connect to a TV or projector,
+        <br />
+        hit Present, then Output and drag it to your extended screen
+      </>,
+    ],
+    textB: (
+      <>
+        Make the gathering go live
+        <br />
+        Friends follow along on their own phone
+      </>
+    ),
     clips: [
       { src: "/landing-5.mp4", aspect: "square" },
       { src: "/landing-4.mp4", aspect: "square" },
@@ -776,10 +788,10 @@ export function FirstTimeLanding({
                     */}
                     {step.clips.length === 3 ? (
                       <div className="relative z-10 grid flex-1 grid-cols-2 grid-rows-[auto_1fr_auto] items-start gap-x-8 gap-y-6 px-[5%]">
-                        <div className="mt-[10%]">
+                        <div className="mt-[24%]">
                           <StepVideo
                             clip={step.clips[0]}
-                            className="w-[74%]"
+                            className="w-[88%]"
                             ref={(el) => {
                               videoRefs.current[i][0] = el;
                             }}
@@ -793,16 +805,16 @@ export function FirstTimeLanding({
                           ))}
                           <StepVideo
                             clip={step.clips[1]}
-                            className="mt-2 w-[74%]"
+                            className="mt-6 w-[88%]"
                             ref={(el) => {
                               videoRefs.current[i][1] = el;
                             }}
                           />
                         </div>
-                        <div className="col-start-1 -mt-[22%] pl-[16%]">
+                        <div className="col-start-1 -mt-[33%] pl-[19%]">
                           <StepVideo
                             clip={step.clips[2]}
-                            className="w-[84%]"
+                            className="w-full"
                             ref={(el) => {
                               videoRefs.current[i][2] = el;
                             }}
@@ -817,10 +829,11 @@ export function FirstTimeLanding({
                         Two-clip cards (steps 2 and 3) — 3-row, 2-col grid matching the SVG
                         card structure:
                         Row 1: textA (above its clip A column) | empty
-                        Row 2: clip A | clip B (staggered down ~74% of clip height via pt-[36%])
+                        Row 2: clip A sits higher, in the column opposite textA; clip B sits
+                               under textA, staggered down ~74% of clip height via pt-[36%]
                         Row 3: textB (always bottom-left) | empty
-                        Non-mirror: clip A right, clip B staggered left
-                        Mirror:     clip A left, clip B staggered right
+                        Non-mirror (textA right): clip A left, clip B staggered right
+                        Mirror (textA left):      clip B staggered left, clip A right
                         The `1fr` clip row absorbs any stretch to the tallest card's height.
                       */
                       <div className="relative z-10 grid flex-1 grid-cols-2 grid-rows-[auto_1fr_auto] items-start gap-x-8 gap-y-6 px-[5%]">
@@ -837,13 +850,6 @@ export function FirstTimeLanding({
                         </div>
                         {mirror ? (
                           <>
-                            <StepVideo
-                              clip={step.clips[0]}
-                              className="w-full"
-                              ref={(el) => {
-                                videoRefs.current[i][0] = el;
-                              }}
-                            />
                             <div className="pt-[36%]">
                               <StepVideo
                                 clip={step.clips[1]}
@@ -853,9 +859,23 @@ export function FirstTimeLanding({
                                 }}
                               />
                             </div>
+                            <StepVideo
+                              clip={step.clips[0]}
+                              className="w-full"
+                              ref={(el) => {
+                                videoRefs.current[i][0] = el;
+                              }}
+                            />
                           </>
                         ) : (
                           <>
+                            <StepVideo
+                              clip={step.clips[0]}
+                              className="w-full"
+                              ref={(el) => {
+                                videoRefs.current[i][0] = el;
+                              }}
+                            />
                             <div className="pt-[36%]">
                               <StepVideo
                                 clip={step.clips[1]}
@@ -865,13 +885,6 @@ export function FirstTimeLanding({
                                 }}
                               />
                             </div>
-                            <StepVideo
-                              clip={step.clips[0]}
-                              className="w-full"
-                              ref={(el) => {
-                                videoRefs.current[i][0] = el;
-                              }}
-                            />
                           </>
                         )}
                         <p className="mono col-span-2 max-w-[21rem] pl-[calc(6%+1rem)] text-xs uppercase leading-relaxed">
