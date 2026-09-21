@@ -2064,6 +2064,8 @@ function GatheringCard({
         <ol
           className="flex flex-col gap-1"
           onDrop={(e) => {
+            // Catalogue drops bubble on to the card; only internal reorders end here.
+            if (dragIndex.current === null) return;
             e.preventDefault();
             if (liveOrderRef.current) onReorder(liveOrderRef.current.map((s) => s.id));
             liveOrderRef.current = null;
@@ -2098,6 +2100,10 @@ function GatheringCard({
                     hideDragGhost(e);
                   }}
                   onDrop={(e) => {
+                    // Only an internal reorder ends here. A set dragged in from the
+                    // catalogue must bubble up to the card's onDrop, which adds it;
+                    // swallowing it left nothing added and the drop border stuck on.
+                    if (dragIndex.current === null) return;
                     e.preventDefault();
                     e.stopPropagation();
                     commit();
