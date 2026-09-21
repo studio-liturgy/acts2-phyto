@@ -35,8 +35,9 @@ type Step = {
   textA: React.ReactNode[];
   /** Bottom-left line the card arrow points to. */
   textB: React.ReactNode;
-  /** Up to three clips: A sits beside the textA stack, B under textA, C staggered below A
-   *  (overlapping B's lower edge) — the zig-zag from the design. */
+  /** Two or three clips: A sits beside the textA stack, B under textA (pushed to the bottom
+   *  of that column on two-clip cards), C staggered below A overlapping B's lower edge — the
+   *  zig-zag from the design. */
   clips: Clip[];
   /** Number glyph path from the design SVGs (viewBox 0 0 431 431). */
   svgPath: string;
@@ -60,8 +61,13 @@ const STEPS: Step[] = [
       "Create sets by importing lyrics, scripture or your own media, or build message slides from scratch",
       "Arrange sets into a gathering",
     ],
-    textB:
-      "Turn on multi-language to display scriptures (and lyrics soon) in different translations simultaneously",
+    textB: (
+      <>
+        Turn on multi-language to display scriptures in different translations simultaneously
+        <br />
+        (Lyrics coming soon)
+      </>
+    ),
     clips: [
       { src: "/landing-1.mp4", aspect: "4/3" },
       { src: "/landing-2.mp4", aspect: "4/3" },
@@ -87,14 +93,10 @@ const STEPS: Step[] = [
     n: 3,
     navLabel: "Start Presenting",
     color: "var(--brand-orange)",
-    textA: [
-      "Connect your computer to a TV or projector, then hit Present in the top right",
-      "Drag the Output window to your display and control it through the presenter view",
-    ],
-    textB: "Make a gathering go live and your friends can follow along on their own phone",
+    textA: ["Connect to a TV or projector, hit Present", "Make the gathering go live"],
+    textB: "Friends follow along on their own phone",
     clips: [
       { src: "/landing-5.mp4", aspect: "square" },
-      { aspect: "square" }, // TODO: go-live clip
       { src: "/landing-4.mp4", aspect: "square" },
     ],
     svgPath:
@@ -732,8 +734,10 @@ export function FirstTimeLanding({
             </div>
           </div>
 
-          {/* Center: the three snap cards */}
-          <div className="relative z-10 flex flex-col pt-[14vh] pb-[6vh]">
+          {/* Center: the three snap cards. Cards sit in `1fr` rows (connectors in `auto`
+              rows) so every card renders at the tallest card's height; each card's inner
+              grid then stretches to fill it (see below). */}
+          <div className="relative z-10 grid grid-rows-[1fr_auto_1fr_auto_1fr] pt-[14vh] pb-[6vh]">
             {STEPS.map((step, i) => {
               const isActive = i === activeIndex;
               const mirror = i % 2 === 1;
@@ -744,7 +748,7 @@ export function FirstTimeLanding({
                       cardRefs.current[i] = el;
                     }}
                     data-idx={i}
-                    className={`relative snap-center overflow-hidden rounded-3xl p-8 text-[var(--brand-white)] transition-all duration-500 md:p-10 ${
+                    className={`relative flex snap-center flex-col overflow-hidden rounded-3xl p-8 text-[var(--brand-white)] transition-all duration-500 md:p-10 ${
                       isActive ? "scale-100 opacity-100" : "scale-[0.97] opacity-60"
                     }`}
                     style={{ backgroundColor: step.color }}
@@ -769,8 +773,16 @@ export function FirstTimeLanding({
                       Row 2: clip C, inset and pulled up so it overlaps clip B's lower edge | empty
                       Row 3: textB (always bottom-left, where the arrow points)
                       Mirror swaps the columns of rows 1 and 2.
+                      The grid fills the (equalised) card height: the `1fr` row absorbs the
+                      leftover — row 2 on three-clip cards; row 1 on two-clip cards, where the
+                      textA column stretches and clip B drops to its bottom, staggered against
+                      clip A like the original two-clip layout.
                     */}
-                    <div className="relative z-10 grid grid-cols-2 items-start gap-x-8 gap-y-6 px-[5%]">
+                    <div
+                      className={`relative z-10 grid flex-1 grid-cols-2 items-start gap-x-8 gap-y-6 px-[5%] ${
+                        step.clips[2] ? "grid-rows-[auto_1fr_auto]" : "grid-rows-[1fr_auto]"
+                      }`}
+                    >
                       <div
                         className={`mt-[10%] ${mirror ? "order-2 flex justify-end" : "order-1"}`}
                       >
@@ -783,22 +795,25 @@ export function FirstTimeLanding({
                         />
                       </div>
                       <div
-                        className={`flex flex-col gap-4 ${mirror ? "order-1 pl-[6rem]" : "order-2"}`}
+                        className={`flex flex-col gap-4 self-stretch ${mirror ? "order-1" : "order-2"}`}
                       >
                         {step.textA.map((text, j) => (
-                          <p key={j} className="mono text-xs uppercase leading-relaxed">
+                          <p
+                            key={j}
+                            className={`mono text-xs uppercase leading-relaxed ${mirror ? "pl-[6rem]" : ""}`}
+                          >
                             {text}
                           </p>
                         ))}
-                        {step.clips[1] && (
+                        <div className="mt-auto pt-2">
                           <StepVideo
                             clip={step.clips[1]}
-                            className="mt-2 w-[74%]"
+                            className="w-[74%]"
                             ref={(el) => {
                               videoRefs.current[i][1] = el;
                             }}
                           />
-                        )}
+                        </div>
                       </div>
                       {step.clips[2] && (
                         <div
