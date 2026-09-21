@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ToggleAddButton } from "@/components/ToggleAddButton";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/authStore";
 import { fetchRecentShareRecipients, type MyGroup } from "@/lib/sync";
@@ -253,31 +253,31 @@ export function BulkShareSetsDialog({
             <ul className="space-y-2">
               {groups.map((g) => {
                 const inCount = inGroupCount(g.id);
-                const canAdd = inCount < total; // some selected sets not yet in the group
-                const canRemove = inCount > 0; // some selected sets are in the group
+                const all = inCount === total;
+                // The same toggle as sharing one set: a green check when every
+                // selected set is in the group (click to take them all out), a
+                // + otherwise (click to add the ones that aren't). A partial
+                // count says how many are in.
                 return (
                   <li key={g.id} className="flex items-center gap-2">
                     <span className="mono flex-1 truncate text-sm">{g.name}</span>
-                    {canAdd && (
-                      <button
-                        type="button"
-                        onClick={() => runGroup(g.id, g.name, onShareToGroup, "Added")}
-                        className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-                      >
-                        Add
-                      </button>
+                    {inCount > 0 && !all && (
+                      <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {inCount} of {total}
+                      </span>
                     )}
-                    {canRemove && onRemoveFromGroup && (
-                      <button
-                        type="button"
-                        onClick={() => runGroup(g.id, g.name, onRemoveFromGroup, "Removed")}
-                        title="Remove from group"
-                        aria-label="Remove from group"
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
+                    <ToggleAddButton
+                      on={all}
+                      onClick={() =>
+                        all
+                          ? onRemoveFromGroup &&
+                            runGroup(g.id, g.name, onRemoveFromGroup, "Removed")
+                          : runGroup(g.id, g.name, onShareToGroup, "Added")
+                      }
+                      disabled={all && !onRemoveFromGroup}
+                      addLabel="Add to group"
+                      onLabel="Remove from group"
+                    />
                   </li>
                 );
               })}
@@ -304,14 +304,12 @@ export function BulkShareSetsDialog({
             placeholder="name@email.com"
             className="mono uppercase flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
           />
-          <button
-            type="button"
-            onClick={share}
+          <ToggleAddButton
+            on={false}
             disabled={busy || !email.trim()}
-            className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-40"
-          >
-            Share
-          </button>
+            onClick={share}
+            addLabel="Share with this email"
+          />
         </div>
         {error && (
           <p className="mono uppercase mt-2 text-[10px] tracking-wider text-[var(--brand-red)]">
@@ -322,31 +320,21 @@ export function BulkShareSetsDialog({
           <ul className="mt-3 space-y-2">
             {people.map((e) => {
               const inCount = inPersonCount(e);
-              const canAdd = inCount < setIds.length; // not yet shared with every selected set
-              const canRemove = inCount > 0; // shared with at least one selected set
+              const all = inCount === setIds.length;
               return (
                 <li key={e} className="flex items-center gap-2">
                   <span className="mono flex-1 truncate text-sm uppercase">{e}</span>
-                  {canAdd && (
-                    <button
-                      type="button"
-                      onClick={() => runPerson(e, "Added")}
-                      className="mono uppercase rounded-full bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-                    >
-                      Add
-                    </button>
+                  {inCount > 0 && !all && (
+                    <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {inCount} of {setIds.length}
+                    </span>
                   )}
-                  {canRemove && (
-                    <button
-                      type="button"
-                      onClick={() => runPerson(e, "Removed")}
-                      title="Remove access"
-                      aria-label="Remove access"
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
+                  <ToggleAddButton
+                    on={all}
+                    onClick={() => runPerson(e, all ? "Removed" : "Added")}
+                    addLabel="Share with this person"
+                    onLabel="Sharing (click to revoke)"
+                  />
                 </li>
               );
             })}
