@@ -82,7 +82,7 @@ const STEPS: Step[] = [
     clips: [
       { src: "/landing-1.mp4", aspect: "4/3" },
       { src: "/landing-2.mp4", aspect: "4/3" },
-      { aspect: "4/3" }, // TODO: message slides / multi-language clip
+      { src: "/landing-multilanguage.mp4", aspect: "4/3" },
     ],
     textC: (
       <>
@@ -102,8 +102,8 @@ const STEPS: Step[] = [
     textA: ["Sign in to sync your content across devices"],
     textB: "Create a group to share a library with friends, or share a single set",
     clips: [
-      { src: "/landing-3.mp4", aspect: "square" },
-      { aspect: "square" }, // TODO: groups / share-a-set clip
+      { src: "/landing-signin.mp4", aspect: "square" },
+      { src: "/landing-groups.mp4", aspect: "square" },
     ],
     desktop: { hookEndX: 140, clipsPt: "pt-[12%]" },
     svgPath:
@@ -129,7 +129,7 @@ const STEPS: Step[] = [
     ),
     clips: [
       { src: "/landing-5.mp4", aspect: "square" },
-      { src: "/landing-4.mp4", aspect: "square" },
+      { src: "/landing-golive.mp4", aspect: "square" },
     ],
     desktop: { hookEndX: 235, textAPl: "pl-[calc(30%+1rem)]", textBMaxW: "max-w-[28rem]" },
     svgPath:
