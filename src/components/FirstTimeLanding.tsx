@@ -35,9 +35,8 @@ type Step = {
   textA: React.ReactNode[];
   /** Bottom-left line the card arrow points to. */
   textB: React.ReactNode;
-  /** Two or three clips: A sits beside the textA stack, B under textA (pushed to the bottom
-   *  of that column on two-clip cards), C staggered below A overlapping B's lower edge — the
-   *  zig-zag from the design. */
+  /** Two clips (A, B: the original staggered pair) or three (step 1: A beside the textA
+   *  stack, B under textA, C staggered below A overlapping B's lower edge). */
   clips: Clip[];
   /** Number glyph path from the design SVGs (viewBox 0 0 431 431). */
   svgPath: string;
@@ -768,61 +767,39 @@ export function FirstTimeLanding({
                       />
                     </svg>
                     {/*
-                      2-col grid matching the design's zig-zag:
-                      Row 1: clip A (nudged down off the top hook) | textA stack, then clip B under it
+                      Three-clip card (step 1) — the zig-zag from the design, 2-col grid:
+                      Row 1: clip A (nudged down off the top hook) | textA stack, clip B under it
                       Row 2: clip C, inset and pulled up so it overlaps clip B's lower edge | empty
-                      Row 3: textB (always bottom-left, where the arrow points)
-                      Mirror swaps the columns of rows 1 and 2.
-                      The grid fills the (equalised) card height: the `1fr` row absorbs the
-                      leftover — row 2 on three-clip cards; row 1 on two-clip cards, where the
-                      textA column stretches and clip B drops to its bottom, staggered against
-                      clip A like the original two-clip layout.
+                      Row 3: textB (bottom-left, where the arrow points)
+                      The card is stretched to the tallest card's height (outer `1fr` rows); the
+                      `1fr` middle row absorbs the difference so textB stays at the bottom.
                     */}
-                    <div
-                      className={`relative z-10 grid flex-1 grid-cols-2 items-start gap-x-8 gap-y-6 px-[5%] ${
-                        step.clips[2] ? "grid-rows-[auto_1fr_auto]" : "grid-rows-[1fr_auto]"
-                      }`}
-                    >
-                      <div
-                        className={`mt-[10%] ${mirror ? "order-2 flex justify-end" : "order-1"}`}
-                      >
-                        <StepVideo
-                          clip={step.clips[0]}
-                          className="w-[74%]"
-                          ref={(el) => {
-                            videoRefs.current[i][0] = el;
-                          }}
-                        />
-                      </div>
-                      <div
-                        className={`flex flex-col gap-4 self-stretch ${mirror ? "order-1" : "order-2"}`}
-                      >
-                        {step.textA.map((text, j) => (
-                          <p
-                            key={j}
-                            className={`mono text-xs uppercase leading-relaxed ${mirror ? "pl-[6rem]" : ""}`}
-                          >
-                            {text}
-                          </p>
-                        ))}
-                        <div className="mt-auto pt-2">
+                    {step.clips.length === 3 ? (
+                      <div className="relative z-10 grid flex-1 grid-cols-2 grid-rows-[auto_1fr_auto] items-start gap-x-8 gap-y-6 px-[5%]">
+                        <div className="mt-[10%]">
+                          <StepVideo
+                            clip={step.clips[0]}
+                            className="w-[74%]"
+                            ref={(el) => {
+                              videoRefs.current[i][0] = el;
+                            }}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-4">
+                          {step.textA.map((text, j) => (
+                            <p key={j} className="mono text-xs uppercase leading-relaxed">
+                              {text}
+                            </p>
+                          ))}
                           <StepVideo
                             clip={step.clips[1]}
-                            className="w-[74%]"
+                            className="mt-2 w-[74%]"
                             ref={(el) => {
                               videoRefs.current[i][1] = el;
                             }}
                           />
                         </div>
-                      </div>
-                      {step.clips[2] && (
-                        <div
-                          className={`order-3 -mt-[22%] ${
-                            mirror
-                              ? "col-start-2 flex justify-end pr-[16%]"
-                              : "col-start-1 pl-[16%]"
-                          }`}
-                        >
+                        <div className="col-start-1 -mt-[22%] pl-[16%]">
                           <StepVideo
                             clip={step.clips[2]}
                             className="w-[84%]"
@@ -831,11 +808,77 @@ export function FirstTimeLanding({
                             }}
                           />
                         </div>
-                      )}
-                      <p className="mono order-4 col-span-2 max-w-[26rem] pl-[calc(6%+1rem)] text-xs uppercase leading-relaxed">
-                        {step.textB}
-                      </p>
-                    </div>
+                        <p className="mono col-span-2 max-w-[26rem] pl-[calc(6%+1rem)] text-xs uppercase leading-relaxed">
+                          {step.textB}
+                        </p>
+                      </div>
+                    ) : (
+                      /*
+                        Two-clip cards (steps 2 and 3) — 3-row, 2-col grid matching the SVG
+                        card structure:
+                        Row 1: textA (above its clip A column) | empty
+                        Row 2: clip A | clip B (staggered down ~74% of clip height via pt-[36%])
+                        Row 3: textB (always bottom-left) | empty
+                        Non-mirror: clip A right, clip B staggered left
+                        Mirror:     clip A left, clip B staggered right
+                        The `1fr` clip row absorbs any stretch to the tallest card's height.
+                      */
+                      <div className="relative z-10 grid flex-1 grid-cols-2 grid-rows-[auto_1fr_auto] items-start gap-x-8 gap-y-6 px-[5%]">
+                        <div
+                          className={`col-span-2 flex flex-col gap-4 ${
+                            mirror ? "max-w-[26rem] pl-[6rem]" : "max-w-[34rem] pl-[calc(44%+1rem)]"
+                          }`}
+                        >
+                          {step.textA.map((text, j) => (
+                            <p key={j} className="mono text-xs uppercase leading-relaxed">
+                              {text}
+                            </p>
+                          ))}
+                        </div>
+                        {mirror ? (
+                          <>
+                            <StepVideo
+                              clip={step.clips[0]}
+                              className="w-full"
+                              ref={(el) => {
+                                videoRefs.current[i][0] = el;
+                              }}
+                            />
+                            <div className="pt-[36%]">
+                              <StepVideo
+                                clip={step.clips[1]}
+                                className="w-full"
+                                ref={(el) => {
+                                  videoRefs.current[i][1] = el;
+                                }}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="pt-[36%]">
+                              <StepVideo
+                                clip={step.clips[1]}
+                                className="w-full"
+                                ref={(el) => {
+                                  videoRefs.current[i][1] = el;
+                                }}
+                              />
+                            </div>
+                            <StepVideo
+                              clip={step.clips[0]}
+                              className="w-full"
+                              ref={(el) => {
+                                videoRefs.current[i][0] = el;
+                              }}
+                            />
+                          </>
+                        )}
+                        <p className="mono col-span-2 max-w-[21rem] pl-[calc(6%+1rem)] text-xs uppercase leading-relaxed">
+                          {step.textB}
+                        </p>
+                      </div>
+                    )}
                   </div>
                   {/* card-to-card connector: pure white bracket arrow + stub. */}
                   {i < STEPS.length - 1 && (
@@ -965,7 +1008,7 @@ export function FirstTimeLanding({
                         {text}
                       </p>
                     ))}
-                    {step.clips.map((clip, j) => (
+                    {step.clips.slice(0, step.clips.length - 1).map((clip, j) => (
                       <StepVideo
                         key={j}
                         clip={clip}
@@ -976,6 +1019,13 @@ export function FirstTimeLanding({
                       />
                     ))}
                     <p className="mono mt-6 text-xs uppercase leading-relaxed">{step.textB}</p>
+                    <StepVideo
+                      clip={step.clips[step.clips.length - 1]}
+                      className="mt-4 w-full"
+                      ref={(el) => {
+                        mobileVideoRefs.current[i][step.clips.length - 1] = el;
+                      }}
+                    />
                   </div>
                 </div>
               </div>
