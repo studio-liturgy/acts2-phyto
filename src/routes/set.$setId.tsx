@@ -1527,6 +1527,7 @@ function chordFreePreview(lyrics: string): string {
 
 function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const { addSlide, updateSet } = useLibrary();
+  const navigate = useNavigate();
 
   const [linesPer, setLinesPer] = useState<number>(() => {
     const stored = localStorage.getItem("phyto_lines_per_slide");
@@ -1644,7 +1645,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const [updateV2, setUpdateV2] = useState("");
   const [updateV1Open, setUpdateV1Open] = useState(false);
   const [updateV2Open, setUpdateV2Open] = useState(false);
-  const openUpdateVersions = () => {
+  // Re-import replaces this set's passages; Duplicate makes a copy in the
+  // chosen versions and leaves this set as it is.
+  const [updateMode, setUpdateMode] = useState<"reimport" | "duplicate">("reimport");
+  const openUpdateVersions = (mode: "reimport" | "duplicate") => {
+    setUpdateMode(mode);
     setUpdateV1(scripture.workspaceVersions.v1);
     setUpdateV2(scripture.workspaceVersions.v2);
     setShowUpdateVersions(true);
@@ -2294,52 +2299,66 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               <span className="text-muted-foreground">
                 This set is in {languagesOfVersions(scripture.storedVersions)}.
               </span>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={openUpdateVersions}
-                className="rounded-full bg-foreground px-3 py-1 uppercase text-background transition hover:opacity-90 disabled:opacity-40"
-              >
-                Update
-              </button>
+              <span className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => openUpdateVersions("reimport")}
+                  className="rounded-full bg-foreground px-3 py-1 uppercase text-background transition hover:opacity-90 disabled:opacity-40"
+                >
+                  Re-import
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => openUpdateVersions("duplicate")}
+                  className="rounded-full border border-foreground px-3 py-1 uppercase transition hover:bg-foreground hover:text-background disabled:opacity-40"
+                >
+                  Duplicate
+                </button>
+              </span>
             </div>
           )}
           <AlertDialog open={showUpdateVersions} onOpenChange={setShowUpdateVersions}>
             <AlertDialogContent className="gap-0 rounded-3xl p-8">
               <AlertDialogTitle className="text-2xl font-normal leading-tight">
-                Re-import?
+                {updateMode === "duplicate" ? "Duplicate?" : "Re-import?"}
               </AlertDialogTitle>
               <AlertDialogDescription className="mt-4 text-base text-foreground">
-                Every passage in this set is fetched again in these bible versions.
+                {updateMode === "duplicate"
+                  ? "A copy of this set is made with every passage fetched in these bible versions. This set stays as it is."
+                  : "Every passage in this set is fetched again in these bible versions."}
               </AlertDialogDescription>
               {/* Who else sees the change: each group and person the set is
-                  shared with (or its owner), with their workspace languages. */}
-              {(updateAudience.owner ||
-                updateAudience.groups.length > 0 ||
-                updateAudience.people.length > 0) && (
-                <div className="mono mt-5 text-[10px] uppercase tracking-wider">
-                  <div className="text-muted-foreground">Changes affect</div>
-                  <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-6 gap-y-0.5">
-                    {[
-                      ...(updateAudience.owner ? [updateAudience.owner] : []),
-                      ...updateAudience.groups,
-                      ...updateAudience.people,
-                    ].map((name) => (
-                      <Fragment key={name}>
-                        {/* Group names keep their case; emails read in caps. */}
-                        <span
-                          className={`min-w-0 truncate ${updateAudience.groups.includes(name) ? "normal-case" : ""}`}
-                        >
-                          {name}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {updateAudience.languages[name] ?? ""}
-                        </span>
-                      </Fragment>
-                    ))}
+                  shared with (or its owner), with their workspace languages.
+                  A duplicate changes nothing for them. */}
+              {updateMode === "reimport" &&
+                (updateAudience.owner ||
+                  updateAudience.groups.length > 0 ||
+                  updateAudience.people.length > 0) && (
+                  <div className="mono mt-5 text-[10px] uppercase tracking-wider">
+                    <div className="text-muted-foreground">Changes affect</div>
+                    <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-6 gap-y-0.5">
+                      {[
+                        ...(updateAudience.owner ? [updateAudience.owner] : []),
+                        ...updateAudience.groups,
+                        ...updateAudience.people,
+                      ].map((name) => (
+                        <Fragment key={name}>
+                          {/* Group names keep their case; emails read in caps. */}
+                          <span
+                            className={`min-w-0 truncate ${updateAudience.groups.includes(name) ? "normal-case" : ""}`}
+                          >
+                            {name}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {updateAudience.languages[name] ?? ""}
+                          </span>
+                        </Fragment>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
               <div className={`mt-6 grid gap-3 ${scripture.multi ? "grid-cols-2" : "grid-cols-1"}`}>
                 <VersionPicker
                   label={scripture.multi ? "1st version" : "Version"}
@@ -2379,11 +2398,17 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                   disabled={!updateV1}
                   onClick={() => {
                     setShowUpdateVersions(false);
-                    void scripture.updateVersionsToWorkspace(updateV1, updateV2);
+                    if (updateMode === "duplicate") {
+                      void scripture.duplicateToVersions(updateV1, updateV2).then((id) => {
+                        if (id) navigate({ to: "/set/$setId", params: { setId: id } });
+                      });
+                    } else {
+                      void scripture.updateVersionsToWorkspace(updateV1, updateV2);
+                    }
                   }}
                   className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
                 >
-                  Re-import
+                  {updateMode === "duplicate" ? "Duplicate" : "Re-import"}
                 </button>
                 <button
                   type="button"

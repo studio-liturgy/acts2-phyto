@@ -24,11 +24,11 @@ export const Route = createFileRoute("/feedback")({
   component: FeedbackPage,
 });
 
-type Category = "Testimony / Encouragement" | "Bug Fix" | "Feature Request" | "Design Feedback";
+type Category = "Encouragement" | "Bug Fix" | "Feature Request" | "Language";
 
 const CATEGORIES: { label: Category; chip: string }[] = [
   {
-    label: "Testimony / Encouragement",
+    label: "Encouragement",
     chip: "border-[var(--brand-green)] text-[var(--brand-green)] hover:bg-[var(--brand-green)] hover:text-[var(--brand-white)]",
   },
   {
@@ -40,18 +40,23 @@ const CATEGORIES: { label: Category; chip: string }[] = [
     chip: "border-[var(--brand-blue)] text-[var(--brand-blue)] hover:bg-[var(--brand-blue)] hover:text-[var(--brand-white)]",
   },
   {
-    label: "Design Feedback",
+    label: "Language",
     chip: "border-[var(--brand-orange)] text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-[var(--brand-white)]",
   },
 ];
 
 const ACTIVE_CHIP: Record<Category, string> = {
-  "Testimony / Encouragement":
-    "border-[var(--brand-green)] bg-[var(--brand-green)] text-[var(--brand-white)]",
+  Encouragement: "border-[var(--brand-green)] bg-[var(--brand-green)] text-[var(--brand-white)]",
   "Bug Fix": "border-[var(--brand-red)] bg-[var(--brand-red)] text-[var(--brand-white)]",
   "Feature Request": "border-[var(--brand-blue)] bg-[var(--brand-blue)] text-[var(--brand-white)]",
-  "Design Feedback":
-    "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]",
+  Language: "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]",
+};
+
+const PLACEHOLDER: Record<Category, string> = {
+  Encouragement: "Share your encouragement...",
+  "Bug Fix": "What went wrong, and what did you expect?",
+  "Feature Request": "What would you like phyto to do?",
+  Language: "Which language, and what's missing or wrong?",
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -143,11 +148,7 @@ function FeedbackPage() {
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder={
-              category
-                ? `Share your ${category.toLowerCase()}...`
-                : "Select a category, then write here..."
-            }
+            placeholder={category ? PLACEHOLDER[category] : "Select a category, then write here..."}
             rows={10}
             maxLength={5000}
             className="w-full resize-y rounded-3xl border border-foreground bg-background p-6 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"

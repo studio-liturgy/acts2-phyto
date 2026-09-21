@@ -4,12 +4,7 @@ import { Resend } from "resend";
 import { z } from "zod";
 import { readEnv, makeRateLimiter } from "@/lib/worker-env";
 
-const CATEGORIES = [
-  "Testimony / Encouragement",
-  "Bug Fix",
-  "Feature Request",
-  "Design Feedback",
-] as const;
+const CATEGORIES = ["Encouragement", "Bug Fix", "Feature Request", "Language"] as const;
 
 const FeedbackSchema = z.object({
   category: z.enum(CATEGORIES),

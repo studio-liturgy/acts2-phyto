@@ -429,6 +429,44 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
 
   // A message keeps its verses on its slides: re-fetch each existing block in
   // place (keeping its position and the points/images around it).
+  /** A message's slides fetched again in `v1`/`v2`: each verse block in
+   *  place (keeping its position and the points/images around it). */
+  const buildMessageSlides = async (cur: Slide[], v1: string, v2: string) => {
+    const newVersions = v2 ? [v1, v2] : [v1];
+    const result: Slide[] = [];
+    let unmatched = 0;
+    let i = 0;
+    while (i < cur.length) {
+      const s = cur[i];
+      if (s.kind !== "scripture") {
+        result.push(s);
+        i++;
+        continue;
+      }
+      const idx = s.importIndex;
+      const run: Slide[] = [];
+      while (i < cur.length && cur[i].kind === "scripture" && cur[i].importIndex === idx) {
+        run.push(cur[i]);
+        i++;
+      }
+      const query = splitRefLabel(
+        run[0].reference ?? Object.values(run[0].referencesByVersion ?? {})[0] ?? "",
+      ).ref;
+      if (!query) {
+        result.push(...run);
+        continue;
+      }
+      const b = await fetchImportBlocks(query, v1, v2, v2 ? Math.min(versesPer, 2) : versesPer);
+      unmatched += b.unmatched;
+      const built = versionTextToSlides(
+        v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
+        newVersions,
+      ).map((x) => ({ ...x, importIndex: idx ?? 0 }));
+      result.push(...built);
+    }
+    return { slides: result, unmatched };
+  };
+
   const rebuildMessageVersions = async (v1: string, v2: string) => {
     const newVersions = v2 ? [v1, v2] : [v1];
     const cur = readSet()?.slides ?? [];
@@ -436,38 +474,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     setErr(null);
     setAlignNote(null);
     try {
-      const result: Slide[] = [];
-      let unmatched = 0;
-      let i = 0;
-      while (i < cur.length) {
-        const s = cur[i];
-        if (s.kind !== "scripture") {
-          result.push(s);
-          i++;
-          continue;
-        }
-        const idx = s.importIndex;
-        const run: Slide[] = [];
-        while (i < cur.length && cur[i].kind === "scripture" && cur[i].importIndex === idx) {
-          run.push(cur[i]);
-          i++;
-        }
-        const query = splitRefLabel(
-          run[0].reference ?? Object.values(run[0].referencesByVersion ?? {})[0] ?? "",
-        ).ref;
-        if (!query) {
-          result.push(...run);
-          continue;
-        }
-        const b = await fetchImportBlocks(query, v1, v2, v2 ? Math.min(versesPer, 2) : versesPer);
-        unmatched += b.unmatched;
-        const built = versionTextToSlides(
-          v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
-          newVersions,
-        ).map((x) => ({ ...x, importIndex: idx ?? 0 }));
-        result.push(...built);
-      }
-      updateSet(setId, { slides: result, versions: newVersions });
+      const { slides, unmatched } = await buildMessageSlides(cur, v1, v2);
+      updateSet(setId, { slides, versions: newVersions });
       noteUnmatched(unmatched, v1, v2);
     } catch (e) {
       setErr((e as Error).message);
@@ -617,6 +625,66 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     if (renamed !== name) updateSet(setId, { name: renamed });
   };
 
+  /**
+   * A COPY of this set in `v1`/`v2`, leaving this one as it is: every passage
+   * fetched again (a message keeps its points and images in place). The copy
+   * is a new set of mine in the current workspace, named for its versions.
+   * Returns the copy's id, or null when nothing could be built.
+   */
+  const duplicateToVersions = async (v1: string, v2: string): Promise<string | null> => {
+    const set = readSet();
+    if (!set) return null;
+    const refs = reimportQueries({ scriptureImports: storedImports, slides: set.slides });
+    if (!refs.length) return null;
+    const newVersions = v2 ? [v1, v2] : [v1];
+    setBusy(true);
+    setErr(null);
+    setAlignNote(null);
+    try {
+      let slides: Slide[];
+      let unmatched = 0;
+      if (kind === "message") {
+        ({ slides, unmatched } = await buildMessageSlides(set.slides, v1, v2));
+      } else {
+        slides = [];
+        const vPer = v2 ? Math.min(versesPer, 2) : versesPer;
+        for (const [i, q] of refs.entries()) {
+          const b = await fetchImportBlocks(q, v1, v2, vPer);
+          unmatched += b.unmatched;
+          const built = versionTextToSlides(
+            v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
+            newVersions,
+          ).map((x) => ({ ...x, importIndex: i }));
+          slides.push(...built);
+        }
+      }
+      const {
+        id: _id,
+        createdAt: _c,
+        updatedAt: _u,
+        shared: _s,
+        shared_by: _sb,
+        groupIds: _g,
+        group_id: _gid,
+        ...rest
+      } = set;
+      const id = useLibrary.getState().createSet({
+        ...rest,
+        name: renameVersions(set.name, v1, v2),
+        slides,
+        versions: newVersions,
+        scriptureImports: refs,
+      });
+      noteUnmatched(unmatched, v1, v2);
+      return id;
+    } catch (e) {
+      setErr((e as Error).message);
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const clearBoxes = () => {
     setManualText("");
     setManualText2("");
@@ -658,6 +726,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     workspaceVersions,
     updateGroupsFor,
     updateVersionsToWorkspace,
+    duplicateToVersions,
   };
 }
 
