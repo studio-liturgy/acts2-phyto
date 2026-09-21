@@ -35,6 +35,8 @@ type Step = {
   textA: React.ReactNode[];
   /** Bottom-left line the card arrow points to. */
   textB: React.ReactNode;
+  /** Three-clip card only: a line under clip B, in the empty right half of the clip C row. */
+  textC?: React.ReactNode;
   /** Two clips (A, B: the original staggered pair) or three (step 1: A beside the textA
    *  stack, B under textA, C staggered below A overlapping B's lower edge). */
   clips: Clip[];
@@ -82,6 +84,13 @@ const STEPS: Step[] = [
       { src: "/landing-2.mp4", aspect: "4/3" },
       { aspect: "4/3" }, // TODO: message slides / multi-language clip
     ],
+    textC: (
+      <>
+        Add chords to songs,
+        <br />
+        viewed on a mobile phone
+      </>
+    ),
     desktop: { hookEndX: 317 },
     svgPath:
       "M164.889 305.578V285.157H216.772V131.996H213.627L183.493 200.853H161.745V199.282L196.071 122.309H238.783V285.157H290.665V305.578H164.889Z",
@@ -794,7 +803,7 @@ export function FirstTimeLanding({
                     {/*
                       Three-clip card (step 1) — the zig-zag from the design, 2-col grid:
                       Row 1: clip A (nudged down off the top hook) | textA stack, clip B under it
-                      Row 2: clip C, inset and pulled up so it overlaps clip B's lower edge | empty
+                      Row 2: clip C, inset and pulled up so it overlaps clip B's lower edge | textC
                       Row 3: textB (bottom-left, where the arrow points)
                       The card is stretched to the tallest card's height (outer `1fr` rows); the
                       `1fr` middle row absorbs the difference so textB stays at the bottom.
@@ -833,6 +842,11 @@ export function FirstTimeLanding({
                             }}
                           />
                         </div>
+                        {step.textC && (
+                          <p className="mono col-start-2 text-xs uppercase leading-relaxed">
+                            {step.textC}
+                          </p>
+                        )}
                         <p className="mono col-span-2 max-w-[26rem] pl-[calc(6%+1rem)] text-xs uppercase leading-relaxed">
                           {step.textB}
                         </p>
@@ -1058,6 +1072,9 @@ export function FirstTimeLanding({
                         }}
                       />
                     ))}
+                    {step.textC && (
+                      <p className="mono mt-6 text-xs uppercase leading-relaxed">{step.textC}</p>
+                    )}
                     <p className="mono mt-6 text-xs uppercase leading-relaxed">{step.textB}</p>
                     <StepVideo
                       clip={step.clips[step.clips.length - 1]}
