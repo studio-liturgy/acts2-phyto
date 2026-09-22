@@ -744,8 +744,12 @@ export function renameVersions(name: string, v1: string, v2: string): string {
 /**
  * Carry the versions this workspace doesn't show through a rebuild. The boxes
  * only hold the visible versions, so slides rebuilt from them would drop the
- * hidden translation's text; copy it back from the stored slide at the same
- * verse position. `lines` (the compat field) keeps the set's primary version.
+ * hidden translation's text; copy it back from the stored slide that holds the
+ * SAME verse. Verses are matched by their visible text (a longest-common-
+ * subsequence over the two lists), and the unmatched verses left between two
+ * matches, an edited verse say, pair up in order. A deleted verse takes its
+ * hidden text with it and a new one gets none, so nothing shifts onto the
+ * wrong verse. `lines` (the compat field) keeps the set's primary version.
  * Exported for tests.
  */
 export function mergeHiddenVersions(
@@ -755,8 +759,15 @@ export function mergeHiddenVersions(
   primaryVersion: string,
 ): Slide[] {
   const shown = new Set(editVersions);
+  const visibleText = (s: Slide) =>
+    editVersions
+      .map((v) =>
+        (s.linesByVersion?.[v] ?? (v === primaryVersion ? (s.lines ?? []).join("\n") : "")).trim(),
+      )
+      .join("\u0000");
+  const pairing = pairByText(parsed.map(visibleText), current.map(visibleText));
   return parsed.map((p, i) => {
-    const prev = current[i];
+    const prev = pairing[i] >= 0 ? current[pairing[i]] : undefined;
     const hiddenLines: Record<string, string> = {};
     const hiddenRefs: Record<string, string> = {};
     if (prev?.linesByVersion) {
@@ -779,4 +790,50 @@ export function mergeHiddenVersions(
       reference: referencesByVersion[primaryVersion] ?? p.reference,
     };
   });
+}
+
+/**
+ * For each entry of `next`, the index of the `prev` entry it is the same verse
+ * as, or -1. Identical texts are matched in order (longest common subsequence,
+ * blanks never match); between two matches the leftover entries pair up by
+ * position, extras on either side going unmatched. Exported for tests.
+ */
+export function pairByText(next: string[], prev: string[]): number[] {
+  const n = next.length;
+  const m = prev.length;
+  // lcs[i][j]: length of the LCS of next[i..] and prev[j..].
+  const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      lcs[i][j] =
+        next[i] && next[i] === prev[j]
+          ? lcs[i + 1][j + 1] + 1
+          : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+    }
+  }
+  const out = new Array<number>(n).fill(-1);
+  let i = 0;
+  let j = 0;
+  // Walk the LCS; on the way, pair the skipped-over entries of each gap.
+  let gapI = 0;
+  let gapJ = 0;
+  const closeGap = (endI: number, endJ: number) => {
+    for (let k = 0; gapI + k < endI && gapJ + k < endJ; k++) out[gapI + k] = gapJ + k;
+    gapI = endI + 1;
+    gapJ = endJ + 1;
+  };
+  while (i < n && j < m) {
+    if (next[i] && next[i] === prev[j]) {
+      closeGap(i, j);
+      out[i] = j;
+      i++;
+      j++;
+    } else if (lcs[i + 1][j] >= lcs[i][j + 1]) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+  closeGap(n, m);
+  return out;
 }

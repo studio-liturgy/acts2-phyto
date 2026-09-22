@@ -125,3 +125,73 @@ describe("renameVersions", () => {
     expect(renameVersions("Sunday reading", "NIV", "KRV")).toBe("Sunday reading");
   });
 });
+
+describe("mergeHiddenVersions pairs by verse, not by position", () => {
+  const bilingual = (): Slide[] =>
+    ["1", "2", "3"].map((n) => ({
+      id: `s${n}`,
+      kind: "scripture",
+      lines: [`en${n}`],
+      linesByVersion: { NIV: `en${n}`, JCB: `ja${n}` },
+      referencesByVersion: { NIV: "John 3:1-3", JCB: "ヨハネ 3:1-3" },
+      reference: "John 3:1-3",
+    }));
+  const visible = (texts: string[]): Slide[] =>
+    texts.map((t, i) => ({
+      id: `p${i}`,
+      kind: "scripture",
+      lines: [t],
+      linesByVersion: { NIV: t },
+      referencesByVersion: { NIV: "John 3:1-3" },
+      reference: "John 3:1-3",
+    }));
+  const pairs = (slides: Slide[]) =>
+    slides.map((s) => [s.linesByVersion?.NIV, s.linesByVersion?.JCB]);
+
+  it("a deleted verse takes its hidden text with it", () => {
+    const merged = mergeHiddenVersions(visible(["en1", "en3"]), bilingual(), ["NIV"], "NIV");
+    expect(pairs(merged)).toEqual([
+      ["en1", "ja1"],
+      ["en3", "ja3"],
+    ]);
+  });
+
+  it("an edited verse keeps its own hidden text", () => {
+    const merged = mergeHiddenVersions(
+      visible(["en1", "en2 (edited)", "en3"]),
+      bilingual(),
+      ["NIV"],
+      "NIV",
+    );
+    expect(pairs(merged)).toEqual([
+      ["en1", "ja1"],
+      ["en2 (edited)", "ja2"],
+      ["en3", "ja3"],
+    ]);
+  });
+
+  it("a merged verse keeps the first verse's hidden text and a new verse gets none", () => {
+    const merged = mergeHiddenVersions(
+      visible(["en1 en2", "en3", "en4 (new)"]),
+      bilingual(),
+      ["NIV"],
+      "NIV",
+    );
+    expect(pairs(merged)).toEqual([
+      ["en1 en2", "ja1"],
+      ["en3", "ja3"],
+      ["en4 (new)", undefined],
+    ]);
+  });
+});
+
+describe("pairByText", () => {
+  it("matches identical texts in order and pairs the leftovers of each gap by position", async () => {
+    const { pairByText } = await import("@/hooks/use-scripture-versions");
+    expect(pairByText(["a", "c"], ["a", "b", "c"])).toEqual([0, 2]);
+    expect(pairByText(["a", "x", "c"], ["a", "b", "c"])).toEqual([0, 1, 2]);
+    expect(pairByText(["x", "y", "c"], ["b", "c"])).toEqual([0, -1, 1]);
+    expect(pairByText(["", "b"], ["", "b"])).toEqual([0, 1]);
+    expect(pairByText([], ["a"])).toEqual([]);
+  });
+});
