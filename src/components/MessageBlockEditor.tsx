@@ -646,7 +646,11 @@ export function MessageBlockEditor({
       </AlertDialog>
       {!readOnly && (
         <div className="p-4">
-          <AddElementBar setId={setId} onManualVerse={onManualVerse} />
+          <AddElementBar
+            setId={setId}
+            onManualVerse={onManualVerse}
+            showHints={slides.length > 0}
+          />
         </div>
       )}
     </div>

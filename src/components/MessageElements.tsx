@@ -29,10 +29,13 @@ const POINT_TYPES: { type: PointType; label: string }[] = [
 export function AddElementBar({
   setId,
   onManualVerse,
+  showHints = true,
 }: {
   setId: string;
   /** Adds a blank hand-typed verse (see useScriptureVersions.addManualVerse). */
   onManualVerse?: () => void;
+  /** The cell shortcuts only mean something once there is a cell to type in. */
+  showHints?: boolean;
 }) {
   const addSlide = useLibrary((s) => s.addSlide);
   const updateSet = useLibrary((s) => s.updateSet);
@@ -127,11 +130,13 @@ export function AddElementBar({
         )}
       </div>
       {/* What the verse and point cells respond to, in the presenter's hint style. */}
-      <div className="mono uppercase space-y-1 pt-8 text-center text-[10px] tracking-wider text-muted-foreground">
-        <div>Cmd/Ctrl B, I, U — bold, italic, underline</div>
-        <div>Cmd/Ctrl Enter — split a verse into a new slide</div>
-        <div>Cmd/Ctrl Z — undo</div>
-      </div>
+      {showHints && (
+        <div className="mono uppercase space-y-1 pt-8 text-center text-[10px] tracking-wider text-muted-foreground">
+          <div>Cmd/Ctrl B, I, U — bold, italic, underline</div>
+          <div>Cmd/Ctrl Enter — split a verse into a new slide</div>
+          <div>Cmd/Ctrl Z — undo</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -161,7 +166,7 @@ export function MessageElements({
           Import a passage above, or add an image or a point to build a message.
         </p>
       )}
-      <AddElementBar setId={setId} onManualVerse={onManualVerse} />
+      <AddElementBar setId={setId} onManualVerse={onManualVerse} showHints={hasVerses} />
     </div>
   );
 }

@@ -476,9 +476,11 @@ function SetEditor() {
             {phytoSet.chords && !phytoSet.chords.hidden && phytoSet.slides.length > 0 && (
               <ChordSheet slides={phytoSet.slides} chords={phytoSet.chords} />
             )}
-            <div className="mb-4">
-              <SongTemplateEditor />
-            </div>
+            {phytoSet.slides.length > 0 && (
+              <div className="mb-4">
+                <SongTemplateEditor />
+              </div>
+            )}
             {phytoSet.slides.length === 0 ? (
               <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
                 Slides will appear here as you type
@@ -546,12 +548,14 @@ function SetEditor() {
           </div>
           {/* Right: template editor + live slide grid */}
           <div className="w-1/2 overflow-y-auto p-6">
-            <div className="mb-4">
-              <ScriptureTemplateEditor />
-            </div>
+            {phytoSet.slides.length > 0 && (
+              <div className="mb-4">
+                <ScriptureTemplateEditor />
+              </div>
+            )}
             {phytoSet.slides.length === 0 ? (
               <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
-                Slides will appear here as you type
+                Slides will appear here
               </p>
             ) : (
               (() => {
