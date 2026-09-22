@@ -287,7 +287,7 @@ export function ScriptureVerseEditor({
                         key={v}
                         type="text"
                         value={group[0].refs[v] ?? ""}
-                        placeholder={v === "_" ? "Reference" : `Reference (${v})`}
+                        placeholder="Reference"
                         disabled={readOnly}
                         aria-label={`Reference (${v})`}
                         onChange={(e) => editRef(groupStart[gi], group.length, v, e.target.value)}

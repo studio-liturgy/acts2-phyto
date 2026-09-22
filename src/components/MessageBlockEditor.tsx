@@ -743,7 +743,7 @@ function ImportBlock({
                 key={v}
                 type="text"
                 value={refOf(v)}
-                placeholder={v === "_" ? "Reference" : `Reference (${v})`}
+                placeholder="Reference"
                 disabled={readOnly}
                 aria-label={`Reference (${v})`}
                 onChange={(e) => onEditRef(v, e.target.value)}

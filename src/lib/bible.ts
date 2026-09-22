@@ -109,6 +109,13 @@ export function splitRefLabel(label: string): { ref: string; code?: string } {
   return { ref: label.trim() };
 }
 
+/** `ref` labelled with `code` ("John 3:16 NIV") when `on`, else bare; any
+ *  code already on it is replaced or dropped. */
+export function withVersionCode(ref: string, code: string, on: boolean): string {
+  const bare = splitRefLabel(ref).ref;
+  return on && bare && code ? `${bare} ${code}` : bare;
+}
+
 /** Human label for a translation code, falling back to the code itself. */
 export function translationLabel(code: string): string {
   for (const group of TRANSLATION_GROUPS) {

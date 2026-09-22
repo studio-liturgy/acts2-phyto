@@ -1054,12 +1054,17 @@ function ImportOptions({
   setVersesPer,
   keepLineBreaks,
   setKeepLineBreaks,
+  versionRefs,
+  setVersionRefs,
   maxVerses = 3,
 }: {
   versesPer: number;
   setVersesPer: (n: number) => void;
   keepLineBreaks: boolean;
   setKeepLineBreaks: (on: boolean) => void;
+  /** References carry their version code; toggling relabels existing ones. */
+  versionRefs: boolean;
+  setVersionRefs: (on: boolean) => void;
   maxVerses?: number;
 }) {
   return (
@@ -1082,6 +1087,14 @@ function ImportOptions({
             label="Line breaks"
             checked={keepLineBreaks}
             onCheckedChange={setKeepLineBreaks}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="mono text-[10px] uppercase tracking-wider">Version reference</span>
+          <PillSwitch
+            label="Version reference"
+            checked={versionRefs}
+            onCheckedChange={setVersionRefs}
           />
         </div>
       </div>
@@ -2269,6 +2282,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                   setVersesPer={setVersesPer}
                   keepLineBreaks={keepLineBreaks}
                   setKeepLineBreaks={setKeepLineBreaks}
+                  versionRefs={scripture.versionRefs}
+                  setVersionRefs={scripture.setVersionRefs}
                 />
               )}
             </div>
@@ -2279,6 +2294,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                   setVersesPer={setVersesPer}
                   keepLineBreaks={keepLineBreaks}
                   setKeepLineBreaks={setKeepLineBreaks}
+                  versionRefs={scripture.versionRefs}
+                  setVersionRefs={scripture.setVersionRefs}
                   maxVerses={scripture.bilingual ? 2 : 3}
                 />
               </div>

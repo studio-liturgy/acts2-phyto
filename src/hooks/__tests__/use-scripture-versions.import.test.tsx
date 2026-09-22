@@ -198,3 +198,46 @@ it("a message's manual verse block keeps its text when its versions are re-fetch
   expect(after.slides[3].id).toBe("m1");
   expect(after.slides[3].referencesByVersion).toEqual({ NIV: "Our creed", CUV: "信经" });
 });
+
+it("the Version reference toggle relabels fetched passages, not manual verses", async () => {
+  const set = makeSet({ kind: "scripture", slides: [] });
+  await db.sets.put(set);
+  await useLibrary.getState().loadFromDb();
+  useLibrary.setState({
+    workspaceSettings: { multiLanguage: true, language: "en", language2: "zh-Hans" },
+  });
+  await act(async () => root.render(<Harness setId={set.id} />));
+  await act(async () => api!.setTranslation2("CUNPS"));
+  await act(async () => {});
+  await act(async () => {
+    await api!.importScripture("Ruth 1:16-17");
+  });
+  await act(async () => api!.addManualVerse());
+  await act(async () => {});
+  await act(async () => {
+    api!.setManualText((t) => t.replace("[~]", "[~Our creed]\nWe believe"));
+    api!.setManualText2((t) => t.replace("[~]", "[~信经]\n我们相信"));
+  });
+  await act(async () => {});
+  expect(api!.versionRefs).toBe(true);
+  expect(useLibrary.getState().sets[set.id].slides[0].referencesByVersion).toEqual({
+    NIV: "Ruth 1:16-17 NIV",
+    CUNPS: "Ruth 1:16-17 CUNPS",
+  });
+
+  await act(async () => api!.setVersionRefs(false));
+  await act(async () => {});
+  let after = useLibrary.getState().sets[set.id];
+  expect(after.versionRefs).toBe(false);
+  expect(after.slides.map((s) => s.referencesByVersion)).toEqual([
+    { NIV: "Ruth 1:16-17", CUNPS: "Ruth 1:16-17" },
+    { NIV: "Ruth 1:16-17", CUNPS: "Ruth 1:16-17" },
+    { NIV: "Our creed", CUNPS: "信经" },
+  ]);
+
+  await act(async () => api!.setVersionRefs(true));
+  await act(async () => {});
+  after = useLibrary.getState().sets[set.id];
+  expect(after.slides[1].reference).toBe("Ruth 1:16-17 NIV");
+  expect(after.slides[2].referencesByVersion).toEqual({ NIV: "Our creed", CUNPS: "信经" });
+});

@@ -110,6 +110,10 @@ export interface Set {
   /** Media-only, with loop: auto advance loops within the current section
    *  (between its dividers) instead of the whole set. */
   loopSection?: boolean;
+  /** Scripture/message: whether an imported passage's reference carries its
+   *  version code ("John 3:16 NIV"), on the editor's reference line and on the
+   *  slide. Absent = on. Toggling it rewrites the existing references too. */
+  versionRefs?: boolean;
   /** Scripture/message: the bible versions (translation codes) on each verse
    *  slide, in stacking order; one entry for a single translation, two when a
    *  second was imported alongside. Which of them a workspace shows is decided

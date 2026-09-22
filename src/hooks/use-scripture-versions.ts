@@ -8,6 +8,7 @@ import {
   translationGroupsForLang,
   translationsForLang,
   TRANSLATION_CODES,
+  withVersionCode,
 } from "@/lib/bible";
 import {
   fromVerseRows,
@@ -61,6 +62,9 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   const updateSet = useLibrary((s) => s.updateSet);
   const settings = useLibrary((s) => s.workspaceSettings);
   const storedVersions = useLibrary((st) => st.sets[setId]?.versions);
+  // Whether references carry their version code ("John 3:16 NIV"); on unless
+  // the set says otherwise.
+  const versionRefs = useLibrary((st) => st.sets[setId]?.versionRefs !== false);
   const storedImports = useLibrary((st) => st.sets[setId]?.scriptureImports);
   const storeSlides = useLibrary((s) => s.sets[setId]?.slides);
   const multi = settings.multiLanguage;
@@ -298,9 +302,10 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
             .filter(Boolean)
             .join(" ");
           // The version code rides with the reference ("John 3:16 NIV"), on the
-          // editor's reference line and on the slide.
-          b1.push(i === 0 ? `[${first.reference} ${v1}]\n${t1}` : t1);
-          b2.push(i === 0 ? `[${second.reference} ${v2}]\n${t2}` : t2);
+          // editor's reference line and on the slide, unless the set turned
+          // version references off.
+          b1.push(i === 0 ? `[${withVersionCode(first.reference, v1, versionRefs)}]\n${t1}` : t1);
+          b2.push(i === 0 ? `[${withVersionCode(second.reference, v2, versionRefs)}]\n${t2}` : t2);
         }
         return {
           box1: b1.join("\n---\n"),
@@ -318,11 +323,11 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
           .slice(i, i + vPer)
           .map((x) => x.text.trim())
           .join(" ");
-        b1.push(i === 0 ? `[${reference} ${v1}]\n${group}` : group);
+        b1.push(i === 0 ? `[${withVersionCode(reference, v1, versionRefs)}]\n${group}` : group);
       }
       return { box1: b1.join("\n---\n"), box2: "", unmatched: 0, ref1: reference };
     },
-    [keepLineBreaks],
+    [keepLineBreaks, versionRefs],
   );
 
   const joinBlocks = (prev: string, add: string) =>
@@ -390,7 +395,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       const { reference, verses } = await fetchScriptureBolls(q, v1, {
         removeLineBreaks: !keepLineBreaks,
       });
-      const labelled = `${reference} ${v1}`;
+      const labelled = withVersionCode(reference, v1, versionRefs);
       const parts: string[] = [];
       for (let i = 0; i < verses.length; i += versesPer) {
         if (i > 0) parts.push("---");
@@ -757,6 +762,64 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   };
 
   /**
+   * Turn version codes on references on or off for this set: new imports
+   * follow it, and every fetched passage already in the set is relabelled now
+   * (hand-typed references are left as written). A scripture set's boxes are
+   * rewritten header by header, a message's verse slides in place.
+   */
+  const setVersionRefs = (on: boolean) => {
+    updateSet(setId, { versionRefs: on });
+    if (!scriptureKind) return;
+    // The code a column's references carry: its version, or the picker's in
+    // the one unnamed column of the legacy editor.
+    const codeFor = (v: string) => (v === "_" ? translation : v);
+    if (kind === "message") {
+      const cur = readSet()?.slides ?? [];
+      const primary = storedVersions?.[0] ?? translation;
+      updateSet(setId, {
+        slides: cur.map((sl) => {
+          if (sl.kind !== "scripture" || sl.manual) return sl;
+          const referencesByVersion = Object.fromEntries(
+            Object.entries(sl.referencesByVersion ?? {}).map(([v, r]) => [
+              v,
+              withVersionCode(r, codeFor(v), on),
+            ]),
+          );
+          const reference =
+            referencesByVersion[primary] ??
+            (sl.reference ? withVersionCode(sl.reference, primary, on) : undefined);
+          return {
+            ...sl,
+            ...(sl.referencesByVersion ? { referencesByVersion } : {}),
+            reference,
+            section: reference,
+          };
+        }),
+      });
+      return;
+    }
+    const rows = toVerseRows(
+      Object.fromEntries(boxVersions.map((v, i) => [v, i === 0 ? manualText : manualText2])),
+      boxVersions,
+    ).map((r) =>
+      r.manual
+        ? r
+        : {
+            ...r,
+            refs: Object.fromEntries(
+              boxVersions.map((v) => [
+                v,
+                r.refs[v] ? withVersionCode(r.refs[v], codeFor(v), on) : r.refs[v],
+              ]),
+            ),
+          },
+    );
+    const boxes = fromVerseRows(rows, boxVersions);
+    setManualText(boxes[boxVersions[0]] ?? "");
+    if (boxVersions[1]) setManualText2(boxes[boxVersions[1]] ?? "");
+  };
+
+  /**
    * A blank hand-typed verse at the end of the set: its reference and text are
    * typed in (a column per version the workspace edits) rather than fetched.
    * A scripture set gets a `[~]` block in each box; a message gets a slide.
@@ -821,6 +884,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     importScripture,
     swapVersions,
     addManualVerse,
+    versionRefs,
+    setVersionRefs,
     clearBoxes,
     versionsMismatch,
     frozen,
