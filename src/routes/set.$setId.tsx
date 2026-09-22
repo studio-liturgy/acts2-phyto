@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
-import { pinSections } from "@/lib/sections";
+import { moveSlideKeepingSections } from "@/lib/sections";
 import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
 import { parseYouTubeId } from "@/lib/parsers";
 import { applyDividers } from "@/lib/apply-dividers";
@@ -891,12 +891,23 @@ function SetEditor() {
                     onClick={() => {
                       // The selected slide (or the last one) opens the new section:
                       // the divider goes on the slide before it. The first slide
-                      // already opens the first section, so nothing to add there.
+                      // already opens the first section; on a set with no sections
+                      // yet, that makes the whole set one (named) section.
                       const slides = phytoSet.slides;
                       const at = selected
                         ? slides.findIndex((sl) => sl.id === selected.id)
                         : slides.length - 1;
-                      if (at <= 0) return;
+                      if (at < 0) return;
+                      if (at === 0) {
+                        if (slides[0].sectionBefore === undefined) {
+                          updateSet(phytoSet.id, {
+                            slides: slides.map((sl, i) =>
+                              i === 0 ? { ...sl, sectionBefore: "" } : sl,
+                            ),
+                          });
+                        }
+                        return;
+                      }
                       const before = slides[at - 1];
                       if (before.sectionAfter !== undefined) return;
                       updateSet(phytoSet.id, {
@@ -1211,10 +1222,10 @@ function SlideGrid({
           const next = [...current];
           const [moved] = next.splice(fromIdx, 1);
           next.splice(target, 0, moved);
-          // Sections stay where they are; only the slides move between them.
-          const pinned = pinSections(slides, next);
-          liveOrderRef.current = pinned;
-          setLiveOrder(pinned);
+          // Sections follow the slides around the drop point (see sections.ts).
+          const kept = moveSlideKeepingSections(slides, next, draggingId ?? undefined);
+          liveOrderRef.current = kept;
+          setLiveOrder(kept);
         }}
         onDragEnd={commitOrder}
         onClick={(e) => onSelect(s.id, e)}

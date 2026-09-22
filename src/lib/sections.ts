@@ -118,25 +118,69 @@ export function hiddenSlideIndices(slides: SectionSlide[], hiddenKeys: string[])
 }
 
 /**
- * Media sections are areas, not luggage: after slides are reordered, every
- * divider stays at the POSITION it had (after the same slot), and the first
- * section's name stays on whichever slide is first. Without this a divider
- * travelled with the slide that carried it, so dragging a section's last slide
- * down swept everything up to its new place into that section, and nothing
- * could ever be dropped after a section's last slide.
+ * The one slide a single drag moved: the slide whose removal leaves the two
+ * orders identical. Undefined when the orders match or differ by more than
+ * one move.
  */
-export function pinSections<T extends SectionSlide>(before: T[], after: T[]): T[] {
-  const dividers = new Map<number, string>();
-  before.forEach((s, i) => {
-    if (s.sectionAfter !== undefined) dividers.set(i, s.sectionAfter);
-  });
+export function movedSlideId<T extends { id?: string }>(
+  before: T[],
+  after: T[],
+): string | undefined {
+  const ids = (list: T[], skip: string) => list.map((s) => s.id).filter((id) => id !== skip);
+  for (const s of after) {
+    if (!s.id) continue;
+    const a = ids(after, s.id);
+    const b = ids(before, s.id);
+    if (a.length === b.length && a.every((id, i) => id === b[i])) return s.id;
+  }
+  return undefined;
+}
+
+/**
+ * Media sections after one slide moved. A divider sits after the last slide
+ * of its section, so a slide dropped between two others joins their section
+ * and the sections around it grow or shrink to fit. When the moved slide is
+ * the one carrying a divider, the divider stays behind on the slide that was
+ * before it (the section's new last slide) rather than travelling along and
+ * sweeping every slide up to the drop point into that section; a section the
+ * moved slide had to itself simply closes. The first section's name stays on
+ * whichever slide is first.
+ */
+export function moveSlideKeepingSections<T extends SectionSlide>(
+  before: T[],
+  after: T[],
+  movedId: string | undefined = movedSlideId(before, after),
+): T[] {
+  let out = after;
+  const from = movedId ? before.findIndex((s) => s.id === movedId) : -1;
+  if (from >= 0 && before[from].sectionAfter !== undefined) {
+    const name = before[from].sectionAfter;
+    const prev = from > 0 ? before[from - 1] : undefined;
+    out = out.map((s) => {
+      if (s.id === movedId) {
+        const { sectionAfter: _drop, ...rest } = s;
+        return rest as T;
+      }
+      // The divider stays on the slide before, unless that one already closes
+      // a section (the moved slide was a section by itself, now gone).
+      if (prev && s.id === prev.id && prev.sectionAfter === undefined) {
+        return { ...s, sectionAfter: name };
+      }
+      return s;
+    });
+  }
+  // A divider after the very last slide would open an empty section: drop it.
+  out = out.map((s, i) =>
+    i === out.length - 1 && s.sectionAfter !== undefined
+      ? (({ sectionAfter: _drop, ...rest }) => rest as T)(s)
+      : s,
+  );
+  // The first section's name lives on the first slide.
   const firstName = before[0]?.sectionBefore;
-  return after.map((s, i) => {
-    const { sectionAfter: _a, sectionBefore: _b, ...rest } = s;
-    const out = rest as T;
-    const name = dividers.get(i);
-    if (name !== undefined && i < after.length - 1) out.sectionAfter = name;
-    if (i === 0 && firstName !== undefined) out.sectionBefore = firstName;
-    return out;
+  return out.map((s, i) => {
+    const { sectionBefore: _b, ...rest } = s;
+    const o = rest as T;
+    if (i === 0 && firstName !== undefined) o.sectionBefore = firstName;
+    return o;
   });
 }

@@ -67,27 +67,72 @@ describe("media sections survive removing and reordering slides", () => {
     ]);
   });
 
-  it("a divider stays at its position when the slide carrying it is dragged away", () => {
+  // A, B, C | D, E, F: the divider sits on C.
+  const sixSlides = () =>
+    mediaSet([
+      slide("A", { sectionBefore: "One" }),
+      slide("B"),
+      slide("C", { sectionAfter: "Two" }),
+      slide("D"),
+      slide("E"),
+      slide("F"),
+    ]);
+  const sections = (id: string) =>
+    useLibrary.getState().sets[id].slides.reduce<string[][]>((acc, s, i, all) => {
+      if (i === 0 || all[i - 1].sectionAfter !== undefined) acc.push([]);
+      acc[acc.length - 1].push(s.id);
+      return acc;
+    }, []);
+
+  it("a slide dropped between two others joins their section", () => {
+    const set = sixSlides();
+    useLibrary.setState({ sets: { [set.id]: set }, order: [set.id] });
+    // E between B and C.
+    useLibrary.getState().reorderSlides(set.id, ["A", "B", "E", "C", "D", "F"]);
+    expect(sections(set.id)).toEqual([
+      ["A", "B", "E", "C"],
+      ["D", "F"],
+    ]);
+  });
+
+  it("a slide dropped right after a section's last slide opens the next section", () => {
+    const set = sixSlides();
+    useLibrary.setState({ sets: { [set.id]: set }, order: [set.id] });
+    // F between C and D.
+    useLibrary.getState().reorderSlides(set.id, ["A", "B", "C", "F", "D", "E"]);
+    expect(sections(set.id)).toEqual([
+      ["A", "B", "C"],
+      ["F", "D", "E"],
+    ]);
+  });
+
+  it("moving a section's last slide leaves the divider behind instead of sweeping slides along", () => {
+    const set = sixSlides();
+    useLibrary.setState({ sets: { [set.id]: set }, order: [set.id] });
+    // C after E.
+    useLibrary.getState().reorderSlides(set.id, ["A", "B", "D", "E", "C", "F"]);
+    expect(sections(set.id)).toEqual([
+      ["A", "B"],
+      ["D", "E", "C", "F"],
+    ]);
+    const slides = useLibrary.getState().sets[set.id].slides;
+    expect(slides[1].sectionAfter).toBe("Two");
+    expect(slides[0].sectionBefore).toBe("One");
+  });
+
+  it("a section of one slide closes when that slide is moved out", () => {
     const set = mediaSet([
-      slide("a", { sectionBefore: "Welcome" }),
-      slide("b"),
-      slide("c", { sectionAfter: "Notices" }),
-      slide("d"),
-      slide("e"),
+      slide("A"),
+      slide("B", { sectionAfter: "Solo" }),
+      slide("C", { sectionAfter: "Rest" }),
+      slide("D"),
     ]);
     useLibrary.setState({ sets: { [set.id]: set }, order: [set.id] });
-
-    // c (the last slide of the first section) goes to the very end.
-    useLibrary.getState().reorderSlides(set.id, ["a", "b", "d", "e", "c"]);
-
-    const slides = useLibrary.getState().sets[set.id].slides;
-    expect(slides.map((s) => [s.id, s.sectionAfter])).toEqual([
-      ["a", undefined],
-      ["b", undefined],
-      ["d", "Notices"],
-      ["e", undefined],
-      ["c", undefined],
+    // C (alone in its section) to the end.
+    useLibrary.getState().reorderSlides(set.id, ["A", "B", "D", "C"]);
+    expect(sections(set.id)).toEqual([
+      ["A", "B"],
+      ["D", "C"],
     ]);
-    expect(slides[0].sectionBefore).toBe("Welcome");
   });
 });
