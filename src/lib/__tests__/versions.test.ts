@@ -159,3 +159,18 @@ describe("legacy single-version sets", () => {
     expect(reimportQueries({ scriptureImports: ["Ps 100"], slides: [] })).toEqual(["Ps 100"]);
   });
 });
+
+describe("reimportQueries skips hand-typed verses", () => {
+  it("only fetched passages are queried again", async () => {
+    const { reimportQueries } = await import("@/lib/versions");
+    expect(
+      reimportQueries({
+        slides: [
+          { kind: "scripture", reference: "John 3:16 NIV", importIndex: 0 },
+          { kind: "scripture", reference: "Our creed", importIndex: 1, manual: true },
+          { kind: "scripture", reference: "Psalms 23:1 NIV", importIndex: 2 },
+        ],
+      }),
+    ).toEqual(["John 3:16", "Psalms 23:1"]);
+  });
+});

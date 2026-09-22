@@ -97,8 +97,11 @@ export function MessageBlockEditor({
   versions,
   primaryVersion = versions[0],
   readOnly = false,
+  onManualVerse,
 }: {
   setId: string;
+  /** Adds a blank hand-typed verse block at the end (the add-bar's button). */
+  onManualVerse?: () => void;
   /** The versions shown (and editable) in this workspace, in order. */
   versions: string[];
   /** The set's first version, whose text also lives in the compat `lines`
@@ -463,6 +466,22 @@ export function MessageBlockEditor({
               if (v === primaryVersion) patch.lines = [val];
               updateSlide(setId, slide.id, patch);
             }}
+            onEditRef={(v, value) => {
+              // The reference belongs to the whole block: every verse in it.
+              const ref = value.replace(/[[\]\n\r]/g, "").replace(/^~+/, "");
+              record(`ref:${b.key}:${v}`);
+              for (const slide of b.slides) {
+                const referencesByVersion = { ...(slide.referencesByVersion ?? {}) };
+                if (ref) referencesByVersion[v] = ref;
+                else delete referencesByVersion[v];
+                const patch: Partial<Slide> = { referencesByVersion };
+                if (v === primaryVersion) {
+                  patch.reference = ref || undefined;
+                  patch.section = ref || undefined;
+                }
+                updateSlide(setId, slide.id, patch);
+              }
+            }}
             onMergeUp={(slide, v) => {
               // Join this verse onto the one above, within its import, in every
               // version; the slide below goes away.
@@ -627,7 +646,7 @@ export function MessageBlockEditor({
       </AlertDialog>
       {!readOnly && (
         <div className="p-4">
-          <AddElementBar setId={setId} />
+          <AddElementBar setId={setId} onManualVerse={onManualVerse} />
         </div>
       )}
     </div>
@@ -666,12 +685,15 @@ function ImportBlock({
   onEdit,
   onMergeUp,
   onSplit,
+  onEditRef,
   onRemove,
   readOnly = false,
 }: {
   versions: string[];
   primaryVersion: string;
   readOnly?: boolean;
+  /** A hand-typed block's reference in one version, typed in above its column. */
+  onEditRef: (version: string, value: string) => void;
   /** Split a verse at a caret position in one version (Cmd/Ctrl+Enter, +). */
   onSplit: (slide: Slide, version: string, at: number) => void;
   slides: Slide[];
@@ -686,7 +708,11 @@ function ImportBlock({
   onRemove: () => void;
 }) {
   const primary = primaryVersion;
-  const reference = slides[0]?.referencesByVersion?.[primary] ?? slides[0]?.reference ?? "Passage";
+  const manual = !!slides[0]?.manual;
+  const refOf = (v: string) =>
+    slides[0]?.referencesByVersion?.[v] ??
+    (v === primary && !manual ? (slides[0]?.reference ?? "Passage") : "");
+  const reference = refOf(primary) || (manual ? "Manual verse" : "Passage");
   const cols = `repeat(${versions.length}, minmax(0, 1fr))`;
   // Where the caret last was in this passage, for the + button.
   const lastCaret = useRef<{ slide: Slide; v: string; at: number } | null>(null);
@@ -706,7 +732,34 @@ function ImportBlock({
 
   return (
     <BlockFrame
-      label={reference}
+      name={reference}
+      label={
+        // One reference per import, in each version's own language above its
+        // column; a hand-typed block's are typed in here.
+        <div className="grid" style={{ gridTemplateColumns: cols }}>
+          {versions.map((v) =>
+            manual ? (
+              <input
+                key={v}
+                type="text"
+                value={refOf(v)}
+                placeholder="Reference"
+                disabled={readOnly}
+                aria-label={`Reference (${v})`}
+                onChange={(e) => onEditRef(v, e.target.value)}
+                className="mono w-full min-w-0 bg-transparent px-3 pt-2 text-[10px] uppercase tracking-wider opacity-70 outline-none placeholder:opacity-40 focus:opacity-100 disabled:opacity-30"
+              />
+            ) : (
+              <div
+                key={v}
+                className="mono truncate px-3 pt-2 text-[10px] uppercase tracking-wider opacity-50"
+              >
+                {refOf(v)}
+              </div>
+            ),
+          )}
+        </div>
+      }
       grip={grip}
       onRemove={onRemove}
       tint={tint}

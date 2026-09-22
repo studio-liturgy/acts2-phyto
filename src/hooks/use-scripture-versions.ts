@@ -10,11 +10,15 @@ import {
   TRANSLATION_CODES,
 } from "@/lib/bible";
 import {
+  fromVerseRows,
   parseScriptureFromText,
   reconcileSlideIds,
+  scriptureHeader,
   slidesToScriptureText,
   slidesToVersionText,
+  toVerseRows,
   versionTextToSlides,
+  type VerseRow,
 } from "@/lib/slide-text";
 import {
   hasStackedVersions,
@@ -155,6 +159,9 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   }, [boxMode, multi, translation, translation2, settings, readSet]);
   // The set's own first version: the one whose text also lives in `lines`.
   const primaryVersion = storedVersions?.[0] ?? editVersions[0] ?? translation;
+  // The keys the boxes are read and written by: the edited versions, or the
+  // one unnamed column of the legacy editor.
+  const boxVersions = useMemo(() => (boxMode ? editVersions : ["_"]), [boxMode, editVersions]);
 
   // The boxes. In legacy mode only manualText is used (plain scripture text).
   const seedBoxes = useCallback(
@@ -236,7 +243,13 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       if (editVersions[1]) boxes[editVersions[1]] = manualText2;
       parsed =
         manualText.trim() || manualText2.trim() ? versionTextToSlides(boxes, editVersions) : [];
-      parsed = mergeHiddenVersions(parsed, current, editVersions, primaryVersion);
+      parsed = mergeHiddenVersions(
+        parsed,
+        current,
+        editVersions,
+        primaryVersion,
+        readSet()?.versions,
+      );
     } else {
       parsed = manualText.trim() ? parseScriptureFromText(manualText, versesPer) : [];
     }
@@ -394,29 +407,61 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     }
   };
 
-  // Multi-language: changing a version after importing re-fetches the passages
-  // that currently exist in the new translation. Skips the initial mount, and
-  // swaps update the marker themselves since they reorder text in place.
-  const rebuildScripture = async (imports: string[], v1: string, v2: string) => {
-    if (imports.length === 0) {
-      setManualText("");
-      setManualText2("");
-      return;
+  /**
+   * The boxes fetched again in `v1`/`v2`, passage by passage in their current
+   * order. Every fetched passage (a group opened by a `[ref]` header) is
+   * re-fetched from its reference; a hand-typed group (`[~ref]`) is carried
+   * over as it is, its columns simply re-labelled with the new versions, since
+   * a version change is about what was fetched, not what someone wrote.
+   */
+  const buildBoxes = async (v1: string, v2: string) => {
+    const oldVersions = boxVersions;
+    const newVersions = v2 ? [v1, v2] : [v1];
+    const rows = toVerseRows(
+      Object.fromEntries(oldVersions.map((v, i) => [v, i === 0 ? manualText : manualText2])),
+      oldVersions,
+    );
+    const groups: VerseRow[][] = [];
+    for (const r of rows) {
+      if (r.starts || groups.length === 0) groups.push([r]);
+      else groups[groups.length - 1].push(r);
     }
+    let box1 = "";
+    let box2 = "";
+    let unmatched = 0;
+    const vPer = v2 ? Math.min(versesPer, 2) : versesPer;
+    for (const group of groups) {
+      const query = splitRefLabel(group[0].refs[oldVersions[0]] ?? "").ref;
+      if (group[0].manual || !query) {
+        // Column i of the old versions becomes column i of the new.
+        const carried = group.map((r) => ({
+          ...r,
+          refs: Object.fromEntries(newVersions.map((v, i) => [v, r.refs[oldVersions[i]] ?? ""])),
+          text: Object.fromEntries(newVersions.map((v, i) => [v, r.text[oldVersions[i]] ?? ""])),
+        }));
+        const boxes = fromVerseRows(carried, newVersions);
+        box1 = joinBlocks(box1, boxes[v1]);
+        if (v2) box2 = joinBlocks(box2, boxes[v2]);
+        continue;
+      }
+      const b = await fetchImportBlocks(query, v1, v2, vPer);
+      box1 = joinBlocks(box1, b.box1);
+      if (v2) box2 = joinBlocks(box2, b.box2);
+      unmatched += b.unmatched;
+    }
+    return { box1, box2, unmatched };
+  };
+
+  // Multi-language: changing a version after importing re-fetches the passages
+  // that currently exist in the new translation (hand-typed verses stay).
+  // Skips the initial mount, and swaps update the marker themselves since they
+  // reorder text in place.
+  const rebuildScripture = async (v1: string, v2: string) => {
     setBusy(true);
     setErr(null);
     setAlignNote(null);
     try {
-      let box1 = "";
-      let box2 = "";
-      let unmatched = 0;
-      const vPer = v2 ? Math.min(versesPer, 2) : versesPer;
-      for (const q of imports) {
-        const b = await fetchImportBlocks(q, v1, v2, vPer);
-        box1 = joinBlocks(box1, b.box1);
-        if (v2) box2 = joinBlocks(box2, b.box2);
-        unmatched += b.unmatched;
-      }
+      const { box1, box2, unmatched } = await buildBoxes(v1, v2);
       setManualText(box1);
       setManualText2(v2 ? box2 : "");
       noteUnmatched(unmatched, v1, v2);
@@ -433,6 +478,31 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
    *  place (keeping its position and the points/images around it). */
   const buildMessageSlides = async (cur: Slide[], v1: string, v2: string) => {
     const newVersions = v2 ? [v1, v2] : [v1];
+    // A hand-typed verse keeps its text; column i of the versions it was
+    // written in becomes column i of the new versions.
+    const oldVersions = storedVersions?.length ? storedVersions : boxVersions;
+    const carry = (sl: Slide): Slide => {
+      const textOf = (i: number) =>
+        sl.linesByVersion?.[oldVersions[i]] ?? (i === 0 ? (sl.lines?.[0] ?? "") : "");
+      const refOf = (i: number) =>
+        sl.referencesByVersion?.[oldVersions[i]] ?? (i === 0 ? sl.reference : undefined);
+      const linesByVersion: Record<string, string> = {};
+      const referencesByVersion: Record<string, string> = {};
+      newVersions.forEach((v, i) => {
+        const t = textOf(i);
+        if (t) linesByVersion[v] = t;
+        const r = refOf(i);
+        if (r) referencesByVersion[v] = r;
+      });
+      return {
+        ...sl,
+        lines: linesByVersion[v1] ? [linesByVersion[v1]] : [],
+        linesByVersion,
+        referencesByVersion,
+        reference: referencesByVersion[v1],
+        section: referencesByVersion[v1],
+      };
+    };
     const result: Slide[] = [];
     let unmatched = 0;
     let i = 0;
@@ -452,8 +522,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       const query = splitRefLabel(
         run[0].reference ?? Object.values(run[0].referencesByVersion ?? {})[0] ?? "",
       ).ref;
-      if (!query) {
-        result.push(...run);
+      if (run[0].manual || !query) {
+        result.push(...run.map(carry));
         continue;
       }
       const b = await fetchImportBlocks(query, v1, v2, v2 ? Math.min(versesPer, 2) : versesPer);
@@ -502,21 +572,21 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       return;
     }
     // Re-fetch the passages that CURRENTLY exist (the [ref] headers in the
-    // box), not the full import history, so a deleted passage stays deleted.
+    // box, not hand-typed [~ref] ones), not the full import history, so a
+    // deleted passage stays deleted.
     const currentRefs = [
       ...new Set(
-        manualText
-          .split("\n")
-          .map((l) => /^\s*\[(.+?)\]\s*$/.exec(l)?.[1]?.trim())
-          .filter((r): r is string => !!r)
-          .map((r) => splitRefLabel(r).ref),
+        toVerseRows({ [boxVersions[0]]: manualText }, [boxVersions[0]])
+          .filter((r) => r.starts && !r.manual)
+          .map((r) => splitRefLabel(r.refs[boxVersions[0]] ?? "").ref)
+          .filter((r) => !!r),
       ),
     ];
     updateSet(setId, {
       versions: v2 ? [translation, v2] : [translation],
       scriptureImports: currentRefs,
     });
-    void rebuildScripture(currentRefs, translation, v2);
+    void rebuildScripture(translation, v2);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickerKey, multi, scriptureKind]);
 
@@ -612,14 +682,15 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     // edited verses come back as the translation has them.
     const set = readSet();
     const refs = reimportQueries({ scriptureImports: storedImports, slides: set?.slides ?? [] });
-    if (!refs.length) return;
+    const hasManual = (set?.slides ?? []).some((sl) => sl.kind === "scripture" && sl.manual);
+    if (!refs.length && !hasManual) return;
     if (kind === "message") {
       await rebuildMessageVersions(v1, v2);
       // The record of imports follows what's in the set now.
       updateSet(setId, { scriptureImports: refs });
     } else {
       updateSet(setId, { versions: v2 ? [v1, v2] : [v1], scriptureImports: refs });
-      await rebuildScripture(refs, v1, v2);
+      await rebuildScripture(v1, v2);
     }
     // The name names the versions ("John 3:16 NIV / CUNPS"): update it too.
     const name = readSet()?.name ?? "";
@@ -637,7 +708,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     const set = readSet();
     if (!set) return null;
     const refs = reimportQueries({ scriptureImports: storedImports, slides: set.slides });
-    if (!refs.length) return null;
+    const hasManual = set.slides.some((sl) => sl.kind === "scripture" && sl.manual);
+    if (!refs.length && !hasManual) return null;
     const newVersions = v2 ? [v1, v2] : [v1];
     setBusy(true);
     setErr(null);
@@ -648,17 +720,12 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       if (kind === "message") {
         ({ slides, unmatched } = await buildMessageSlides(set.slides, v1, v2));
       } else {
-        slides = [];
-        const vPer = v2 ? Math.min(versesPer, 2) : versesPer;
-        for (const [i, q] of refs.entries()) {
-          const b = await fetchImportBlocks(q, v1, v2, vPer);
-          unmatched += b.unmatched;
-          const built = versionTextToSlides(
-            v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
-            newVersions,
-          ).map((x) => ({ ...x, importIndex: i }));
-          slides.push(...built);
-        }
+        const b = await buildBoxes(v1, v2);
+        unmatched = b.unmatched;
+        slides = versionTextToSlides(
+          v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
+          newVersions,
+        );
       }
       const {
         id: _id,
@@ -685,6 +752,36 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     } finally {
       setBusy(false);
     }
+  };
+
+  /**
+   * A blank hand-typed verse at the end of the set: its reference and text are
+   * typed in (a column per version the workspace edits) rather than fetched.
+   * A scripture set gets a `[~]` block in each box; a message gets a slide.
+   * In a multi-language workspace the set records the pickers' versions, the
+   * way an import does, so the second column projects.
+   */
+  const addManualVerse = () => {
+    if (!scriptureKind) return;
+    const versions =
+      multi && boxMode ? (translation2 ? [translation, translation2] : [translation]) : undefined;
+    if (kind === "message") {
+      const existing = readSet()?.slides ?? [];
+      const nextIdx = existing.reduce((m, s) => Math.max(m, s.importIndex ?? 0), -1) + 1;
+      const slide: Slide = {
+        id: Math.random().toString(36).slice(2, 10),
+        kind: "scripture",
+        manual: true,
+        lines: [],
+        linesByVersion: {},
+        importIndex: nextIdx,
+      };
+      updateSet(setId, { slides: [...existing, slide], ...(versions ? { versions } : {}) });
+      return;
+    }
+    setManualText((prev) => joinBlocks(prev, scriptureHeader("", true)));
+    if (boxVersions[1]) setManualText2((prev) => joinBlocks(prev, scriptureHeader("", true)));
+    if (versions) updateSet(setId, { versions });
   };
 
   const clearBoxes = () => {
@@ -721,6 +818,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     alignNote,
     importScripture,
     swapVersions,
+    addManualVerse,
     clearBoxes,
     versionsMismatch,
     frozen,
@@ -749,7 +847,9 @@ export function renameVersions(name: string, v1: string, v2: string): string {
  * subsequence over the two lists), and the unmatched verses left between two
  * matches, an edited verse say, pair up in order. A deleted verse takes its
  * hidden text with it and a new one gets none, so nothing shifts onto the
- * wrong verse. `lines` (the compat field) keeps the set's primary version.
+ * wrong verse. Only versions the set still records (`keep`, when given) are
+ * carried: a version the pickers dropped goes for good rather than lingering
+ * as dead text. `lines` (the compat field) keeps the set's primary version.
  * Exported for tests.
  */
 export function mergeHiddenVersions(
@@ -757,8 +857,10 @@ export function mergeHiddenVersions(
   current: Slide[],
   editVersions: string[],
   primaryVersion: string,
+  keep?: string[],
 ): Slide[] {
   const shown = new Set(editVersions);
+  const hidden = (v: string) => !shown.has(v) && (!keep || keep.includes(v));
   const visibleText = (s: Slide) =>
     editVersions
       .map((v) =>
@@ -771,12 +873,11 @@ export function mergeHiddenVersions(
     const hiddenLines: Record<string, string> = {};
     const hiddenRefs: Record<string, string> = {};
     if (prev?.linesByVersion) {
-      for (const [v, t] of Object.entries(prev.linesByVersion))
-        if (!shown.has(v)) hiddenLines[v] = t;
+      for (const [v, t] of Object.entries(prev.linesByVersion)) if (hidden(v)) hiddenLines[v] = t;
     }
     if (prev?.referencesByVersion) {
       for (const [v, r] of Object.entries(prev.referencesByVersion))
-        if (!shown.has(v)) hiddenRefs[v] = r;
+        if (hidden(v)) hiddenRefs[v] = r;
     }
     if (!Object.keys(hiddenLines).length && !Object.keys(hiddenRefs).length) return p;
     const linesByVersion = { ...hiddenLines, ...(p.linesByVersion ?? {}) };

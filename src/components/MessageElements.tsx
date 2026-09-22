@@ -20,12 +20,20 @@ const POINT_TYPES: { type: PointType; label: string }[] = [
 ];
 
 /**
- * The centred "add an image / add a point" controls. Adding either turns the
- * (scripture) set into a message, so a plain reading can grow a quote, a list,
- * or a picture without a separate kind. New elements land at the end; the block
- * editor lets them be dragged anywhere afterwards.
+ * The centred "add a point / add an image / manual verse" controls. A point or
+ * an image turns the (scripture) set into a message, so a plain reading can
+ * grow a quote, a list, or a picture without a separate kind; a manual verse
+ * is scripture typed in by hand and leaves the kind alone. New elements land
+ * at the end; the block editor lets them be dragged anywhere afterwards.
  */
-export function AddElementBar({ setId }: { setId: string }) {
+export function AddElementBar({
+  setId,
+  onManualVerse,
+}: {
+  setId: string;
+  /** Adds a blank hand-typed verse (see useScriptureVersions.addManualVerse). */
+  onManualVerse?: () => void;
+}) {
   const addSlide = useLibrary((s) => s.addSlide);
   const updateSet = useLibrary((s) => s.updateSet);
   const [busy, setBusy] = useState(false);
@@ -108,6 +116,15 @@ export function AddElementBar({ setId }: { setId: string }) {
             onChange={(e) => addImage(e.target.files?.[0])}
           />
         </label>
+        {onManualVerse && (
+          <button
+            type="button"
+            onClick={onManualVerse}
+            className="mono rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background"
+          >
+            Manual verse
+          </button>
+        )}
       </div>
     </div>
   );
@@ -118,7 +135,15 @@ export function AddElementBar({ setId }: { setId: string }) {
  * soon as an image or point is added the set becomes a message and the block
  * editor takes over, so this only ever shows the controls (never element cards).
  */
-export function MessageElements({ setId, hasVerses }: { setId: string; hasVerses: boolean }) {
+export function MessageElements({
+  setId,
+  hasVerses,
+  onManualVerse,
+}: {
+  setId: string;
+  hasVerses: boolean;
+  onManualVerse?: () => void;
+}) {
   return (
     // The top border only separates the add-bar from verses ABOVE it. When the
     // set is empty there are no verses, so it would sit directly against the
@@ -130,7 +155,7 @@ export function MessageElements({ setId, hasVerses }: { setId: string; hasVerses
           Import a passage above, or add an image or a point to build a message.
         </p>
       )}
-      <AddElementBar setId={setId} />
+      <AddElementBar setId={setId} onManualVerse={onManualVerse} />
     </div>
   );
 }
@@ -143,13 +168,16 @@ export const DEL = "2rem";
 /** The grip + content + delete frame every message block uses. */
 export function BlockFrame({
   label,
+  name,
   grip,
   onRemove,
   tint,
   actions,
   children,
 }: {
-  label: string;
+  label: React.ReactNode;
+  /** What the delete button says it deletes; the label when that is a string. */
+  name?: string;
   grip?: React.ReactNode;
   onRemove: () => void;
   /** A brand-colour token; when set the block gets the same faint tint the
@@ -170,9 +198,13 @@ export function BlockFrame({
         {grip}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="mono px-3 pt-2 text-[10px] uppercase tracking-wider opacity-50">
-          {label}
-        </div>
+        {typeof label === "string" ? (
+          <div className="mono px-3 pt-2 text-[10px] uppercase tracking-wider opacity-50">
+            {label}
+          </div>
+        ) : (
+          label
+        )}
         {children}
       </div>
       {/* The actions sit right beside the delete button, in the same column,
@@ -181,7 +213,7 @@ export function BlockFrame({
         {actions}
         <button
           type="button"
-          aria-label={`Delete ${label.toLowerCase()}`}
+          aria-label={`Delete ${(name ?? (typeof label === "string" ? label : "block")).toLowerCase()}`}
           onClick={onRemove}
           className="mr-1 flex h-6 w-6 items-center justify-center rounded-full text-foreground/60 transition hover:bg-foreground/15 hover:text-foreground"
         >

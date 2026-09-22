@@ -27,6 +27,10 @@ export interface Slide {
    *  "contain" (default) shows the whole image; "cover" fills the frame. Both
    *  preserve aspect ratio — the image is never stretched. Toggled per image. */
   imageFit?: "contain" | "cover";
+  /** Scripture typed in by hand rather than fetched from a bible API: its
+   *  reference is whatever the user wrote (per version, possibly nothing), and
+   *  a change of the set's versions leaves its text where it is. */
+  manual?: boolean;
   /** Media-only: when a string is present, a section divider labelled with it
    *  sits immediately AFTER this slide, starting a new section for the slides
    *  that follow. Sections are coloured in the editor and the presenter and

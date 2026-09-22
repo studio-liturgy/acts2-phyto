@@ -80,6 +80,17 @@ export function ScriptureVerseEditor({
     record(`type:${cellKey(ri, v)}`);
     commit(rows.map((r, i) => (i === ri ? { ...r, text: { ...r.text, [v]: value } } : r)));
   };
+  // A hand-typed group's reference, per version: one line, and never the
+  // brackets that would turn it into a header of its own.
+  const editRef = (first: number, count: number, v: string, value: string) => {
+    const ref = value.replace(/[[\]\n\r]/g, "").replace(/^~+/, "");
+    record(`ref:${first}:${v}`);
+    commit(
+      rows.map((r, i) =>
+        i >= first && i < first + count ? { ...r, refs: { ...r.refs, [v]: ref } } : r,
+      ),
+    );
+  };
   // Backspace at the very start of a verse joins it onto the verse above, in
   // EVERY version at once (the verses are aligned, so they merge together).
   // Only within one import: the first verse of a passage has nothing above it
@@ -284,9 +295,31 @@ export function ScriptureVerseEditor({
               </span>
 
               <div className="min-w-0 flex-1">
-                {/* One reference for the whole import, not per verse. */}
-                <div className="mono px-3 pt-2 text-[10px] uppercase tracking-wider opacity-50">
-                  {group[0].refs[v1] ?? ""}
+                {/* One reference for the whole import, not per verse, in each
+                    version's own language above its column. A hand-typed group's
+                    references are typed in here too. */}
+                <div className="grid" style={{ gridTemplateColumns: cols }}>
+                  {versions.map((v) =>
+                    group[0].manual ? (
+                      <input
+                        key={v}
+                        type="text"
+                        value={group[0].refs[v] ?? ""}
+                        placeholder="Reference"
+                        disabled={readOnly}
+                        aria-label={`Reference (${v})`}
+                        onChange={(e) => editRef(groupStart[gi], group.length, v, e.target.value)}
+                        className="mono w-full min-w-0 bg-transparent px-3 pt-2 text-[10px] uppercase tracking-wider opacity-70 outline-none placeholder:opacity-40 focus:opacity-100 disabled:opacity-30"
+                      />
+                    ) : (
+                      <div
+                        key={v}
+                        className="mono truncate px-3 pt-2 text-[10px] uppercase tracking-wider opacity-50"
+                      >
+                        {group[0].refs[v] ?? ""}
+                      </div>
+                    ),
+                  )}
                 </div>
                 {group.map((row) => {
                   ri += 1;

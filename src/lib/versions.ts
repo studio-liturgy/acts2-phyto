@@ -147,13 +147,14 @@ export function inferredVersions(set: {
  *  the user has since deleted. */
 export function reimportQueries(set: {
   scriptureImports?: string[];
-  slides: Array<{ reference?: string; kind?: string; importIndex?: number }>;
+  slides: Array<{ reference?: string; kind?: string; importIndex?: number; manual?: boolean }>;
 }): string[] {
   const out: string[] = [];
   let lastImport: number | undefined;
   let lastRef: string | undefined;
   for (const s of set.slides) {
-    if (s.kind !== "scripture" || !s.reference) continue;
+    // Hand-typed verses were never fetched, so there is nothing to fetch again.
+    if (s.kind !== "scripture" || !s.reference || s.manual) continue;
     const { ref } = splitRefLabel(s.reference);
     if (!ref) continue;
     // A new passage: a new import, or (without import numbers) a new reference.

@@ -2449,6 +2449,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             versions={scripture.boxMode ? scripture.editVersions : SINGLE_VERSION}
             primaryVersion={scripture.boxMode ? scripture.primaryVersion : undefined}
             readOnly={scripture.frozen}
+            onManualVerse={scripture.frozen ? undefined : scripture.addManualVerse}
           />
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">
@@ -2476,6 +2477,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               <MessageElements
                 setId={setId}
                 hasVerses={!!(manualText.trim() || manualText2.trim())}
+                onManualVerse={scripture.addManualVerse}
               />
             )}
           </div>

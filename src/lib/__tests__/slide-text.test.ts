@@ -96,3 +96,42 @@ describe("reconcileSlideIds", () => {
     expect(slides).toHaveLength(stored.length + 1);
   });
 });
+
+describe("manual verses ([~ref] headers)", () => {
+  it("round-trips through the version boxes with their flag, reference and import boundary", async () => {
+    const { versionTextToSlides, slidesToVersionText, toVerseRows, fromVerseRows } =
+      await import("@/lib/slide-text");
+    const boxes = {
+      NIV: "[John 3:16]\nFor God\n---\n[~My verse]\nhand typed\n---\nsecond line",
+      JCB: "[ヨハネ 3:16]\n神は\n---\n[~]\n手入力\n---\n二行目",
+    };
+    const slides = versionTextToSlides(boxes, ["NIV", "JCB"]);
+    expect(slides.map((s) => [s.manual, s.importIndex, s.reference])).toEqual([
+      [undefined, 0, "John 3:16"],
+      [true, 1, "My verse"],
+      [true, 1, "My verse"],
+    ]);
+    expect(slides[1].referencesByVersion).toEqual({ NIV: "My verse" });
+    expect(slidesToVersionText(slides, ["NIV", "JCB"])).toEqual(boxes);
+
+    const rows = toVerseRows(boxes, ["NIV", "JCB"]);
+    expect(rows.map((r) => [r.starts, r.manual, r.refs.NIV, r.refs.JCB])).toEqual([
+      [true, undefined, "John 3:16", "ヨハネ 3:16"],
+      [true, true, "My verse", ""],
+      [false, true, "My verse", ""],
+    ]);
+    expect(fromVerseRows(rows, ["NIV", "JCB"])).toEqual(boxes);
+  });
+
+  it("legacy text keeps manual verses apart from the passage before them", async () => {
+    const { parseScriptureFromText, slidesToScriptureText } = await import("@/lib/slide-text");
+    const text = "[John 3:16 NIV]\nFor God\n---\n[~]\nhand typed\n---\n[~]\nanother";
+    const slides = parseScriptureFromText(text, 1);
+    expect(slides.map((s) => [s.manual, s.importIndex, s.reference])).toEqual([
+      [undefined, 0, "John 3:16 NIV"],
+      [true, 1, undefined],
+      [true, 2, undefined],
+    ]);
+    expect(slidesToScriptureText(slides)).toBe(text);
+  });
+});
