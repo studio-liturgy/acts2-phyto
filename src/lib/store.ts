@@ -124,10 +124,18 @@ let pushTimer: ReturnType<typeof setTimeout> | null = null;
 const dirtySetIds = new Set<string>();
 const dirtyGatheringIds = new Set<string>();
 /** A media set's first-section name lives on whichever slide is first: after a
- *  reorder or a removal, move it there (from wherever it travelled). */
-function keepFirstSection(slides: Slide[]): Slide[] {
+ *  reorder or a removal, move it there (from wherever it travelled). When the
+ *  slide that carried it is the one removed, `orphaned` is that name, handed
+ *  to the new first slide so removing the first image doesn't unname the
+ *  section. */
+function keepFirstSection(slides: Slide[], orphaned?: string): Slide[] {
   const carrier = slides.findIndex((sl) => sl.sectionBefore !== undefined);
-  if (carrier <= 0) return slides;
+  if (carrier < 0) {
+    return orphaned !== undefined && slides[0]
+      ? slides.map((sl, i) => (i === 0 ? { ...sl, sectionBefore: orphaned } : sl))
+      : slides;
+  }
+  if (carrier === 0) return slides;
   const name = slides[carrier].sectionBefore;
   return slides.map((sl, i) => {
     if (i === carrier) {
@@ -831,7 +839,10 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const removed = d.slides.find((sl) => sl.id === slideId);
       const updated = {
         ...d,
-        slides: keepFirstSection(d.slides.filter((sl) => sl.id !== slideId)),
+        slides: keepFirstSection(
+          d.slides.filter((sl) => sl.id !== slideId),
+          removed?.sectionBefore,
+        ),
         updatedAt: Date.now(),
       };
       db.sets.put(updated).then(() => schedulePush({ set: setId }));
