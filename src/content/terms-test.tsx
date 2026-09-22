@@ -21,7 +21,7 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: July 21, 2026
+          Effective Date: September 22, 2026
         </p>
 
         {/* OFFLINE TAB */}
@@ -73,7 +73,13 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
                   phyto.live/donate
                 </a>
                 . Donations are entirely optional and greatly appreciated. Donating does not grant
-                any additional features, rights, or privileges.
+                any additional features, rights, or privileges. Every donation and expense is listed
+                on{" "}
+                <Link to="/transparency" className="underline hover:opacity-60">
+                  phytoexp.live/transparency
+                </Link>{" "}
+                by amount and date, and donors receive a thank-you email at the address given to
+                Stripe.
               </p>
             </section>
 
@@ -301,7 +307,7 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">3. Live Sharing</h2>
+              <h2 className="text-2xl">3. Live Sharing & Groups</h2>
               <p className="mt-2">
                 When you start a live session, a unique public URL and QR code are generated for
                 your gathering. Anyone with that link can view your gathering content. You are
@@ -313,6 +319,13 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
                 If you use the live sharing feature to publicly display copyrighted content such as
                 song lyrics, you remain solely responsible for holding the appropriate licences as
                 described in the offline Terms section 6.
+              </p>
+              <p className="mt-2">
+                You are responsible for the content you create and for anything you share with other
+                people or groups. Do not share content you do not have the right to share. Shared
+                and group content can be edited by everyone it is shared with. phytoexp does not
+                moderate collaborative content and is not responsible for it. Leaving a group, or
+                being removed, takes your contributions back out of that group.
               </p>
             </section>
 
@@ -342,14 +355,14 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
             <section>
               <h2 className="text-2xl">5. Account Termination</h2>
               <p className="mt-2">
-                You may request deletion of your account and all associated cloud data at any time
-                by contacting us via the feedback form at{" "}
+                You may delete your account at any time from Settings, which removes your account
+                and all associated cloud data, including uploaded media, immediately and cannot be
+                undone. You can also ask us to do it via the feedback form at{" "}
                 <Link to="/feedback" className="underline hover:opacity-60">
                   phytoexp.live/feedback
-                </Link>
-                . We will process deletion requests within 30 days. Deleting your account removes
-                your data from Supabase and any video media you uploaded to Cloudflare R2, but does
-                not affect data stored locally on your devices.
+                </Link>{" "}
+                and we will process the request within 30 days. Deleting your account does not
+                affect data stored locally on your devices.
               </p>
               <p className="mt-2">
                 We reserve the right to suspend or terminate accounts that violate these Terms.

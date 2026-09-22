@@ -21,7 +21,7 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: July 21, 2026
+          Effective Date: September 22, 2026
         </p>
 
         {/* OFFLINE TAB */}
@@ -219,6 +219,13 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
                 </a>
                 . Any payment information you provide is handled entirely by Stripe and subject to
                 Stripe's own privacy policy. phyto does not receive or store your payment details.
+                When a donation completes, Stripe notifies phyto with the donor's name, email
+                address and amount so we can send a thank-you email. Donations and expenses are
+                published on{" "}
+                <Link to="/transparency" className="underline hover:opacity-60">
+                  phyto.live/transparency
+                </Link>{" "}
+                as amounts and dates only, never with a name or email.
               </p>
             </section>
 
@@ -300,6 +307,19 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
                   device, used only to resolve sync conflicts between devices. It is never linked to
                   your identity.
                 </li>
+                <li>
+                  <strong>People you share with:</strong> when you share a set with someone, or
+                  invite someone to a group, we store the email address you enter so we can grant
+                  them access and send the invite. Content shared with you (by a person or a group)
+                  is stored in your account so you can open and edit it.
+                </li>
+                <li>
+                  <strong>Workspace settings:</strong> your language preferences (whether
+                  multi-language is on, and which languages) are stored with your account, and a
+                  group's with the group. They are readable by anyone who has your gathering link,
+                  because phones following a gathering use them to show the right scripture
+                  versions.
+                </li>
               </ul>
               <p className="mt-2">
                 We do not collect your name, payment information, location, or any other personal
@@ -324,7 +344,10 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
                 </li>
               </ul>
               <p className="mt-2">
-                Your catalogue data is isolated by account. No other user can access your catalogue.
+                Your catalogue is private to your account by default. The exception is content you
+                deliberately share: a set you share with a person, or a set or gathering inside a
+                group, can be read and edited by the people you shared it with or the members of
+                that group. Nothing else in your catalogue is visible to other users.
               </p>
             </section>
 
@@ -339,13 +362,23 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">4. Live Sharing</h2>
+              <h2 className="text-2xl">4. Live Sharing & Collaboration</h2>
               <p className="mt-2">
                 When you start a live session, your gathering content becomes publicly accessible to
                 anyone with the share link or QR code. You are solely responsible for what content
                 you share publicly. phyto does not moderate, review, or take responsibility for
                 publicly shared gathering content. The live session ends when you choose to end it,
                 at which point the link stops working.
+              </p>
+              <p className="mt-2">
+                phyto also lets you share your work with specific people. Sharing a set by email
+                gives that person two-way access: you both edit the same set, and either the owner
+                or an admin can revoke it. Groups are shared workspaces. Every member can view and
+                edit the sets shared into the group and the group's gatherings, and can see the
+                email addresses of other members. When you leave a group, or an admin removes you,
+                the sets you contributed are taken out of the group and its gatherings and stay only
+                in your personal catalogue. You are responsible for the content and the email
+                addresses you choose to share. A person can belong to at most 3 groups.
               </p>
             </section>
 
@@ -378,6 +411,13 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
                 Resend, our email delivery provider. If you check the optional "keep me in the loop"
                 box at sign-in, your email address is also added to our mailing list (managed in
                 Resend) so we can send occasional updates and news about phyto.
+              </p>
+              <p className="mt-2">
+                We also send transactional emails through Resend when you share a set with someone
+                or invite them to a group (to the address you enter, saying what was shared and by
+                whom), and a thank-you email when you donate (to the email address you gave Stripe
+                at checkout, using the name and amount from that checkout). These are not marketing
+                and are not added to any mailing list.
               </p>
               <p className="mt-2">
                 Marketing emails are strictly opt-in. Every such email includes an unsubscribe link,
@@ -466,14 +506,15 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
             <section>
               <h2 className="text-2xl">8. Data Retention & Deletion</h2>
               <p className="mt-2">
-                Your data is retained for as long as your account exists. To request deletion of
-                your account and all associated data from Supabase, contact us via the feedback form
-                at{" "}
+                Your data is retained for as long as your account exists. You can delete your
+                account yourself from Settings. Deleting your account immediately removes your
+                account, your sets and gatherings, your uploaded media in Cloudflare R2, your shares
+                and group memberships, and any groups you own (their members keep the sets they
+                contributed). If you would rather we do it, contact us via the feedback form at{" "}
                 <Link to="/feedback" className="underline hover:opacity-60">
                   phytoexp.live/feedback
-                </Link>
-                . We will process deletion requests within 30 days. Account deletion also removes
-                any video media you uploaded to Cloudflare R2. If you opted in to the mailing list,
+                </Link>{" "}
+                and we will process the request within 30 days. If you opted in to the mailing list,
                 you can unsubscribe at any time using the link in any email. Local data on your
                 device must be cleared separately by clearing your browser's IndexedDB storage.
               </p>
@@ -485,7 +526,8 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
                 phytoexp does not use analytics, advertising trackers, or any behavioural
                 monitoring. The only cookies used are strictly functional: a session cookie set by
                 Supabase to maintain your signed-in state, and the sidebar_state preference cookie
-                described in the offline policy.
+                described in the offline policy. The Transparency page publishes aggregate counts
+                (accounts, sets, gatherings) with nothing identifying.
               </p>
             </section>
 
