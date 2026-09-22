@@ -106,9 +106,9 @@ export function parseScriptureFromText(text: string, versesPer: number): Slide[]
       slides.push({
         id: uid(),
         kind: "scripture" as const,
-        reference: group[0].ref || undefined,
+        reference: group[0].ref.trim() || undefined,
         lines,
-        section: group[0].ref || undefined,
+        section: group[0].ref.trim() || undefined,
         importIndex: group[0].importIndex,
         ...(group[0].manual ? { manual: true } : {}),
       });
@@ -210,8 +210,10 @@ export function parseScriptureHeader(line: string): { ref: string; manual: boole
   const m = /^\s*\[(.+)\]\s*$/.exec(line);
   if (!m) return null;
   const inner = m[1].trim();
+  // A manual reference keeps its trailing space: the editor re-parses the box
+  // on every keystroke, and trimming here would eat the space just typed.
   return inner.startsWith("~")
-    ? { ref: inner.slice(1).trim(), manual: true }
+    ? { ref: m[1].replace(/^\s*~/, "").trimStart(), manual: true }
     : { ref: inner, manual: false };
 }
 
@@ -329,7 +331,7 @@ export function versionTextToSlides(
       const seg = segsByVersion[v][i];
       if (seg?.ref !== undefined) lastRef[v] = seg.ref;
       const ref = seg?.ref ?? lastRef[v] ?? "";
-      if (ref) referencesByVersion[v] = ref;
+      if (ref.trim()) referencesByVersion[v] = ref.trim();
       const t = (seg?.text ?? "").trim();
       if (t) byVersion[v] = t;
     }

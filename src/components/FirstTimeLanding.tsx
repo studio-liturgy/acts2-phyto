@@ -623,13 +623,9 @@ export function FirstTimeLanding({
             Designed to be simple, so that we can focus on who matters most: Jesus.
           </p>
           <p className="hidden md:block">
-            I made this app to be an intentionally stripped back alternative to keep presenting
-            simple and organized.
+            Designed to be easy to use and to protect the simplicity of worshipping with friends and
+            family at home.
             <br />
-            It's designed to be easy to use and to protect the simplicity of worshipping with
-            friends and family at home.
-          </p>
-          <p className="hidden md:block">
             All so that we can focus on the one who matters most: Jesus.
           </p>
         </div>

@@ -297,8 +297,10 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
             .map((r) => r.byVersion[v2] ?? "")
             .filter(Boolean)
             .join(" ");
-          b1.push(i === 0 ? `[${first.reference}]\n${t1}` : t1);
-          b2.push(i === 0 ? `[${second.reference}]\n${t2}` : t2);
+          // The version code rides with the reference ("John 3:16 NIV"), on the
+          // editor's reference line and on the slide.
+          b1.push(i === 0 ? `[${first.reference} ${v1}]\n${t1}` : t1);
+          b2.push(i === 0 ? `[${second.reference} ${v2}]\n${t2}` : t2);
         }
         return {
           box1: b1.join("\n---\n"),
@@ -316,7 +318,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
           .slice(i, i + vPer)
           .map((x) => x.text.trim())
           .join(" ");
-        b1.push(i === 0 ? `[${reference}]\n${group}` : group);
+        b1.push(i === 0 ? `[${reference} ${v1}]\n${group}` : group);
       }
       return { box1: b1.join("\n---\n"), box2: "", unmatched: 0, ref1: reference };
     },

@@ -10,7 +10,7 @@ import { type VerseRow, fromVerseRows, toVerseRows } from "@/lib/slide-text";
 // Import colours, matching the tints the live slide grid uses.
 const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
 const GRAB = "1.75rem"; // left handle column
-const DEL = "3.5rem"; // right column: split + delete buttons (same width in the header)
+const DEL = "3.5rem"; // right column: split + delete buttons
 
 /**
  * The imported-scripture editor: one row per verse (a box per version, though
@@ -243,24 +243,6 @@ export function ScriptureVerseEditor({
       }}
       className="min-h-0 flex-1 overflow-auto"
     >
-      {/* Version titles, aligned to each column with a centred divider. Hidden
-          while the only "version" is the unnamed placeholder — there are no real
-          Bible versions to label yet, so the lone "Verses" header is just noise.
-          It reappears automatically once named versions exist. */}
-      {!(versions.length === 1 && versions[0] === "_") && (
-        <div className="mono sticky top-0 z-10 flex border-b bg-background">
-          <span style={{ width: GRAB }} />
-          <div className="grid flex-1 divide-x" style={{ gridTemplateColumns: cols }}>
-            {versions.map((v) => (
-              <div key={v} className="px-3 py-1 text-[10px] uppercase tracking-wider opacity-60">
-                {v}
-              </div>
-            ))}
-          </div>
-          <span style={{ width: DEL }} />
-        </div>
-      )}
-
       {groups.length === 0 ? (
         <p className="mono px-5 py-6 text-center text-xs uppercase tracking-wider opacity-50">
           Import a passage above to begin.
@@ -305,7 +287,7 @@ export function ScriptureVerseEditor({
                         key={v}
                         type="text"
                         value={group[0].refs[v] ?? ""}
-                        placeholder="Reference"
+                        placeholder={v === "_" ? "Reference" : `Reference (${v})`}
                         disabled={readOnly}
                         aria-label={`Reference (${v})`}
                         onChange={(e) => editRef(groupStart[gi], group.length, v, e.target.value)}

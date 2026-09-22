@@ -126,6 +126,12 @@ export function AddElementBar({
           </button>
         )}
       </div>
+      {/* What the verse and point cells respond to, in the presenter's hint style. */}
+      <div className="mono uppercase space-y-1 pt-1 text-center text-[10px] tracking-wider text-muted-foreground">
+        <div>Cmd/Ctrl B, I, U — bold, italic, underline</div>
+        <div>Cmd/Ctrl Z — undo</div>
+        <div>Cmd/Ctrl Enter — split a verse into a new slide</div>
+      </div>
     </div>
   );
 }

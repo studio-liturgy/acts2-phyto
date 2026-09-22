@@ -135,3 +135,16 @@ describe("manual verses ([~ref] headers)", () => {
     expect(slidesToScriptureText(slides)).toBe(text);
   });
 });
+
+describe("parseScriptureHeader", () => {
+  it("keeps a manual reference's trailing space (typed live) and trims fetched ones", async () => {
+    const { parseScriptureHeader } = await import("@/lib/slide-text");
+    expect(parseScriptureHeader("[~Our creed ]")).toEqual({ ref: "Our creed ", manual: true });
+    expect(parseScriptureHeader("[~]")).toEqual({ ref: "", manual: true });
+    expect(parseScriptureHeader("[ John 3:16 NIV ]")).toEqual({
+      ref: "John 3:16 NIV",
+      manual: false,
+    });
+    expect(parseScriptureHeader("For God so loved")).toBeNull();
+  });
+});

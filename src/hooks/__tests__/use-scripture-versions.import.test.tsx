@@ -12,7 +12,7 @@ vi.mock("@/lib/bible", async (orig) => {
   return {
     ...real,
     fetchScriptureBolls: async (_q: string, code: string) => ({
-      reference: `Ruth 1:16-17 ${code}`,
+      reference: "Ruth 1:16-17",
       verses: [
         { book: 8, chapter: 1, verse: 16, text: `${code} sixteen` },
         { book: 8, chapter: 1, verse: 17, text: `${code} seventeen` },
