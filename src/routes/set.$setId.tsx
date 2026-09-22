@@ -953,9 +953,11 @@ function SetEditor() {
         {/* Right (1/2): the preview of the selected slide, or a placeholder while
             the set is still empty (matching the other editors). */}
         <div className="w-1/2 overflow-y-auto p-6">
-          <div className="mb-4">
-            <MediaTemplateEditor setId={phytoSet.id} />
-          </div>
+          {phytoSet.slides.length > 0 && (
+            <div className="mb-4">
+              <MediaTemplateEditor setId={phytoSet.id} />
+            </div>
+          )}
           {selected ? (
             <>
               <div className="overflow-hidden rounded-lg bg-[var(--brand-black)]">
