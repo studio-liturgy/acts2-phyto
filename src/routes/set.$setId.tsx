@@ -1329,7 +1329,11 @@ function SlideGrid({
           gi === 0 ? (displaySlides[0]?.sectionBefore ?? "") : (opener?.sectionAfter ?? "");
         return (
           <div
-            key={gi === 0 ? "first" : opener!.id}
+            // Keyed by position, not by the slide that opens the section: during
+            // a drag the divider can hop between slides on every move, and an
+            // id key would remount the whole section (and every tile in it)
+            // each time it hopped, which read as flicker in the section below.
+            key={gi}
             className="rounded-xl p-3"
             style={{
               backgroundColor: `color-mix(in oklab, ${SECTION_TINTS[gi % 3]} 45%, transparent)`,
