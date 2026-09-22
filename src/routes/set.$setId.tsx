@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
+import { pinSections } from "@/lib/sections";
 import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
 import { parseYouTubeId } from "@/lib/parsers";
 import { applyDividers } from "@/lib/apply-dividers";
@@ -1200,12 +1201,20 @@ function SlideGrid({
           e.stopPropagation();
           const current = liveOrder ?? slides;
           const fromIdx = current.findIndex((x) => x.id === draggingId);
-          if (fromIdx === i || fromIdx === -1) return;
+          if (fromIdx === -1) return;
+          // The left half of a tile means "before it", the right half "after
+          // it", so a slide can land after the last tile of a section too.
+          const rect = e.currentTarget.getBoundingClientRect();
+          let target = e.clientX > rect.left + rect.width / 2 ? i + 1 : i;
+          if (fromIdx < target) target -= 1;
+          if (target === fromIdx) return;
           const next = [...current];
           const [moved] = next.splice(fromIdx, 1);
-          next.splice(i, 0, moved);
-          liveOrderRef.current = next;
-          setLiveOrder(next);
+          next.splice(target, 0, moved);
+          // Sections stay where they are; only the slides move between them.
+          const pinned = pinSections(slides, next);
+          liveOrderRef.current = pinned;
+          setLiveOrder(pinned);
         }}
         onDragEnd={commitOrder}
         onClick={(e) => onSelect(s.id, e)}

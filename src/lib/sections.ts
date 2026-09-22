@@ -116,3 +116,27 @@ export function hiddenSlideIndices(slides: SectionSlide[], hiddenKeys: string[])
   }
   return idx;
 }
+
+/**
+ * Media sections are areas, not luggage: after slides are reordered, every
+ * divider stays at the POSITION it had (after the same slot), and the first
+ * section's name stays on whichever slide is first. Without this a divider
+ * travelled with the slide that carried it, so dragging a section's last slide
+ * down swept everything up to its new place into that section, and nothing
+ * could ever be dropped after a section's last slide.
+ */
+export function pinSections<T extends SectionSlide>(before: T[], after: T[]): T[] {
+  const dividers = new Map<number, string>();
+  before.forEach((s, i) => {
+    if (s.sectionAfter !== undefined) dividers.set(i, s.sectionAfter);
+  });
+  const firstName = before[0]?.sectionBefore;
+  return after.map((s, i) => {
+    const { sectionAfter: _a, sectionBefore: _b, ...rest } = s;
+    const out = rest as T;
+    const name = dividers.get(i);
+    if (name !== undefined && i < after.length - 1) out.sectionAfter = name;
+    if (i === 0 && firstName !== undefined) out.sectionBefore = firstName;
+    return out;
+  });
+}

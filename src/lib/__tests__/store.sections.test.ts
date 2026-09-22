@@ -66,4 +66,28 @@ describe("media sections survive removing and reordering slides", () => {
       ["c", undefined],
     ]);
   });
+
+  it("a divider stays at its position when the slide carrying it is dragged away", () => {
+    const set = mediaSet([
+      slide("a", { sectionBefore: "Welcome" }),
+      slide("b"),
+      slide("c", { sectionAfter: "Notices" }),
+      slide("d"),
+      slide("e"),
+    ]);
+    useLibrary.setState({ sets: { [set.id]: set }, order: [set.id] });
+
+    // c (the last slide of the first section) goes to the very end.
+    useLibrary.getState().reorderSlides(set.id, ["a", "b", "d", "e", "c"]);
+
+    const slides = useLibrary.getState().sets[set.id].slides;
+    expect(slides.map((s) => [s.id, s.sectionAfter])).toEqual([
+      ["a", undefined],
+      ["b", undefined],
+      ["d", "Notices"],
+      ["e", undefined],
+      ["c", undefined],
+    ]);
+    expect(slides[0].sectionBefore).toBe("Welcome");
+  });
 });

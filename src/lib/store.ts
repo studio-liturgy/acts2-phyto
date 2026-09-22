@@ -30,6 +30,7 @@ import {
   type WorkspaceSettings,
 } from "./workspace-settings";
 import { isInlineImage } from "./image-upload";
+import { pinSections } from "./sections";
 import { hasInlineImages, migrateSetImagesToR2 } from "./migrate-images";
 
 function uid() {
@@ -855,7 +856,8 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const d = s.sets[setId];
       if (!d) return s;
       const map = new Map(d.slides.map((sl) => [sl.id, sl]));
-      const slides = keepFirstSection(ids.map((i) => map.get(i)!).filter(Boolean));
+      // Dividers keep their positions; the first section's name stays first.
+      const slides = pinSections(d.slides, ids.map((i) => map.get(i)!).filter(Boolean));
       const updated = { ...d, slides, updatedAt: Date.now() };
       db.sets.put(updated).then(() => schedulePush({ set: setId }));
       return { sets: { ...s.sets, [setId]: updated } };
