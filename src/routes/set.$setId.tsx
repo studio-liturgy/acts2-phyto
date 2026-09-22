@@ -888,15 +888,19 @@ function SetEditor() {
                   <button
                     type="button"
                     onClick={() => {
-                      // Drop a divider after the selected slide (or the last one).
-                      const targetId =
-                        selected?.id ?? phytoSet.slides[phytoSet.slides.length - 1]?.id;
-                      if (!targetId) return;
+                      // The selected slide (or the last one) opens the new section:
+                      // the divider goes on the slide before it. The first slide
+                      // already opens the first section, so nothing to add there.
+                      const slides = phytoSet.slides;
+                      const at = selected
+                        ? slides.findIndex((sl) => sl.id === selected.id)
+                        : slides.length - 1;
+                      if (at <= 0) return;
+                      const before = slides[at - 1];
+                      if (before.sectionAfter !== undefined) return;
                       updateSet(phytoSet.id, {
-                        slides: phytoSet.slides.map((sl) =>
-                          sl.id === targetId && sl.sectionAfter === undefined
-                            ? { ...sl, sectionAfter: "" }
-                            : sl,
+                        slides: slides.map((sl) =>
+                          sl.id === before.id ? { ...sl, sectionAfter: "" } : sl,
                         ),
                       });
                     }}
