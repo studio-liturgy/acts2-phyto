@@ -321,10 +321,10 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
               <p className="mt-2">
                 Signed-in users can upload short video clips for use as slide media. Uploaded videos
                 are stored on our servers (Cloudflare R2), subject to a limit of 5 MB per image or
-                PDF, 100 MB per video, and 50 MB total per account (accounts created before 22
-                September 2026 keep their earlier 300 MB allowance). Each uploaded file is served
-                from a public, unguessable URL and is not access-controlled, so you should treat
-                anything you upload as potentially viewable by anyone who obtains the link.
+                PDF, 100 MB per video, and 50 MB total per account (accounts created before 6
+                October 2026 keep their earlier 300 MB allowance). Each uploaded file is served from
+                a public, unguessable URL and is not access-controlled, so you should treat anything
+                you upload as potentially viewable by anyone who obtains the link.
               </p>
               <p className="mt-2">
                 You are solely responsible for the content you upload and for holding any licences

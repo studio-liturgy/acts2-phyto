@@ -17,7 +17,7 @@ export const MEDIA_USER_QUOTA_BYTES_LEGACY = 300 * 1024 * 1024; // 300 MB
 
 /** Accounts created before this instant keep MEDIA_USER_QUOTA_BYTES_LEGACY.
  *  Set to the moment the lower quota reached production. */
-export const QUOTA_CUTOFF = "2026-09-22T00:00:00Z";
+export const QUOTA_CUTOFF = "2026-10-06T00:00:00Z";
 
 /** The media quota for an account, given its auth `created_at`. */
 export function quotaForAccount(createdAt: string | null | undefined): number {
