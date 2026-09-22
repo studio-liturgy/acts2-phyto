@@ -30,7 +30,7 @@ import {
   type WorkspaceSettings,
 } from "./workspace-settings";
 import { isInlineImage } from "./image-upload";
-import { moveSlideKeepingSections } from "./sections";
+import { moveSlideKeepingSections, movedSlideId } from "./sections";
 import { hasInlineImages, migrateSetImagesToR2 } from "./migrate-images";
 
 function uid() {
@@ -292,7 +292,14 @@ interface LibraryState {
   addSlide: (setId: string, slide: Omit<Slide, "id">) => string;
   updateSlide: (setId: string, slideId: string, patch: Partial<Slide>) => void;
   removeSlide: (setId: string, slideId: string) => void;
-  reorderSlides: (setId: string, ids: string[]) => void;
+  /** `drop`: which slide was dragged and, when it was dropped right after a
+   *  tile, that tile, so it joins the tile's section (see sections.ts
+   *  moveSlideKeepingSections). Without it the moved slide is inferred. */
+  reorderSlides: (
+    setId: string,
+    ids: string[],
+    drop?: { movedId: string; joinAfterId?: string },
+  ) => void;
   createGathering: (name: string) => string;
   renameGathering: (id: string, name: string) => void;
   deleteGathering: (id: string) => void;
@@ -851,15 +858,18 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       return { sets: { ...s.sets, [setId]: updated } };
     }),
 
-  reorderSlides: (setId, ids) =>
+  reorderSlides: (setId, ids, drop) =>
     set((s) => {
       const d = s.sets[setId];
       if (!d) return s;
       const map = new Map(d.slides.map((sl) => [sl.id, sl]));
       // Sections follow the slides around the drop point (see sections.ts).
+      const next = ids.map((i) => map.get(i)!).filter(Boolean);
       const slides = moveSlideKeepingSections(
         d.slides,
-        ids.map((i) => map.get(i)!).filter(Boolean),
+        next,
+        drop?.movedId ?? movedSlideId(d.slides, next),
+        drop?.joinAfterId,
       );
       const updated = { ...d, slides, updatedAt: Date.now() };
       db.sets.put(updated).then(() => schedulePush({ set: setId }));

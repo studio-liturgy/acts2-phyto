@@ -95,14 +95,47 @@ describe("media sections survive removing and reordering slides", () => {
     ]);
   });
 
-  it("a slide dropped right after a section's last slide opens the next section", () => {
-    const set = sixSlides();
+  it("at a boundary, the tile the slide was dropped onto decides the section", () => {
+    // F between C and D, dropped onto D's left half: F opens the second section.
+    let set = sixSlides();
     useLibrary.setState({ sets: { [set.id]: set }, order: [set.id] });
-    // F between C and D.
     useLibrary.getState().reorderSlides(set.id, ["A", "B", "C", "F", "D", "E"]);
     expect(sections(set.id)).toEqual([
       ["A", "B", "C"],
       ["F", "D", "E"],
+    ]);
+
+    // The same slot, dropped onto C's right half: F joins the first section.
+    set = sixSlides();
+    useLibrary.setState({ sets: { [set.id]: set }, order: [set.id] });
+    useLibrary
+      .getState()
+      .reorderSlides(set.id, ["A", "B", "C", "F", "D", "E"], { movedId: "F", joinAfterId: "C" });
+    expect(sections(set.id)).toEqual([
+      ["A", "B", "C", "F"],
+      ["D", "E"],
+    ]);
+    const slides = useLibrary.getState().sets[set.id].slides;
+    expect(slides.map((x) => x.sectionAfter)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      "Two",
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("dropping the first slide of a section onto the previous section's last tile moves it over", () => {
+    const set = sixSlides();
+    useLibrary.setState({ sets: { [set.id]: set }, order: [set.id] });
+    // D dropped onto C's right half: the order is unchanged, the section isn't.
+    useLibrary
+      .getState()
+      .reorderSlides(set.id, ["A", "B", "C", "D", "E", "F"], { movedId: "D", joinAfterId: "C" });
+    expect(sections(set.id)).toEqual([
+      ["A", "B", "C", "D"],
+      ["E", "F"],
     ]);
   });
 

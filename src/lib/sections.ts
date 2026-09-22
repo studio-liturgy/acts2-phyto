@@ -150,6 +150,11 @@ export function moveSlideKeepingSections<T extends SectionSlide>(
   before: T[],
   after: T[],
   movedId: string | undefined = movedSlideId(before, after),
+  /** The slide the drop was aimed at, when the moved slide was dropped right
+   *  AFTER it: the moved slide joins that slide's section. At a section
+   *  boundary this is what tells "after C, in C's section" from "before D, in
+   *  D's section", which land in the same slot. */
+  joinAfterId?: string,
 ): T[] {
   let out = after;
   const from = movedId ? before.findIndex((s) => s.id === movedId) : -1;
@@ -168,6 +173,22 @@ export function moveSlideKeepingSections<T extends SectionSlide>(
       }
       return s;
     });
+  }
+  // Dropped right after the last slide of a section: join it, so the divider
+  // moves from that slide onto the moved one.
+  if (movedId && joinAfterId && joinAfterId !== movedId) {
+    const at = out.findIndex((s) => s.id === movedId);
+    const host = out[at - 1];
+    if (at > 0 && host?.id === joinAfterId && host.sectionAfter !== undefined) {
+      const name = host.sectionAfter;
+      out = out.map((s, i) => {
+        if (i === at - 1) {
+          const { sectionAfter: _drop, ...rest } = s;
+          return rest as T;
+        }
+        return i === at ? { ...s, sectionAfter: name } : s;
+      });
+    }
   }
   // A divider after the very last slide would open an empty section: drop it.
   out = out.map((s, i) =>

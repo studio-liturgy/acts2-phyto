@@ -927,7 +927,7 @@ function SetEditor() {
                   multiSel={multiSel}
                   onSelect={handleSelect}
                   onRemove={(id) => removeSlide(phytoSet.id, id)}
-                  onReorder={(ids) => reorderSlides(phytoSet.id, ids)}
+                  onReorder={(ids, drop) => reorderSlides(phytoSet.id, ids, drop)}
                   onToggleFit={(id) =>
                     updateSet(phytoSet.id, {
                       slides: phytoSet.slides.map((sl) =>
@@ -1154,7 +1154,9 @@ function SlideGrid({
   multiSel: Set<string>;
   onSelect: (id: string, e?: React.MouseEvent) => void;
   onRemove: (id: string) => void;
-  onReorder: (ids: string[]) => void;
+  /** `drop`: the dragged slide and, when it was dropped right after a tile
+   *  (its right half), that tile, so it joins the tile's section. */
+  onReorder: (ids: string[], drop?: { movedId: string; joinAfterId?: string }) => void;
   /** Toggle an image slide's contain/cover fit (media only). */
   onToggleFit?: (id: string) => void;
   /** Rename the section divider that sits after slide `id` (media only). */
@@ -1170,14 +1172,21 @@ function SlideGrid({
   const [liveOrder, setLiveOrder] = useState<Slide[] | null>(null);
   const liveOrderRef = useRef<Slide[] | null>(null);
   const dragIndex = useRef<number | null>(null);
+  // The tile whose right half the slide was last dropped after, if any.
+  const joinAfterRef = useRef<string | undefined>(undefined);
 
   const cols = dense ? "grid-cols-3 md:grid-cols-4" : "grid-cols-2 md:grid-cols-4";
   const selColor = kindColor(kind);
   const displaySlides = liveOrder ?? slides;
 
   const commitOrder = () => {
-    if (liveOrderRef.current) onReorder(liveOrderRef.current.map((s) => s.id));
+    if (liveOrderRef.current && draggingId)
+      onReorder(
+        liveOrderRef.current.map((s) => s.id),
+        { movedId: draggingId, joinAfterId: joinAfterRef.current },
+      );
     liveOrderRef.current = null;
+    joinAfterRef.current = undefined;
     setLiveOrder(null);
     setDraggingId(null);
     dragIndex.current = null;
@@ -1207,23 +1216,38 @@ function SlideGrid({
           e.dataTransfer.effectAllowed = "move";
         }}
         onDragOver={(e) => {
-          if (dragIndex.current === null) return;
+          if (dragIndex.current === null || !draggingId) return;
           e.preventDefault();
           e.stopPropagation();
-          const current = liveOrder ?? slides;
-          const fromIdx = current.findIndex((x) => x.id === draggingId);
-          if (fromIdx === -1) return;
-          // The left half of a tile means "before it", the right half "after
-          // it", so a slide can land after the last tile of a section too.
+          // Hovering the dragged tile itself (where the preview put it) changes
+          // nothing, which is what keeps the preview from flickering.
+          if (s.id === draggingId) return;
+          // Dropping onto a tile means joining its section: after it (right
+          // half) or before it (left half). At a section boundary the two
+          // halves land in the same slot but in different sections. The
+          // preview is always derived from the SAVED order, never from the
+          // previous preview, so no half-applied markers pile up.
           const rect = e.currentTarget.getBoundingClientRect();
-          let target = e.clientX > rect.left + rect.width / 2 ? i + 1 : i;
-          if (fromIdx < target) target -= 1;
-          if (target === fromIdx) return;
-          const next = [...current];
-          const [moved] = next.splice(fromIdx, 1);
-          next.splice(target, 0, moved);
+          const afterTile = e.clientX > rect.left + rect.width / 2;
+          const moved = slides.find((x) => x.id === draggingId);
+          if (!moved) return;
+          const base = slides.filter((x) => x.id !== draggingId);
+          const hoverIdx = base.findIndex((x) => x.id === s.id);
+          if (hoverIdx === -1) return;
+          const next = [...base];
+          next.splice(afterTile ? hoverIdx + 1 : hoverIdx, 0, moved);
+          const joinAfter = afterTile ? s.id : undefined;
+          const prev = liveOrderRef.current;
+          if (
+            prev &&
+            joinAfter === joinAfterRef.current &&
+            prev.length === next.length &&
+            prev.every((x, k) => x.id === next[k].id)
+          )
+            return;
+          joinAfterRef.current = joinAfter;
           // Sections follow the slides around the drop point (see sections.ts).
-          const kept = moveSlideKeepingSections(slides, next, draggingId ?? undefined);
+          const kept = moveSlideKeepingSections(slides, next, draggingId, joinAfter);
           liveOrderRef.current = kept;
           setLiveOrder(kept);
         }}
