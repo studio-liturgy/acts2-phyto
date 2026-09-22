@@ -19,8 +19,11 @@ import {
 // gatherings in them are their contributors' and just lose the group), then my
 // memberships in other groups, my grants and shares, my gatherings (cascading
 // their set rows), my sets (cascading their shares/grants), and my account-level
-// rows. Uploaded media is removed from R2 before any of that, so a failure
-// part-way leaves a still-signed-in account rather than an orphaned bucket.
+// rows. Uploaded media leaves R2 after the tables and before the auth user:
+// every step is idempotent, so a failure part-way (a table refusing, R2 down)
+// leaves an account that can simply run the deletion again, with its media
+// still intact until the rows that reference it are gone, and never a deleted
+// user whose objects nobody can clean up.
 export const Route = createFileRoute("/api/account/delete")({
   server: {
     handlers: {
@@ -60,13 +63,6 @@ export const Route = createFileRoute("/api/account/delete")({
         }
 
         try {
-          if (bucket) {
-            const keys = (await listUserObjects(bucket, userId)).map((o) => o.key);
-            for (let i = 0; i < keys.length; i += 100) {
-              await bucket.delete(keys.slice(i, i + 100));
-            }
-          }
-
           const steps: Array<[string, () => PromiseLike<{ error: unknown }>]> = [
             ["groups", () => admin.from("groups").delete().eq("owner_id", userId)],
             ["group_members", () => admin.from("group_members").delete().eq("user_id", userId)],
@@ -99,6 +95,13 @@ export const Route = createFileRoute("/api/account/delete")({
                 { ok: false, error: `Could not remove your ${table}.` },
                 { status: 500 },
               );
+            }
+          }
+
+          if (bucket) {
+            const keys = (await listUserObjects(bucket, userId)).map((o) => o.key);
+            for (let i = 0; i < keys.length; i += 100) {
+              await bucket.delete(keys.slice(i, i + 100));
             }
           }
 
