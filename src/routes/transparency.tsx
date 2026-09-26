@@ -231,7 +231,6 @@ function TransparencyPage() {
         </div>
 
         <div className="mono mt-16 space-y-2 text-xs uppercase leading-relaxed opacity-70">
-          <p>Time spent on phyto is left out of expenses. This is a voluntary passion project.</p>
           <p>All amounts are in CAD.</p>
         </div>
 
