@@ -70,44 +70,9 @@ function Stat({ value, label }: { value: React.ReactNode; label: string }) {
   );
 }
 
-function fundingStatus(totalDonations: number, totalExpenses: number) {
-  const fullyFunded = totalExpenses <= 0 || totalDonations >= totalExpenses;
-  const remaining = Math.max(totalExpenses - totalDonations, 0);
-  return {
-    fullyFunded,
-    text: fullyFunded ? "Fully funded!" : `${formatMoney(remaining)} remaining`,
-  };
-}
-
-/** Funding bar: donations as a percentage of expenses. Full (or over) shows as
- *  a single solid pill; hovering always shows exactly how things stand. Hidden
- *  on mobile - the same status is shown as plain text under the totals there. */
-function FundingBar({
-  totalDonations,
-  totalExpenses,
-}: {
-  totalDonations: number;
-  totalExpenses: number;
-}) {
-  const { fullyFunded, text } = fundingStatus(totalDonations, totalExpenses);
-  const pct = fullyFunded ? 100 : (totalDonations / totalExpenses) * 100;
-
-  return (
-    <div className="group relative mt-12 hidden sm:block">
-      <div className="h-7 w-full overflow-hidden rounded-full bg-[var(--brand-white)]/25">
-        <div
-          className="h-full rounded-full bg-[var(--brand-white)] transition-[width] duration-700 ease-out"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <div
-        className="mono pointer-events-none absolute bottom-full mb-2 rounded-full bg-[var(--brand-white)] px-4 py-1.5 text-xs uppercase tracking-wider whitespace-nowrap text-[var(--brand-blue)] opacity-0 transition-opacity group-hover:opacity-100"
-        style={{ right: `${100 - Math.min(Math.max(pct, 16), 100)}%` }}
-      >
-        {text}
-      </div>
-    </div>
-  );
+/** Total line that sits above each ledger table. */
+function Total({ children }: { children: React.ReactNode }) {
+  return <div className="mono text-base uppercase tracking-wider sm:text-lg">{children}</div>;
 }
 
 function TransparencyPage() {
@@ -162,7 +127,7 @@ function TransparencyPage() {
         </Link>
 
         {/* Stats */}
-        <div className="mt-12 mb-20 grid grid-cols-1 gap-4 sm:mb-0 sm:grid-cols-2 sm:gap-8">
+        <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-8">
           <Stat
             value={stats ? stats.accounts.toLocaleString() : <StatSkeleton />}
             label="Accounts"
@@ -173,32 +138,19 @@ function TransparencyPage() {
           />
         </div>
 
-        {/* Funding bar (sm+ only; mobile shows the same status as text below) */}
-        {entries ? (
-          <FundingBar totalDonations={totalDonations} totalExpenses={totalExpenses} />
-        ) : (
-          <div className="mt-12 hidden h-7 w-full animate-pulse rounded-full bg-[var(--brand-white)]/15 sm:block" />
-        )}
-
-        {/* Totals */}
-        <div className="mono mt-6 flex flex-col gap-1 text-base uppercase tracking-wider sm:flex-row sm:items-baseline sm:justify-between sm:gap-2 sm:text-lg">
-          <div>Total donations: {entries ? formatMoney(totalDonations) : "—"}</div>
-          <div>Total expenses: {entries ? formatMoney(totalExpenses) : "—"}</div>
-        </div>
-        {entries && (
-          <div className="mono mt-1 text-base uppercase tracking-wider opacity-80 sm:hidden">
-            {fundingStatus(totalDonations, totalExpenses).text}
-          </div>
-        )}
-
         {error && (
           <p className="mt-8 text-sm opacity-70">Couldn&rsquo;t load the ledger right now.</p>
         )}
 
         {/* Donations / Expenses */}
-        <div className="mt-16 grid grid-cols-1 gap-x-24 gap-y-16 md:grid-cols-2">
+        <div className="mt-20 grid grid-cols-1 gap-x-24 gap-y-16 md:grid-cols-2">
           <section>
-            <h2 className="mono text-xs uppercase tracking-wider opacity-70">Donations</h2>
+            <Total>Total donations: {entries ? formatMoney(totalDonations) : "—"}</Total>
+            {/* Keeps the two tables level with the hours line in the expenses column */}
+            <div aria-hidden className="mono invisible mt-1 hidden text-base sm:text-lg md:block">
+              &nbsp;
+            </div>
+            <h2 className="mono mt-10 text-xs uppercase tracking-wider opacity-70">Donations</h2>
             <div className="mono mt-4 overflow-x-auto uppercase">
               <table className="w-full text-xs md:min-w-[420px]">
                 <thead>
@@ -237,7 +189,11 @@ function TransparencyPage() {
           </section>
 
           <section>
-            <h2 className="mono text-xs uppercase tracking-wider opacity-70">Expenses</h2>
+            <Total>Total expenses: {entries ? formatMoney(totalExpenses) : "—"}</Total>
+            <div className="mono mt-1 text-base uppercase tracking-wider opacity-80 sm:text-lg">
+              Estimated hours: 280+
+            </div>
+            <h2 className="mono mt-10 text-xs uppercase tracking-wider opacity-70">Expenses</h2>
             <div className="mono mt-4 uppercase">
               <table className="w-full table-fixed text-xs">
                 <thead>
