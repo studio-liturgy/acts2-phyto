@@ -5,8 +5,7 @@ import { Plus } from "lucide-react";
 // The next release's Updates entry. Shown on phyto.live/updates (updates-main)
 // and, until it ships, at the top of phytoexp.live/updates (updates-test) so
 // the copy can be checked in place.
-// TODO(merge): the date this release reaches phyto.live, e.g. "September 29, 2026".
-export const RELEASE_DATE = "Merge date, 2026";
+export const RELEASE_DATE = "September 26, 2026";
 
 export function FeatureItem({ children }: { children: ReactNode }) {
   return (
@@ -31,8 +30,12 @@ export function ReleaseEntry() {
           edit mode
         </FeatureItem>
         <FeatureItem>
-          Sets shared with you arrive in a list under your catalogue. Save the ones you want, or
-          save them all
+          Sets shared with you arrive in a list under the top bar. Save the ones you want, or save
+          them all
+        </FeatureItem>
+        <FeatureItem>
+          A shared set works like one of your own: edit it, present it, and add it to your
+          gatherings
         </FeatureItem>
       </ul>
 
