@@ -198,31 +198,43 @@ const NAV_CHIP = [
   },
 ];
 
-/** Video slot sized by the clip's aspect. Shows a translucent panel until the clip loads, and
- *  stays a panel for a clip that has no src yet (placeholder). The parent drives play/pause
- *  via ref. */
+/** Video slot sized by the clip's aspect. The clip's first frame (`landing-x.mp4` →
+ *  `landing-x-poster.webp`) sits underneath as a plain <img>; the video stays hidden until it
+ *  is actually playing, so a clip that never plays (autoplay blocked, Low Power Mode, slow
+ *  network) still shows the still. Not the video's own `poster`: iOS Safari drops that as soon
+ *  as loading starts and flashes blank before the first frame paints. Stays a panel for a clip
+ *  that has no src yet (placeholder). The parent drives play/pause via ref. */
 const StepVideo = forwardRef<HTMLVideoElement, { clip: Clip; className?: string }>(
   function StepVideo({ clip, className }, ref) {
-    const [loaded, setLoaded] = useState(false);
+    const [playing, setPlaying] = useState(false);
     const aspect = clip.aspect === "4/3" ? "aspect-[4/3]" : "aspect-square";
     return (
       <div
         className={`relative overflow-hidden rounded-2xl ${clip.src ? "bg-black/10" : "bg-white/70"} ${aspect} ${className ?? ""}`}
       >
         {clip.src && (
-          <video
-            ref={ref}
-            muted
-            loop
-            playsInline
-            preload="auto"
-            onLoadedData={() => setLoaded(true)}
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
-              loaded ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            <source src={clip.src} type="video/mp4" />
-          </video>
+          <>
+            <img
+              src={clip.src.replace(/\.mp4$/, "-poster.webp")}
+              alt=""
+              aria-hidden
+              decoding="async"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <video
+              ref={ref}
+              muted
+              loop
+              playsInline
+              preload="auto"
+              onPlaying={() => setPlaying(true)}
+              className={`absolute inset-0 h-full w-full object-cover ${
+                playing ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              <source src={clip.src} type="video/mp4" />
+            </video>
+          </>
         )}
       </div>
     );
