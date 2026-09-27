@@ -43,3 +43,7 @@ e2e/.artifacts
 test-results
 playwright-report
 .lovable/
+
+# Email templates and their HTML previews stay local
+email-templates/
+public/email/*.html
