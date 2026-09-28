@@ -219,7 +219,7 @@ const StepVideo = forwardRef<HTMLVideoElement, { clip: Clip; className?: string 
               alt=""
               aria-hidden
               decoding="async"
-              className="absolute inset-0 h-full w-full object-cover"
+              className={`absolute inset-0 h-full w-full object-cover ${playing ? "invisible" : ""}`}
             />
             <video
               ref={ref}
