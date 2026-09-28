@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { DotsGrip, hideDragGhost } from "@/components/DragBits";
+import { DotsGrip } from "@/components/DragBits";
+import { hideDragGhost } from "@/lib/drag-ghost";
 import { RichText } from "@/components/RichText";
 import { currentCaret, useUndo } from "@/hooks/use-undo";
 import { plainLength, splitMarkup } from "@/lib/inline-format";
 import { focusCell } from "@/lib/rich-caret";
-import { type VerseRow, fromVerseRows, toVerseRows } from "@/lib/slide-text";
+import { type VerseRow, fromVerseRows, mergeRowsUp, toVerseRows } from "@/lib/slide-text";
 
 // Import colours, matching the tints the live slide grid uses.
 const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
@@ -19,29 +20,6 @@ const DEL = "3.5rem"; // right column: split + delete buttons
  * dragged to reorder or deleted as a whole, boxes auto-grow (no scrollbars), the
  * arrow keys move between verses, and Cmd/Ctrl+Z undoes.
  */
-/** Two verses as one: a single space between them, nothing added when either
- *  side is empty. Exported for tests. */
-export function joinVerse(a: string, b: string): string {
-  const left = a.trimEnd();
-  const right = b.trimStart();
-  return left && right ? `${left} ${right}` : left || right;
-}
-
-/** Rows with verse `ri` joined onto the one above it (every version), or null
- *  when it's the first verse of its import (nothing to join onto). */
-export function mergeRowsUp(rows: VerseRow[], ri: number, versions: string[]): VerseRow[] | null {
-  if (ri <= 0 || ri >= rows.length || rows[ri].starts) return null;
-  const prev = rows[ri - 1];
-  const cur = rows[ri];
-  const merged: VerseRow = {
-    ...prev,
-    text: Object.fromEntries(
-      versions.map((v) => [v, joinVerse(prev.text[v] ?? "", cur.text[v] ?? "")]),
-    ),
-  };
-  return rows.map((r, i) => (i === ri - 1 ? merged : r)).filter((_, i) => i !== ri);
-}
-
 export function ScriptureVerseEditor({
   versions,
   text,

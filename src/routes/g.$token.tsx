@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { isLiveNow } from "@/lib/live-session";
-import { PhoneViewer, type PhoneSet } from "@/components/PhoneViewer";
+import { PhoneViewer } from "@/components/PhoneViewer";
+import type { PhoneSet } from "@/lib/phone-viewer";
 import type { SongChords } from "@/lib/chords";
 import { visibleVersions } from "@/lib/versions";
 import {

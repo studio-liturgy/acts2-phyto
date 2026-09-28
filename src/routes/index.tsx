@@ -66,7 +66,8 @@ import { ScrollingName } from "@/components/ScrollingName";
 import { GroupPanelDialog } from "@/components/GroupPanelDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { VersionWarning } from "@/components/VersionWarning";
-import { DotsGrip, hideDragGhost, setCircleDragGhost } from "@/components/DragBits";
+import { DotsGrip } from "@/components/DragBits";
+import { hideDragGhost, setCircleDragGhost } from "@/lib/drag-ghost";
 
 const KIND_COLOR: Record<string, string> = {
   song: "#2E7299",

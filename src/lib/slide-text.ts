@@ -302,6 +302,29 @@ export function fromVerseRows(rows: VerseRow[], versions: string[]): Record<stri
   return out;
 }
 
+/** Two verses as one: a single space between them, nothing added when either
+ *  side is empty. */
+export function joinVerse(a: string, b: string): string {
+  const left = a.trimEnd();
+  const right = b.trimStart();
+  return left && right ? `${left} ${right}` : left || right;
+}
+
+/** Rows with verse `ri` joined onto the one above it (every version), or null
+ *  when it's the first verse of its import (nothing to join onto). */
+export function mergeRowsUp(rows: VerseRow[], ri: number, versions: string[]): VerseRow[] | null {
+  if (ri <= 0 || ri >= rows.length || rows[ri].starts) return null;
+  const prev = rows[ri - 1];
+  const cur = rows[ri];
+  const merged: VerseRow = {
+    ...prev,
+    text: Object.fromEntries(
+      versions.map((v) => [v, joinVerse(prev.text[v] ?? "", cur.text[v] ?? "")]),
+    ),
+  };
+  return rows.map((r, i) => (i === ri - 1 ? merged : r)).filter((_, i) => i !== ri);
+}
+
 /** Inverse of slidesToVersionText: pair the per-version boxes into one slide per
  *  block by position, taking references from the first version's headers. */
 export function versionTextToSlides(

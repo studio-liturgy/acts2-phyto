@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, Minimize2, Plus, Trash2 } from "lucide-react";
-import { DotsGrip, hideDragGhost } from "@/components/DragBits";
+import { DotsGrip } from "@/components/DragBits";
+import { hideDragGhost } from "@/lib/drag-ghost";
 import { BlockFrame, ElementCard, AddElementBar } from "@/components/MessageElements";
 import { RichText } from "@/components/RichText";
 import { currentCaret, useUndo } from "@/hooks/use-undo";
 import { plainLength, splitMarkup } from "@/lib/inline-format";
 import { focusCell } from "@/lib/rich-caret";
-import { joinVerse } from "@/components/ScriptureVerseEditor";
+import { joinVerse } from "@/lib/slide-text";
 import { SlideView } from "@/components/SlideView";
 import {
   AlertDialog,

@@ -34,10 +34,12 @@ export function useAccountSlug({
 } {
   const [accountSlug, setAccountSlug] = useState<string | null>(null);
   const [resolved, setResolved] = useState(false);
+  // Callers pass a fresh `scope` object every render, so the effects below key
+  // on its one field and rebuild the scope from it.
+  const groupId = scope.groupId;
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const groups = useLibrary((s) => s.groups);
-  const ownsScope =
-    !scope.groupId || groups.some((g) => g.id === scope.groupId && g.owner_id === userId);
+  const ownsScope = !groupId || groups.some((g) => g.id === groupId && g.owner_id === userId);
   // Seed only matters for provisioning a first slug; keep it in a ref so a seed
   // change (e.g. creating a new gathering) never re-triggers a load or clears an
   // already-resolved slug.
@@ -49,12 +51,12 @@ export function useAccountSlug({
   useEffect(() => {
     setAccountSlug(null);
     setResolved(false);
-  }, [scope.groupId]);
+  }, [groupId]);
 
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    ensureSlug(scope, seedRef.current).then((s) => {
+    ensureSlug({ groupId }, seedRef.current).then((s) => {
       if (!cancelled) {
         setAccountSlug(s);
         setResolved(true);
@@ -63,15 +65,15 @@ export function useAccountSlug({
     return () => {
       cancelled = true;
     };
-  }, [enabled, scope.groupId]);
+  }, [enabled, groupId]);
 
   const save = useCallback(
     async (next: string): Promise<SetSlugResult> => {
-      const res = await setSlug(scope, next);
+      const res = await setSlug({ groupId }, next);
       if (res.ok) setAccountSlug((prev) => normalizeSlug(next) || prev);
       return res;
     },
-    [scope.groupId],
+    [groupId],
   );
 
   return {

@@ -71,15 +71,9 @@ import {
 import { stripInlineFormat } from "@/lib/inline-format";
 import { create } from "zustand";
 import { groupSlides, hiddenSlideIds } from "@/lib/sections";
-import { hideDragGhost } from "@/components/DragBits";
-import {
-  PhoneViewer,
-  ViewerSettings,
-  loadPrefs,
-  phoneSetHasChords,
-  type PhoneSet,
-  type ViewerPrefs,
-} from "@/components/PhoneViewer";
+import { hideDragGhost } from "@/lib/drag-ghost";
+import { PhoneViewer, ViewerSettings } from "@/components/PhoneViewer";
+import { loadPrefs, phoneSetHasChords, type PhoneSet, type ViewerPrefs } from "@/lib/phone-viewer";
 import { Switch } from "@/components/ui/switch";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
@@ -338,14 +332,17 @@ function Presenter() {
     }
   };
 
-  // While the warning is showing, let it follow the cursor.
+  // While the warning is showing, let it follow the cursor. Keyed on whether it
+  // shows, not where: the position changes on every move, and re-subscribing
+  // each time would be wasted work.
+  const hideWarningShown = hideWarning !== null;
   useEffect(() => {
-    if (!hideWarning) return;
+    if (!hideWarningShown) return;
     const onMove = (e: MouseEvent) =>
       setHideWarning((w) => (w ? { x: e.clientX, y: e.clientY } : w));
     window.addEventListener("mousemove", onMove);
     return () => window.removeEventListener("mousemove", onMove);
-  }, [!!hideWarning]);
+  }, [hideWarningShown]);
 
   const isSignedIn = useIsSignedIn();
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -389,14 +386,17 @@ function Presenter() {
 
   // Auto-follow the live set when it changes mid-presentation, but skip the
   // initial mount so an explicit ?set= (e.g. returning from the set editor) is
-  // not overridden by whatever set happens to be live.
+  // not overridden by whatever set happens to be live. The library is read
+  // through a ref: an edit or a sync must not pull the view back to the live set.
   const didMountLiveFollow = useRef(false);
+  const setsRef = useRef(sets);
+  setsRef.current = sets;
   useEffect(() => {
     if (!didMountLiveFollow.current) {
       didMountLiveFollow.current = true;
       return;
     }
-    if (live.setId && sets[live.setId]) {
+    if (live.setId && setsRef.current[live.setId]) {
       setActiveSetId(live.setId);
     }
   }, [live.setId]);

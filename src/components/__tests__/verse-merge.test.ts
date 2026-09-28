@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { joinVerse, mergeRowsUp } from "@/components/ScriptureVerseEditor";
+import { joinVerse, mergeRowsUp } from "@/lib/slide-text";
 import { toVerseRows } from "@/lib/slide-text";
 
 const V = ["NIV", "CUNPS"];
