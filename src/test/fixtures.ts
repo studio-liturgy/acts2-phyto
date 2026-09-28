@@ -42,21 +42,25 @@ export function makeGathering(overrides: Partial<Gathering> = {}): Gathering {
 
 /** A set as its Supabase `sets` row, matching toSupabaseSet's shape. */
 export function setRow(s: PhytoSet, userId = USER_ID): Row {
+  // content is every field but the columns and the local collaboration tags.
+  const {
+    id: _id,
+    name: _name,
+    kind: _kind,
+    group_id: _groupId,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    groupIds: _groupIds,
+    shared: _shared,
+    shared_by: _sharedBy,
+    ...content
+  } = s;
   return {
     id: s.id,
     user_id: userId,
     title: s.name,
     type: s.kind,
-    content: {
-      slides: s.slides,
-      template: s.template,
-      autoAdvanceMs: s.autoAdvanceMs,
-      loop: s.loop,
-      loopSection: s.loopSection,
-      dissolveMs: s.dissolveMs,
-      versions: s.versions,
-      scriptureImports: s.scriptureImports,
-    },
+    content,
     created_at: new Date(s.createdAt).toISOString(),
     updated_at: new Date(s.updatedAt).toISOString(),
   };

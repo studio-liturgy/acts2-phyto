@@ -35,24 +35,60 @@ function getDeviceId(): string {
   return id;
 }
 
+/** Set fields that aren't `content`: the ones with their own `sets` columns,
+ *  and the collaboration tags, which this device derives from grant rows and
+ *  which never belong on the set row. */
+const SET_NOT_CONTENT = [
+  "id",
+  "name",
+  "kind",
+  "group_id",
+  "createdAt",
+  "updatedAt",
+  "groupIds",
+  "shared",
+  "shared_by",
+] as const satisfies readonly (keyof PhytoSet)[];
+const SET_NOT_CONTENT_KEYS: ReadonlySet<string> = new Set(SET_NOT_CONTENT);
+
+/** Every field Set declares must be one or the other: a new field fails to
+ *  compile until it's added here (synced in content) or to SET_NOT_CONTENT. */
+type SetContentField =
+  | "slides"
+  | "template"
+  | "chords"
+  | "autoAdvanceMs"
+  | "loop"
+  | "loopSection"
+  | "versionRefs"
+  | "dissolveMs"
+  | "versions"
+  | "scriptureImports";
+type UnclassifiedSetField = Exclude<
+  keyof PhytoSet,
+  SetContentField | (typeof SET_NOT_CONTENT)[number]
+>;
+const everySetFieldClassified: UnclassifiedSetField extends never ? true : never = true;
+
+function withoutNotContent(o: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(o).filter(([k]) => !SET_NOT_CONTENT_KEYS.has(k)));
+}
+
+/** A set's `content` JSONB: every field but the columns and the local tags.
+ *  Taken by exclusion rather than listed, so a field this build doesn't know
+ *  (from a newer build, or watch, arriving by .phyto import or a pull) syncs
+ *  through instead of being dropped. */
+export function setContent(s: PhytoSet): Record<string, unknown> {
+  return withoutNotContent(s as unknown as Record<string, unknown>);
+}
+
 export function toSupabaseSet(s: PhytoSet, userId: string, deviceId: string) {
   return {
     id: s.id,
     user_id: userId,
     title: s.name,
     type: s.kind,
-    content: {
-      slides: s.slides,
-      template: s.template,
-      chords: s.chords,
-      autoAdvanceMs: s.autoAdvanceMs,
-      loop: s.loop,
-      loopSection: s.loopSection,
-      versionRefs: s.versionRefs,
-      dissolveMs: s.dissolveMs,
-      versions: s.versions,
-      scriptureImports: s.scriptureImports,
-    },
+    content: setContent(s),
     group_id: s.group_id ?? null,
     created_at: new Date(s.createdAt).toISOString(),
     updated_at: new Date(s.updatedAt).toISOString(),
@@ -71,18 +107,7 @@ export function toSupabaseSetShared(s: PhytoSet, deviceId: string) {
     id: s.id,
     title: s.name,
     type: s.kind,
-    content: {
-      slides: s.slides,
-      template: s.template,
-      chords: s.chords,
-      autoAdvanceMs: s.autoAdvanceMs,
-      loop: s.loop,
-      loopSection: s.loopSection,
-      versionRefs: s.versionRefs,
-      dissolveMs: s.dissolveMs,
-      versions: s.versions,
-      scriptureImports: s.scriptureImports,
-    },
+    content: setContent(s),
     updated_at: new Date(s.updatedAt).toISOString(),
     synced_at: new Date().toISOString(),
     last_modified_by: deviceId,
@@ -128,21 +153,19 @@ export function toSupabaseGatheringShared(p: Gathering, deviceId: string) {
 }
 
 export function fromSupabaseSet(row: Record<string, unknown>): PhytoSet {
-  const content = (row.content ?? {}) as Record<string, unknown>;
+  const content =
+    row.content && typeof row.content === "object" && !Array.isArray(row.content)
+      ? (row.content as Record<string, unknown>)
+      : {};
   return {
+    // Every content field, known or not (see setContent). Column and tag keys
+    // are dropped from it first: whoever can write a row's content must not be
+    // able to mark the set foreign or name its owner.
+    ...withoutNotContent(content),
     id: row.id as string,
     name: row.title as string,
     kind: row.type as PhytoSet["kind"],
     slides: (content.slides as PhytoSet["slides"]) ?? [],
-    template: content.template as PhytoSet["template"],
-    chords: content.chords as PhytoSet["chords"],
-    autoAdvanceMs: content.autoAdvanceMs as number | undefined,
-    loop: content.loop as boolean | undefined,
-    dissolveMs: content.dissolveMs as number | undefined,
-    loopSection: content.loopSection as boolean | undefined,
-    versionRefs: content.versionRefs as boolean | undefined,
-    versions: content.versions as string[] | undefined,
-    scriptureImports: content.scriptureImports as string[] | undefined,
     group_id: row.group_id ? (row.group_id as string) : undefined,
     createdAt: new Date(row.created_at as string).getTime(),
     updatedAt: new Date(row.updated_at as string).getTime(),
@@ -560,8 +583,11 @@ export function stableStringify(v: unknown): string {
   return JSON.stringify(v) ?? "null";
 }
 
-/** Everything that round-trips through the Supabase `sets` row (title + content
- *  JSONB). Timestamps excluded by design. */
+/** The fields of the Supabase `sets` row (title + content JSONB) that this
+ *  build knows. Timestamps excluded by design. Fields it doesn't know are left
+ *  out on purpose: this build carries them but never edits them, so a
+ *  difference there came from the server, and `touched` adopts the remote row
+ *  (fields and all) without raising a conflict. */
 export function setFingerprint(s: PhytoSet): string {
   return stableStringify({
     name: s.name,
