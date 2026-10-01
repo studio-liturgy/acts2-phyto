@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { RELEASE_DATE } from "@/content/updates-release";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function PrivacyMain({ defaultSection }: { defaultSection: "offline" | "online" }) {
@@ -22,7 +21,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: {RELEASE_DATE}
+          Effective Date: October 1, 2026
         </p>
 
         {/* OFFLINE TAB */}
@@ -315,11 +314,11 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
                   is stored in your account so you can open and edit it.
                 </li>
                 <li>
-                  <strong>Workspace settings:</strong> your language preferences (whether
-                  multi-language is on, and which languages) are stored with your account, and a
-                  group's with the group. They are readable by anyone who has your gathering link,
-                  because phones following a gathering use them to show the right scripture
-                  versions.
+                  <strong>Workspace settings:</strong> your workspace&rsquo;s system language is
+                  stored with your account, and a group&rsquo;s with the group, along with any
+                  language preferences saved before October 1, 2026. They can be read by anyone who
+                  has your gathering link. Which bible versions a set shows is part of the set
+                  itself, not these settings.
                 </li>
               </ul>
               <p className="mt-2">

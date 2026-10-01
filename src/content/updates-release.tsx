@@ -16,6 +16,39 @@ export function FeatureItem({ children }: { children: ReactNode }) {
   );
 }
 
+/** October 1, 2026: bible versions per set. One `<li>`, above ReleaseEntry. */
+export function VersionsEntry() {
+  return (
+    <li className="border-t border-[var(--brand-white)]/20 pt-8">
+      <div className="text-2xl">October 1, 2026</div>
+
+      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Bible versions</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Every bible version in every language is now available in any scripture or message set
+        </FeatureItem>
+        <FeatureItem>
+          Switch on Two versions in a set&rsquo;s editor to stack a second version under the first.
+          Switching it off keeps the first version as it is, edits included
+        </FeatureItem>
+        <FeatureItem>
+          Versions you&rsquo;ve used before sit at the top of the list, and you can type to search
+          by name, code or language
+        </FeatureItem>
+        <FeatureItem>A new set starts in the version you used most recently</FeatureItem>
+      </ul>
+
+      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Settings</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          The multi-language setting is replaced by the per-set switch. The system language is
+          English for now; more languages are in the works
+        </FeatureItem>
+      </ul>
+    </li>
+  );
+}
+
 /** One `<li>` for the page's entry list. */
 export function ReleaseEntry() {
   return (

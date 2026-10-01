@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
-import { FeatureItem, ReleaseEntry } from "@/content/updates-release";
+import { FeatureItem, ReleaseEntry, VersionsEntry } from "@/content/updates-release";
 
 export default function UpdatesMain() {
   usePageBackgroundColor("var(--brand-blue)");
@@ -17,6 +17,7 @@ export default function UpdatesMain() {
           <ArrowLeft className="h-3 w-3" /> BACK
         </Link>
         <ul className="mt-8 space-y-12">
+          <VersionsEntry />
           <ReleaseEntry />
           <li className="border-t border-[var(--brand-white)]/20 pt-8">
             <div className="text-2xl">September 9, 2026</div>
