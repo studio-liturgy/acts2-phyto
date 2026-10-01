@@ -1687,8 +1687,8 @@ function Library() {
             Add all your personal sets to this group so everyone can use them. You can retract any
             set later.
           </AlertDialogDescription>
-          {/* The group's languages, started from the creator's own; the same
-              rows as under Manage. */}
+          {/* The group's system language (frozen for now); the same rows as
+              under Manage. */}
           <div className="mt-6 border-t border-foreground/15 pt-4">
             <WorkspaceSettingsRows />
           </div>

@@ -2,11 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLibrary } from "@/lib/store";
 import {
   alignVerses,
+  allTranslationGroups,
   fetchScriptureBolls,
-  langOfTranslation,
   splitRefLabel,
-  translationGroupsForLang,
-  translationsForLang,
   TRANSLATION_CODES,
   withVersionCode,
 } from "@/lib/bible";
@@ -24,42 +22,44 @@ import {
 import {
   hasStackedVersions,
   inferredVersions,
+  pairedVersion,
+  recentVersions,
   reimportQueries,
   versionsMismatchWorkspace,
-  visibleVersions,
 } from "@/lib/versions";
-import type { SetKind, Slide } from "@/lib/types";
-import type { LangCode } from "@/lib/langs";
+import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 
 /**
  * The scripture importer's state and behaviour, with the two-version support
- * ported from watch and wired to the workspace settings.
+ * ported from watch. Whether a set carries two versions is the set's own
+ * choice (the "Two versions" switch in its editor); every bible version, in
+ * every language, is offered either way.
  *
- * Two modes, decided per set and workspace:
+ * Two modes, decided per set:
  *
- *  - LEGACY (multi-language off, and the set doesn't stack versions): the one
- *    text box, parsed with "verses per slide", exactly as phyto always worked.
- *    The translation picker only offers the workspace language's translations.
+ *  - LEGACY (one version): the one text box, parsed with "verses per slide",
+ *    exactly as phyto always worked. Changing the version only affects what's
+ *    imported next.
  *
- *  - BOXES (multi-language on, or the set already carries two versions): one
- *    box per version the workspace shows, paired verse by verse. Multi-language
- *    on shows and edits every version and offers a second-translation picker;
- *    off shows only the version in the workspace language while the other
- *    version's text is carried along untouched (merged back by verse position
- *    on every rebuild), so a set moving between workspaces never loses a
- *    translation.
+ *  - BOXES (two versions): one box per version, paired verse by verse.
+ *    Changing either version re-fetches every passage in the pair; switching
+ *    two versions off drops the 2nd and keeps the 1st's text as it is.
  *
  * A message set keeps its verses on its slides (the block editor owns them);
  * this hook still drives its imports and version changes.
  */
-/** A single group needs no heading. */
-function ungroupSingle<T extends { language: string }>(groups: T[]): T[] {
-  return groups.length === 1 ? [{ ...groups[0], language: "" }] : groups;
+/** The 1st version a set opens with: its own, else the most recent one used
+ *  in previous sets, else NIV. */
+function initialVersion(set: PhytoSet | undefined, recents: string[]): string {
+  return (set && inferredVersions(set)?.[0]) ?? recents[0] ?? "NIV";
 }
+
+const allSets = () => Object.values(useLibrary.getState().sets);
 
 export function useScriptureVersions({ setId, kind }: { setId: string; kind: SetKind }) {
   const scriptureKind = kind === "scripture" || kind === "message";
   const updateSet = useLibrary((s) => s.updateSet);
+  // Only the (dormant) mismatch check reads the workspace settings.
   const settings = useLibrary((s) => s.workspaceSettings);
   const storedVersions = useLibrary((st) => st.sets[setId]?.versions);
   // Whether references carry their version code ("John 3:16 NIV"); on unless
@@ -67,100 +67,58 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   const versionRefs = useLibrary((st) => st.sets[setId]?.versionRefs !== false);
   const storedImports = useLibrary((st) => st.sets[setId]?.scriptureImports);
   const storeSlides = useLibrary((s) => s.sets[setId]?.slides);
-  const multi = settings.multiLanguage;
+  // The versions used in previous sets, newest first: listed on top of both
+  // pickers. Joined so the selector's result compares by value.
+  const recentKey = useLibrary((s) => recentVersions(Object.values(s.sets)).join("|"));
+  const recents = useMemo(() => (recentKey ? recentKey.split("|") : []), [recentKey]);
+  const versionGroups = useMemo(() => allTranslationGroups(), []);
 
   const readSet = useCallback(() => useLibrary.getState().sets[setId], [setId]);
 
-  // Each picker offers only its language's bible versions: the system
-  // language's when multi-language is off, the 1st and 2nd languages' when on.
-  const [translation, setTranslation] = useState(() => {
-    const stored = readSet()?.versions?.[0];
-    if (stored) return stored;
-    return translationsForLang(settings.language)[0]?.code ?? "NIV";
-  });
-  // A new set starts with no 2nd version; a stored set keeps what it has.
+  const [translation, setTranslation] = useState(() =>
+    initialVersion(readSet(), recentVersions(allSets())),
+  );
+  // A stored set keeps the 2nd version it has (kept while two versions are
+  // switched off, so switching back on restores it).
   const [translation2, setTranslation2] = useState<string>(() => readSet()?.versions?.[1] ?? "");
-  // The two languages take turns: whichever language the 1st version is in,
-  // the 2nd version comes from the other. With no 2nd version chosen, the 1st
-  // slot lists both languages (grouped, so the boundary is visible).
-  const firstLang = useMemo<LangCode>(() => {
-    if (!multi) return settings.language;
-    const l = langOfTranslation(translation);
-    return l === settings.language2 ? settings.language2 : settings.language;
-  }, [multi, translation, settings.language, settings.language2]);
-  const secondLang = useMemo<LangCode | null>(() => {
-    if (!multi || !settings.language2) return null;
-    return firstLang === settings.language ? settings.language2 : settings.language;
-  }, [multi, firstLang, settings.language, settings.language2]);
-  const secondChoices = useMemo(
-    () => (secondLang ? translationsForLang(secondLang) : []),
-    [secondLang],
-  );
-  /** The 2nd picker's list: one language, so ungrouped, except Chinese by
-   *  script. */
-  const secondGroups = useMemo(
-    () => (secondLang ? ungroupSingle(translationGroupsForLang(secondLang)) : []),
-    [secondLang],
-  );
-  const firstChoices = useMemo(
-    () =>
-      multi && !translation2 && settings.language2
-        ? [...translationsForLang(settings.language), ...translationsForLang(settings.language2)]
-        : translationsForLang(firstLang),
-    [multi, translation2, settings.language, settings.language2, firstLang],
-  );
-  /** The 1st picker's list, grouped by language when it spans both (and
-   *  Chinese always by script). A lone group carries no heading. */
-  const firstGroups = useMemo(
-    () =>
-      ungroupSingle(
-        multi && !translation2 && settings.language2
-          ? [
-              ...translationGroupsForLang(settings.language),
-              ...translationGroupsForLang(settings.language2),
-            ]
-          : translationGroupsForLang(firstLang),
-      ),
-    [multi, translation2, settings.language, settings.language2, firstLang],
-  );
-  // Picking a 1st version in the other language moves the 2nd version over to
-  // the remaining language (its first bible version), so the pair still spans
-  // both languages. Only on the USER's pick: a workspace language change must
-  // not silently re-fetch a set (that's what the Update prompt is for).
-  const prevTranslation = useRef(translation);
+  // The "Two versions" switch: on for a set that stacks two versions.
+  const [twoVersions, setTwoVersionsOn] = useState(() => hasStackedVersions(readSet()));
+
+  // The pickers' pair, as the re-fetch effect below last saw it ("" while the
+  // set has one version). Null until the effect's first run.
+  const prevPickerKey = useRef<string | null>(null);
+
+  // Late hydration: on a direct URL load Dexie may not have populated the
+  // store yet, so the initializers above saw no set. Take its versions once it
+  // appears, without the re-fetch effect treating that as a version change.
+  const setLoaded = useLibrary((st) => !!st.sets[setId]);
+  const versionsHydrated = useRef(setLoaded);
   useEffect(() => {
-    if (prevTranslation.current === translation) return;
-    prevTranslation.current = translation;
-    if (!multi || !translation2 || !secondLang) return;
-    if (langOfTranslation(translation2) !== secondLang) {
-      const first = translationsForLang(secondLang)[0]?.code;
-      if (first && first !== translation) setTranslation2(first);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [translation]);
-  // A set with no stored version follows the workspace's languages (a fresh
-  // set opened in a Chinese workspace imports Chinese).
-  useEffect(() => {
-    if (storedVersions?.length) return;
-    if (langOfTranslation(translation) !== settings.language) {
-      const first = firstChoices[0]?.code;
-      if (first) setTranslation(first);
-    }
-    // (A stored set's 2nd version is left alone here too: see the Update prompt.)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.language, settings.language2, multi]);
+    if (versionsHydrated.current || !setLoaded) return;
+    versionsHydrated.current = true;
+    const set = readSet();
+    const v1 = initialVersion(set, recentVersions(allSets()));
+    const v2 = set?.versions?.[1] ?? "";
+    const two = hasStackedVersions(set);
+    prevPickerKey.current = two && v2 ? `${v1}|${v2}` : "";
+    setTranslation(v1);
+    setTranslation2(v2);
+    setTwoVersionsOn(two);
+  }, [setLoaded, readSet]);
 
   const stacked = hasStackedVersions(readSet());
-  const boxMode = scriptureKind && (multi || stacked);
-  const bilingual = boxMode && multi && !!translation2;
+  // Two versions in use: switched on with a 2nd version picked.
+  const bilingual = scriptureKind && twoVersions && !!translation2 && translation2 !== translation;
+  const boxMode = scriptureKind && (bilingual || stacked);
 
-  // The versions this workspace edits, in order. Multi: the pickers' pair (or
-  // one). Off but stacked: the one the workspace shows. Legacy: none.
+  // The versions the boxes edit, in order: the pickers' pair, or (for the
+  // render between switching off and the set dropping its 2nd version) the
+  // set's own. Legacy: none.
   const editVersions = useMemo<string[]>(() => {
     if (!boxMode) return [];
-    if (multi) return translation2 ? [translation, translation2] : [translation];
-    return visibleVersions(readSet(), settings) ?? [translation];
-  }, [boxMode, multi, translation, translation2, settings, readSet]);
+    if (bilingual) return [translation, translation2];
+    return storedVersions?.length ? storedVersions : [translation];
+  }, [boxMode, bilingual, translation, translation2, storedVersions]);
   // The set's own first version: the one whose text also lives in `lines`.
   const primaryVersion = storedVersions?.[0] ?? editVersions[0] ?? translation;
   // The keys the boxes are read and written by: the edited versions, or the
@@ -202,19 +160,6 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       setManualText2(b);
     }
   }, [storeSlides, scriptureKind, manualText, manualText2, seedBoxes]);
-
-  // Re-seed the boxes when what the workspace shows changes (multi-language
-  // toggled, language changed) so they follow the visible versions.
-  const editKey = editVersions.join("|");
-  const lastEditKey = useRef(editKey);
-  useEffect(() => {
-    if (lastEditKey.current === editKey) return;
-    lastEditKey.current = editKey;
-    if (!scriptureKind || multi) return; // multi changes are the pickers' (handled below)
-    const [a, b] = seedBoxes(readSet()?.slides ?? []);
-    setManualText(a);
-    setManualText2(b);
-  }, [editKey, scriptureKind, multi, seedBoxes, readSet]);
 
   const [versesPer, setVersesPer] = useState(1);
   const [keepLineBreaks, setKeepLineBreaks] = useState(false);
@@ -350,7 +295,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     setAlignNote(null);
     try {
       const v1 = translation;
-      const v2 = multi ? translation2 : "";
+      const v2 = bilingual ? translation2 : "";
       const versions = v2 ? [v1, v2] : [v1];
       // Two stacked versions: at most two verses per slide.
       const vPer = v2 ? Math.min(versesPer, 2) : versesPer;
@@ -382,9 +327,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
         const patch: Partial<{ versions: string[]; scriptureImports: string[]; name: string }> = {
           scriptureImports: [...(storedImports ?? []), q],
         };
-        // Off but stacked: the set keeps its own versions; the import adds the
-        // visible one only. Multi: the pickers define the versions.
-        if (multi) patch.versions = versions;
+        // The pickers define the versions.
+        patch.versions = versions;
         if (!hadText) patch.name = `${b.ref1} ${v1}${v2 ? ` / ${v2}` : ""}`;
         updateSet(setId, patch);
         noteUnmatched(b.unmatched, v1, v2);
@@ -561,18 +505,20 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     }
   };
 
-  const pickerKey = multi
-    ? (translation2 ? [translation, translation2] : [translation]).join("|")
-    : "";
-  const prevPickerKey = useRef<string | null>(null);
+  // Two versions: changing either re-fetches the passages in the new pair
+  // (and switching two versions on fetches the 2nd for what's there). Skips
+  // the initial mount; swaps, switching off and the hydration above update the
+  // marker themselves, since they change no fetched text.
+  const pickerKey = bilingual ? `${translation}|${translation2}` : "";
   useEffect(() => {
-    if (!multi || !scriptureKind) return;
+    if (!scriptureKind) return;
     if (prevPickerKey.current === null) {
       prevPickerKey.current = pickerKey;
       return;
     }
     if (prevPickerKey.current === pickerKey) return;
     prevPickerKey.current = pickerKey;
+    if (!pickerKey) return;
     const v2 = translation2;
     if (kind === "message") {
       void rebuildMessageVersions(translation, v2);
@@ -590,12 +536,57 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       ),
     ];
     updateSet(setId, {
-      versions: v2 ? [translation, v2] : [translation],
+      versions: [translation, v2],
       scriptureImports: currentRefs,
     });
     void rebuildScripture(translation, v2);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickerKey, multi, scriptureKind]);
+  }, [pickerKey, scriptureKind]);
+
+  /**
+   * The "Two versions" switch. On: the 2nd picker appears, preselected with
+   * the version last paired in a previous set (the effect above then fetches
+   * it). Off: the 2nd version is dropped and the 1st version's text, edits
+   * included, stays exactly as it is (nothing is fetched).
+   */
+  const setTwoVersions = (on: boolean) => {
+    // Not mid-fetch: a re-fetch landing after the switch would refill the boxes.
+    if (busy) return;
+    if (on) {
+      if (!translation2 || translation2 === translation) {
+        setTranslation2(pairedVersion(allSets(), translation) ?? "");
+      }
+      setTwoVersionsOn(true);
+      return;
+    }
+    setTwoVersionsOn(false);
+    prevPickerKey.current = "";
+    setAlignNote(null);
+    if (!scriptureKind) return;
+    const set = readSet();
+    if (!set) return;
+    const keep = set.versions?.[0] ?? translation;
+    if (keep !== translation) setTranslation(keep);
+    if (kind === "message") {
+      // A message's verses live on its slides: each keeps its 1st version's
+      // text and reference, the plain single-version way.
+      updateSet(setId, {
+        versions: [keep],
+        slides: set.slides.map((sl) => {
+          if (sl.kind !== "scripture" || !sl.linesByVersion) return sl;
+          const { linesByVersion: byVersion, referencesByVersion: refsByVersion, ...rest } = sl;
+          const text = byVersion[keep] ?? sl.lines?.[0] ?? "";
+          const reference = refsByVersion?.[keep] ?? sl.reference;
+          return { ...rest, lines: text ? [text] : [], reference, section: reference };
+        }),
+      });
+      return;
+    }
+    // A scripture set: the 1st box becomes the one text box (the live sync
+    // above re-parses it the single-version way).
+    setManualText2("");
+    if (set.versions?.length) updateSet(setId, { versions: [keep] });
+  };
 
   /** Swap which translation is first: codes, boxes and stored order flip together. */
   const swapVersions = () => {
@@ -612,7 +603,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   // The set's versions sit outside the workspace's languages (the workspace
   // changed language after this set was imported). "Update versions" re-fetches
   // its passages in the workspace's languages' first bibles; the boxes (and any
-  // manual verse edits) are rebuilt from bolls.
+  // manual verse edits) are rebuilt from bolls. Dormant while workspace
+  // languages don't restrict versions (see WORKSPACE_LANGUAGE_CHECKS).
   const inferred = useMemo(
     () => inferredVersions({ kind, versions: storedVersions, slides: storeSlides ?? [] }),
     [kind, storedVersions, storeSlides],
@@ -632,48 +624,11 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       updateSet(setId, { versions: undefined, scriptureImports: undefined });
     }
   }, [scriptureKind, hasVerses, boxesEmpty, storedVersions, storedImports, setId, updateSet]);
-  // What Update re-imports in: a version already in one of the workspace's
-  // languages is kept; the other slot gets the remaining language's first
-  // bible. A single-version set stays single.
-  const workspaceVersions = useMemo(() => {
-    const first = (l: LangCode | null) => (l ? (translationsForLang(l)[0]?.code ?? "") : "");
-    if (!multi || !settings.language2) {
-      const keep = langOfTranslation(translation) === settings.language;
-      return { v1: keep ? translation : first(settings.language) || "NIV", v2: "" };
-    }
-    const langs: LangCode[] = [settings.language, settings.language2];
-    const l1 = langOfTranslation(translation);
-    const keep1 = !!l1 && langs.includes(l1);
-    const v1 = keep1 ? translation : first(settings.language) || "NIV";
-    const lang1: LangCode = keep1 && l1 ? l1 : settings.language;
-    const remaining: LangCode =
-      lang1 === settings.language ? settings.language2 : settings.language;
-    // A single-version set stays single (2nd version: none).
-    if (!translation2) return { v1, v2: "" };
-    const v2 = langOfTranslation(translation2) === remaining ? translation2 : first(remaining);
-    return { v1, v2: v2 === v1 ? "" : v2 };
-  }, [multi, settings.language, settings.language2, translation, translation2]);
-  /** The Update dialog's picker lists, following the importer's rule: the
-   *  two languages take turns. Given the dialog's current 1st pick, the 2nd
-   *  slot offers the other language; with no 2nd chosen, the 1st slot lists
-   *  both languages grouped, else its own language. */
-  const updateGroupsFor = useCallback(
-    (v1: string, v2: string) => {
-      const groupFor = (l: LangCode | null) => (l ? translationGroupsForLang(l) : []);
-      if (!multi || !settings.language2) {
-        return { first: groupFor(settings.language), second: [] as ReturnType<typeof groupFor> };
-      }
-      const l1 = langOfTranslation(v1);
-      const firstLang = l1 === settings.language2 ? settings.language2 : settings.language;
-      const other = firstLang === settings.language ? settings.language2 : settings.language;
-      return {
-        first: v2
-          ? groupFor(firstLang)
-          : [...groupFor(settings.language), ...groupFor(settings.language2)],
-        second: groupFor(other),
-      };
-    },
-    [multi, settings.language, settings.language2],
+  // The dormant Re-import / Duplicate dialog (see WORKSPACE_LANGUAGE_CHECKS)
+  // starts from the set's current versions.
+  const workspaceVersions = useMemo(
+    () => ({ v1: translation, v2: bilingual ? translation2 : "" }),
+    [translation, translation2, bilingual],
   );
 
   const updateVersionsToWorkspace = async (
@@ -681,9 +636,10 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     v2: string = workspaceVersions.v2,
   ) => {
     // Take over the pickers without the picker effect re-fetching on top.
-    prevPickerKey.current = (v2 ? [v1, v2] : [v1]).join("|");
+    prevPickerKey.current = v2 ? `${v1}|${v2}` : "";
     setTranslation(v1);
     setTranslation2(v2);
+    setTwoVersionsOn(!!v2);
     // From scratch: the passages recorded at import (else the references on
     // the verses, minus any version label), fetched again whole, so merged or
     // edited verses come back as the translation has them.
@@ -821,15 +777,14 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
 
   /**
    * A blank hand-typed verse at the end of the set: its reference and text are
-   * typed in (a column per version the workspace edits) rather than fetched.
-   * A scripture set gets a `[~]` block in each box; a message gets a slide.
-   * In a multi-language workspace the set records the pickers' versions, the
-   * way an import does, so the second column projects.
+   * typed in (a column per version the set edits) rather than fetched. A
+   * scripture set gets a `[~]` block in each box; a message gets a slide.
+   * With two versions the set records the pickers' pair, the way an import
+   * does, so the second column projects.
    */
   const addManualVerse = () => {
     if (!scriptureKind) return;
-    const versions =
-      multi && boxMode ? (translation2 ? [translation, translation2] : [translation]) : undefined;
+    const versions = bilingual ? [translation, translation2] : undefined;
     if (kind === "message") {
       const existing = readSet()?.slides ?? [];
       const nextIdx = existing.reduce((m, s) => Math.max(m, s.importIndex ?? 0), -1) + 1;
@@ -857,7 +812,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   };
 
   return {
-    multi,
+    twoVersions,
+    setTwoVersions,
     boxMode,
     bilingual,
     editVersions,
@@ -866,10 +822,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     setTranslation,
     translation2,
     setTranslation2,
-    firstChoices,
-    firstGroups,
-    secondChoices,
-    secondGroups,
+    versionGroups,
+    recentVersions: recents,
     manualText,
     setManualText,
     manualText2,
@@ -891,7 +845,6 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     frozen,
     storedVersions: inferred,
     workspaceVersions,
-    updateGroupsFor,
     updateVersionsToWorkspace,
     duplicateToVersions,
   };

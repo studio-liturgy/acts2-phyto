@@ -179,6 +179,41 @@ export function translationGroupsForLang(
   return [{ language: workspaceLangLabel(lang), translations: all }];
 }
 
+export type TranslationGroup = {
+  language: string;
+  translations: { code: string; label: string }[];
+};
+
+/** Every translation, grouped for a picker: one group per language in
+ *  TRANSLATION_GROUPS order, Chinese split by script. */
+export function allTranslationGroups(): TranslationGroup[] {
+  return TRANSLATION_GROUPS.flatMap((g) => translationGroupsForLang(GROUP_LANG[g.language]));
+}
+
+/** The groups narrowed to what `query` matches: a translation's code or name,
+ *  or its group's language ("korean" lists every Korean version). Empty
+ *  groups drop out. Case- and accent-insensitive. */
+export function searchTranslationGroups(
+  groups: TranslationGroup[],
+  query: string,
+): TranslationGroup[] {
+  const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const q = fold(query.trim());
+  if (!q) return groups;
+  return groups
+    .map((g) =>
+      fold(g.language).includes(q)
+        ? g
+        : {
+            ...g,
+            translations: g.translations.filter(
+              (t) => fold(t.code).includes(q) || fold(t.label).includes(q),
+            ),
+          },
+    )
+    .filter((g) => g.translations.length > 0);
+}
+
 /** The translations offered for a workspace language (for the single-version
  *  picker when multi-language is off). Falls back to everything when no
  *  translation is in that language. */

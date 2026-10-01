@@ -1,110 +1,45 @@
-import { useState } from "react";
-import { PillSwitch } from "@/components/PillSwitch";
 import { LanguagePicker } from "@/components/LanguagePicker";
-import { useLibrary } from "@/lib/store";
-import { otherWorkspaceLang, type WorkspaceSettings } from "@/lib/workspace-settings";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const ROW = "flex items-center justify-between gap-4 py-2";
 const LABEL = "mono text-xs uppercase tracking-wider";
 
-/** A 2nd language to start with when multi-language is switched on: the first
- *  in the list that isn't the 1st. */
-const defaultSecond = otherWorkspaceLang;
-
 /**
- * The per-workspace rows for the ACTIVE workspace, wired to the store.
- * Multi-language off: a System language. On: a 1st and a 2nd language, both
- * required (the scripture importer offers each one's bible versions, and a
- * two-version scripture stacks the version in each, in that order). Rendered
- * in Settings for the personal workspace and in a group's Manage panel.
+ * The per-workspace rows: the System language, frozen at English for now
+ * (more languages are a work in progress, as hovering it says). Bible
+ * versions don't depend on it: each scripture set picks its own, one or two,
+ * from every language. Rendered in Settings for the personal workspace and in
+ * a group's Manage panel. Carries its own TooltipProvider: the app has none at
+ * the root.
  */
-export function WorkspaceSettingsRows({ disabled = false }: { disabled?: boolean }) {
-  const settings = useLibrary((s) => s.workspaceSettings);
-  const updateWorkspaceSettings = useLibrary((s) => s.updateWorkspaceSettings);
-  const [error, setError] = useState<string | null>(null);
-  const apply = async (patch: Partial<WorkspaceSettings>) => {
-    setError(null);
-    const ok = await updateWorkspaceSettings(patch);
-    if (!ok) setError("Could not save. Check your connection and try again.");
-  };
-  // The note about existing sets appears once a language has been changed here.
-  const [languageChanged, setLanguageChanged] = useState(false);
-  const applyLanguage = (patch: Partial<WorkspaceSettings>) => {
-    setLanguageChanged(true);
-    return apply(patch);
-  };
-
-  const second = settings.language2 ?? defaultSecond(settings.language);
-
+export function WorkspaceSettingsRows() {
   return (
-    <div>
-      <div className={ROW}>
-        <div className={LABEL}>Multi-language</div>
-        <PillSwitch
-          checked={settings.multiLanguage}
-          disabled={disabled}
-          onCheckedChange={(on) =>
-            // Switching on fills in a 2nd language so both are always set.
-            applyLanguage(
-              on && (!settings.language2 || settings.language2 === settings.language)
-                ? { multiLanguage: true, language2: defaultSecond(settings.language) }
-                : { multiLanguage: on },
-            )
-          }
-          label="Multi-language"
-        />
-      </div>
-      {settings.multiLanguage ? (
-        <>
-          <div className={ROW}>
-            <div className={LABEL}>1st language</div>
-            <LanguagePicker
-              value={settings.language}
-              disabled={disabled}
-              exclude={[settings.language]}
-              onChange={(language) =>
-                // The two must differ: picking the 2nd as the 1st swaps them.
-                apply(
-                  language === second ? { language, language2: settings.language } : { language },
-                )
-              }
-            />
-          </div>
-          <div className={ROW}>
-            <div className={LABEL}>2nd language</div>
-            <LanguagePicker
-              value={second}
-              disabled={disabled}
-              exclude={[second]}
-              onChange={(language2) =>
-                apply(
-                  language2 === settings.language ? { language2, language: second } : { language2 },
-                )
-              }
-            />
-          </div>
-        </>
-      ) : (
-        <div className={ROW}>
-          <div className={LABEL}>System language</div>
-          <LanguagePicker
-            value={settings.language}
-            disabled={disabled}
-            exclude={[settings.language]}
-            onChange={(language) => applyLanguage({ language })}
-          />
-        </div>
-      )}
-      {languageChanged && (
-        <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-          If Scripture sets are in a different language, they remain frozen until updated.
-        </p>
-      )}
-      {error && (
-        <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
-          {error}
-        </p>
-      )}
+    <div className={ROW}>
+      <div className={LABEL}>System language</div>
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {/* A disabled button fires no pointer events, so the wrapper
+                takes the hover for the tooltip. Not focusable: the dialog
+                focuses its first focusable element on open, which would open
+                the tooltip without a hover. */}
+            <span className="inline-flex cursor-not-allowed rounded-full">
+              <LanguagePicker
+                value="en"
+                disabled
+                onChange={() => {}}
+                className="pointer-events-none"
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent
+            side="top"
+            className="mono rounded-2xl border border-foreground bg-background p-3 text-[10px] uppercase tracking-wider text-foreground shadow-lg"
+          >
+            Work in progress: more languages coming soon
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }

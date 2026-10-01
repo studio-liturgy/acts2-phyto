@@ -6,11 +6,6 @@ import { PhoneViewer } from "@/components/PhoneViewer";
 import type { PhoneSet } from "@/lib/phone-viewer";
 import type { SongChords } from "@/lib/chords";
 import { visibleVersions } from "@/lib/versions";
-import {
-  DEFAULT_WORKSPACE_SETTINGS,
-  fetchWorkspaceSettings,
-  type WorkspaceSettings,
-} from "@/lib/workspace-settings";
 
 // Per-gathering share view — private, ephemeral links. Keep out of search.
 
@@ -181,7 +176,7 @@ async function fetchViewerSets(gatheringId: string): Promise<ViewerSet[]> {
 }
 
 /** Flatten a fetched set row into the shape PhoneViewer renders. */
-function toPhoneSet(set: SetRow, settings: WorkspaceSettings): PhoneSet {
+function toPhoneSet(set: SetRow): PhoneSet {
   const slides = set.content?.slides ?? [];
   return {
     id: set.id,
@@ -189,9 +184,9 @@ function toPhoneSet(set: SetRow, settings: WorkspaceSettings): PhoneSet {
     type: set.type,
     slides,
     chords: set.content?.chords,
-    // Which versions a stacked scripture shows follows the gathering's
-    // workspace, exactly as the leader's screen does.
-    versions: visibleVersions({ versions: set.content?.versions, slides }, settings),
+    // A stacked scripture shows every version it carries, exactly as the
+    // leader's screen does.
+    versions: visibleVersions({ versions: set.content?.versions, slides }),
   };
 }
 
@@ -205,7 +200,6 @@ function GatheringViewer() {
   const [gatheringName, setGatheringName] = useState<string | null>(null);
   const [sets, setSets] = useState<ViewerSet[]>([]);
   const [hiddenBySet, setHiddenBySet] = useState<Record<string, string[]>>({});
-  const [settings, setSettings] = useState<WorkspaceSettings>(DEFAULT_WORKSPACE_SETTINGS);
   const prevLiveRef = useRef<boolean | null>(null);
   const stoppedRef = useRef(false);
 
@@ -262,11 +256,6 @@ function GatheringViewer() {
       if (live) {
         const viewerSets = await fetchViewerSets(g.id);
         if (stoppedRef.current) return;
-        // The gathering's workspace settings (public read), refreshed with each
-        // poll so a leader's change reaches phones without a reload.
-        const fetched = await fetchWorkspaceSettings({ groupId: g.group_id }, g.user_id);
-        if (stoppedRef.current) return;
-        if (fetched) setSettings(fetched.settings);
         setSets(viewerSets);
         setHiddenBySet(g.hidden_sections);
         setStatus("live");
@@ -316,7 +305,5 @@ function GatheringViewer() {
   }
 
   // Live
-  return (
-    <PhoneViewer sets={sets.map((vs) => toPhoneSet(vs.set, settings))} hiddenBySet={hiddenBySet} />
-  );
+  return <PhoneViewer sets={sets.map((vs) => toPhoneSet(vs.set))} hiddenBySet={hiddenBySet} />;
 }

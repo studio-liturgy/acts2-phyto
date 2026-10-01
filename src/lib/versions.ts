@@ -1,10 +1,7 @@
-// Scripture versions (bible translations) stacked on a slide, and which of
-// them a WORKSPACE shows. A scripture set may carry two translations
-// (`Set.versions`, one text per version on each verse slide); the workspace's
-// settings decide what's projected: every version when multi-language is on,
-// otherwise the one in the workspace's language (falling back to the set's
-// primary). Groups get this for free: the set carries both, each member's
-// workspace picks.
+// Scripture versions (bible translations) stacked on a slide. A scripture set
+// may carry two translations (`Set.versions`, one text per version on each
+// verse slide), switched on per set in its editor; every version a set carries
+// is projected. The workspace's language doesn't restrict them.
 
 import type { Slide } from "./types";
 import { langOfTranslation, splitRefLabel, type AlignedVerse } from "./bible";
@@ -89,32 +86,11 @@ export function hasStackedVersions(set: VersionedSet | null | undefined): boolea
   return !!set && (set.versions?.length ?? 0) > 1 && set.slides.some((s) => !!s.linesByVersion);
 }
 
-/**
- * Which of a set's versions the workspace shows, in order. Undefined when the
- * set doesn't stack versions (render from `lines`).
- *  - Multi-language on: every version the set carries, in the SET's order
- *    (its 1st version on top; "Swap versions" flips it).
- *  - Off: the version in the workspace's system language; a set with none
- *    (it's flagged with a warning) shows everything it carries.
- */
-export function visibleVersions(
-  set: VersionedSet | null | undefined,
-  settings: WorkspaceSettings,
-): string[] | undefined {
-  if (!hasStackedVersions(set)) return undefined;
-  const all = set!.versions!;
-  const inLang = (lang: LangCode | null) =>
-    lang ? all.find((code) => langOfTranslation(code) === lang) : undefined;
-  if (settings.multiLanguage) {
-    // The set's own order (1st version on top, 2nd below; "Swap versions" in
-    // the editor flips it). A set that doesn't fit the workspace's languages
-    // (it shows a warning) still projects everything it has.
-    return all;
-  }
-  // Off: the version in the system language; a set that has none (warned)
-  // still shows everything it has rather than a version picked at random.
-  const match = inLang(settings.language);
-  return match ? [match] : all;
+/** The versions a set projects, in the set's order (its 1st version on top;
+ *  "Swap versions" in the editor flips it). Undefined when the set doesn't
+ *  stack versions (render from `lines`). */
+export function visibleVersions(set: VersionedSet | null | undefined): string[] | undefined {
+  return hasStackedVersions(set) ? set!.versions : undefined;
 }
 
 /**
@@ -179,8 +155,23 @@ export function languagesOfVersions(versions: string[] | undefined): string {
   ].join(" / ");
 }
 
+/** Workspace languages no longer restrict a set's versions (each set picks its
+ *  own, one or two, from every language), so nothing is ever out of place. The
+ *  mismatch warning, the frozen editor and Re-import / Duplicate stay wired to
+ *  versionsMismatchWorkspace, dormant, for when system languages return. */
+export const WORKSPACE_LANGUAGE_CHECKS = false;
+
+/** Would the set's versions be wrong for this workspace? Never while
+ *  WORKSPACE_LANGUAGE_CHECKS is off; see versionsOutsideLanguages. */
+export function versionsMismatchWorkspace(
+  versions: string[] | undefined,
+  settings: WorkspaceSettings,
+): boolean {
+  return WORKSPACE_LANGUAGE_CHECKS && versionsOutsideLanguages(versions, settings);
+}
+
 /**
- * Would the set's versions be wrong for this workspace?
+ * The rule the dormant mismatch check applies:
  *  - Multi-language: every version must be in one of the two languages (a
  *    Chinese / English set in a French / English workspace has a Chinese
  *    version that would be stacked). An English-only set is fine there.
@@ -188,7 +179,7 @@ export function languagesOfVersions(versions: string[] | undefined): string {
  *    simply not projected, so French / English is fine in English).
  * False for sets that record no versions (nothing to judge).
  */
-export function versionsMismatchWorkspace(
+export function versionsOutsideLanguages(
   versions: string[] | undefined,
   settings: WorkspaceSettings,
 ): boolean {
@@ -199,4 +190,43 @@ export function versionsMismatchWorkspace(
     return langs.some((l) => !l || !allowed.has(l));
   }
   return !langs.includes(settings.language);
+}
+
+/** The shape the version history reads: a set's kind, versions and verses,
+ *  and when it was last changed. */
+type HistorySet = {
+  kind?: string;
+  versions?: string[];
+  slides: Array<{ reference?: string; kind?: string; linesByVersion?: Record<string, string> }>;
+  updatedAt: number;
+};
+
+const newestFirst = (sets: readonly HistorySet[]) =>
+  [...sets].sort((a, b) => b.updatedAt - a.updatedAt);
+
+/** The bible versions used in previous sets, most recently changed set first
+ *  (each set's versions in its own order), each once, at most `limit`. The
+ *  version pickers list these on top; a new set starts in the first. */
+export function recentVersions(sets: readonly HistorySet[], limit = 5): string[] {
+  const out: string[] = [];
+  for (const set of newestFirst(sets)) {
+    for (const code of inferredVersions(set) ?? []) {
+      if (!out.includes(code)) out.push(code);
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
+/** The version to preselect when two versions are switched on beside `first`:
+ *  the 2nd version of the most recent two-version set (its 1st when that is
+ *  `first`), else the most recent other version used, else none. */
+export function pairedVersion(sets: readonly HistorySet[], first: string): string | undefined {
+  for (const set of newestFirst(sets)) {
+    if (!hasStackedVersions(set)) continue;
+    const [a, b] = set.versions!;
+    const other = b !== first ? b : a;
+    if (other && other !== first) return other;
+  }
+  return recentVersions(sets, Infinity).find((code) => code !== first);
 }

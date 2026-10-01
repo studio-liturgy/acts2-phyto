@@ -1,12 +1,12 @@
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-
-type Translation = { code: string; label: string };
-type Group = { language: string; translations: Translation[] };
+import { searchTranslationGroups, translationLabel, type TranslationGroup } from "@/lib/bible";
 
 /**
  * The bible-version dropdown in the scripture importer: a pill that opens a
- * grouped list (one heading per language, as on watch). A single ungrouped
- * list is passed with an empty language.
+ * searchable list, the versions used in previous sets on top and then every
+ * version grouped by language (as on watch). Typing filters by code, name or
+ * language; arrow keys and Enter pick.
  */
 export function VersionPicker({
   label,
@@ -18,6 +18,7 @@ export function VersionPicker({
   onClear,
   exclude,
   groups,
+  recent = [],
 }: {
   label: string;
   value: string;
@@ -30,17 +31,88 @@ export function VersionPicker({
   onClear?: () => void;
   /** A code to leave out (the other picker's choice). */
   exclude?: string;
-  groups: Group[];
+  groups: TranslationGroup[];
+  /** Versions used in previous sets, most recent first: listed above the
+   *  groups while nothing is typed. */
+  recent?: string[];
 }) {
+  const [query, setQuery] = useState("");
+  // The row the arrow keys are on (-1: none yet); typing puts it on the first
+  // match, so Enter picks that.
+  const [active, setActive] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Each opening starts from an empty search, focused so typing filters.
+  useEffect(() => {
+    if (!open) return;
+    setQuery("");
+    setActive(-1);
+    inputRef.current?.focus();
+  }, [open]);
+
+  const sections = useMemo(() => {
+    const searching = query.trim() !== "";
+    const out: TranslationGroup[] = [];
+    if (!searching && recent.length) {
+      out.push({
+        language: "Recently used",
+        translations: recent.map((code) => ({ code, label: translationLabel(code) })),
+      });
+    }
+    out.push(...(searching ? searchTranslationGroups(groups, query) : groups));
+    return out
+      .map((g) => ({ ...g, translations: g.translations.filter((t) => t.code !== exclude) }))
+      .filter((g) => g.translations.length > 0);
+  }, [query, recent, groups, exclude]);
+  const flat = useMemo(() => sections.flatMap((g) => g.translations), [sections]);
+
+  useEffect(() => {
+    listRef.current
+      ?.querySelector<HTMLElement>('[data-active="true"]')
+      ?.scrollIntoView?.({ block: "nearest" });
+  }, [active]);
+
+  const pick = (code: string) => {
+    onPick(code);
+    setOpen(false);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((i) => Math.min(flat.length - 1, i + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((i) => Math.max(0, i - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const t = flat[Math.max(0, active)];
+      if (t) pick(t.code);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+    }
+  };
+
+  let index = -1;
   return (
     <div>
       <div className="mono mb-1 text-[10px] uppercase tracking-wider">{label}</div>
-      <div className="relative">
+      <div
+        className="relative"
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
+        }}
+      >
         <div
           className="pill flex cursor-pointer items-center gap-2 border border-foreground bg-background px-3 py-2"
           onClick={() => setOpen((o) => !o)}
-          onBlur={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
+          onKeyDown={(e) => {
+            if (!open && (e.key === "Enter" || e.key === " " || e.key === "ArrowDown")) {
+              e.preventDefault();
+              setOpen(true);
+            }
           }}
           tabIndex={0}
         >
@@ -48,11 +120,32 @@ export function VersionPicker({
           <ChevronDown className="h-3.5 w-3.5 shrink-0" />
         </div>
         {open && (
-          <div className="catalogue-scroll absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-foreground bg-popover shadow-md">
-            {onClear && (
+          <div
+            ref={listRef}
+            // Clicks inside keep the focus in the search field (and the list open).
+            onMouseDown={(e) => {
+              if (e.target !== inputRef.current) e.preventDefault();
+            }}
+            className="catalogue-scroll absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-foreground bg-popover shadow-md"
+          >
+            <div className="sticky top-0 z-10 border-b border-foreground/20 bg-popover">
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setActive(0);
+                }}
+                onKeyDown={onKeyDown}
+                placeholder="Search versions"
+                aria-label={`Search ${label}`}
+                className="mono w-full bg-transparent px-3 py-2 text-xs uppercase outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            {onClear && !query.trim() && (
               <button
-                onMouseDown={(e) => {
-                  e.preventDefault();
+                type="button"
+                onClick={() => {
                   onClear();
                   setOpen(false);
                 }}
@@ -61,33 +154,39 @@ export function VersionPicker({
                 {placeholder ?? "None"}
               </button>
             )}
-            {groups.map((group) => (
-              <div key={group.language || "all"}>
+            {sections.map((group) => (
+              <Fragment key={group.language || "all"}>
                 {group.language && (
                   <div className="mono bg-muted/60 px-3 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
                     {group.language}
                   </div>
                 )}
-                {group.translations
-                  .filter((t) => t.code !== exclude)
-                  .map((t) => (
+                {group.translations.map((t) => {
+                  index += 1;
+                  const i = index;
+                  return (
                     <button
                       key={t.code}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        onPick(t.code);
-                        setOpen(false);
-                      }}
-                      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-muted ${t.code === value ? "bg-muted" : ""}`}
+                      type="button"
+                      data-active={i === active}
+                      onClick={() => pick(t.code)}
+                      onMouseMove={() => setActive(i)}
+                      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left ${i === active || t.code === value ? "bg-muted" : ""}`}
                     >
                       <span className="mono uppercase text-xs shrink-0">{t.code}</span>
                       <span className="mono uppercase text-[10px] tracking-wider text-muted-foreground truncate text-right">
                         {t.label.replace(/^.+?—\s*/, "")}
                       </span>
                     </button>
-                  ))}
-              </div>
+                  );
+                })}
+              </Fragment>
             ))}
+            {flat.length === 0 && (
+              <div className="mono px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                No versions match
+              </div>
+            )}
           </div>
         )}
       </div>

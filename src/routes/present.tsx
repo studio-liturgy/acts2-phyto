@@ -189,8 +189,6 @@ const usePresenterKindFilter = create<{ kind: PresenterKind; setKind: (k: Presen
 function Presenter() {
   const { set: setFromUrl, gathering: gatheringFromUrl, view: viewFromUrl } = Route.useSearch();
   const sets = useLibrary((s) => s.sets);
-  // Which bible versions a scripture projects follows the workspace settings.
-  const workspaceSettings = useLibrary((s) => s.workspaceSettings);
   const order = useLibrary((s) => s.order);
   const gatherings = useLibrary((s) => s.gatherings);
   const gatheringOrder = useLibrary((s) => s.gatheringOrder);
@@ -429,9 +427,9 @@ function Presenter() {
         type: d.kind,
         slides: d.slides,
         chords: d.chords,
-        versions: visibleVersions(d, workspaceSettings),
+        versions: visibleVersions(d),
       }));
-  }, [activeGathering, activeSetId, sets, workspaceSettings]);
+  }, [activeGathering, activeSetId, sets]);
 
   // Mobile preview only makes sense for a gathering (it's the multi-set phone
   // view). Viewing a single set falls back to slides, and the toggle is hidden.
@@ -1439,7 +1437,7 @@ function Presenter() {
               <div className="relative overflow-hidden rounded-lg bg-[var(--brand-black)]">
                 <DissolveSlide
                   slide={liveSlide}
-                  versions={visibleVersions(liveSet, workspaceSettings)}
+                  versions={visibleVersions(liveSet)}
                   variant="preview"
                   durationMs={fadeMs}
                   videoCmd={live.videoCmd}
@@ -1754,7 +1752,6 @@ function PresenterThumb({
 }) {
   const isLive = live.setId === phytoSet.id && live.slideId === slide.id;
   const updateSlide = useLibrary((s) => s.updateSlide);
-  const workspaceSettings = useLibrary((s) => s.workspaceSettings);
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
   const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
@@ -1811,7 +1808,7 @@ function PresenterThumb({
       >
         <SlideView
           slide={slide}
-          versions={visibleVersions(phytoSet, workspaceSettings)}
+          versions={visibleVersions(phytoSet)}
           variant="thumb"
           template={template}
         />

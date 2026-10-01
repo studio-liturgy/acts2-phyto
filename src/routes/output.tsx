@@ -22,7 +22,6 @@ function Output() {
   const songDraft = useSongTemplateDraft((s) => s.draft);
   const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
   const scriptureDraft = useScriptureTemplateDraft((s) => s.draft);
-  const workspaceSettings = useLibrary((s) => s.workspaceSettings);
   const rawSlide = useMemo(
     () => phytoSet?.slides.find((s) => s.id === live.slideId) ?? null,
     [phytoSet, live.slideId],
@@ -86,7 +85,7 @@ function Output() {
       ) : (
         <DissolveSlide
           slide={slide}
-          versions={visibleVersions(phytoSet, workspaceSettings)}
+          versions={visibleVersions(phytoSet)}
           variant="stage"
           durationMs={globalFadeMs}
           template={template}

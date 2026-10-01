@@ -361,8 +361,6 @@ function SetHeader({
 }
 
 function SetEditor() {
-  // Which bible versions a scripture preview stacks follows the workspace.
-  const workspaceSettings = useLibrary((s) => s.workspaceSettings);
   const { setId } = Route.useParams();
   const { redirectTo } = Route.useSearch();
   const navigate = useNavigate();
@@ -605,7 +603,7 @@ function SetEditor() {
                               <div key={s.id} className="overflow-hidden rounded-md">
                                 <SlideView
                                   slide={s}
-                                  versions={visibleVersions(phytoSet, workspaceSettings)}
+                                  versions={visibleVersions(phytoSet)}
                                   variant="thumb"
                                   template={effectiveScriptureTemplate}
                                 />
@@ -1072,6 +1070,9 @@ function PillInput({
 /** The scripture importer's options row: verses per slide and line breaks.
  *  Two stacked versions halve the room on a slide, so the ceiling drops to 2. */
 function ImportOptions({
+  twoVersions,
+  setTwoVersions,
+  busy,
   versesPer,
   setVersesPer,
   keepLineBreaks,
@@ -1080,6 +1081,11 @@ function ImportOptions({
   setVersionRefs,
   maxVerses = 3,
 }: {
+  /** The set carries a 2nd bible version (a picker beside the 1st). */
+  twoVersions: boolean;
+  setTwoVersions: (on: boolean) => void;
+  /** A fetch is running: the switch waits for it. */
+  busy: boolean;
   versesPer: number;
   setVersesPer: (n: number) => void;
   keepLineBreaks: boolean;
@@ -1092,6 +1098,15 @@ function ImportOptions({
   return (
     <div className="flex flex-col justify-end">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
+        <div className="flex items-center gap-2">
+          <span className="mono text-[10px] uppercase tracking-wider">Two versions</span>
+          <PillSwitch
+            label="Two versions"
+            checked={twoVersions}
+            disabled={busy}
+            onCheckedChange={setTwoVersions}
+          />
+        </div>
         <div className="flex items-center gap-2">
           <div className="mono text-[10px] uppercase tracking-wider">Verses per slide</div>
           <NumberStepper
@@ -2314,28 +2329,32 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             />
             <div className="mt-3 grid grid-cols-2 gap-3">
               <VersionPicker
-                label={scripture.multi ? "1st version" : "Version"}
+                label={scripture.twoVersions ? "1st version" : "Version"}
                 value={translation}
                 open={versionOpen}
                 setOpen={setVersionOpen}
                 onPick={setTranslation}
-                exclude={scripture.multi ? translation2 : ""}
-                groups={scripture.firstGroups}
+                exclude={scripture.twoVersions ? translation2 : ""}
+                groups={scripture.versionGroups}
+                recent={scripture.recentVersions}
               />
-              {scripture.multi ? (
+              {scripture.twoVersions ? (
                 <VersionPicker
                   label="2nd version"
                   value={translation2}
-                  placeholder="None"
+                  placeholder="Choose a version"
                   open={version2Open}
                   setOpen={setVersion2Open}
                   onPick={setTranslation2}
-                  onClear={() => setTranslation2("")}
                   exclude={translation}
-                  groups={scripture.secondGroups}
+                  groups={scripture.versionGroups}
+                  recent={scripture.recentVersions}
                 />
               ) : (
                 <ImportOptions
+                  twoVersions={false}
+                  setTwoVersions={scripture.setTwoVersions}
+                  busy={busy}
                   versesPer={versesPer}
                   setVersesPer={setVersesPer}
                   keepLineBreaks={keepLineBreaks}
@@ -2345,9 +2364,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 />
               )}
             </div>
-            {scripture.multi && (
+            {scripture.twoVersions && (
               <div className="mt-2">
                 <ImportOptions
+                  twoVersions
+                  setTwoVersions={scripture.setTwoVersions}
+                  busy={busy}
                   versesPer={versesPer}
                   setVersesPer={setVersesPer}
                   keepLineBreaks={keepLineBreaks}
@@ -2438,26 +2460,20 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                     </div>
                   </div>
                 )}
-              <div className={`mt-6 grid gap-3 ${scripture.multi ? "grid-cols-2" : "grid-cols-1"}`}>
+              <div
+                className={`mt-6 grid gap-3 ${scripture.bilingual ? "grid-cols-2" : "grid-cols-1"}`}
+              >
                 <VersionPicker
-                  label={scripture.multi ? "1st version" : "Version"}
+                  label={scripture.bilingual ? "1st version" : "Version"}
                   value={updateV1}
                   open={updateV1Open}
                   setOpen={setUpdateV1Open}
-                  onPick={(code) => {
-                    setUpdateV1(code);
-                    // Keep the pair spanning both languages, as the importer does.
-                    if (updateV2) {
-                      const other = scripture.updateGroupsFor(code, updateV2).second[0];
-                      if (other && !other.translations.some((t) => t.code === updateV2)) {
-                        setUpdateV2(other.translations[0]?.code ?? "");
-                      }
-                    }
-                  }}
+                  onPick={setUpdateV1}
                   exclude={updateV2}
-                  groups={scripture.updateGroupsFor(updateV1, updateV2).first}
+                  groups={scripture.versionGroups}
+                  recent={scripture.recentVersions}
                 />
-                {scripture.multi && (
+                {scripture.bilingual && (
                   <VersionPicker
                     label="2nd version"
                     value={updateV2}
@@ -2467,7 +2483,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                     onPick={setUpdateV2}
                     onClear={() => setUpdateV2("")}
                     exclude={updateV1}
-                    groups={scripture.updateGroupsFor(updateV1, updateV2).second}
+                    groups={scripture.versionGroups}
+                    recent={scripture.recentVersions}
                   />
                 )}
               </div>

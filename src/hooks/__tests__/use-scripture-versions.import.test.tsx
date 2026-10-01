@@ -54,11 +54,11 @@ it("a set's FIRST two-version import records both versions", async () => {
   const set = makeSet({ kind: "scripture", slides: [] });
   await db.sets.put(set);
   await useLibrary.getState().loadFromDb();
-  useLibrary.setState({
-    workspaceSettings: { multiLanguage: true, language: "en", language2: "zh-Hans" },
-  });
   await act(async () => root.render(<Harness setId={set.id} />));
-  await act(async () => api!.setTranslation2("CUNPS"));
+  await act(async () => {
+    api!.setTwoVersions(true);
+    api!.setTranslation2("CUNPS");
+  });
   await act(async () => {});
   await act(async () => {
     await api!.importScripture("Ruth 1:16-17");
@@ -78,11 +78,11 @@ it("removing every verse clears the recorded versions", async () => {
   const set = makeSet({ kind: "scripture", slides: [] });
   await db.sets.put(set);
   await useLibrary.getState().loadFromDb();
-  useLibrary.setState({
-    workspaceSettings: { multiLanguage: true, language: "en", language2: "zh-Hans" },
-  });
   await act(async () => root.render(<Harness setId={set.id} />));
-  await act(async () => api!.setTranslation2("CUNPS"));
+  await act(async () => {
+    api!.setTwoVersions(true);
+    api!.setTranslation2("CUNPS");
+  });
   await act(async () => {
     await api!.importScripture("Ruth 1:16-17");
   });
@@ -100,11 +100,11 @@ it("a manual verse sits beside an import and stays put when the 2nd version chan
   const set = makeSet({ kind: "scripture", slides: [] });
   await db.sets.put(set);
   await useLibrary.getState().loadFromDb();
-  useLibrary.setState({
-    workspaceSettings: { multiLanguage: true, language: "en", language2: "zh-Hans" },
-  });
   await act(async () => root.render(<Harness setId={set.id} />));
-  await act(async () => api!.setTranslation2("CUNPS"));
+  await act(async () => {
+    api!.setTwoVersions(true);
+    api!.setTranslation2("CUNPS");
+  });
   await act(async () => {});
   await act(async () => {
     await api!.importScripture("Ruth 1:16-17");
@@ -176,9 +176,6 @@ it("a message's manual verse block keeps its text when its versions are re-fetch
   });
   await db.sets.put(set);
   await useLibrary.getState().loadFromDb();
-  useLibrary.setState({
-    workspaceSettings: { multiLanguage: true, language: "en", language2: "zh-Hans" },
-  });
   await act(async () => root.render(<Harness setId={set.id} kind="message" />));
   await act(async () => {});
   await act(async () => {
@@ -203,11 +200,11 @@ it("the Version reference toggle relabels fetched passages, not manual verses", 
   const set = makeSet({ kind: "scripture", slides: [] });
   await db.sets.put(set);
   await useLibrary.getState().loadFromDb();
-  useLibrary.setState({
-    workspaceSettings: { multiLanguage: true, language: "en", language2: "zh-Hans" },
-  });
   await act(async () => root.render(<Harness setId={set.id} />));
-  await act(async () => api!.setTranslation2("CUNPS"));
+  await act(async () => {
+    api!.setTwoVersions(true);
+    api!.setTranslation2("CUNPS");
+  });
   await act(async () => {});
   await act(async () => {
     await api!.importScripture("Ruth 1:16-17");
@@ -240,4 +237,131 @@ it("the Version reference toggle relabels fetched passages, not manual verses", 
   after = useLibrary.getState().sets[set.id];
   expect(after.slides[1].reference).toBe("Ruth 1:16-17 NIV");
   expect(after.slides[2].referencesByVersion).toEqual({ NIV: "Our creed", CUNPS: "信经" });
+});
+
+it("switching two versions on fetches the 2nd for the passages already there", async () => {
+  const set = makeSet({ kind: "scripture", slides: [] });
+  await db.sets.put(set);
+  await useLibrary.getState().loadFromDb();
+  await act(async () => root.render(<Harness setId={set.id} />));
+  await act(async () => {
+    await api!.importScripture("Ruth 1:16-17");
+  });
+  await act(async () => {});
+  let after = useLibrary.getState().sets[set.id];
+  expect(after.slides.map((s) => s.lines)).toEqual([["NIV sixteen"], ["NIV seventeen"]]);
+  expect(api!.twoVersions).toBe(false);
+
+  await act(async () => {
+    api!.setTwoVersions(true);
+    api!.setTranslation2("KRV");
+  });
+  await act(async () => {});
+  await act(async () => {});
+  after = useLibrary.getState().sets[set.id];
+  expect(after.versions).toEqual(["NIV", "KRV"]);
+  expect(after.slides.map((s) => s.linesByVersion)).toEqual([
+    { NIV: "NIV sixteen", KRV: "KRV sixteen" },
+    { NIV: "NIV seventeen", KRV: "KRV seventeen" },
+  ]);
+});
+
+it("switching two versions off keeps the 1st version's text, edits included", async () => {
+  const set = makeSet({ kind: "scripture", slides: [] });
+  await db.sets.put(set);
+  await useLibrary.getState().loadFromDb();
+  await act(async () => root.render(<Harness setId={set.id} />));
+  await act(async () => {
+    api!.setTwoVersions(true);
+    api!.setTranslation2("CUNPS");
+  });
+  await act(async () => {});
+  await act(async () => {
+    await api!.importScripture("Ruth 1:16-17");
+  });
+  await act(async () => {});
+  // An edit to the 1st version's text, which a re-fetch would lose.
+  await act(async () => api!.setManualText((t) => t.replace("NIV sixteen", "Where you go")));
+  await act(async () => {});
+
+  await act(async () => api!.setTwoVersions(false));
+  await act(async () => {});
+  await act(async () => {});
+  const after = useLibrary.getState().sets[set.id];
+  expect(api!.twoVersions).toBe(false);
+  expect(after.versions).toEqual(["NIV"]);
+  expect(after.slides.map((s) => [s.lines, s.linesByVersion])).toEqual([
+    [["Where you go"], undefined],
+    [["NIV seventeen"], undefined],
+  ]);
+});
+
+it("switching two versions off on a message drops the 2nd from its verse slides", async () => {
+  const set = makeSet({
+    kind: "message",
+    versions: ["NIV", "CUNPS"],
+    slides: [
+      {
+        id: "v1",
+        kind: "scripture",
+        importIndex: 0,
+        reference: "Ruth 1:16 NIV",
+        section: "Ruth 1:16 NIV",
+        lines: ["Where you go"],
+        linesByVersion: { NIV: "Where you go", CUNPS: "你往哪里去" },
+        referencesByVersion: { NIV: "Ruth 1:16 NIV", CUNPS: "路得记 1:16 CUNPS" },
+      },
+      { id: "p1", kind: "point", pointType: "statement", lines: ["A point"] },
+    ],
+  });
+  await db.sets.put(set);
+  await useLibrary.getState().loadFromDb();
+  await act(async () => root.render(<Harness setId={set.id} kind="message" />));
+  expect(api!.twoVersions).toBe(true);
+  expect(api!.translation2).toBe("CUNPS");
+
+  await act(async () => api!.setTwoVersions(false));
+  await act(async () => {});
+  const after = useLibrary.getState().sets[set.id];
+  expect(after.versions).toEqual(["NIV"]);
+  expect(after.slides[0]).toEqual({
+    id: "v1",
+    kind: "scripture",
+    importIndex: 0,
+    reference: "Ruth 1:16 NIV",
+    section: "Ruth 1:16 NIV",
+    lines: ["Where you go"],
+  });
+  expect(after.slides[1].id).toBe("p1");
+});
+
+it("a new set starts in the version used most recently, and pairs with the last 2nd", async () => {
+  const older = makeSet({
+    kind: "scripture",
+    versions: ["ESV", "KRV"],
+    updatedAt: 1,
+    slides: [
+      {
+        id: "a",
+        kind: "scripture",
+        lines: ["x"],
+        linesByVersion: { ESV: "x", KRV: "y" },
+      },
+    ],
+  });
+  const newer = makeSet({
+    kind: "scripture",
+    versions: ["NLT"],
+    updatedAt: 2,
+    slides: [{ id: "b", kind: "scripture", lines: ["z"] }],
+  });
+  const fresh = makeSet({ kind: "scripture", slides: [], updatedAt: 3 });
+  await db.sets.bulkPut([older, newer, fresh]);
+  await useLibrary.getState().loadFromDb();
+  await act(async () => root.render(<Harness setId={fresh.id} />));
+  expect(api!.translation).toBe("NLT");
+  expect(api!.recentVersions).toEqual(["NLT", "ESV", "KRV"]);
+
+  await act(async () => api!.setTwoVersions(true));
+  expect(api!.translation2).toBe("KRV");
 });
