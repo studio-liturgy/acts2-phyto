@@ -607,15 +607,17 @@ async function resolveLocalizedBookId(
     }
     return null;
   };
-  // The versions in play first (the one being fetched, and the one the
-  // passage was imported in), then an exact name from any YouVersion Bible in
-  // any language ("Yoni" is John in Agarabi), then the representatives.
+  // An exact name from any YouVersion Bible in any language first ("Yoni" is
+  // John in Agarabi): one download, cached, where a version's own book list is
+  // ~200 KB each. Then the versions in play (the one being fetched, and the
+  // one the passage was imported in), for short forms and near misses, then
+  // the representatives.
+  const anywhere = (await loadBookNameIndex())[target];
+  if (anywhere) return anywhere;
   for (const t of translations.map(canonicalVersion)) {
     const exact = await scan(t);
     if (exact) return exact;
   }
-  const anywhere = (await loadBookNameIndex())[target];
-  if (anywhere) return anywhere;
   for (const t of NAME_REPRESENTATIVES) {
     const exact = await scan(t);
     if (exact) return exact;

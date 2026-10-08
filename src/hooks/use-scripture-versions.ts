@@ -407,24 +407,29 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       box1 = joinBlocks(box1, boxes[v1]);
       if (v2) box2 = joinBlocks(box2, boxes[v2]);
     };
-    for (const group of groups) {
-      const { ref: query, code: from } = splitRefLabel(group[0].refs[oldVersions[0]] ?? "");
-      if (group[0].manual || !query) {
+    const queries = groups.map((group) =>
+      group[0].manual ? { ref: "" } : splitRefLabel(group[0].refs[oldVersions[0]] ?? ""),
+    );
+    // Several passages at once; put back together in order below.
+    const fetched = await mapPool(queries, REFETCH_AT_ONCE, ({ ref, code }) =>
+      ref ? fetchImportBlocks(ref, v1, v2, vPer, code) : Promise.resolve(undefined),
+    );
+    groups.forEach((group, i) => {
+      const b = fetched[i];
+      if (b === undefined) {
+        // Hand-typed (or no reference): carried as it is.
         carry(group);
-        continue;
-      }
-      try {
-        const b = await fetchImportBlocks(query, v1, v2, vPer, from);
-        box1 = joinBlocks(box1, b.box1);
-        if (v2) box2 = joinBlocks(box2, b.box2);
-        unmatched += b.unmatched;
-      } catch {
+      } else if (b === null) {
         // One passage that can't be fetched doesn't stop the rest: it stays
         // as it was, and the editor says which.
         carry(group);
-        failed.push(query);
+        failed.push(queries[i].ref);
+      } else {
+        box1 = joinBlocks(box1, b.box1);
+        if (v2) box2 = joinBlocks(box2, b.box2);
+        unmatched += b.unmatched;
       }
-    }
+    });
     return { box1, box2, unmatched, failed };
   };
 
@@ -487,45 +492,62 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
         section: referencesByVersion[v1],
       };
     };
-    const result: Slide[] = [];
-    let unmatched = 0;
-    const failed: string[] = [];
+    // The slides in runs: a non-scripture slide alone, a verse block (one
+    // import) together.
+    const runs: Slide[][] = [];
     let i = 0;
     while (i < cur.length) {
       const s = cur[i];
       if (s.kind !== "scripture") {
-        result.push(s);
+        runs.push([s]);
         i++;
         continue;
       }
-      const idx = s.importIndex;
       const run: Slide[] = [];
-      while (i < cur.length && cur[i].kind === "scripture" && cur[i].importIndex === idx) {
+      while (
+        i < cur.length &&
+        cur[i].kind === "scripture" &&
+        cur[i].importIndex === s.importIndex
+      ) {
         run.push(cur[i]);
         i++;
       }
-      const { ref: query, code: from } = splitRefLabel(
-        run[0].reference ?? Object.values(run[0].referencesByVersion ?? {})[0] ?? "",
-      );
-      if (run[0].manual || !query) {
+      runs.push(run);
+    }
+    const queries = runs.map((run) =>
+      run[0].kind !== "scripture" || run[0].manual
+        ? { ref: "" }
+        : splitRefLabel(
+            run[0].reference ?? Object.values(run[0].referencesByVersion ?? {})[0] ?? "",
+          ),
+    );
+    const vPer = v2 ? Math.min(versesPer, 2) : versesPer;
+    // Several verse blocks at once; put back together in order below.
+    const fetched = await mapPool(queries, REFETCH_AT_ONCE, ({ ref, code }) =>
+      ref
+        ? fetchImportBlocks(ref, v1, v2, vPer, code ?? oldVersions[0])
+        : Promise.resolve(undefined),
+    );
+    const result: Slide[] = [];
+    let unmatched = 0;
+    const failed: string[] = [];
+    runs.forEach((run, r) => {
+      const b = fetched[r];
+      if (run[0].kind !== "scripture") result.push(...run);
+      else if (b === undefined) result.push(...run.map(carry));
+      else if (b === null) {
+        // As in buildBoxes: the rest still come through.
         result.push(...run.map(carry));
-        continue;
-      }
-      try {
-        const vPer = v2 ? Math.min(versesPer, 2) : versesPer;
-        const b = await fetchImportBlocks(query, v1, v2, vPer, from ?? oldVersions[0]);
+        failed.push(queries[r].ref);
+      } else {
         unmatched += b.unmatched;
         const built = versionTextToSlides(
           v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
           newVersions,
-        ).map((x) => ({ ...x, importIndex: idx ?? 0 }));
+        ).map((x) => ({ ...x, importIndex: run[0].importIndex ?? 0 }));
         result.push(...built);
-      } catch {
-        // As in buildBoxes: the rest still come through.
-        result.push(...run.map(carry));
-        failed.push(query);
       }
-    }
+    });
     return { slides: result, unmatched, failed };
   };
 
@@ -893,6 +915,33 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     updateVersionsToWorkspace,
     duplicateToVersions,
   };
+}
+
+/** How many passages a version change fetches at once. */
+const REFETCH_AT_ONCE = 4;
+
+/** `fn` over `items`, at most `n` at a time, the results in the items' order.
+ *  A call that throws gives null, so one failure doesn't stop the rest. */
+async function mapPool<T, R>(
+  items: T[],
+  n: number,
+  fn: (item: T) => Promise<R>,
+): Promise<(R | null)[]> {
+  const out = new Array<R | null>(items.length).fill(null);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(n, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        try {
+          out[i] = await fn(items[i]);
+        } catch {
+          out[i] = null;
+        }
+      }
+    }),
+  );
+  return out;
 }
 
 /** "NIV / CUNPS": how a set's name names its versions. */

@@ -191,5 +191,7 @@ it("resolves a book typed in any YouVersion language, whatever version is select
     startChapter: 3,
     startVerse: 16,
   });
+  // Found in the index, so no version's ~200 KB book list was downloaded.
+  expect(global.fetch).not.toHaveBeenCalled();
   vi.unstubAllEnvs();
 });
