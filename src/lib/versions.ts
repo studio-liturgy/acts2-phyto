@@ -4,9 +4,14 @@
 // is projected. The workspace's language doesn't restrict them.
 
 import type { Slide } from "./types";
-import { langOfTranslation, splitRefLabel, type AlignedVerse } from "./bible";
+import {
+  canonicalVersion,
+  langOfTranslation,
+  splitRefLabel,
+  versionLanguageName,
+  type AlignedVerse,
+} from "./bible";
 import type { WorkspaceSettings } from "./workspace-settings";
-import { workspaceLangLabel, type LangCode } from "./langs";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -147,10 +152,7 @@ export function reimportQueries(set: {
 export function languagesOfVersions(versions: string[] | undefined): string {
   return [
     ...new Set(
-      (versions ?? [])
-        .map((code) => langOfTranslation(code))
-        .filter((l): l is LangCode => !!l)
-        .map((l) => workspaceLangLabel(l)),
+      (versions ?? []).map((code) => versionLanguageName(code)).filter((l): l is string => !!l),
     ),
   ].join(" / ");
 }
@@ -206,11 +208,13 @@ const newestFirst = (sets: readonly HistorySet[]) =>
 
 /** The bible versions used in previous sets, most recently changed set first
  *  (each set's versions in its own order), each once, at most `limit`. The
- *  version pickers list these on top; a new set starts in the first. */
+ *  version pickers list these on top; a new set starts in the first. A bolls
+ *  code YouVersion took over is listed as YouVersion's ("NIV" -> "yv:111"),
+ *  so new sets read from YouVersion. */
 export function recentVersions(sets: readonly HistorySet[], limit = 5): string[] {
   const out: string[] = [];
   for (const set of newestFirst(sets)) {
-    for (const code of inferredVersions(set) ?? []) {
+    for (const code of (inferredVersions(set) ?? []).map(canonicalVersion)) {
       if (!out.includes(code)) out.push(code);
       if (out.length >= limit) return out;
     }
@@ -222,11 +226,12 @@ export function recentVersions(sets: readonly HistorySet[], limit = 5): string[]
  *  the 2nd version of the most recent two-version set (its 1st when that is
  *  `first`), else the most recent other version used, else none. */
 export function pairedVersion(sets: readonly HistorySet[], first: string): string | undefined {
+  const mine = canonicalVersion(first);
   for (const set of newestFirst(sets)) {
     if (!hasStackedVersions(set)) continue;
-    const [a, b] = set.versions!;
-    const other = b !== first ? b : a;
-    if (other && other !== first) return other;
+    const [a, b] = set.versions!.map(canonicalVersion);
+    const other = b !== mine ? b : a;
+    if (other && other !== mine) return other;
   }
-  return recentVersions(sets, Infinity).find((code) => code !== first);
+  return recentVersions(sets, Infinity).find((code) => code !== mine);
 }

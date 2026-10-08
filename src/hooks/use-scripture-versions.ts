@@ -3,10 +3,12 @@ import { useLibrary } from "@/lib/store";
 import {
   alignVerses,
   allTranslationGroups,
-  fetchScriptureBolls,
+  fetchScripture,
   splitRefLabel,
-  TRANSLATION_CODES,
+  versionAbbr,
+  versionForAbbr,
   withVersionCode,
+  yvKey,
 } from "@/lib/bible";
 import {
   fromVerseRows,
@@ -28,6 +30,7 @@ import {
   versionsMismatchWorkspace,
 } from "@/lib/versions";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
+import { useYvNames } from "@/hooks/use-yv-names";
 
 /**
  * The scripture importer's state and behaviour, with the two-version support
@@ -48,10 +51,13 @@ import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
  * A message set keeps its verses on its slides (the block editor owns them);
  * this hook still drives its imports and version changes.
  */
+/** A new set's version when no set has one yet: YouVersion's NIV. */
+const DEFAULT_VERSION = yvKey(111);
+
 /** The 1st version a set opens with: its own, else the most recent one used
  *  in previous sets, else NIV. */
 function initialVersion(set: PhytoSet | undefined, recents: string[]): string {
-  return (set && inferredVersions(set)?.[0]) ?? recents[0] ?? "NIV";
+  return (set && inferredVersions(set)?.[0]) ?? recents[0] ?? DEFAULT_VERSION;
 }
 
 const allSets = () => Object.values(useLibrary.getState().sets);
@@ -71,7 +77,10 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   // pickers. Joined so the selector's result compares by value.
   const recentKey = useLibrary((s) => recentVersions(Object.values(s.sets)).join("|"));
   const recents = useMemo(() => (recentKey ? recentKey.split("|") : []), [recentKey]);
-  const versionGroups = useMemo(() => allTranslationGroups(), []);
+  // Cached in lib/bible (the same array each render), and built again once
+  // the version titles and language names have loaded, which re-renders.
+  useYvNames();
+  const versionGroups = allTranslationGroups();
 
   const readSet = useCallback(() => useLibrary.getState().sets[setId], [setId]);
 
@@ -225,8 +234,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     async (q: string, v1: string, v2: string, vPer: number) => {
       if (v2) {
         const [first, second] = await Promise.all([
-          fetchScriptureBolls(q, v1, { removeLineBreaks: !keepLineBreaks, hints: [v2] }),
-          fetchScriptureBolls(q, v2, { removeLineBreaks: !keepLineBreaks, hints: [v1] }),
+          fetchScripture(q, v1, { removeLineBreaks: !keepLineBreaks, hints: [v2] }),
+          fetchScripture(q, v2, { removeLineBreaks: !keepLineBreaks, hints: [v1] }),
         ]);
         const { rows, unmatched } = alignVerses(
           { code: v1, verses: first.verses },
@@ -259,7 +268,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
           ref1: first.reference,
         };
       }
-      const { reference, verses } = await fetchScriptureBolls(q, v1, {
+      const { reference, verses } = await fetchScripture(q, v1, {
         removeLineBreaks: !keepLineBreaks,
       });
       const b1: string[] = [];
@@ -281,8 +290,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   const noteUnmatched = (unmatched: number, v1: string, v2: string) => {
     if (unmatched > 0)
       setAlignNote(
-        `${unmatched} verse${unmatched === 1 ? " has" : "s have"} no match in ${v2}. ` +
-          `Those slides show ${v1} only.`,
+        `${unmatched} verse${unmatched === 1 ? " has" : "s have"} no match in ${versionAbbr(v2)}. ` +
+          `Those slides show ${versionAbbr(v1)} only.`,
       );
   };
 
@@ -329,14 +338,14 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
         };
         // The pickers define the versions.
         patch.versions = versions;
-        if (!hadText) patch.name = `${b.ref1} ${v1}${v2 ? ` / ${v2}` : ""}`;
+        if (!hadText) patch.name = `${b.ref1} ${versionNames(v1, v2)}`;
         updateSet(setId, patch);
         noteUnmatched(b.unmatched, v1, v2);
         return;
       }
 
       // Legacy: a single passage in one version, written to the textarea.
-      const { reference, verses } = await fetchScriptureBolls(q, v1, {
+      const { reference, verses } = await fetchScripture(q, v1, {
         removeLineBreaks: !keepLineBreaks,
       });
       const labelled = withVersionCode(reference, v1, versionRefs);
@@ -850,13 +859,21 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   };
 }
 
-/** "John 3:16 NIV / CUNPS" with new codes in place of the old ones. A name
- *  that doesn't end in version codes (a custom title) is left as it is.
- *  Exported for tests. */
+/** "NIV / CUNPS": how a set's name names its versions. */
+function versionNames(v1: string, v2: string): string {
+  return `${versionAbbr(v1)}${v2 ? ` / ${versionAbbr(v2)}` : ""}`;
+}
+
+/** "John 3:16 NIV / CUNPS" with new versions in place of the old ones. A name
+ *  that doesn't end in version abbreviations (a custom title) is left as it
+ *  is. Exported for tests. */
 export function renameVersions(name: string, v1: string, v2: string): string {
-  const m = /^(.*?)\s+([A-Za-z0-9]+)(?:\s*\/\s*([A-Za-z0-9]+))?\s*$/.exec(name);
-  if (!m || !TRANSLATION_CODES.has(m[2]) || (m[3] && !TRANSLATION_CODES.has(m[3]))) return name;
-  return `${m[1]} ${v1}${v2 ? ` / ${v2}` : ""}`;
+  // A second version follows the last " / ".
+  const slash = /\s*\/\s*(?=[^/]*$)/.exec(name);
+  const head = slash ? name.slice(0, slash.index) : name;
+  if (slash && !versionForAbbr(name.slice(slash.index + slash[0].length).trim())) return name;
+  const { ref, code } = splitRefLabel(head);
+  return code ? `${ref} ${versionNames(v1, v2)}` : name;
 }
 
 /**

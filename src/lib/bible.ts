@@ -1,198 +1,199 @@
-// Bible reference parsing + bolls.life API integration
+// Bible reference parsing and lookup. A passage's text comes from YouVersion
+// (lib/youversion.ts) for every version it has, and from bolls.life only for
+// the versions it doesn't.
 // Supports:
 //   "John 3:16"            single verse
 //   "John 3:16-18"         range within a chapter
 //   "John 3"               whole chapter
 //   "John 3:21-John 4:2"   cross-chapter range (same book only)
-import { workspaceLangLabel, type LangCode } from "./langs";
+import {
+  langCodeForTag,
+  langDef,
+  toLangCode,
+  workspaceLang,
+  workspaceLangLabel,
+  type LangCode,
+} from "./langs";
+import {
+  fetchYvBookNames,
+  fetchYvChapter,
+  YV_BIBLES,
+  yvLanguageName,
+  yvNamesLoaded,
+  yvTitles,
+} from "./youversion";
 
-export const TRANSLATIONS = [
-  { code: "NIV", label: "NIV — New International Version" },
-  { code: "NLT", label: "NLT — New Living Translation" },
-  { code: "ESV", label: "ESV — English Standard Version" },
-  { code: "NRSVCE", label: "NRSV — New Revised Standard" },
-  { code: "NASB", label: "NASB — New American Standard" },
-  { code: "NKJV", label: "NKJV — New King James Version" },
-  { code: "KJV", label: "KJV — King James Version" },
-  { code: "AMP", label: "AMP — Amplified Version" },
-  { code: "MSG", label: "MSG — The Message" },
-] as const;
+/** A YouVersion Bible's version key, as sets store it ("yv:111"). A bolls.life
+ *  version's key is its bolls code ("ESV"). */
+export function yvKey(id: number): string {
+  return `yv:${id}`;
+}
 
 /**
- * Every translation offered on watch, grouped by language. bolls.life serves
- * all of these from the same endpoint as the English ones, so nothing about
- * fetching changes: only the code in the URL.
- *
- * English stays first and unchanged, so a scripture set built on phyto.live
- * keeps working with its stored translation code.
+ * bolls.life codes phyto offered before YouVersion whose edition YouVersion
+ * has too. A set that carries one keeps it, and is fetched from YouVersion.
+ * (bolls now answers the four Biblica translations, NIV, NVI, NVI-PT and NAV,
+ * with a notice instead of their text.)
  */
-export const TRANSLATION_GROUPS = [
-  { language: "English", translations: TRANSLATIONS },
-  {
-    language: "Japanese",
-    translations: [
-      { code: "JPNICT", label: "JPNICT — Japanese Contemporary" },
-      { code: "NJB", label: "NJB — New Japanese Bible" },
-      { code: "JPKJV", label: "JPKJV — Japanese King James" },
-    ],
-  },
-  {
-    language: "Chinese",
-    translations: [
-      { code: "CUNPS", label: "CUNPS — Union (simplified)" },
-      { code: "CUV", label: "CUV — Union (traditional)" },
-      { code: "CUNP", label: "CUNP — Union New Punctuation" },
-      { code: "PCBS", label: "PCBS — Pastoral (simplified)" },
-      { code: "PCB", label: "PCB — Pastoral (traditional)" },
-      { code: "ChiSB", label: "ChiSB — Studium Biblicum" },
-    ],
-  },
-  {
-    language: "Korean",
-    translations: [
-      { code: "KRV", label: "KRV — Korean Revised" },
-      { code: "RNKSV", label: "RNKSV — New Korean Standard" },
-    ],
-  },
-  {
-    language: "Indonesian",
-    translations: [{ code: "TB", label: "TB — Terjemahan Baru" }],
-  },
-  {
-    language: "Arabic",
-    translations: [
-      { code: "NAV", label: "NAV — Kitab al-Hayat" },
-      { code: "SVD", label: "SVD — Smith and Van Dyke" },
-    ],
-  },
-  {
-    language: "Spanish",
-    translations: [
-      { code: "RV1960", label: "RV1960 — Reina-Valera 1960" },
-      { code: "NVI", label: "NVI — Nueva Versión Internacional" },
-      { code: "NTV", label: "NTV — Nueva Traducción Viviente" },
-      { code: "LBLA", label: "LBLA — La Biblia de las Américas" },
-      { code: "PDT", label: "PDT — Palabra de Dios para Todos" },
-    ],
-  },
-  {
-    language: "Portuguese",
-    translations: [
-      { code: "NVIPT", label: "NVI-PT — Nova Versão Internacional" },
-      { code: "ARA", label: "ARA — Almeida Revista e Atualizada" },
-      { code: "NAA", label: "NAA — Nova Almeida Atualizada" },
-      { code: "NTLH", label: "NTLH — Nova Tradução na Linguagem de Hoje" },
-      { code: "NVT", label: "NVT — Nova Versão Transformadora" },
-    ],
-  },
-  {
-    language: "French",
-    translations: [
-      { code: "FRLSG", label: "LSG — Louis Segond" },
-      { code: "BDS", label: "BDS — Bible du Semeur" },
-      { code: "NBS", label: "NBS — Nouvelle Bible Segond" },
-      { code: "FRPDV17", label: "PDV — Parole de Vie" },
-    ],
-  },
-] as const;
+const BOLLS_ON_YOUVERSION: Record<string, number> = {
+  NIV: 111,
+  NASB: 100, // 1995
+  AMP: 1588,
+  LBLA: 89,
+  NVI: 128,
+  NVIPT: 129,
+  BDS: 21,
+  FRLSG: 93,
+  NAV: 101,
+};
 
-/** Every translation code we offer. */
-export const TRANSLATION_CODES: ReadonlySet<string> = new Set(
-  TRANSLATION_GROUPS.flatMap((g) => g.translations.map((t) => t.code)),
+/** The versions only bolls.life has, in the order phyto always listed them,
+ *  with the language tag YouVersion would give them. */
+const BOLLS_ONLY: { code: string; title: string; tag: string }[] = [
+  { code: "NLT", title: "New Living Translation", tag: "en" },
+  { code: "ESV", title: "English Standard Version", tag: "en" },
+  { code: "NRSVCE", title: "New Revised Standard", tag: "en" },
+  { code: "NKJV", title: "New King James Version", tag: "en" },
+  { code: "KJV", title: "King James Version", tag: "en" },
+  { code: "MSG", title: "The Message", tag: "en" },
+  { code: "JPNICT", title: "新共同訳 (New Interconfessional)", tag: "ja" },
+  { code: "NJB", title: "新改訳 (New Japanese Bible)", tag: "ja" },
+  { code: "JPKJV", title: "Japanese King James", tag: "ja" },
+  { code: "CUNPS", title: "和合本 Union (simplified)", tag: "zh" },
+  { code: "PCBS", title: "思高 Pastoral (simplified)", tag: "zh" },
+  { code: "CUV", title: "和合本 Union (traditional)", tag: "zh-Hant-TW" },
+  { code: "CUNP", title: "和合本 Union New Punctuation", tag: "zh-Hant-TW" },
+  { code: "PCB", title: "思高 Pastoral (traditional)", tag: "zh-Hant-TW" },
+  { code: "ChiSB", title: "Studium Biblicum", tag: "zh-Hant-TW" },
+  { code: "KRV", title: "개역한글 Korean Revised", tag: "ko" },
+  { code: "RNKSV", title: "새번역 New Korean Standard", tag: "ko" },
+  { code: "TB", title: "Terjemahan Baru", tag: "id" },
+  { code: "SVD", title: "Smith and Van Dyke", tag: "ar" },
+  { code: "RV1960", title: "Reina-Valera 1960", tag: "es" },
+  { code: "NTV", title: "Nueva Traducción Viviente", tag: "es" },
+  { code: "PDT", title: "Palabra de Dios para Todos", tag: "es" },
+  { code: "ARA", title: "Almeida Revista e Atualizada", tag: "pt" },
+  { code: "NAA", title: "Nova Almeida Atualizada", tag: "pt" },
+  { code: "NTLH", title: "Nova Tradução na Linguagem de Hoje", tag: "pt" },
+  { code: "NVT", title: "Nova Versão Transformadora", tag: "pt" },
+  { code: "NBS", title: "Nouvelle Bible Segond", tag: "fr" },
+  { code: "FRPDV17", title: "Parole de Vie", tag: "fr" },
+];
+
+export interface VersionInfo {
+  key: string;
+  /** What pickers, reference labels and set names show ("NIV"). */
+  abbr: string;
+  /** Its name in its own language. A YouVersion Bible's is "" until
+   *  loadYvNames has run (the pickers load it). */
+  title: string;
+  /** BCP 47 language tag ("en", "zh-Hant-TW"). */
+  tag: string;
+  /** The YouVersion Bible it's read from; absent for a bolls.life version. */
+  yvId?: number;
+}
+
+const BY_KEY = new Map<string, VersionInfo>();
+for (const b of YV_BIBLES) {
+  BY_KEY.set(yvKey(b.id), { key: yvKey(b.id), abbr: b.abbr, title: "", tag: b.tag, yvId: b.id });
+}
+for (const v of BOLLS_ONLY) {
+  BY_KEY.set(v.code, { key: v.code, abbr: v.code, title: v.title, tag: v.tag });
+}
+
+/** The key a version is offered and fetched under: a bolls code YouVersion
+ *  took over is its YouVersion key ("NIV" -> "yv:111"). */
+export function canonicalVersion(key: string): string {
+  const id = BOLLS_ON_YOUVERSION[key];
+  return id ? yvKey(id) : key;
+}
+
+/** The YouVersion Bible a version key reads from, if any. */
+export function yvIdOf(key: string): number | undefined {
+  const m = /^yv:(\d+)$/.exec(canonicalVersion(key));
+  return m ? Number(m[1]) : undefined;
+}
+
+export function versionInfo(key: string): VersionInfo | undefined {
+  const v = BY_KEY.get(canonicalVersion(key));
+  if (v?.yvId === undefined) return v;
+  return { ...v, title: yvTitles(v.yvId)?.title ?? "" };
+}
+
+/** "NIV": a version as people see it. Falls back to the key itself. */
+export function versionAbbr(key: string): string {
+  return versionInfo(key)?.abbr ?? key;
+}
+
+// Languages listed first in a picker, in this order; the rest follow by their
+// English name.
+const LEADING_TAGS = ["en", "ja", "zh", "zh-Hant-TW", "ko", "id", "ar", "es", "pt", "fr"];
+// Within a language, the versions phyto offered before YouVersion lead, in
+// their old order.
+const LEGACY_ORDER = ["NIV", "NASB", "AMP", "LBLA", "NVI", "NVIPT", "FRLSG", "BDS", "NAV"].map(
+  (c) => BOLLS_ON_YOUVERSION[c],
 );
 
-/** "Psalms 100:4 NIV" -> { ref: "Psalms 100:4", code: "NIV" }: the label the
- *  single-version importer writes puts the translation after the reference. */
-export function splitRefLabel(label: string): { ref: string; code?: string } {
-  const m = /^(.*?)\s+([A-Za-z0-9]+)$/.exec(label.trim());
-  if (m && TRANSLATION_CODES.has(m[2])) return { ref: m[1].trim(), code: m[2] };
-  return { ref: label.trim() };
+/** The language a tag names, as a picker heading: phyto's own label for a
+ *  language it has an entry for ("Chinese (traditional)"), else YouVersion's
+ *  English name ("Spanish (Spain)", "Kaqchikel"). */
+export function tagLanguageName(tag: string): string {
+  const code = toLangCode(tag);
+  return code ? langDef(code).label : (yvLanguageName(tag) ?? tag);
 }
 
-/** `ref` labelled with `code` ("John 3:16 NIV") when `on`, else bare; any
- *  code already on it is replaced or dropped. */
-export function withVersionCode(ref: string, code: string, on: boolean): string {
-  const bare = splitRefLabel(ref).ref;
-  return on && bare && code ? `${bare} ${code}` : bare;
-}
+export type TranslationEntry = { code: string; abbr: string; label: string };
+export type TranslationGroup = { language: string; translations: TranslationEntry[] };
 
-/** Human label for a translation code, falling back to the code itself. */
-export function translationLabel(code: string): string {
-  for (const group of TRANSLATION_GROUPS) {
-    for (const t of group.translations) if (t.code === code) return t.label;
-  }
-  return code;
-}
+const entry = (v: VersionInfo): TranslationEntry => ({ code: v.key, abbr: v.abbr, label: v.title });
 
-// Which language a bible version is in — used so a stacked scripture line gets
-// the right typography (Korean word-break, French spacing, etc.). Maps each
-// TRANSLATION_GROUPS language to a representative LangCode.
-const GROUP_LANG: Record<string, LangCode> = {
-  English: "en",
-  Japanese: "ja",
-  Chinese: "zh-Hans",
-  Korean: "ko",
-  Indonesian: "id",
-  Arabic: "ar",
-  Spanish: "es",
-  Portuguese: "pt",
-  French: "fr",
-};
+// Built once, and again when the names arrive (titles, and the order of the
+// languages after phyto's, which goes by their English names).
+let groupsCache: { named: boolean; groups: TranslationGroup[] } | null = null;
 
-// The Chinese group mixes scripts. A workspace's language is just "Chinese"
-// (both scripts count, so a congregation can mix a traditional and a
-// simplified version); the script only matters for typography, which
-// scriptOfTranslation answers. Union (CUV, CUNP), Pastoral (PCB) and Studium
-// Biblicum (ChiSB) are traditional; the "S" editions are simplified.
-const TRADITIONAL_CHINESE = new Set(["CUV", "CUNP", "PCB", "ChiSB"]);
-
-/** The workspace language a translation belongs to. */
-export function langOfTranslation(code: string): LangCode | undefined {
-  for (const group of TRANSLATION_GROUPS) {
-    if (group.translations.some((t) => t.code === code)) return GROUP_LANG[group.language];
-  }
-  return undefined;
-}
-
-/** The language to typeset a translation in: as langOfTranslation, except
- *  traditional Chinese versions get their own script (font, glyphs). */
-export function scriptOfTranslation(code: string): LangCode | undefined {
-  if (TRADITIONAL_CHINESE.has(code)) return "zh-Hant";
-  return langOfTranslation(code);
-}
-
-/** The translations of a workspace language, grouped for a picker: one group
- *  per language, except Chinese, which lists its traditional and simplified
- *  versions under separate headings. */
-export function translationGroupsForLang(
-  lang: LangCode,
-): { language: string; translations: { code: string; label: string }[] }[] {
-  const all = translationsForLang(lang);
-  if (lang === "zh-Hans") {
-    const trad = all.filter((t) => TRADITIONAL_CHINESE.has(t.code));
-    const simp = all.filter((t) => !TRADITIONAL_CHINESE.has(t.code));
-    return [
-      { language: "Chinese (traditional)", translations: trad },
-      { language: "Chinese (simplified)", translations: simp },
-    ].filter((g) => g.translations.length);
-  }
-  return [{ language: workspaceLangLabel(lang), translations: all }];
-}
-
-export type TranslationGroup = {
-  language: string;
-  translations: { code: string; label: string }[];
-};
-
-/** Every translation, grouped for a picker: one group per language in
- *  TRANSLATION_GROUPS order, Chinese split by script. */
+/**
+ * Every version, grouped by language for a picker: phyto's languages first,
+ * then every other language YouVersion has a Bible in, by English name. In a
+ * language, YouVersion's Bibles come first (the ones phyto offered before on
+ * top), then the ones only bolls.life has.
+ */
 export function allTranslationGroups(): TranslationGroup[] {
-  return TRANSLATION_GROUPS.flatMap((g) => translationGroupsForLang(GROUP_LANG[g.language]));
+  const named = yvNamesLoaded();
+  if (groupsCache?.named === named) return groupsCache.groups;
+  const byTag = new Map<string, VersionInfo[]>();
+  for (const key of BY_KEY.keys()) {
+    const v = versionInfo(key)!;
+    const list = byTag.get(v.tag) ?? [];
+    list.push(v);
+    byTag.set(v.tag, list);
+  }
+  const lead = (tag: string) => {
+    const i = LEADING_TAGS.indexOf(tag);
+    return i < 0 ? LEADING_TAGS.length : i;
+  };
+  const tags = [...byTag.keys()].sort(
+    (a, b) => lead(a) - lead(b) || tagLanguageName(a).localeCompare(tagLanguageName(b), "en"),
+  );
+  const rank = (v: VersionInfo) => {
+    if (v.yvId === undefined) return 2000 + BOLLS_ONLY.findIndex((b) => b.code === v.key);
+    const legacy = LEGACY_ORDER.indexOf(v.yvId);
+    return legacy < 0 ? 1000 : legacy;
+  };
+  const groups = tags.map((tag) => ({
+    language: tagLanguageName(tag),
+    translations: byTag
+      .get(tag)!
+      .sort((a, b) => rank(a) - rank(b) || a.abbr.localeCompare(b.abbr, "en"))
+      .map(entry),
+  }));
+  groupsCache = { named, groups };
+  return groups;
 }
 
-/** The groups narrowed to what `query` matches: a translation's code or name,
- *  or its group's language ("korean" lists every Korean version). Empty
- *  groups drop out. Case- and accent-insensitive. */
+/** The groups narrowed to what `query` matches: a version's abbreviation or
+ *  title (in its language or English), or its group's language ("korean"
+ *  lists every Korean version). Empty groups drop out. Case- and
+ *  accent-insensitive. */
 export function searchTranslationGroups(
   groups: TranslationGroup[],
   query: string,
@@ -200,27 +201,86 @@ export function searchTranslationGroups(
   const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   const q = fold(query.trim());
   if (!q) return groups;
+  const matches = (t: TranslationEntry) => {
+    const yv = yvIdOf(t.code);
+    const english = yv ? (yvTitles(yv)?.english ?? "") : "";
+    return [t.abbr, t.label, english].some((s) => fold(s).includes(q));
+  };
   return groups
     .map((g) =>
-      fold(g.language).includes(q)
-        ? g
-        : {
-            ...g,
-            translations: g.translations.filter(
-              (t) => fold(t.code).includes(q) || fold(t.label).includes(q),
-            ),
-          },
+      fold(g.language).includes(q) ? g : { ...g, translations: g.translations.filter(matches) },
     )
     .filter((g) => g.translations.length > 0);
 }
 
-/** The translations offered for a workspace language (for the single-version
- *  picker when multi-language is off). Falls back to everything when no
- *  translation is in that language. */
-export function translationsForLang(lang: LangCode): { code: string; label: string }[] {
-  const all = TRANSLATION_GROUPS.flatMap((g) => [...g.translations]);
-  const mine = all.filter((t) => langOfTranslation(t.code) === lang);
-  return mine.length ? mine : all;
+/** A picker row for a version key. */
+export function translationEntry(key: string): TranslationEntry {
+  const v = versionInfo(key);
+  return v ? entry(v) : { code: key, abbr: key, label: key };
+}
+
+// Every abbreviation a reference label or set name may end in, to the version
+// it names: bolls codes first (every label written before YouVersion carries
+// one), then YouVersion's abbreviations, the first Bible in picker order
+// winning a shared one.
+const KEY_BY_ABBR = new Map<string, string>();
+for (const code of Object.keys(BOLLS_ON_YOUVERSION)) KEY_BY_ABBR.set(code, canonicalVersion(code));
+for (const v of BOLLS_ONLY) KEY_BY_ABBR.set(v.code, v.code);
+for (const b of YV_BIBLES) if (!KEY_BY_ABBR.has(b.abbr)) KEY_BY_ABBR.set(b.abbr, yvKey(b.id));
+
+/** The version an abbreviation names, if any. */
+export function versionForAbbr(abbr: string): string | undefined {
+  return KEY_BY_ABBR.get(abbr);
+}
+
+/** "Psalms 100:4 NIV" -> { ref: "Psalms 100:4", code: "yv:111" }: the label an
+ *  import writes puts the version's abbreviation after the reference. An
+ *  abbreviation may be several words ("ت ع م"); it only counts after a
+ *  chapter or verse number. */
+export function splitRefLabel(label: string): { ref: string; code?: string } {
+  const s = label.trim();
+  const gaps = [...s.matchAll(/\s+/g)];
+  for (let n = 1; n <= 3 && n <= gaps.length; n++) {
+    const gap = gaps[gaps.length - n];
+    const code = KEY_BY_ABBR.get(s.slice(gap.index + gap[0].length));
+    const ref = s.slice(0, gap.index);
+    if (code && /\p{Nd}$/u.test(ref)) return { ref, code };
+  }
+  return { ref: s };
+}
+
+/** `ref` labelled with `code`'s abbreviation ("John 3:16 NIV") when `on`,
+ *  else bare; any abbreviation already on it is replaced or dropped. */
+export function withVersionCode(ref: string, code: string, on: boolean): string {
+  const bare = splitRefLabel(ref).ref;
+  return on && bare && code ? `${bare} ${versionAbbr(code)}` : bare;
+}
+
+/** The workspace language a version is in (Chinese for either script);
+ *  undefined for a language phyto has no entry for. */
+export function langOfTranslation(code: string): LangCode | undefined {
+  const l = scriptOfTranslation(code);
+  return l ? workspaceLang(l) : undefined;
+}
+
+/** The language to typeset a version in: as langOfTranslation, except
+ *  traditional Chinese keeps its own script (font, glyphs). */
+export function scriptOfTranslation(code: string): LangCode | undefined {
+  const tag = versionInfo(code)?.tag;
+  return tag ? langCodeForTag(tag) : undefined;
+}
+
+/** A version's BCP 47 language tag, for a `lang` attribute. */
+export function versionLangTag(code: string): string | undefined {
+  return versionInfo(code)?.tag;
+}
+
+/** The name of the language a version is in ("Korean", "Kaqchikel"). */
+export function versionLanguageName(code: string): string | undefined {
+  const l = langOfTranslation(code);
+  if (l) return workspaceLangLabel(l);
+  const tag = versionInfo(code)?.tag;
+  return tag ? (yvLanguageName(tag) ?? tag) : undefined;
 }
 
 const BOOKS: { id: number; names: string[] }[] = [
@@ -368,10 +428,10 @@ export function parseReference(input: string): ParsedRef | null {
   return makeRef(bookId, startChapter, startVerse, endChapter, endVerse);
 }
 
-// A reference typed in the translation's own language, e.g. "约翰福音 3:16" or
+// A reference typed in the version's own language, e.g. "约翰福音 3:16" or
 // "ヨハネ3:16". The book name can be any script, so this parser is looser than
-// BOOK_RE and resolves the book against the get-books list of the translation(s)
-// in play. Chapter/verse still use ASCII digits (bolls' own reference format).
+// BOOK_RE and resolves the book against the book names of the version(s) in
+// play. Chapter/verse still use ASCII digits.
 const LOC_BOOK_RE =
   /^\s*(.+?)\s*(\d+)(?:[:：]\s*(\d+))?(?:\s*[-–—~]\s*(?:(\d+)[:：]\s*(\d+)|(\d+)))?\s*$/;
 
@@ -415,9 +475,9 @@ async function fetchChapter(translation: string, bookId: number, chapter: number
 }
 
 // bolls returns book names in each translation's own language via get-books, so
-// this is how a reference shows a localized book name (e.g. "約翰福音"). Cached
-// per translation — the list is fetched at most once — and falls back to the
-// English display name if the request fails.
+// this is how a bolls reference shows a localized book name (e.g. "約翰福音").
+// Cached per translation — the list is fetched at most once — and falls back to
+// the English display name if the request fails.
 const bookNamesByTranslation = new Map<string, Map<number, string>>();
 
 async function loadBooks(translation: string): Promise<Map<number, string>> {
@@ -441,23 +501,48 @@ async function loadBooks(translation: string): Promise<Map<number, string>> {
   return names;
 }
 
-async function localizedBookName(translation: string, bookId: number): Promise<string> {
-  const names = await loadBooks(translation);
-  return names.get(bookId) || bookDisplayName(bookId);
+/** A version's book names by book id: `names` match loosely, `abbrs` ("창")
+ *  only exactly. A YouVersion Bible's come from YouVersion, a bolls one's
+ *  from bolls. */
+async function bookNameLists(
+  translation: string,
+): Promise<{ names: Map<number, string[]>; abbrs: Map<number, string[]> }> {
+  const yv = yvIdOf(translation);
+  if (yv !== undefined) return fetchYvBookNames(yv);
+  const names = new Map<number, string[]>();
+  for (const [id, name] of await loadBooks(translation)) names.set(id, [name]);
+  return { names, abbrs: new Map() };
 }
 
-// Reverse of localizedBookName: find the book id for a name typed in a
-// translation's own language, so a reference like "요한복음 3:16" resolves. Checks
-// the given translations first (fast path — usually the one being imported), then
-// one representative translation per language so a reference can be typed in ANY
-// supported language even when the selected version is English.
+// One bolls translation per language, checked after the versions in play so a
+// reference can be typed in ANY of phyto's languages even when the selected
+// version is English: cheap lists (a few KB each), where a YouVersion Bible's
+// book list carries its whole verse index. CUNP for traditional Chinese, since
+// bolls stores simplified book names for most Chinese versions (including CUV).
+const NAME_REPRESENTATIVES = [
+  "JPNICT",
+  "CUNPS",
+  "CUNP",
+  "KRV",
+  "TB",
+  "SVD",
+  "RV1960",
+  "ARA",
+  "FRLSG",
+];
+
+// Reverse of the localized book name: find the book id for a name typed in a
+// version's own language, so a reference like "요한복음 3:16" resolves. Checks
+// the given versions first (usually the one being imported), then the
+// representatives above.
 //
 // Matching ignores case and spaces and is fuzzy: a typed name that is a prefix
-// of (or contained in) the translation's own name still matches, because the
-// same book is spelled with small variations — bolls calls John "요한복음서" while
+// of (or contained in) the version's own name still matches, because the same
+// book is spelled with small variations — bolls calls John "요한복음서" while
 // people type "요한복음", "1 Corinthians" vs "고린도전서", etc. The closest match
 // (exact, then a shared prefix, then any containment; ties broken by length)
-// wins, so "요한복음" lands on John rather than 1/2/3 John.
+// wins, so "요한복음" lands on John rather than 1/2/3 John. A short form ("요")
+// only counts when typed exactly.
 async function resolveLocalizedBookId(
   bookPart: string,
   translations: string[],
@@ -470,13 +555,6 @@ async function resolveLocalizedBookId(
   const target = norm(bookPart);
   if (!target) return null;
   const tNum = hasNum(target);
-  // One translation per language, plus CUNP for traditional Chinese: bolls stores
-  // simplified book names for most Chinese versions (including CUV), so a
-  // traditional reference like "約翰福音" only matches a genuinely traditional list.
-  const representatives = [
-    ...TRANSLATION_GROUPS.map((g) => g.translations[0]?.code).filter(Boolean),
-    "CUNP",
-  ];
   const seen = new Set<string>();
   // Rank tuple, lower is better: [numeral mismatch, match tightness, book id].
   // Book id breaks ties canonically — a bare name shared by a Gospel and a later
@@ -484,36 +562,49 @@ async function resolveLocalizedBookId(
   let best: { id: number; rank: [number, number, number] } | null = null;
   const better = (a: [number, number, number], b: [number, number, number]) =>
     a[0] !== b[0] ? a[0] < b[0] : a[1] !== b[1] ? a[1] < b[1] : a[2] < b[2];
-  for (const t of [...translations, ...representatives]) {
+  for (const t of [...translations.map(canonicalVersion), ...NAME_REPRESENTATIVES]) {
     if (!t || seen.has(t)) continue;
     seen.add(t);
-    const names = await loadBooks(t);
-    for (const [id, name] of names) {
-      const a = norm(name);
-      if (!a) continue;
-      let score: number;
-      if (a === target && hasNum(a) === tNum)
-        return id; // exact, unambiguous
-      else if (a === target) score = 0;
-      else if (a.startsWith(target))
-        score = 1; // typed is a prefix (요한복음 → 요한복음서)
-      else if (target.startsWith(a)) score = 2;
-      else if (a.includes(target) || target.includes(a)) score = 3;
-      else continue;
-      const rank: [number, number, number] = [hasNum(a) === tNum ? 0 : 1, score, id];
-      if (!best || better(rank, best.rank)) best = { id, rank };
+    const { names, abbrs } = await bookNameLists(t);
+    for (const [id, short] of abbrs) {
+      if (short.some((a) => norm(a) === target)) {
+        const rank: [number, number, number] = [0, 0, id];
+        if (!best || better(rank, best.rank)) best = { id, rank };
+      }
+    }
+    for (const [id, list] of names) {
+      for (const name of list) {
+        const a = norm(name);
+        if (!a) continue;
+        let score: number;
+        if (a === target && hasNum(a) === tNum)
+          return id; // exact, unambiguous
+        else if (a === target) score = 0;
+        else if (a.startsWith(target))
+          score = 1; // typed is a prefix (요한복음 → 요한복음서)
+        else if (target.startsWith(a)) score = 2;
+        else if (a.includes(target) || target.includes(a)) score = 3;
+        else continue;
+        const rank: [number, number, number] = [hasNum(a) === tNum ? 0 : 1, score, id];
+        if (!best || better(rank, best.rank)) best = { id, rank };
+      }
     }
   }
   return best?.id ?? null;
 }
 
-export async function fetchScriptureBolls(
+/**
+ * A passage in one version: its verses, and its reference with the book named
+ * in the version's own language. A YouVersion Bible (or a bolls code it took
+ * over) is read from YouVersion, anything else from bolls.life.
+ */
+export async function fetchScripture(
   ref: string,
   translation: string,
   opts: { removeLineBreaks?: boolean; hints?: string[] } = {},
 ): Promise<{ reference: string; bookName: string; verses: FetchedVerse[] }> {
   // English book names parse directly; otherwise resolve the name against this
-  // translation (and any hinted ones — e.g. the other version in a bilingual
+  // version (and any hinted ones — e.g. the other version in a bilingual
   // import) so a reference can be typed in the passage's own language.
   const parsed =
     parseReference(ref) ??
@@ -521,18 +612,29 @@ export async function fetchScriptureBolls(
   if (!parsed)
     throw new Error(`Couldn't parse "${ref}". Try "John 3:16", "John 3", or "John 3:21-John 4:2".`);
   const removeLineBreaks = opts.removeLineBreaks ?? true;
-  const bookName = await localizedBookName(translation, parsed.bookId);
+  const yv = yvIdOf(translation);
 
   const collected: FetchedVerse[] = [];
+  let bookName = "";
   for (let ch = parsed.startChapter; ch <= parsed.endChapter; ch++) {
+    const lo = ch === parsed.startChapter ? parsed.startVerse : 1;
+    const hi = ch === parsed.endChapter ? parsed.endVerse : 999;
+    if (yv !== undefined) {
+      const chapter = await fetchYvChapter(yv, parsed.bookId, ch, !removeLineBreaks);
+      bookName ||= chapter.bookName;
+      for (const v of chapter.verses) {
+        // A merged verse ("6-7") is in range when any of it is.
+        if (v.verse <= hi && (v.endVerse ?? v.verse) >= lo)
+          collected.push({ verse: v.verse, chapter: ch, text: v.text });
+      }
+      continue;
+    }
     const data = (await fetchChapter(translation, parsed.bookId, ch)) as {
       verse: number;
       text: string;
       pericope?: unknown;
       comment?: unknown;
     }[];
-    const lo = ch === parsed.startChapter ? parsed.startVerse : 1;
-    const hi = ch === parsed.endChapter ? parsed.endVerse : 999;
     for (const v of data) {
       // Skip non-verse entries (e.g. pericope-only rows that some bolls
       // translations include with verse === 0 or empty text).
@@ -550,6 +652,8 @@ export async function fetchScriptureBolls(
     }
   }
   if (collected.length === 0) throw new Error("No verses found in that range.");
+  if (yv === undefined) bookName = (await loadBooks(translation)).get(parsed.bookId) ?? "";
+  bookName ||= bookDisplayName(parsed.bookId);
 
   let reference: string;
   if (parsed.wholeChapter) {

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { RELEASE_DATE } from "@/content/updates-release";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BibleCopyrights } from "@/components/BibleCopyrights";
 
 export default function TermsMain({ defaultSection }: { defaultSection: "offline" | "online" }) {
   return (
@@ -156,7 +157,22 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">7. Feedback</h2>
+              <h2 className="text-2xl">7. Bible Text</h2>
+              <p className="mt-2">
+                Scripture passages are fetched from the YouVersion Platform, and from bolls.life for
+                the versions YouVersion doesn&apos;t offer. Each Bible version remains the copyright
+                of its publisher. Its notice applies whenever you display its text, including in a
+                public or congregational setting.
+              </p>
+              <BibleCopyrights />
+              <p className="mt-3">
+                Versions fetched from bolls.life (such as the ESV, KJV, Chinese Union and Korean
+                Revised) are likewise the copyright of their publishers.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl">8. Feedback</h2>
               <p className="mt-2">
                 The feedback form at{" "}
                 <Link to="/feedback" className="underline hover:opacity-60">
@@ -173,7 +189,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">8. Contribute</h2>
+              <h2 className="text-2xl">9. Contribute</h2>
               <p className="mt-2">
                 The contribute form at{" "}
                 <Link to="/contribute" className="underline hover:opacity-60">
@@ -189,7 +205,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">9. Disclaimer of Warranties</h2>
+              <h2 className="text-2xl">10. Disclaimer of Warranties</h2>
               <p className="mt-2 uppercase">
                 The app is provided "as is" and "as available", without warranty of any kind,
                 express or implied, including but not limited to warranties of merchantability,
@@ -200,7 +216,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">10. Limitation of Liability</h2>
+              <h2 className="text-2xl">11. Limitation of Liability</h2>
               <p className="mt-2 uppercase">
                 To the fullest extent permitted by applicable law, the developer shall not be liable
                 for any indirect, incidental, special, consequential, or punitive damages, including
@@ -215,7 +231,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">11. Acceptable Use</h2>
+              <h2 className="text-2xl">12. Acceptable Use</h2>
               <p className="mt-2">
                 You agree to use phyto only for lawful purposes. You agree not to:
               </p>
@@ -229,7 +245,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">12. Changes to the App and Terms</h2>
+              <h2 className="text-2xl">13. Changes to the App and Terms</h2>
               <p className="mt-2">
                 We reserve the right to modify, suspend, or discontinue the app at any time without
                 notice. We may also update these Terms from time to time. Continued use of the app
@@ -238,7 +254,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">13. Governing Law</h2>
+              <h2 className="text-2xl">14. Governing Law</h2>
               <p className="mt-2">
                 These Terms shall be governed by and construed in accordance with the laws of
                 British Columbia, Canada, without regard to conflict of law principles.
@@ -246,7 +262,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">14. Contact</h2>
+              <h2 className="text-2xl">15. Contact</h2>
               <p className="mt-2">
                 Questions about these Terms can be submitted via the feedback form at{" "}
                 <Link to="/feedback" className="underline hover:opacity-60">

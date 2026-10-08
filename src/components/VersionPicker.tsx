@@ -1,6 +1,12 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { searchTranslationGroups, translationLabel, type TranslationGroup } from "@/lib/bible";
+import {
+  canonicalVersion,
+  searchTranslationGroups,
+  translationEntry,
+  versionAbbr,
+  type TranslationGroup,
+} from "@/lib/bible";
 
 /**
  * The bible-version dropdown in the scripture importer: a pill that opens a
@@ -51,20 +57,22 @@ export function VersionPicker({
     inputRef.current?.focus();
   }, [open]);
 
+  // A set may carry a bolls code YouVersion took over ("NIV"): it's the same
+  // version as YouVersion's, so compare by the canonical key.
+  const current = canonicalVersion(value);
+  const excluded = exclude ? canonicalVersion(exclude) : "";
   const sections = useMemo(() => {
     const searching = query.trim() !== "";
     const out: TranslationGroup[] = [];
     if (!searching && recent.length) {
-      out.push({
-        language: "Recently used",
-        translations: recent.map((code) => ({ code, label: translationLabel(code) })),
-      });
+      const keys = [...new Set(recent.map(canonicalVersion))];
+      out.push({ language: "Recently used", translations: keys.map(translationEntry) });
     }
     out.push(...(searching ? searchTranslationGroups(groups, query) : groups));
     return out
-      .map((g) => ({ ...g, translations: g.translations.filter((t) => t.code !== exclude) }))
+      .map((g) => ({ ...g, translations: g.translations.filter((t) => t.code !== excluded) }))
       .filter((g) => g.translations.length > 0);
-  }, [query, recent, groups, exclude]);
+  }, [query, recent, groups, excluded]);
   const flat = useMemo(() => sections.flatMap((g) => g.translations), [sections]);
 
   useEffect(() => {
@@ -116,7 +124,9 @@ export function VersionPicker({
           }}
           tabIndex={0}
         >
-          <span className="mono uppercase flex-1 truncate text-xs">{value || placeholder}</span>
+          <span className="mono uppercase flex-1 truncate text-xs">
+            {value ? versionAbbr(value) : placeholder}
+          </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0" />
         </div>
         {open && (
@@ -154,8 +164,9 @@ export function VersionPicker({
                 {placeholder ?? "None"}
               </button>
             )}
-            {sections.map((group) => (
-              <Fragment key={group.language || "all"}>
+            {sections.map((group, gi) => (
+              // Two languages may share an English name: key by position too.
+              <Fragment key={`${gi}:${group.language}`}>
                 {group.language && (
                   <div className="mono bg-muted/60 px-3 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
                     {group.language}
@@ -171,11 +182,11 @@ export function VersionPicker({
                       data-active={i === active}
                       onClick={() => pick(t.code)}
                       onMouseMove={() => setActive(i)}
-                      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left ${i === active || t.code === value ? "bg-muted" : ""}`}
+                      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left ${i === active || t.code === current ? "bg-muted" : ""}`}
                     >
-                      <span className="mono uppercase text-xs shrink-0">{t.code}</span>
+                      <span className="mono uppercase text-xs shrink-0">{t.abbr}</span>
                       <span className="mono uppercase text-[10px] tracking-wider text-muted-foreground truncate text-right">
-                        {t.label.replace(/^.+?—\s*/, "")}
+                        {t.label}
                       </span>
                     </button>
                   );

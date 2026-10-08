@@ -148,9 +148,22 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
               <p className="mt-2">phytoexp relies on the following external services:</p>
               <ul className="mt-2 list-disc space-y-1 pl-6">
                 <li>
-                  <strong>bolls.life:</strong> fetches Bible verse text when you look up scripture
-                  passages. The request includes the translation name, book, and chapter you
-                  selected. No personal information is sent.{" "}
+                  <strong>YouVersion Platform:</strong> fetches Bible verse text when you look up
+                  scripture passages. The request includes the Bible version, book, and chapter you
+                  selected, and phytoexp&apos;s app key. No personal information is sent.{" "}
+                  <a
+                    href="https://developers.youversion.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:opacity-60"
+                  >
+                    YouVersion Platform
+                  </a>
+                </li>
+                <li>
+                  <strong>bolls.life:</strong> fetches Bible verse text for the versions YouVersion
+                  doesn&apos;t offer. The request includes the translation name, book, and chapter
+                  you selected. No personal information is sent.{" "}
                   <a
                     href="https://bolls.life"
                     target="_blank"
@@ -479,7 +492,19 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
                   </a>
                 </li>
                 <li>
-                  <strong>bolls.life:</strong> Bible text API for scripture lookups.{" "}
+                  <strong>YouVersion Platform:</strong> Bible text API for scripture lookups.{" "}
+                  <a
+                    href="https://developers.youversion.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:opacity-60"
+                  >
+                    developers.youversion.com
+                  </a>
+                </li>
+                <li>
+                  <strong>bolls.life:</strong> Bible text API for the versions YouVersion
+                  doesn&apos;t offer.{" "}
                   <a
                     href="https://bolls.life"
                     target="_blank"

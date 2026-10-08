@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { alignVerses, translationLabel, TRANSLATION_GROUPS, type FetchedVerse } from "../bible";
+import { alignVerses, allTranslationGroups, type FetchedVerse } from "../bible";
+import { WORKSPACE_LANGS } from "../langs";
 import { alignedVersesToSlides, displayLinesForVersions } from "../versions";
 
 const niv: FetchedVerse[] = [
@@ -107,31 +108,14 @@ describe("displayLinesForVersions", () => {
   });
 });
 
-describe("TRANSLATION_GROUPS", () => {
-  it("covers every language the app offers for song lyrics", () => {
-    const languages = TRANSLATION_GROUPS.map((g) => g.language);
-    for (const lang of [
-      "English",
-      "Japanese",
-      "Chinese",
-      "Korean",
-      "Indonesian",
-      "Arabic",
-      "Spanish",
-      "Portuguese",
-      "French",
-    ]) {
-      expect(languages).toContain(lang);
-    }
+describe("allTranslationGroups", () => {
+  it("has Bibles in every language the app offers for song lyrics", () => {
+    const languages = allTranslationGroups().map((g) => g.language);
+    for (const l of WORKSPACE_LANGS) expect(languages).toContain(l.label);
   });
 
-  it("has no duplicate translation codes across languages", () => {
-    const codes = TRANSLATION_GROUPS.flatMap((g) => g.translations.map((t) => t.code));
+  it("has no duplicate version keys across languages", () => {
+    const codes = allTranslationGroups().flatMap((g) => g.translations.map((t) => t.code));
     expect(new Set(codes).size).toBe(codes.length);
-  });
-
-  it("labels a known code and falls back to the code itself otherwise", () => {
-    expect(translationLabel("CUNPS")).toMatch(/Union/);
-    expect(translationLabel("NOPE")).toBe("NOPE");
   });
 });

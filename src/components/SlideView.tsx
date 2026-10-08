@@ -3,7 +3,7 @@ import { stripChords } from "@/lib/chords";
 import { STAGE_H, STAGE_W, fitOrigin, fitScale } from "@/lib/slide-fit";
 import { displayLinesForVersions } from "@/lib/versions";
 import { renderInline } from "@/lib/inline-format";
-import { scriptOfTranslation } from "@/lib/bible";
+import { scriptOfTranslation, versionLangTag } from "@/lib/bible";
 import { langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -435,7 +435,9 @@ export function SlideView({
                           )}
                           <div
                             className="font-medium leading-snug"
-                            lang={vLang}
+                            // A language phyto has no entry for still tells
+                            // the browser its tag, so it picks fitting fonts.
+                            lang={vLang ?? versionLangTag(l.version)}
                             style={{
                               fontSize: `${3.75 * fontScale}rem`,
                               whiteSpace: "pre-line",

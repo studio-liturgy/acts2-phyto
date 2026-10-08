@@ -54,6 +54,7 @@ describe("fetchWorkspaceSettings", () => {
   });
 
   it("never reads the same language twice: both Chinese scripts become Chinese + another", async () => {
+    // Stored under the codes phyto used before YouVersion's tags.
     supabaseMock.configure({
       session: fakeSession,
       tables: {
@@ -71,7 +72,7 @@ describe("fetchWorkspaceSettings", () => {
     });
     expect((await fetchWorkspaceSettings({ groupId: null }))?.settings).toEqual({
       multiLanguage: true,
-      language: "zh-Hans",
+      language: "zh",
       language2: "en",
     });
   });
@@ -126,10 +127,10 @@ describe("saveWorkspaceSettings", () => {
   });
 
   it("keys a group row by group_id", async () => {
-    expect(await saveWorkspaceSettings({ groupId: GROUP_ID }, { language: "zh-Hans" })).toBe(true);
+    expect(await saveWorkspaceSettings({ groupId: GROUP_ID }, { language: "zh" })).toBe(true);
     expect(supabaseMock.tables.workspace_settings[0]).toMatchObject({
       group_id: GROUP_ID,
-      language: "zh-Hans",
+      language: "zh",
     });
   });
 

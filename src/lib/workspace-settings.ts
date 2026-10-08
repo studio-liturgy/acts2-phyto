@@ -5,7 +5,7 @@
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
 import {
-  isLangCode,
+  toLangCode,
   WORKSPACE_LANGS,
   workspaceLang,
   workspaceLangLabel,
@@ -59,11 +59,17 @@ export function distinctLanguages(s: WorkspaceSettings): WorkspaceSettings {
   return s;
 }
 
+/** A stored language as a workspace language (an old code renamed), or null. */
+function readLang(value: unknown): LangCode | null {
+  const code = toLangCode(value);
+  return code ? workspaceLang(code) : null;
+}
+
 function fromRow(row: Row): WorkspaceSettings {
   return distinctLanguages({
     multiLanguage: !!row.multi_language,
-    language: isLangCode(row.language) ? workspaceLang(row.language) : "en",
-    language2: isLangCode(row.language2) ? workspaceLang(row.language2) : null,
+    language: readLang(row.language) ?? "en",
+    language2: readLang(row.language2),
   });
 }
 
@@ -92,8 +98,8 @@ export function readLocalPersonalSettings(): WorkspaceSettings {
     const parsed = JSON.parse(raw) as Partial<WorkspaceSettings>;
     return distinctLanguages({
       multiLanguage: !!parsed.multiLanguage,
-      language: isLangCode(parsed.language) ? workspaceLang(parsed.language) : "en",
-      language2: isLangCode(parsed.language2) ? workspaceLang(parsed.language2) : null,
+      language: readLang(parsed.language) ?? "en",
+      language2: readLang(parsed.language2),
     });
   } catch {
     return DEFAULT_WORKSPACE_SETTINGS;

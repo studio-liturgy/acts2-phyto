@@ -6,20 +6,24 @@ vi.mock("@/lib/supabase", async () => {
   const { supabaseMock } = await import("@/test/supabase-mock");
   return { supabase: supabaseMock.client };
 });
-// Bolls, offline: two verses of any passage in any version.
+// Offline: two verses of any passage in any version, read as its
+// abbreviation ("NIV sixteen").
 vi.mock("@/lib/bible", async (orig) => {
   const real = await orig<typeof import("@/lib/bible")>();
   return {
     ...real,
-    fetchScriptureBolls: async (_q: string, code: string) => ({
+    fetchScripture: async (_q: string, code: string) => ({
       reference: "Ruth 1:16-17",
       verses: [
-        { book: 8, chapter: 1, verse: 16, text: `${code} sixteen` },
-        { book: 8, chapter: 1, verse: 17, text: `${code} seventeen` },
+        { book: 8, chapter: 1, verse: 16, text: `${real.versionAbbr(code)} sixteen` },
+        { book: 8, chapter: 1, verse: 17, text: `${real.versionAbbr(code)} seventeen` },
       ],
     }),
   };
 });
+
+/** A new set's version: YouVersion's NIV. Sets stored with bolls' "NIV" keep it. */
+const NIV = "yv:111";
 
 import { db } from "@/lib/db";
 import { useLibrary } from "@/lib/store";
@@ -66,11 +70,11 @@ it("a set's FIRST two-version import records both versions", async () => {
   await act(async () => {});
 
   const after = useLibrary.getState().sets[set.id];
-  expect(after.versions).toEqual(["NIV", "CUNPS"]);
+  expect(after.versions).toEqual([NIV, "CUNPS"]);
   expect(after.scriptureImports).toEqual(["Ruth 1:16-17"]);
   expect(after.slides.map((s) => Object.keys(s.linesByVersion ?? {}))).toEqual([
-    ["NIV", "CUNPS"],
-    ["NIV", "CUNPS"],
+    [NIV, "CUNPS"],
+    [NIV, "CUNPS"],
   ]);
 });
 
@@ -127,8 +131,8 @@ it("a manual verse sits beside an import and stays put when the 2nd version chan
     [undefined, 0, "Ruth 1:16-17 NIV"],
     [true, 1, "Our creed"],
   ]);
-  expect(after.slides[2].linesByVersion).toEqual({ NIV: "We believe", CUNPS: "我们相信" });
-  expect(after.slides[2].referencesByVersion).toEqual({ NIV: "Our creed", CUNPS: "信经" });
+  expect(after.slides[2].linesByVersion).toEqual({ [NIV]: "We believe", CUNPS: "我们相信" });
+  expect(after.slides[2].referencesByVersion).toEqual({ [NIV]: "Our creed", CUNPS: "信经" });
 
   // Change the 2nd version: the passage is fetched again in CUV, the manual
   // verse keeps its text under the new column.
@@ -136,14 +140,14 @@ it("a manual verse sits beside an import and stays put when the 2nd version chan
   await act(async () => {});
   await act(async () => {});
   after = useLibrary.getState().sets[set.id];
-  expect(after.versions).toEqual(["NIV", "CUV"]);
+  expect(after.versions).toEqual([NIV, "CUV"]);
   expect(after.scriptureImports).toEqual(["Ruth 1:16-17"]);
   expect(after.slides.map((s) => [s.manual, s.linesByVersion])).toEqual([
-    [undefined, { NIV: "NIV sixteen", CUV: "CUV sixteen" }],
-    [undefined, { NIV: "NIV seventeen", CUV: "CUV seventeen" }],
-    [true, { NIV: "We believe", CUV: "我们相信" }],
+    [undefined, { [NIV]: "NIV sixteen", CUV: "CUV sixteen" }],
+    [undefined, { [NIV]: "NIV seventeen", CUV: "CUV seventeen" }],
+    [true, { [NIV]: "We believe", CUV: "我们相信" }],
   ]);
-  expect(after.slides[2].referencesByVersion).toEqual({ NIV: "Our creed", CUV: "信经" });
+  expect(after.slides[2].referencesByVersion).toEqual({ [NIV]: "Our creed", CUV: "信经" });
 });
 
 it("a message's manual verse block keeps its text when its versions are re-fetched", async () => {
@@ -218,7 +222,7 @@ it("the Version reference toggle relabels fetched passages, not manual verses", 
   await act(async () => {});
   expect(api!.versionRefs).toBe(true);
   expect(useLibrary.getState().sets[set.id].slides[0].referencesByVersion).toEqual({
-    NIV: "Ruth 1:16-17 NIV",
+    [NIV]: "Ruth 1:16-17 NIV",
     CUNPS: "Ruth 1:16-17 CUNPS",
   });
 
@@ -227,16 +231,16 @@ it("the Version reference toggle relabels fetched passages, not manual verses", 
   let after = useLibrary.getState().sets[set.id];
   expect(after.versionRefs).toBe(false);
   expect(after.slides.map((s) => s.referencesByVersion)).toEqual([
-    { NIV: "Ruth 1:16-17", CUNPS: "Ruth 1:16-17" },
-    { NIV: "Ruth 1:16-17", CUNPS: "Ruth 1:16-17" },
-    { NIV: "Our creed", CUNPS: "信经" },
+    { [NIV]: "Ruth 1:16-17", CUNPS: "Ruth 1:16-17" },
+    { [NIV]: "Ruth 1:16-17", CUNPS: "Ruth 1:16-17" },
+    { [NIV]: "Our creed", CUNPS: "信经" },
   ]);
 
   await act(async () => api!.setVersionRefs(true));
   await act(async () => {});
   after = useLibrary.getState().sets[set.id];
   expect(after.slides[1].reference).toBe("Ruth 1:16-17 NIV");
-  expect(after.slides[2].referencesByVersion).toEqual({ NIV: "Our creed", CUNPS: "信经" });
+  expect(after.slides[2].referencesByVersion).toEqual({ [NIV]: "Our creed", CUNPS: "信经" });
 });
 
 it("switching two versions on fetches the 2nd for the passages already there", async () => {
@@ -259,10 +263,10 @@ it("switching two versions on fetches the 2nd for the passages already there", a
   await act(async () => {});
   await act(async () => {});
   after = useLibrary.getState().sets[set.id];
-  expect(after.versions).toEqual(["NIV", "KRV"]);
+  expect(after.versions).toEqual([NIV, "KRV"]);
   expect(after.slides.map((s) => s.linesByVersion)).toEqual([
-    { NIV: "NIV sixteen", KRV: "KRV sixteen" },
-    { NIV: "NIV seventeen", KRV: "KRV seventeen" },
+    { [NIV]: "NIV sixteen", KRV: "KRV sixteen" },
+    { [NIV]: "NIV seventeen", KRV: "KRV seventeen" },
   ]);
 });
 
@@ -289,7 +293,7 @@ it("switching two versions off keeps the 1st version's text, edits included", as
   await act(async () => {});
   const after = useLibrary.getState().sets[set.id];
   expect(api!.twoVersions).toBe(false);
-  expect(after.versions).toEqual(["NIV"]);
+  expect(after.versions).toEqual([NIV]);
   expect(after.slides.map((s) => [s.lines, s.linesByVersion])).toEqual([
     [["Where you go"], undefined],
     [["NIV seventeen"], undefined],

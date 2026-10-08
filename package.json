@@ -18,6 +18,7 @@
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "build:songs": "node scripts/build-songs.mjs",
+    "youversion:catalog": "node --dns-result-order=ipv4first --env-file-if-exists=.env scripts/youversion-catalog.mjs",
     "deploy:test": "CLOUDFLARE_ENV=test vite build && wrangler deploy --env test",
     "deploy:prod": "vite build && wrangler deploy"
   },

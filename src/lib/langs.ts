@@ -1,6 +1,15 @@
 /**
  * The language registry for multilingual slides (scripture versions today; songs later).
  *
+ * Every code is the BCP 47 tag YouVersion uses for that language's Bibles
+ * (see lib/youversion.ts): "zh" is simplified Chinese, "zh-Hant-TW"
+ * traditional, a 3-letter ISO 639-3 code where a language has no 2-letter
+ * one, a script subtag only when it isn't the language's usual script. A
+ * language added here (for songs too) takes the tag YouVersion gives it, so a
+ * song line and a Bible verse in the same language carry the same code. A
+ * transliteration is its source's tag plus the script it's written in
+ * ("ja-Latn" is rōmaji), as YouVersion tags romanized Hindi "hi-Latn".
+ *
  * Every language a slide can carry is defined here and nowhere else: the
  * editor columns, the presenter's language bar, the missing-language warning,
  * and the renderer all read from this list.
@@ -19,8 +28,8 @@ export type LangCode =
   | "ja"
   | "ja-Hira"
   | "ja-Latn"
-  | "zh-Hans"
-  | "zh-Hant"
+  | "zh"
+  | "zh-Hant-TW"
   | "zh-Latn"
   | "ko"
   | "ko-Latn"
@@ -76,14 +85,14 @@ export const LANGS: readonly LangDef[] = [
     derivedFrom: "ja",
   },
 
-  { code: "zh-Hans", label: "Chinese (simplified)", short: "CN", dir: "ltr", fontFallback: SC },
+  { code: "zh", label: "Chinese (simplified)", short: "CN", dir: "ltr", fontFallback: SC },
   {
-    code: "zh-Hant",
+    code: "zh-Hant-TW",
     label: "Chinese (traditional)",
     short: "繁",
     dir: "ltr",
     fontFallback: TC,
-    derivedFrom: "zh-Hans",
+    derivedFrom: "zh",
   },
   {
     code: "zh-Latn",
@@ -91,7 +100,7 @@ export const LANGS: readonly LangDef[] = [
     short: "Pīnyīn",
     dir: "ltr",
     fontFallback: "",
-    derivedFrom: "zh-Hans",
+    derivedFrom: "zh",
   },
 
   { code: "ko", label: "Korean", short: "KO", dir: "ltr", fontFallback: KR },
@@ -118,15 +127,15 @@ export const LANGS: readonly LangDef[] = [
 export const WORKSPACE_LANGS: readonly LangDef[] = LANGS.filter((l) => !l.derivedFrom);
 
 /** The stored workspace-language code for any language code: the Chinese
- *  scripts fold into "zh-Hans" (settings saved before they were one language). */
+ *  scripts fold into "zh" (settings saved before they were one language). */
 export function workspaceLang(code: LangCode): LangCode {
-  return code === "zh-Hant" || code === "zh-Latn" ? "zh-Hans" : code;
+  return code === "zh-Hant-TW" || code === "zh-Latn" ? "zh" : code;
 }
 
 /** The label a workspace's language picker shows: plain "Chinese", since the
  *  script isn't a workspace choice. */
 export function workspaceLangLabel(code: LangCode): string {
-  return code === "zh-Hans" ? "Chinese" : langDef(code).label;
+  return code === "zh" ? "Chinese" : langDef(code).label;
 }
 
 /** Canonical order, used to lay out the chip bar. Selection order is the user's. */
@@ -158,8 +167,8 @@ const LANG_HSL: Record<LangCode, string> = {
   "ja-Hira": "hsl(358 60% 63%)",
   "ja-Latn": "hsl(358 52% 72%)",
 
-  "zh-Hans": "hsl(26 80% 50%)", // Chinese family — orange
-  "zh-Hant": "hsl(26 70% 60%)",
+  zh: "hsl(26 80% 50%)", // Chinese family — orange
+  "zh-Hant-TW": "hsl(26 70% 60%)",
   "zh-Latn": "hsl(26 62% 69%)",
 
   ko: "hsl(286 48% 57%)", // Korean family — purple
@@ -181,12 +190,44 @@ export function isLangCode(value: unknown): value is LangCode {
   return typeof value === "string" && BY_CODE.has(value as LangCode);
 }
 
+/** Codes phyto stored before it took YouVersion's tags, and what they are now.
+ *  Settings, songs and viewer preferences saved with them still read. */
+const RENAMED: Record<string, LangCode> = { "zh-Hans": "zh", "zh-Hant": "zh-Hant-TW" };
+
+/** A stored language code as today's LangCode (an old code renamed), or
+ *  undefined when it isn't one. */
+export function toLangCode(value: unknown): LangCode | undefined {
+  if (typeof value !== "string") return undefined;
+  const code = RENAMED[value] ?? value;
+  return isLangCode(code) ? code : undefined;
+}
+
 /** Drop anything unrecognised and de-duplicate, preserving the caller's order. */
 export function sanitiseLangs(value: unknown): LangCode[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<LangCode>();
-  for (const v of value) if (isLangCode(v) && !seen.has(v)) seen.add(v);
+  for (const v of value) {
+    const code = toLangCode(v);
+    if (code) seen.add(code);
+  }
   return [...seen];
+}
+
+/**
+ * The registered language a BCP 47 tag is in, for its typography: the tag
+ * itself when phyto has an entry for it, else the entry for its language
+ * ("es-ES" -> "es"), traditional Chinese for any Hant tag ("zh-Hant-HK"),
+ * Chinese for any other. Undefined for languages phyto has no entry for.
+ */
+export function langCodeForTag(tag: string): LangCode | undefined {
+  const exact = toLangCode(tag);
+  if (exact) return exact;
+  const [language, ...rest] = tag.split("-");
+  if (language === "zh") return rest.includes("Hant") ? "zh-Hant-TW" : "zh";
+  // A script other than the usual one is a different way of writing: "hi-Latn"
+  // is not typeset as Hindi.
+  if (rest.some((s) => /^[A-Z][a-z]{3}$/.test(s))) return undefined;
+  return toLangCode(language);
 }
 
 /**
