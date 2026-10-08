@@ -177,3 +177,19 @@ it("resolves a book typed in a YouVersion Bible's language from its book names",
   expect(await parseReferenceLocalized("요 3:16", ["yv:86"])).toMatchObject({ bookId: 43 });
   vi.unstubAllEnvs();
 });
+
+it("resolves a book typed in any YouVersion language, whatever version is selected", async () => {
+  vi.stubEnv("VITE_YOUVERSION_APP_KEY", "test-app-key");
+  // NIV's own book names don't know "Yoni" (Agarabi's John): the name index does.
+  global.fetch = vi.fn(async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ data: [{ id: "JHN", title: "John", full_title: "The Gospel of John" }] }),
+  })) as unknown as typeof fetch;
+  expect(await parseReferenceLocalized("Yoni 3:16", ["yv:111"])).toMatchObject({
+    bookId: 43,
+    startChapter: 3,
+    startVerse: 16,
+  });
+  vi.unstubAllEnvs();
+});

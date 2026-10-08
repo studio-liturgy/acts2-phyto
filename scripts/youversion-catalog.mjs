@@ -10,6 +10,9 @@
 //   src/lib/youversion-names.json     titles and language names, loaded when
 //                                     a version picker or the Terms page opens
 //   src/content/bible-copyrights.json the notices, listed on the Terms pages
+//   src/lib/youversion-book-names.json every Bible's book names -> book id,
+//                                     loaded only to read a reference typed in
+//                                     a language that isn't English
 //
 // Re-run it now and then: Bibles YouVersion adds only show up in phyto once
 // they're in the snapshot. YouVersion rate-limits the key (a 429 asks for a
@@ -17,7 +20,7 @@
 // notice already in bible-copyrights.json isn't fetched again: the first run
 // takes a while, later ones only fetch the new Bibles.
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const KEY = process.env.VITE_YOUVERSION_APP_KEY;
 if (!KEY) throw new Error("Set VITE_YOUVERSION_APP_KEY (in .env, or the environment).");
@@ -26,6 +29,10 @@ const API = "https://api.youversion.com";
 const CATALOG = "src/lib/youversion-catalog.json";
 const NAMES = "src/lib/youversion-names.json";
 const COPYRIGHTS = "src/content/bible-copyrights.json";
+const BOOK_NAMES = "src/lib/youversion-book-names.json";
+// Each Bible's book list is ~200 KB (it carries the whole verse index): what
+// phyto keeps of it is cached here, so a re-run only fetches new Bibles.
+const BOOKS_CACHE = "node_modules/.cache/youversion-books";
 const GAP_MS = 400;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -118,3 +125,58 @@ for (const [i, b] of missing.entries()) {
 }
 save();
 console.log(`  ${Object.values(copyrights).filter(Boolean).length} notices`);
+
+console.log("Book names…");
+// prettier-ignore
+const USFM = ["GEN","EXO","LEV","NUM","DEU","JOS","JDG","RUT","1SA","2SA","1KI","2KI","1CH","2CH","EZR","NEH","EST","JOB","PSA","PRO","ECC","SNG","ISA","JER","LAM","EZK","DAN","HOS","JOL","AMO","OBA","JON","MIC","NAM","HAB","ZEP","HAG","ZEC","MAL","MAT","MRK","LUK","JHN","ACT","ROM","1CO","2CO","GAL","EPH","PHP","COL","1TH","2TH","1TI","2TI","TIT","PHM","HEB","JAS","1PE","2PE","1JN","2JN","3JN","JUD","REV"];
+mkdirSync(BOOKS_CACHE, { recursive: true });
+// The same normalisation lib/bible.ts matches typed names with.
+const norm = (s) => s.normalize("NFC").toLowerCase().replace(/\s+/g, "");
+// name -> { book id -> how many Bibles call it that }
+const votes = new Map();
+const bookLists = new Array(bibles.length);
+let next = 0;
+let done = 0;
+// Four at a time: each list is a ~200 KB download, so the gap between
+// requests isn't what takes the time.
+await Promise.all(
+  Array.from({ length: 4 }, async () => {
+    while (next < bibles.length) {
+      const i = next++;
+      const file = `${BOOKS_CACHE}/${bibles[i].id}.json`;
+      if (existsSync(file)) bookLists[i] = JSON.parse(readFileSync(file, "utf8"));
+      else {
+        try {
+          const data = (await get(`/v1/bibles/${bibles[i].id}/books`))?.data ?? [];
+          bookLists[i] = data.map((x) => [x.id, x.title ?? "", x.full_title ?? ""]);
+          writeFileSync(file, JSON.stringify(bookLists[i]));
+        } catch (e) {
+          // Some Bibles' book lists fail on YouVersion's side (a lasting 500):
+          // left out this time, and not cached, so the next run asks again.
+          console.log(`  skipped ${bibles[i].id}: ${e.message}`);
+          bookLists[i] = [];
+        }
+      }
+      if (++done % 100 === 0) console.log(`  ${done}/${bibles.length}`);
+    }
+  }),
+);
+for (const books of bookLists) {
+  for (const [usfm, ...titles] of books) {
+    const id = USFM.indexOf(usfm) + 1;
+    if (!id) continue;
+    for (const t of new Set(titles.map(norm).filter(Boolean))) {
+      const v = votes.get(t) ?? new Map();
+      v.set(id, (v.get(id) ?? 0) + 1);
+      votes.set(t, v);
+    }
+  }
+}
+// A name two languages give different books goes to the book most Bibles
+// mean by it.
+const names = {};
+for (const [name, v] of [...votes].sort(([a], [b]) => (a < b ? -1 : 1))) {
+  names[name] = [...v].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+}
+writeFileSync(BOOK_NAMES, JSON.stringify({ generated: today, names }) + "\n");
+console.log(`  ${Object.keys(names).length} names`);

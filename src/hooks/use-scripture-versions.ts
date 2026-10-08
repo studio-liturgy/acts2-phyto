@@ -230,12 +230,16 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   // Fetch one import's passage in the active version(s) as box text: one "---"
   // block per verse (or per `versesPer` verses for a single version), with a
   // "[reference]" header on the block that opens the import.
+  // `from` is the version the passage was imported in, when it's fetched
+  // again: its reference names the book in that version's language ("Yoni
+  // 3:16" in Agarabi), so its book names are checked too.
   const fetchImportBlocks = useCallback(
-    async (q: string, v1: string, v2: string, vPer: number) => {
+    async (q: string, v1: string, v2: string, vPer: number, from?: string) => {
+      const extra = from ? [from] : [];
       if (v2) {
         const [first, second] = await Promise.all([
-          fetchScripture(q, v1, { removeLineBreaks: !keepLineBreaks, hints: [v2] }),
-          fetchScripture(q, v2, { removeLineBreaks: !keepLineBreaks, hints: [v1] }),
+          fetchScripture(q, v1, { removeLineBreaks: !keepLineBreaks, hints: [v2, ...extra] }),
+          fetchScripture(q, v2, { removeLineBreaks: !keepLineBreaks, hints: [v1, ...extra] }),
         ]);
         const { rows, unmatched } = alignVerses(
           { code: v1, verses: first.verses },
@@ -270,6 +274,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       }
       const { reference, verses } = await fetchScripture(q, v1, {
         removeLineBreaks: !keepLineBreaks,
+        hints: extra,
       });
       const b1: string[] = [];
       for (let i = 0; i < verses.length; i += vPer) {
@@ -389,27 +394,45 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     let box1 = "";
     let box2 = "";
     let unmatched = 0;
+    const failed: string[] = [];
     const vPer = v2 ? Math.min(versesPer, 2) : versesPer;
+    // Column i of the old versions becomes column i of the new.
+    const carry = (group: VerseRow[]) => {
+      const carried = group.map((r) => ({
+        ...r,
+        refs: Object.fromEntries(newVersions.map((v, i) => [v, r.refs[oldVersions[i]] ?? ""])),
+        text: Object.fromEntries(newVersions.map((v, i) => [v, r.text[oldVersions[i]] ?? ""])),
+      }));
+      const boxes = fromVerseRows(carried, newVersions);
+      box1 = joinBlocks(box1, boxes[v1]);
+      if (v2) box2 = joinBlocks(box2, boxes[v2]);
+    };
     for (const group of groups) {
-      const query = splitRefLabel(group[0].refs[oldVersions[0]] ?? "").ref;
+      const { ref: query, code: from } = splitRefLabel(group[0].refs[oldVersions[0]] ?? "");
       if (group[0].manual || !query) {
-        // Column i of the old versions becomes column i of the new.
-        const carried = group.map((r) => ({
-          ...r,
-          refs: Object.fromEntries(newVersions.map((v, i) => [v, r.refs[oldVersions[i]] ?? ""])),
-          text: Object.fromEntries(newVersions.map((v, i) => [v, r.text[oldVersions[i]] ?? ""])),
-        }));
-        const boxes = fromVerseRows(carried, newVersions);
-        box1 = joinBlocks(box1, boxes[v1]);
-        if (v2) box2 = joinBlocks(box2, boxes[v2]);
+        carry(group);
         continue;
       }
-      const b = await fetchImportBlocks(query, v1, v2, vPer);
-      box1 = joinBlocks(box1, b.box1);
-      if (v2) box2 = joinBlocks(box2, b.box2);
-      unmatched += b.unmatched;
+      try {
+        const b = await fetchImportBlocks(query, v1, v2, vPer, from);
+        box1 = joinBlocks(box1, b.box1);
+        if (v2) box2 = joinBlocks(box2, b.box2);
+        unmatched += b.unmatched;
+      } catch {
+        // One passage that can't be fetched doesn't stop the rest: it stays
+        // as it was, and the editor says which.
+        carry(group);
+        failed.push(query);
+      }
     }
-    return { box1, box2, unmatched };
+    return { box1, box2, unmatched, failed };
+  };
+
+  const noteFailed = (failed: string[]) => {
+    if (failed.length)
+      setErr(
+        `Couldn't fetch ${failed.join(", ")} again. ${failed.length === 1 ? "It stays" : "They stay"} as before.`,
+      );
   };
 
   // Multi-language: changing a version after importing re-fetches the passages
@@ -421,10 +444,11 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     setErr(null);
     setAlignNote(null);
     try {
-      const { box1, box2, unmatched } = await buildBoxes(v1, v2);
+      const { box1, box2, unmatched, failed } = await buildBoxes(v1, v2);
       setManualText(box1);
       setManualText2(v2 ? box2 : "");
       noteUnmatched(unmatched, v1, v2);
+      noteFailed(failed);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -465,6 +489,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     };
     const result: Slide[] = [];
     let unmatched = 0;
+    const failed: string[] = [];
     let i = 0;
     while (i < cur.length) {
       const s = cur[i];
@@ -479,22 +504,29 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
         run.push(cur[i]);
         i++;
       }
-      const query = splitRefLabel(
+      const { ref: query, code: from } = splitRefLabel(
         run[0].reference ?? Object.values(run[0].referencesByVersion ?? {})[0] ?? "",
-      ).ref;
+      );
       if (run[0].manual || !query) {
         result.push(...run.map(carry));
         continue;
       }
-      const b = await fetchImportBlocks(query, v1, v2, v2 ? Math.min(versesPer, 2) : versesPer);
-      unmatched += b.unmatched;
-      const built = versionTextToSlides(
-        v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
-        newVersions,
-      ).map((x) => ({ ...x, importIndex: idx ?? 0 }));
-      result.push(...built);
+      try {
+        const vPer = v2 ? Math.min(versesPer, 2) : versesPer;
+        const b = await fetchImportBlocks(query, v1, v2, vPer, from ?? oldVersions[0]);
+        unmatched += b.unmatched;
+        const built = versionTextToSlides(
+          v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
+          newVersions,
+        ).map((x) => ({ ...x, importIndex: idx ?? 0 }));
+        result.push(...built);
+      } catch {
+        // As in buildBoxes: the rest still come through.
+        result.push(...run.map(carry));
+        failed.push(query);
+      }
     }
-    return { slides: result, unmatched };
+    return { slides: result, unmatched, failed };
   };
 
   const rebuildMessageVersions = async (v1: string, v2: string) => {
@@ -504,9 +536,10 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     setErr(null);
     setAlignNote(null);
     try {
-      const { slides, unmatched } = await buildMessageSlides(cur, v1, v2);
+      const { slides, unmatched, failed } = await buildMessageSlides(cur, v1, v2);
       updateSet(setId, { slides, versions: newVersions });
       noteUnmatched(unmatched, v1, v2);
+      noteFailed(failed);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -689,11 +722,13 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     try {
       let slides: Slide[];
       let unmatched = 0;
+      let failed: string[] = [];
       if (kind === "message") {
-        ({ slides, unmatched } = await buildMessageSlides(set.slides, v1, v2));
+        ({ slides, unmatched, failed } = await buildMessageSlides(set.slides, v1, v2));
       } else {
         const b = await buildBoxes(v1, v2);
         unmatched = b.unmatched;
+        failed = b.failed;
         slides = versionTextToSlides(
           v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
           newVersions,
@@ -717,6 +752,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
         scriptureImports: refs,
       });
       noteUnmatched(unmatched, v1, v2);
+      noteFailed(failed);
       return id;
     } catch (e) {
       setErr((e as Error).message);

@@ -49,7 +49,7 @@ const BOLLS_ON_YOUVERSION: Record<string, number> = {
 
 /** The versions only bolls.life has, in the order phyto always listed them,
  *  with the language tag YouVersion would give them. */
-const BOLLS_ONLY: { code: string; title: string; tag: string }[] = [
+const BOLLS_ONLY: { code: string; abbr?: string; title: string; tag: string }[] = [
   { code: "NLT", title: "New Living Translation", tag: "en" },
   { code: "ESV", title: "English Standard Version", tag: "en" },
   { code: "NRSVCE", title: "New Revised Standard", tag: "en" },
@@ -78,6 +78,7 @@ const BOLLS_ONLY: { code: string; title: string; tag: string }[] = [
   { code: "NVT", title: "Nova Versão Transformadora", tag: "pt" },
   { code: "NBS", title: "Nouvelle Bible Segond", tag: "fr" },
   { code: "FRPDV17", title: "Parole de Vie", tag: "fr" },
+  { code: "S00", abbr: "SCH2000", title: "Schlachter 2000", tag: "de" },
 ];
 
 export interface VersionInfo {
@@ -98,7 +99,7 @@ for (const b of YV_BIBLES) {
   BY_KEY.set(yvKey(b.id), { key: yvKey(b.id), abbr: b.abbr, title: "", tag: b.tag, yvId: b.id });
 }
 for (const v of BOLLS_ONLY) {
-  BY_KEY.set(v.code, { key: v.code, abbr: v.code, title: v.title, tag: v.tag });
+  BY_KEY.set(v.code, { key: v.code, abbr: v.abbr ?? v.code, title: v.title, tag: v.tag });
 }
 
 /** The key a version is offered and fetched under: a bolls code YouVersion
@@ -125,9 +126,18 @@ export function versionAbbr(key: string): string {
   return versionInfo(key)?.abbr ?? key;
 }
 
-// Languages listed first in a picker, in this order; the rest follow by their
-// English name.
+// A picker lists phyto's languages first, in this order; then widely spoken
+// languages; then every other language. The last two go by English name, so a
+// German version isn't buried among the A-Z of smaller languages.
 const LEADING_TAGS = ["en", "ja", "zh", "zh-Hant-TW", "ko", "id", "ar", "es", "pt", "fr"];
+// By base language, so a variant ("hi-Latn", "ur-Deva") sits with it.
+// prettier-ignore
+const COMMON_LANGUAGES = new Set([
+  "af", "ak", "am", "bg", "bn", "ceb", "cs", "da", "de", "ee", "el", "et", "fa", "fi", "fil",
+  "gu", "ha", "he", "hi", "hr", "ht", "hu", "hy", "ig", "it", "ka", "kn", "lg", "lt", "lv",
+  "mg", "ml", "mr", "my", "nb", "ne", "nl", "ny", "pa", "pl", "ro", "ru", "sk", "sl", "sn",
+  "sq", "sr", "sv", "sw", "ta", "te", "th", "tl", "tr", "uk", "ur", "vi", "xh", "yo", "zu",
+]);
 // Within a language, the versions phyto offered before YouVersion lead, in
 // their old order.
 const LEGACY_ORDER = ["NIV", "NASB", "AMP", "LBLA", "NVI", "NVIPT", "FRLSG", "BDS", "NAV"].map(
@@ -169,7 +179,8 @@ export function allTranslationGroups(): TranslationGroup[] {
   }
   const lead = (tag: string) => {
     const i = LEADING_TAGS.indexOf(tag);
-    return i < 0 ? LEADING_TAGS.length : i;
+    if (i >= 0) return i;
+    return COMMON_LANGUAGES.has(tag.split("-")[0]) ? LEADING_TAGS.length : LEADING_TAGS.length + 1;
   };
   const tags = [...byTag.keys()].sort(
     (a, b) => lead(a) - lead(b) || tagLanguageName(a).localeCompare(tagLanguageName(b), "en"),
@@ -225,7 +236,10 @@ export function translationEntry(key: string): TranslationEntry {
 // winning a shared one.
 const KEY_BY_ABBR = new Map<string, string>();
 for (const code of Object.keys(BOLLS_ON_YOUVERSION)) KEY_BY_ABBR.set(code, canonicalVersion(code));
-for (const v of BOLLS_ONLY) KEY_BY_ABBR.set(v.code, v.code);
+for (const v of BOLLS_ONLY) {
+  KEY_BY_ABBR.set(v.code, v.code);
+  if (v.abbr) KEY_BY_ABBR.set(v.abbr, v.code);
+}
 for (const b of YV_BIBLES) if (!KEY_BY_ABBR.has(b.abbr)) KEY_BY_ABBR.set(b.abbr, yvKey(b.id));
 
 /** The version an abbreviation names, if any. */
@@ -547,7 +561,8 @@ async function resolveLocalizedBookId(
   bookPart: string,
   translations: string[],
 ): Promise<number | null> {
-  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "").trim();
+  // The same normalisation the name index is built with.
+  const norm = (s: string) => s.normalize("NFC").toLowerCase().replace(/\s+/g, "");
   // A numeral marks a numbered book (1 John, 2 Corinthians). When the typed name
   // has none, a numbered book is the wrong answer for it — so "ヨハネ" (John)
   // must not resolve to 1 John just because that name happens to be shorter.
@@ -559,17 +574,18 @@ async function resolveLocalizedBookId(
   // Rank tuple, lower is better: [numeral mismatch, match tightness, book id].
   // Book id breaks ties canonically — a bare name shared by a Gospel and a later
   // book (e.g. "ヨハネ" → John, 1–3 John, Revelation) resolves to the Gospel.
-  let best: { id: number; rank: [number, number, number] } | null = null;
+  // (Written from inside scan, so held in an object TypeScript can't narrow.)
+  const found: { best: { id: number; rank: [number, number, number] } | null } = { best: null };
   const better = (a: [number, number, number], b: [number, number, number]) =>
     a[0] !== b[0] ? a[0] < b[0] : a[1] !== b[1] ? a[1] < b[1] : a[2] < b[2];
-  for (const t of [...translations.map(canonicalVersion), ...NAME_REPRESENTATIVES]) {
-    if (!t || seen.has(t)) continue;
+  const scan = async (t: string) => {
+    if (!t || seen.has(t)) return null;
     seen.add(t);
     const { names, abbrs } = await bookNameLists(t);
     for (const [id, short] of abbrs) {
       if (short.some((a) => norm(a) === target)) {
         const rank: [number, number, number] = [0, 0, id];
-        if (!best || better(rank, best.rank)) best = { id, rank };
+        if (!found.best || better(rank, found.best.rank)) found.best = { id, rank };
       }
     }
     for (const [id, list] of names) {
@@ -586,11 +602,37 @@ async function resolveLocalizedBookId(
         else if (a.includes(target) || target.includes(a)) score = 3;
         else continue;
         const rank: [number, number, number] = [hasNum(a) === tNum ? 0 : 1, score, id];
-        if (!best || better(rank, best.rank)) best = { id, rank };
+        if (!found.best || better(rank, found.best.rank)) found.best = { id, rank };
       }
     }
+    return null;
+  };
+  // The versions in play first (the one being fetched, and the one the
+  // passage was imported in), then an exact name from any YouVersion Bible in
+  // any language ("Yoni" is John in Agarabi), then the representatives.
+  for (const t of translations.map(canonicalVersion)) {
+    const exact = await scan(t);
+    if (exact) return exact;
   }
-  return best?.id ?? null;
+  const anywhere = (await loadBookNameIndex())[target];
+  if (anywhere) return anywhere;
+  for (const t of NAME_REPRESENTATIVES) {
+    const exact = await scan(t);
+    if (exact) return exact;
+  }
+  return found.best?.id ?? null;
+}
+
+let bookNameIndex: Promise<Record<string, number>> | null = null;
+
+/** Every YouVersion Bible's book names (normalised: lower case, no spaces)
+ *  to the book id, from the catalog snapshot. ~1 MB, so only loaded when a
+ *  reference doesn't parse in English. */
+function loadBookNameIndex(): Promise<Record<string, number>> {
+  bookNameIndex ??= import("./youversion-book-names.json").then(
+    (m) => (m.default as unknown as { names: Record<string, number> }).names,
+  );
+  return bookNameIndex;
 }
 
 /**

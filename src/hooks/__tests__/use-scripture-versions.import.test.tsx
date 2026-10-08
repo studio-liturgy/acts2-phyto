@@ -7,18 +7,27 @@ vi.mock("@/lib/supabase", async () => {
   return { supabase: supabaseMock.client };
 });
 // Offline: two verses of any passage in any version, read as its
-// abbreviation ("NIV sixteen").
+// abbreviation ("NIV sixteen"). Agarabi (yv:935) names John "Yoni", as
+// YouVersion does; a passage called "Missing" can't be found. Every call is
+// recorded.
+const { fetchCalls } = vi.hoisted(() => ({
+  fetchCalls: [] as { q: string; code: string; hints?: string[] }[],
+}));
 vi.mock("@/lib/bible", async (orig) => {
   const real = await orig<typeof import("@/lib/bible")>();
   return {
     ...real,
-    fetchScripture: async (_q: string, code: string) => ({
-      reference: "Ruth 1:16-17",
-      verses: [
-        { book: 8, chapter: 1, verse: 16, text: `${real.versionAbbr(code)} sixteen` },
-        { book: 8, chapter: 1, verse: 17, text: `${real.versionAbbr(code)} seventeen` },
-      ],
-    }),
+    fetchScripture: async (q: string, code: string, opts?: { hints?: string[] }) => {
+      fetchCalls.push({ q, code, hints: opts?.hints });
+      if (q.startsWith("Missing")) throw new Error("No verses found in that range.");
+      return {
+        reference: code === "yv:935" ? q.replace("John", "Yoni") : "Ruth 1:16-17",
+        verses: [
+          { book: 8, chapter: 1, verse: 16, text: `${real.versionAbbr(code)} sixteen` },
+          { book: 8, chapter: 1, verse: 17, text: `${real.versionAbbr(code)} seventeen` },
+        ],
+      };
+    },
   };
 });
 
@@ -368,4 +377,73 @@ it("a new set starts in the version used most recently, and pairs with the last 
 
   await act(async () => api!.setTwoVersions(true));
   expect(api!.translation2).toBe("KRV");
+});
+
+it("switching two versions on fetches every passage in the 1st version, whatever it was imported in", async () => {
+  const set = makeSet({ kind: "scripture", slides: [] });
+  await db.sets.put(set);
+  await useLibrary.getState().loadFromDb();
+  await act(async () => root.render(<Harness setId={set.id} />));
+  // One passage in Agarabi (its reference names the book "Yoni"), one in NIV.
+  await act(async () => api!.setTranslation("yv:935"));
+  await act(async () => {
+    await api!.importScripture("John 3:16");
+  });
+  await act(async () => api!.setTranslation(NIV));
+  await act(async () => {
+    await api!.importScripture("Ruth 1:16-17");
+  });
+  await act(async () => {});
+  expect(api!.manualText).toContain("[Yoni 3:16 agd]");
+
+  fetchCalls.length = 0;
+  await act(async () => {
+    api!.setTwoVersions(true);
+    api!.setTranslation2("CUNPS");
+  });
+  await act(async () => {});
+  await act(async () => {});
+
+  // The Agarabi passage is fetched again by its own reference, with Agarabi's
+  // book names in play.
+  const yoni = fetchCalls.find((c) => c.q === "Yoni 3:16" && c.code === NIV);
+  expect(yoni?.hints).toContain("yv:935");
+  const after = useLibrary.getState().sets[set.id];
+  expect(api!.err).toBeNull();
+  expect(after.versions).toEqual([NIV, "CUNPS"]);
+  expect(after.slides.map((s) => s.linesByVersion?.[NIV])).toEqual([
+    "NIV sixteen",
+    "NIV seventeen",
+    "NIV sixteen",
+    "NIV seventeen",
+  ]);
+});
+
+it("a passage that can't be fetched again stays as it was; the rest still change", async () => {
+  const set = makeSet({ kind: "scripture", slides: [] });
+  await db.sets.put(set);
+  await useLibrary.getState().loadFromDb();
+  await act(async () => root.render(<Harness setId={set.id} />));
+  await act(async () => {
+    await api!.importScripture("Ruth 1:16-17");
+  });
+  // A passage whose reference no longer fetches.
+  await act(async () => api!.setManualText((t) => `${t}\n---\n[Missing 1:1 NIV]\nKept as typed`));
+  await act(async () => {});
+
+  await act(async () => {
+    api!.setTwoVersions(true);
+    api!.setTranslation2("CUNPS");
+  });
+  await act(async () => {});
+  await act(async () => {});
+
+  expect(api!.err).toMatch(/Missing 1:1/);
+  const after = useLibrary.getState().sets[set.id];
+  expect(after.slides.map((s) => s.linesByVersion?.[NIV])).toEqual([
+    "NIV sixteen",
+    "NIV seventeen",
+    "Kept as typed",
+  ]);
+  expect(after.slides[0].linesByVersion?.CUNPS).toBe("CUNPS sixteen");
 });

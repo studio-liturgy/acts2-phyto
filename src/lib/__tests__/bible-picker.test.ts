@@ -8,7 +8,7 @@ it("offers every version by abbreviation before the titles load", () => {
   const english = groups.find((g) => g.language === "English")!.translations;
   expect(english[0]).toEqual({ code: "yv:111", abbr: "NIV", label: "" });
   expect(english.find((t) => t.code === "ESV")?.label).toBe("English Standard Version");
-  expect(groups.flatMap((g) => g.translations)).toHaveLength(YV_BIBLES.length + 28);
+  expect(groups.flatMap((g) => g.translations)).toHaveLength(YV_BIBLES.length + 29);
 });
 
 describe("allTranslationGroups", () => {
@@ -46,12 +46,25 @@ describe("allTranslationGroups", () => {
     ]);
   });
 
+  it("lists widely spoken languages A-Z after phyto's, then the rest A-Z", () => {
+    const names = groups.map((g) => g.language);
+    // The first of the rest: YouVersion spells it "'Auhelawa".
+    const rest = names.findIndex((n) => n.includes("Auhelawa"));
+    const common = names.slice(10, rest);
+    expect(common).toEqual([...common].sort((a, b) => a.localeCompare(b, "en")));
+    for (const l of ["German", "Russian", "Hindi", "Hindi (Roman script)", "Vietnamese", "Thai"])
+      expect(common).toContain(l);
+    expect(rest).toBe(10 + common.length);
+    expect(common.at(-1)).toBe("Yoruba");
+  });
+
   it("lists YouVersion first in a language, the versions phyto offered before on top", () => {
     const english = group("English").translations.map((t) => t.abbr);
     expect(english.slice(0, 3)).toEqual(["NIV", "NASB1995", "AMP"]);
     const firstBolls = english.indexOf("NLT");
     expect(firstBolls).toBeGreaterThan(3);
     expect(english.slice(firstBolls)).toEqual(["NLT", "ESV", "NRSVCE", "NKJV", "KJV", "MSG"]);
+    expect(group("German").translations.map((t) => t.abbr)).toContain("SCH2000");
     expect(group("Korean").translations.map((t) => t.code)).toEqual(["yv:86", "KRV", "RNKSV"]);
   });
 });
