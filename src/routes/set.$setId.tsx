@@ -117,6 +117,9 @@ export const Route = createFileRoute("/set/$setId")({
 // editor is driven with a single placeholder version.
 const SINGLE_VERSION = ["_"];
 
+/** The names a new set is created with: clicking into one starts blank. */
+const DEFAULT_SET_NAMES = new Set(["New Song", "New Scripture", "New Media"]);
+
 function kindBadgeBg(kind: SetKind): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
   if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
@@ -188,10 +191,15 @@ function SetHeader({
   const removeMode = phytoSet.shared ? "remove-shared" : inActiveGroup ? "remove-group" : "delete";
   const removeLabel = removeMode === "delete" ? "Delete" : "Remove";
   const nameBeforeEditRef = useRef(phytoSet.name);
+  // A new set's placeholder name ("New Song") isn't something to edit around:
+  // clicking in shows an empty field (the name as its placeholder), and the
+  // name only changes once something is typed.
+  const [blankDefault, setBlankDefault] = useState(false);
   const commitName = () => {
     if (!phytoSet.name.trim()) {
       updateSet(phytoSet.id, { name: nameBeforeEditRef.current });
     }
+    setBlankDefault(false);
     setEditingName(false);
   };
   // Gathering this set was added to during this edit session; the Present button
@@ -217,9 +225,12 @@ function SetHeader({
         {editingName ? (
           <Input
             autoFocus
-            value={phytoSet.name}
-            placeholder="Set name"
-            onChange={(e) => updateSet(phytoSet.id, { name: e.target.value })}
+            value={blankDefault ? "" : phytoSet.name}
+            placeholder={blankDefault ? phytoSet.name : "Set name"}
+            onChange={(e) => {
+              setBlankDefault(false);
+              updateSet(phytoSet.id, { name: e.target.value });
+            }}
             onBlur={commitName}
             onKeyDown={(e) => e.key === "Enter" && commitName()}
             className="h-9 w-56 border-foreground text-base shadow-none focus-visible:ring-0"
@@ -228,6 +239,7 @@ function SetHeader({
           <h1
             onClick={() => {
               nameBeforeEditRef.current = phytoSet.name;
+              setBlankDefault(DEFAULT_SET_NAMES.has(phytoSet.name.trim()));
               setEditingName(true);
             }}
             className="cursor-text truncate text-base text-muted-foreground"
