@@ -12,15 +12,15 @@
  * runs longer, and the presenter can always go live again.
  *
  * The server is the enforcement point: `gatherings.live_started_at` is stamped
- * by a trigger, and the public `gathering_sets` RLS policy hides sets once the
- * window has elapsed (see schema.sql). The helpers here are the client-side
+ * by a trigger, and the share viewer's `get_share_view` RPC stops serving sets
+ * once the window has elapsed (src/lib/migrations/2026-10-09-share-view-rpc.sql). The helpers here are the client-side
  * mirror of that rule, so viewers stop polling rather than politely asking for
  * rows the server will refuse.
  */
 
 /** How long a gathering stays live before it auto-ends.
- *  MIRRORED IN SQL as `interval '24 hours'` in the public `gathering_sets`
- *  policy in schema.sql — change both together. */
+ *  MIRRORED IN SQL as `interval '24 hours'` in `get_share_view` (and, until
+ *  it is dropped, the public `gathering_sets` policy). Change them together. */
 export const LIVE_SESSION_MS = 24 * 60 * 60 * 1000;
 
 /** The live-session fields of a gathering, as stored locally. */
