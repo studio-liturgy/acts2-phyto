@@ -16,6 +16,31 @@ export function FeatureItem({ children }: { children: ReactNode }) {
   );
 }
 
+/** October 9, 2026: YouVersion. One `<li>`, above VersionsEntry. */
+export function YouVersionEntry() {
+  return (
+    <li className="border-t border-[var(--brand-white)]/20 pt-8">
+      <div className="text-2xl">October 9, 2026</div>
+
+      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">YouVersion</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Scripture now comes from YouVersion. NIV works again, along with every version YouVersion
+          offers: 1,485 Bibles in 1,262 languages
+        </FeatureItem>
+        <FeatureItem>
+          Versions YouVersion doesn&rsquo;t have, like ESV, KJV, Chinese Union and Korean Revised,
+          still work as before
+        </FeatureItem>
+        <FeatureItem>Schlachter 2000 is now available in German</FeatureItem>
+        <FeatureItem>
+          The version list shows widely spoken languages A to Z, then every other language
+        </FeatureItem>
+      </ul>
+    </li>
+  );
+}
+
 /** October 1, 2026: bible versions per set. One `<li>`, above ReleaseEntry. */
 export function VersionsEntry() {
   return (
