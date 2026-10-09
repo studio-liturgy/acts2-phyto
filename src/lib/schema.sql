@@ -280,10 +280,10 @@ create policy "gatherings: owner delete"
   on gatherings for delete
   using (user_id = auth.uid());
 
--- Public (unauthenticated) viewers can look up a gathering by share_token.
-create policy "gatherings: public select by share_token"
-  on gatherings for select
-  using (share_token is not null);
+-- No public (anon) SELECT policy. The /g viewer reads only through the
+-- security-definer RPC get_share_view(p_token); see
+-- migrations/2026-10-09-share-view-rpc.sql and 2026-10-09-drop-public-reads.sql.
+-- Never add an anon SELECT policy here or on sets / gathering_sets.
 
 -- ============================================================
 -- Table: account_slugs
@@ -399,22 +399,8 @@ create policy "gathering_sets: owner delete"
     )
   );
 
--- Public viewers can see gathering_sets while the gathering is live AND within
--- its 24h window. This is the enforcement point for live-session expiry: an
--- abandoned session serves no sets, so a viewer tab left open on the share link
--- can no longer pull set `content` forever. The client mirrors this rule in
--- src/lib/live-session.ts (LIVE_SESSION_MS) so it stops polling too — keep the
--- interval below and that constant in step.
-create policy "gathering_sets: public select when live"
-  on gathering_sets for select
-  using (
-    exists (
-      select 1 from gatherings g
-      where g.id = gathering_id
-        and g.is_live = true
-        and g.live_started_at > now() - interval '24 hours'
-    )
-  );
+-- No public (anon) SELECT policy: the /g viewer reads through get_share_view(),
+-- which also enforces the 24h live window (mirrored in src/lib/live-session.ts).
 
 -- ============================================================
 -- Table: deletions

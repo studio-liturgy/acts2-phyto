@@ -19,8 +19,8 @@
  */
 
 /** How long a gathering stays live before it auto-ends.
- *  MIRRORED IN SQL as `interval '24 hours'` in `get_share_view` (and, until
- *  it is dropped, the public `gathering_sets` policy). Change them together. */
+ *  MIRRORED IN SQL as `interval '24 hours'` in `get_share_view`. Change them
+ *  together. */
 export const LIVE_SESSION_MS = 24 * 60 * 60 * 1000;
 
 /** The live-session fields of a gathering, as stored locally. */
