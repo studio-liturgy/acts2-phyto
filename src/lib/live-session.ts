@@ -8,20 +8,22 @@
  * images, sometimes megabytes) every 8 seconds, indefinitely. That was the
  * dominant source of Supabase egress.
  *
- * So a live session now auto-expires 24 hours after it started. No real service
- * runs longer, and the presenter can always go live again.
+ * Polling is now a cheap change check that pauses in hidden tabs (see
+ * lib/share-poll.ts), so a session can stay live until the presenter ends it
+ * or goes live on another gathering. A 14-day cap still ends forgotten ones.
  *
  * The server is the enforcement point: `gatherings.live_started_at` is stamped
- * by a trigger, and the share viewer's `get_share_view` RPC stops serving sets
- * once the window has elapsed (src/lib/migrations/2026-10-09-share-view-rpc.sql). The helpers here are the client-side
+ * by a trigger, and the share viewer's `get_share_view_v2` RPC stops serving
+ * sets once the window has elapsed
+ * (src/lib/migrations/2026-10-18-share-view-versioned.sql). The helpers here are the client-side
  * mirror of that rule, so viewers stop polling rather than politely asking for
  * rows the server will refuse.
  */
 
 /** How long a gathering stays live before it auto-ends.
- *  MIRRORED IN SQL as `interval '24 hours'` in `get_share_view`. Change them
+ *  MIRRORED IN SQL as `interval '14 days'` in `get_share_view_v2`. Change them
  *  together. */
-export const LIVE_SESSION_MS = 24 * 60 * 60 * 1000;
+export const LIVE_SESSION_MS = 14 * 24 * 60 * 60 * 1000;
 
 /** The live-session fields of a gathering, as stored locally. */
 export interface LiveWindow {
@@ -38,7 +40,7 @@ export function liveExpiresAt(g: LiveWindow | null | undefined): number | null {
   return g.live_started_at + LIVE_SESSION_MS;
 }
 
-/** Whether a gathering is live *right now*: the server flag is set AND the 24h
+/** Whether a gathering is live *right now*: the server flag is set AND the 14-day
  *  window has not elapsed. Prefer this over reading `is_live` directly — a
  *  session that was never manually ended keeps `is_live` true forever. */
 export function isLiveNow(g: LiveWindow | null | undefined, now: number = Date.now()): boolean {

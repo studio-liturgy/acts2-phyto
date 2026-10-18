@@ -5,7 +5,13 @@ import { isLiveNow } from "@/lib/live-session";
 import { PhoneViewer } from "@/components/PhoneViewer";
 import type { PhoneSet } from "@/lib/phone-viewer";
 import { visibleVersions } from "@/lib/versions";
-import { parseShareView, type ShareResolution, type ShareSetRow } from "@/lib/share-view";
+import {
+  parseShareView,
+  shareViewVersion,
+  type ShareResolution,
+  type ShareSetRow,
+} from "@/lib/share-view";
+import { nextPollDelay } from "@/lib/share-poll";
 
 // Per-gathering share view — private, ephemeral links. Keep out of search.
 
@@ -27,16 +33,24 @@ export const Route = createFileRoute("/g/$token")({
 // ---------------------------------------------------------------------------
 
 /** Resolve the token and, while live, fetch its sets in one call. The RPC is the
- *  viewer's only read path (see src/lib/share-view.ts for why). Returns
- *  "error" on a failed request so the poll holds its current state and retries,
- *  rather than reading a network blip as "not found" and stopping for good. */
-async function fetchShareView(token: string): Promise<ShareResolution | "error"> {
-  const { data, error } = await supabase.rpc("get_share_view", { p_token: token });
+ *  viewer's only read path (see src/lib/share-view.ts for why). Sending the
+ *  version from the last answer gets back "unchanged" instead of the full
+ *  payload when nothing moved. Returns "error" on a failed request so the poll
+ *  holds its current state and retries, rather than reading a network blip as
+ *  "not found" and stopping for good. */
+async function fetchShareView(
+  token: string,
+  version: string | null,
+): Promise<{ view: ShareResolution; version: string | null } | "error"> {
+  const { data, error } = await supabase.rpc("get_share_view_v2", {
+    p_token: token,
+    p_version: version,
+  });
   if (error) {
-    console.warn("[share] get_share_view failed", error);
+    console.warn("[share] get_share_view_v2 failed", error);
     return "error";
   }
-  return parseShareView(data);
+  return { view: parseShareView(data), version: shareViewVersion(data) };
 }
 
 /** Flatten a fetched set row into the shape PhoneViewer renders. */
@@ -75,11 +89,37 @@ function GatheringViewer() {
     stoppedRef.current = false;
     prevLiveRef.current = null;
 
-    const poll = async () => {
-      if (stoppedRef.current) return;
+    let version: string | null = null;
+    let lastChangeAt = Date.now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
 
-      const res = await fetchShareView(token);
-      if (stoppedRef.current || res === "error") return;
+    // Polls run one at a time, each scheduling the next, and none while the
+    // tab is hidden (see lib/share-poll.ts for the timing).
+    const schedule = () => {
+      clearTimeout(timer);
+      if (stoppedRef.current || document.hidden) return;
+      timer = setTimeout(poll, nextPollDelay(lastChangeAt));
+    };
+
+    const poll = async () => {
+      if (stoppedRef.current || inFlight) return;
+      inFlight = true;
+      try {
+        await check();
+      } finally {
+        inFlight = false;
+      }
+      schedule();
+    };
+
+    const check = async () => {
+      const fetched = await fetchShareView(token, version);
+      if (stoppedRef.current || fetched === "error") return;
+      const res = fetched.view;
+      if (res?.kind === "unchanged") return;
+      version = fetched.version;
+      lastChangeAt = Date.now();
 
       if (!res) {
         setStatus("not-found");
@@ -104,8 +144,9 @@ function GatheringViewer() {
       const g = res.gathering;
       setGatheringName(g.title);
 
-      // A session auto-ends 24h after it started, so an abandoned gathering
-      // stops being live even though the presenter never flipped the flag.
+      // A session auto-ends after LIVE_SESSION_MS (14 days), so an abandoned
+      // gathering stops being live even though the presenter never flipped the
+      // flag. The server's payload changes at that moment, so this runs.
       const live = isLiveNow(g);
       const wasLive = prevLiveRef.current;
       prevLiveRef.current = live;
@@ -126,11 +167,18 @@ function GatheringViewer() {
       }
     };
 
-    poll();
-    const timer = setInterval(poll, 8000);
+    // Back in view (phone unlocked, tab reselected): catch up at once.
+    const onVisibility = () => {
+      if (document.hidden) clearTimeout(timer);
+      else void poll();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    void poll();
     return () => {
       stoppedRef.current = true;
-      clearInterval(timer);
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [token]);
 

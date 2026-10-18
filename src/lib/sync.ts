@@ -119,7 +119,7 @@ export function toSupabaseGathering(p: Gathering, userId: string, deviceId: stri
   // server-authoritative and managed exclusively by goLive/endSession (and the
   // gatherings_live_clock trigger). Including them here would let an unrelated
   // content push clobber the server's true live flag with stale local data, or
-  // silently extend a running session's 24h window. PostgREST upsert leaves
+  // silently extend a running session's 14-day window. PostgREST upsert leaves
   // omitted columns untouched on conflict, and a brand-new inserted row gets
   // the schema default (false / null).
   return {

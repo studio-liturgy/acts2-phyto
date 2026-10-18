@@ -399,8 +399,11 @@ create policy "gathering_sets: owner delete"
     )
   );
 
--- No public (anon) SELECT policy: the /g viewer reads through get_share_view(),
--- which also enforces the 24h live window (mirrored in src/lib/live-session.ts).
+-- No public (anon) SELECT policy: the /g viewer reads through
+-- get_share_view_v2() (2026-10-18-share-view-versioned.sql), which enforces the
+-- 14-day live window (mirrored in src/lib/live-session.ts) and answers
+-- "unchanged" when the viewer already holds the current version. The older
+-- get_share_view() (24h, no versioning) stays until prod stops calling it.
 
 -- ============================================================
 -- Table: deletions

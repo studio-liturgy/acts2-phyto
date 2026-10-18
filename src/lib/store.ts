@@ -1018,7 +1018,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       throw offlineErr;
     }
 
-    // 2. Flip the target live. `live_started_at` starts the 24h expiry clock; the
+    // 2. Flip the target live. `live_started_at` starts the 14-day expiry clock; the
     //    DB trigger stamps it too, but sending it explicitly restarts an EXPIRED
     //    session. A foreign group gathering (owned by another member) is UPDATEd
     //    in place so its ownership survives; my own is upserted so a never-pushed
@@ -1156,7 +1156,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       console.error("[refreshLiveState] error:", error);
       return;
     }
-    // A row past its 24h window is reported as not live, so the presenter's UI
+    // A row past its 14-day window is reported as not live, so the presenter's UI
     // agrees with what viewers actually get (see lib/live-session.ts).
     const liveById = new Map(
       (data ?? []).map((r) => {

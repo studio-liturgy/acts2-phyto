@@ -2,7 +2,10 @@
  * The /g/<token> share viewer's data contract.
  *
  * The viewer is unauthenticated and reads ONLY through the security-definer RPC
- * `get_share_view(p_token)` (src/lib/migrations/2026-10-09-share-view-rpc.sql).
+ * `get_share_view_v2(p_token, p_version)`
+ * (src/lib/migrations/2026-10-18-share-view-versioned.sql). Every answer
+ * carries a `version`; sending it back gets {"kind":"unchanged"} instead of
+ * the full payload when nothing has changed, which keeps polling cheap.
  * Taking the token as an argument is what makes it a key: a direct table read
  * filtered by token is applied after RLS, so it needed public policies that let
  * anyone list every gathering and live set. Never reintroduce direct anon reads
@@ -37,7 +40,8 @@ export interface ShareSetRow {
 export interface ShareGathering {
   title: string;
   is_live: boolean;
-  /** Epoch ms, or null. Paired with `is_live` to give the 24h auto-expiry. */
+  /** Epoch ms, or null. Paired with `is_live` to give the auto-expiry
+   *  (LIVE_SESSION_MS in lib/live-session.ts). */
   live_started_at: number | null;
   /** Section keys the leader has hidden this session, keyed by set id. */
   hidden_sections: Record<string, string[]>;
@@ -48,10 +52,12 @@ export interface ShareGathering {
  *                 the server considers the gathering live right now.
  *  - "waiting":   the token is a real account/group slug, but nothing is live in
  *                 that scope → a generic waiting page.
+ *  - "unchanged":   same as the version the viewer sent; keep what it has.
  *  - null:        the token matches nothing. */
 export type ShareResolution =
   | { kind: "gathering"; gathering: ShareGathering; sets: ShareSetRow[] }
   | { kind: "waiting" }
+  | { kind: "unchanged" }
   | null;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -83,6 +89,7 @@ function toSet(v: unknown): ShareSetRow | null {
  *  orders sets by slot position. */
 export function parseShareView(raw: unknown): ShareResolution {
   if (!isRecord(raw)) return null;
+  if (raw.kind === "unchanged") return { kind: "unchanged" };
   if (raw.kind === "waiting") return { kind: "waiting" };
   if (raw.kind !== "gathering" || !isRecord(raw.gathering)) return null;
 
@@ -102,4 +109,10 @@ export function parseShareView(raw: unknown): ShareResolution {
     },
     sets,
   };
+}
+
+/** The payload version the server stamped on this answer, to send back on the
+ *  next poll. null when absent (the viewer then just fetches in full). */
+export function shareViewVersion(raw: unknown): string | null {
+  return isRecord(raw) && typeof raw.version === "string" ? raw.version : null;
 }

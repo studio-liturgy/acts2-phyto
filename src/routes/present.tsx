@@ -1591,8 +1591,8 @@ function Presenter() {
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
           <DialogTitle className="text-2xl font-normal leading-tight">Go live!</DialogTitle>
           <p className="mt-4 text-base">
-            This gathering will stay live for 24 hours, unless you end it or go live on another one
-            first.
+            This gathering will stay live until you end it or go live on another one. If it's left
+            running, it ends on its own after 14 days.
           </p>
           <div className="mt-8">
             <button

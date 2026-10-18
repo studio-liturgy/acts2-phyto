@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseShareView } from "../share-view";
+import { parseShareView, shareViewVersion } from "../share-view";
 
 const LIVE_AT = "2026-10-09T09:40:11.27+00:00";
 
@@ -94,5 +94,25 @@ describe("parseShareView", () => {
     expect(parseShareView({ kind: "other" })).toBeNull();
     expect(parseShareView({ kind: "gathering" })).toBeNull();
     expect(parseShareView([])).toBeNull();
+  });
+});
+
+describe("versioned polling (get_share_view_v2)", () => {
+  it("recognises an unchanged answer", () => {
+    const raw = { kind: "unchanged", version: "abc" };
+    expect(parseShareView(raw)).toEqual({ kind: "unchanged" });
+    expect(shareViewVersion(raw)).toBe("abc");
+  });
+
+  it("reads the version off a full answer without changing what it parses to", () => {
+    const raw = { kind: "waiting", version: "d41d8cd9" };
+    expect(parseShareView(raw)).toEqual({ kind: "waiting" });
+    expect(shareViewVersion(raw)).toBe("d41d8cd9");
+  });
+
+  it("has no version for a missing or malformed one", () => {
+    expect(shareViewVersion(null)).toBeNull();
+    expect(shareViewVersion({ kind: "waiting" })).toBeNull();
+    expect(shareViewVersion({ kind: "waiting", version: 5 })).toBeNull();
   });
 });

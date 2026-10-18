@@ -4,7 +4,7 @@ import { LIVE_SESSION_MS, isLiveNow, liveExpiresAt, liveMsRemaining } from "../l
 const NOW = 1_700_000_000_000;
 
 describe("liveExpiresAt", () => {
-  it("is 24h after the session started", () => {
+  it("is LIVE_SESSION_MS after the session started", () => {
     expect(liveExpiresAt({ is_live: true, live_started_at: NOW })).toBe(NOW + LIVE_SESSION_MS);
   });
 
@@ -30,7 +30,7 @@ describe("isLiveNow", () => {
     expect(isLiveNow(g, NOW + LIVE_SESSION_MS - 1)).toBe(true);
   });
 
-  it("expires exactly at the 24h boundary", () => {
+  it("expires exactly at the window boundary", () => {
     const g = { is_live: true, live_started_at: NOW };
     expect(isLiveNow(g, NOW + LIVE_SESSION_MS)).toBe(false);
     expect(isLiveNow(g, NOW + LIVE_SESSION_MS + 1)).toBe(false);
