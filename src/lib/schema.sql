@@ -403,7 +403,8 @@ create policy "gathering_sets: owner delete"
 -- get_share_view_v2() (2026-10-18-share-view-versioned.sql), which enforces the
 -- 14-day live window (mirrored in src/lib/live-session.ts) and answers
 -- "unchanged" when the viewer already holds the current version. The older
--- get_share_view() (24h, no versioning) stays until prod stops calling it.
+-- get_share_view() (24h, no versioning) is dropped by
+-- 2026-10-18-drop-share-view-v1.sql.
 
 -- ============================================================
 -- Table: deletions
