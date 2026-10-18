@@ -4,7 +4,12 @@ import { ArrowLeft, Plus, AlertTriangle } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
-import { ReleaseEntry, VersionsEntry, YouVersionEntry } from "@/content/updates-release";
+import {
+  LiveGatheringsEntry,
+  ReleaseEntry,
+  VersionsEntry,
+  YouVersionEntry,
+} from "@/content/updates-release";
 
 function FeatureItem({ children }: { children: ReactNode }) {
   return (
@@ -28,6 +33,7 @@ export default function UpdatesTest() {
         </Link>
         {/* The next release's entry, exactly as phyto.live/updates will show it. */}
         <ul className="mt-8 space-y-12">
+          <LiveGatheringsEntry />
           <YouVersionEntry />
           <VersionsEntry />
           <ReleaseEntry />

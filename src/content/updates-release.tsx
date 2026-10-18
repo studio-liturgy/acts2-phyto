@@ -16,6 +16,35 @@ export function FeatureItem({ children }: { children: ReactNode }) {
   );
 }
 
+/** October 18, 2026: live gatherings and chord-line typing. One `<li>`, above YouVersionEntry. */
+export function LiveGatheringsEntry() {
+  return (
+    <li className="border-t border-[var(--brand-white)]/20 pt-8">
+      <div className="text-2xl">October 18, 2026</div>
+
+      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Gatherings</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          A live gathering now stays live until you end it or go live on another one. If it&rsquo;s
+          left running, it ends on its own after 14 days
+        </FeatureItem>
+        <FeatureItem>
+          Phones following a gathering use much less data: they only download what changed, and
+          pause while the screen is off
+        </FeatureItem>
+      </ul>
+
+      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Song editor</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Typing on a line with chords no longer makes the cursor jump or puts letters in backwards,
+          in either the lyrics or the chords
+        </FeatureItem>
+      </ul>
+    </li>
+  );
+}
+
 /** October 9, 2026: YouVersion. One `<li>`, above VersionsEntry. */
 export function YouVersionEntry() {
   return (
