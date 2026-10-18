@@ -833,6 +833,29 @@ export function lyricCaretForStoredLine(
 }
 
 /**
+ * Where the caret belongs after typing or deleting on a lyric line that has a
+ * chord row above it. The row above reflows on every keystroke, which shifts
+ * the lyric's offset in the box, so the caret has to be put back by hand.
+ *
+ * The column must be read from the box AFTER the keystroke (`boxValue` and
+ * `boxCaret` straight off the change event), not from the caret remembered
+ * before it: reusing the old column parked the caret one place behind every
+ * typed letter (so words came out backwards) and one place ahead after every
+ * backspace. A lyric line's own text never reflows, so its post-edit column
+ * is exact on the rebuilt box.
+ */
+export function caretAfterLyricEdit(
+  lyrics: string,
+  storedLine: number,
+  boxValue: string,
+  boxCaret: number,
+  render: (chord: string) => string = (c) => c,
+): number {
+  const lineStart = boxValue.lastIndexOf("\n", boxCaret - 1) + 1;
+  return lyricCaretForStoredLine(lyrics, storedLine, boxCaret - lineStart, render);
+}
+
+/**
  * Drop a chord into the box at a caret position, the way the palette does.
  *
  * The box text is never spliced directly: the caret might land in the middle

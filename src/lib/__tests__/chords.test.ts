@@ -5,6 +5,7 @@ import {
   chordProKey,
   chordProToInline,
   looksLikeChordPro,
+  caretAfterLyricEdit,
   lyricCaretForStoredLine,
   chordRowsToInline,
   clearChordsAtBoxOffset,
@@ -523,6 +524,40 @@ describe("boxOffsetLine / lyricCaretForStoredLine (caret survives editing a chor
 
   it("falls back to the end of the box when the stored line is gone entirely", () => {
     expect(lyricCaretForStoredLine("", 0, 5)).toBe(0);
+  });
+});
+
+describe("caretAfterLyricEdit (typing on a lyric line under chords)", () => {
+  // Reported bug: on a chord line, typed letters came out backwards and
+  // backspace left the caret one place to the right. Each step below replays
+  // what the editor's onChange does: splice the box, read it back, re-place
+  // the caret, then the browser types at that caret.
+  const type = (lyrics: string, caret: number, insert: string, del = 0) => {
+    const box = inlineToChordRows(lyrics);
+    const before = boxOffsetLine(lyrics, caret)!;
+    const boxValue = box.slice(0, caret - del) + insert + box.slice(caret);
+    const boxCaret = caret - del + insert.length;
+    const next = readChordRows(boxValue, lyrics, { snap: false });
+    return { next, caret: caretAfterLyricEdit(next, before.storedLine, boxValue, boxCaret) };
+  };
+
+  it("types letters forwards", () => {
+    let lyrics = "And say You are (G)K";
+    let caret = inlineToChordRows(lyrics).length; // right after "K"
+    for (const ch of "ing") ({ next: lyrics, caret } = type(lyrics, caret, ch));
+    expect(lyrics).toBe("And say You are (G)King");
+    expect(caret).toBe(inlineToChordRows(lyrics).length);
+  });
+
+  it("leaves the caret in the gap after a backspace", () => {
+    const lyrics = "Every (C)man will (G)bow down";
+    const box = inlineToChordRows(lyrics);
+    const afterW = box.indexOf("bow") + 3;
+    const { next, caret } = type(lyrics, afterW, "", 1); // delete the "w"
+    expect(next).toBe("Every (C)man will (G)bo down");
+    const nextBox = inlineToChordRows(next);
+    expect(nextBox.slice(caret - 2, caret)).toBe("bo");
+    expect(nextBox.slice(caret, caret + 5)).toBe(" down");
   });
 });
 

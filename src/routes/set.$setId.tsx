@@ -55,6 +55,7 @@ import {
   insertChordAtBoxOffset,
   isNumberToken,
   looksLikeNumberChordStream,
+  caretAfterLyricEdit,
   lyricCaretForStoredLine,
   normaliseKeyTag,
   numberToChord,
@@ -2185,14 +2186,16 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 !chordsHidden && caretRef.current !== null
                   ? boxOffsetLine(lyrics, caretRef.current, chordLabel)
                   : null;
-              const next = commitFromBox(e.target.value);
+              const { value: boxValue, selectionStart: boxCaret } = e.target;
+              const next = commitFromBox(boxValue);
               if (before && before.kind !== "plain") {
-                const caret = lyricCaretForStoredLine(
-                  next,
-                  before.storedLine,
-                  before.column,
-                  chordLabel,
-                );
+                // On a lyric line the caret goes back exactly where the
+                // keystroke left it. caretRef still holds the pre-keystroke
+                // position here (onSelect fires after onChange).
+                const caret =
+                  before.kind === "lyric"
+                    ? caretAfterLyricEdit(next, before.storedLine, boxValue, boxCaret, chordLabel)
+                    : lyricCaretForStoredLine(next, before.storedLine, before.column, chordLabel);
                 caretRef.current = caret;
                 requestAnimationFrame(() => lyricsRef.current?.setSelectionRange(caret, caret));
               }
