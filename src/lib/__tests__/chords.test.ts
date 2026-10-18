@@ -6,6 +6,7 @@ import {
   chordProToInline,
   looksLikeChordPro,
   caretAfterLyricEdit,
+  caretAfterRowEdit,
   lyricCaretForStoredLine,
   chordRowsToInline,
   clearChordsAtBoxOffset,
@@ -558,6 +559,69 @@ describe("caretAfterLyricEdit (typing on a lyric line under chords)", () => {
     const nextBox = inlineToChordRows(next);
     expect(nextBox.slice(caret - 2, caret)).toBe("bo");
     expect(nextBox.slice(caret, caret + 5)).toBe(" down");
+  });
+});
+
+describe("caretAfterRowEdit (typing in a chord row)", () => {
+  // Reported bug: typing in a chord row dropped the caret onto the lyric
+  // below, so the rest of a chord ("m7" of "Am7") went into the words or
+  // came out backwards. This replays the editor's whole onChange: splice the
+  // box, read it back, re-place the caret (or, on a plain line, leave the
+  // browser's own caret alone), then the browser types at that caret.
+  const edit = (lyrics: string, caret: number, insert: string, del = 0) => {
+    const box = inlineToChordRows(lyrics);
+    const before = boxOffsetLine(lyrics, caret);
+    const boxValue = box.slice(0, caret - del) + insert + box.slice(caret);
+    const boxCaret = caret - del + insert.length;
+    const next = readChordRows(boxValue, lyrics, { snap: false });
+    if (!before || before.kind === "plain") {
+      // Nothing re-places the caret: it survives only if the box re-renders
+      // unchanged, otherwise the browser sends it to the end.
+      const same = inlineToChordRows(next) === boxValue;
+      return { next, caret: same ? boxCaret : inlineToChordRows(next).length };
+    }
+    const place = before.kind === "lyric" ? caretAfterLyricEdit : caretAfterRowEdit;
+    return { next, caret: place(next, before.storedLine, boxValue, boxCaret) };
+  };
+  const typeAll = (lyrics: string, caret: number, text: string) => {
+    for (const ch of text) ({ next: lyrics, caret } = edit(lyrics, caret, ch));
+    return { lyrics, caret };
+  };
+  const base = "Every (C)man will (G)bow down";
+  const afterG = inlineToChordRows(base).indexOf("G") + 1;
+
+  it("types a multi-letter chord forwards and stays on the row", () => {
+    const { lyrics, caret } = typeAll(base, afterG, "m7");
+    expect(lyrics).toBe("Every (C)man will (Gm7)bow down");
+    const box = inlineToChordRows(lyrics);
+    expect(caret).toBe(box.indexOf("Gm7") + 3);
+    expect(caret).toBeLessThanOrEqual(box.indexOf("\n")); // still on the row
+  });
+
+  it("survives a half-typed chord that briefly isn't one", () => {
+    // "Gs" and "Gsu" aren't chords, so the row reads back as plain text
+    // until "Gsus4" is complete.
+    const { lyrics, caret } = typeAll(base, afterG, "sus4");
+    expect(lyrics).toBe("Every (C)man will (Gsus4)bow down");
+    expect(caret).toBe(inlineToChordRows(lyrics).indexOf("Gsus4") + 5);
+  });
+
+  it("backspaces inside a chord label and stays on the row", () => {
+    const start = "Every (C)man will (Gm)bow down";
+    const afterM = inlineToChordRows(start).indexOf("Gm") + 2;
+    const { next, caret } = edit(start, afterM, "", 1);
+    expect(next).toBe(base);
+    expect(caret).toBe(afterG);
+  });
+
+  it("stays put when the row's only chord is deleted", () => {
+    // The emptied row is kept as a blank line, so the caret stays where the
+    // chord was rather than jumping into the lyric.
+    const one = "Every man will (G)bow down";
+    const g = inlineToChordRows(one).indexOf("G");
+    const { next, caret } = edit(one, g + 1, "", 1);
+    expect(inlineToChordRows(next).split("\n")[1]).toBe("Every man will bow down");
+    expect(caret).toBe(g);
   });
 });
 

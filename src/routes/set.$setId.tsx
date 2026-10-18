@@ -56,6 +56,7 @@ import {
   isNumberToken,
   looksLikeNumberChordStream,
   caretAfterLyricEdit,
+  caretAfterRowEdit,
   lyricCaretForStoredLine,
   normaliseKeyTag,
   numberToChord,
@@ -2189,13 +2190,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               const { value: boxValue, selectionStart: boxCaret } = e.target;
               const next = commitFromBox(boxValue);
               if (before && before.kind !== "plain") {
-                // On a lyric line the caret goes back exactly where the
-                // keystroke left it. caretRef still holds the pre-keystroke
-                // position here (onSelect fires after onChange).
+                // The caret goes back exactly where the keystroke left it, on
+                // whichever line that was. caretRef still holds the
+                // pre-keystroke position here (onSelect fires after onChange),
+                // so the post-edit column comes off the event instead.
                 const caret =
                   before.kind === "lyric"
                     ? caretAfterLyricEdit(next, before.storedLine, boxValue, boxCaret, chordLabel)
-                    : lyricCaretForStoredLine(next, before.storedLine, before.column, chordLabel);
+                    : caretAfterRowEdit(next, before.storedLine, boxValue, boxCaret, chordLabel);
                 caretRef.current = caret;
                 requestAnimationFrame(() => lyricsRef.current?.setSelectionRange(caret, caret));
               }

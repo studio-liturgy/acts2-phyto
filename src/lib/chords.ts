@@ -856,6 +856,36 @@ export function caretAfterLyricEdit(
 }
 
 /**
+ * Where the caret belongs after typing or deleting in a chord row. It stays
+ * on the row, on the column the keystroke left it, so a multi-letter chord
+ * (Am7, Gsus4, G/B) types forwards. Reflow keeps every label anchored to its
+ * word, so that column still sits inside or right after the label being typed.
+ *
+ * The box keeps the same number of lines through any edit within a row (even
+ * a half-typed "Gs" that briefly reads back as plain text), so the caret maps
+ * by line index. Only when the line count changes, which means the row's last
+ * chord was deleted and the row is gone, does it drop to the lyric beneath.
+ */
+export function caretAfterRowEdit(
+  lyrics: string,
+  storedLine: number,
+  boxValue: string,
+  boxCaret: number,
+  render: (chord: string) => string = (c) => c,
+): number {
+  const lineStart = boxValue.lastIndexOf("\n", boxCaret - 1) + 1;
+  const column = boxCaret - lineStart;
+  const lineIndex = boxValue.slice(0, boxCaret).split("\n").length - 1;
+  const rebuilt = inlineToChordRows(lyrics, render).split("\n");
+  if (rebuilt.length !== boxValue.split("\n").length) {
+    return lyricCaretForStoredLine(lyrics, storedLine, column, render);
+  }
+  let cursor = 0;
+  for (let i = 0; i < lineIndex; i++) cursor += rebuilt[i].length + 1;
+  return cursor + Math.min(column, rebuilt[lineIndex].length);
+}
+
+/**
  * Drop a chord into the box at a caret position, the way the palette does.
  *
  * The box text is never spliced directly: the caret might land in the middle
