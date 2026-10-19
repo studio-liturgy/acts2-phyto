@@ -45,6 +45,9 @@ export interface ShareGathering {
   live_started_at: number | null;
   /** Section keys the leader has hidden this session, keyed by set id. */
   hidden_sections: Record<string, string[]>;
+  /** Song arrangements (set id → ordered section keys). Empty unless the
+   *  gathering's workspace has Arrangements on. */
+  arrangements: Record<string, string[]>;
 }
 
 /** What a /g/<token> lookup resolved to:
@@ -95,6 +98,7 @@ export function parseShareView(raw: unknown): ShareResolution {
 
   const g = raw.gathering;
   const hidden = isRecord(g.hidden_sections) ? (g.hidden_sections as Record<string, string[]>) : {};
+  const arrangements = isRecord(g.arrangements) ? (g.arrangements as Record<string, string[]>) : {};
   const sets = Array.isArray(raw.sets)
     ? raw.sets.map(toSet).filter((s): s is ShareSetRow => s !== null)
     : [];
@@ -106,6 +110,7 @@ export function parseShareView(raw: unknown): ShareResolution {
       is_live: g.is_live === true,
       live_started_at: toEpochMs(g.live_started_at),
       hidden_sections: hidden,
+      arrangements,
     },
     sets,
   };

@@ -22,15 +22,25 @@ export type WorkspaceSettings = {
   language: LangCode;
   /** The 2nd language; only meaningful while multiLanguage is on. */
   language2: LangCode | null;
+  /** Songs in a gathering get arrangements (order, repeats) instead of the
+   *  eye's section hiding. */
+  arrangements: boolean;
 };
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   multiLanguage: false,
   language: "en",
   language2: null,
+  arrangements: false,
 };
 
-type Row = { id: string; multi_language: boolean; language: string; language2?: string | null };
+type Row = {
+  id: string;
+  multi_language: boolean;
+  language: string;
+  language2?: string | null;
+  arrangements?: boolean | null;
+};
 
 export function workspaceSettingsFromRow(row: Row): WorkspaceSettings {
   return fromRow(row);
@@ -70,6 +80,7 @@ function fromRow(row: Row): WorkspaceSettings {
     multiLanguage: !!row.multi_language,
     language: readLang(row.language) ?? "en",
     language2: readLang(row.language2),
+    arrangements: !!row.arrangements,
   });
 }
 
@@ -100,6 +111,7 @@ export function readLocalPersonalSettings(): WorkspaceSettings {
       multiLanguage: !!parsed.multiLanguage,
       language: readLang(parsed.language) ?? "en",
       language2: readLang(parsed.language2),
+      arrangements: !!parsed.arrangements,
     });
   } catch {
     return DEFAULT_WORKSPACE_SETTINGS;
@@ -131,7 +143,7 @@ export async function fetchWorkspaceSettings(
   if (!scope.groupId && !userId) return { settings: readLocalPersonalSettings(), exists: false };
   const base = supabase
     .from("workspace_settings")
-    .select("id, multi_language, language, language2");
+    .select("id, multi_language, language, language2, arrangements");
   const { data, error } = await scoped(base, scope, userId).limit(1).maybeSingle();
   if (error) {
     // 42P01 / PGRST205: the table doesn't exist yet; 42703: a column (language2)
@@ -161,6 +173,7 @@ export async function saveWorkspaceSettings(
   if (patch.multiLanguage !== undefined) values.multi_language = patch.multiLanguage;
   if (patch.language !== undefined) values.language = patch.language;
   if (patch.language2 !== undefined) values.language2 = patch.language2;
+  if (patch.arrangements !== undefined) values.arrangements = patch.arrangements;
 
   // The unique keys are partial indexes, which PostgREST's upsert can't target,
   // so: find the row, update it, or insert a fresh one.

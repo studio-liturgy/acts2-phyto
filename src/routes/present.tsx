@@ -5,9 +5,11 @@ import {
   useSongTemplateDraft,
   useScriptureTemplateDraft,
   useHiddenSections,
+  useArrangements,
   isVideoPlaying,
   startLiveHeartbeat,
   loadGatheringHiddenSections,
+  loadGatheringArrangements,
 } from "@/lib/store";
 import { useIsSignedIn } from "@/lib/authStore";
 import { useTheme } from "@/hooks/use-theme";
@@ -52,6 +54,7 @@ import {
   Check,
   Eye,
   EyeOff,
+  ListOrdered,
   Play,
   Pause,
   RotateCcw,
@@ -71,6 +74,14 @@ import {
 import { stripInlineFormat } from "@/lib/inline-format";
 import { create } from "zustand";
 import { groupSlides, hiddenSlideIds } from "@/lib/sections";
+import {
+  arrangedEntries,
+  arrangedSequence,
+  effectiveArrangement,
+  sectionOptions,
+  stepArranged,
+} from "@/lib/arrangements";
+import { ArrangementRow } from "@/components/ArrangementRow";
 import { hideDragGhost } from "@/lib/drag-ghost";
 import { PhoneViewer, ViewerSettings } from "@/components/PhoneViewer";
 import { loadPrefs, phoneSetHasChords, type PhoneSet, type ViewerPrefs } from "@/lib/phone-viewer";
@@ -199,6 +210,8 @@ function Presenter() {
   const createSet = useLibrary((s) => s.createSet);
   const createGathering = useLibrary((s) => s.createGathering);
   const pushHiddenSections = useLibrary((s) => s.pushHiddenSections);
+  const pushArrangements = useLibrary((s) => s.pushArrangements);
+  const arrangementsOn = useLibrary((s) => s.workspaceSettings.arrangements);
   const updateSet = useLibrary((s) => s.updateSet);
   const goLive = useLibrary((s) => s.goLive);
   const endSession = useLibrary((s) => s.endSession);
@@ -222,7 +235,10 @@ function Presenter() {
   // Seed this gathering's saved section-hiding when it opens, so hides persist
   // per gathering across sessions/devices (not just in this tab).
   useEffect(() => {
-    if (gatheringFromUrl) loadGatheringHiddenSections(gatheringFromUrl);
+    if (gatheringFromUrl) {
+      loadGatheringHiddenSections(gatheringFromUrl);
+      loadGatheringArrangements(gatheringFromUrl);
+    }
   }, [gatheringFromUrl]);
 
   const activeGathering = gatheringFromUrl ? gatherings[gatheringFromUrl] : null;
@@ -328,6 +344,29 @@ function Presenter() {
     if (activeGathering) {
       pushHiddenSections(activeGathering.id, { ...hiddenBySet, [setId]: next });
     }
+  };
+
+  // Song arrangements (Settings → Arrangements), in place of the eye for songs
+  // inside a gathering. Kept apart from the eye's hides: switching the setting
+  // off brings those back as they were. A song with no stored arrangement
+  // starts from the eye's state (written order minus hidden sections).
+  const arrangeBySet = useArrangements((s) => s.bySet);
+  const setArrangement = useArrangements((s) => s.setArrangement);
+  const arrangesSongs = arrangementsOn && !!activeGathering;
+  const arrangementFor = (d: PhytoSet | null | undefined): string[] | null =>
+    arrangesSongs && d?.kind === "song"
+      ? effectiveArrangement(d.slides, arrangeBySet[d.id], hiddenBySet[d.id])
+      : null;
+  const changeArrangement = (setId: string, next: string[]) => {
+    setArrangement(setId, next);
+    if (activeGathering) {
+      pushArrangements(activeGathering.id, { ...arrangeBySet, [setId]: next });
+    }
+  };
+  const blockRemove = (clientX: number, clientY: number) => {
+    if (hideWarningTimer.current) clearTimeout(hideWarningTimer.current);
+    setHideWarning({ x: clientX, y: clientY });
+    hideWarningTimer.current = setTimeout(() => setHideWarning(null), 3000);
   };
 
   // While the warning is showing, let it follow the cursor. Keyed on whether it
@@ -571,9 +610,21 @@ function Presenter() {
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      // An arranged song steps through its arrangement, repeats included.
+      const arranged =
+        arrangesSongs && liveSet.kind === "song"
+          ? effectiveArrangement(liveSet.slides, arrangeBySet[liveSet.id], hiddenBySet[liveSet.id])
+          : null;
+      const seq = arranged ? arrangedSequence(liveSet.slides, arranged) : null;
+      const here = { slideId: liveSlide.id, occ: live.slideOcc ?? 0 };
       const hidden = hiddenSlideIds(liveSet.slides, hiddenBySet[liveSet.id] ?? []);
       const idx = liveSet.slides.findIndex((s) => s.id === liveSlide.id);
       const advance = () => {
+        if (seq) {
+          const to = stepArranged(liveSet.slides, seq, here, 1);
+          if (to) live.go(liveSet.id, to.slideId, to.occ);
+          return;
+        }
         let j = idx + 1;
         while (j < liveSet.slides.length && hidden.has(liveSet.slides[j].id)) j++;
         const next = liveSet.slides[j];
@@ -602,6 +653,11 @@ function Presenter() {
         advance();
       } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
         e.preventDefault();
+        if (seq) {
+          const to = stepArranged(liveSet.slides, seq, here, -1);
+          if (to) live.go(liveSet.id, to.slideId, to.occ);
+          return;
+        }
         let j = idx - 1;
         while (j >= 0 && hidden.has(liveSet.slides[j].id)) j--;
         const prev = liveSet.slides[j];
@@ -613,7 +669,7 @@ function Presenter() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [liveSet, liveSlide, live, hiddenBySet]);
+  }, [liveSet, liveSlide, live, hiddenBySet, arrangesSongs, arrangeBySet]);
 
   const openOutput = () => window.open("/output", "_blank", "noopener,noreferrer");
 
@@ -1212,7 +1268,9 @@ function Presenter() {
                       centered phone so its presence never shifts the phone.
                       Toggling reuses the same hiding as slides mode, so the
                       preview, phones and slides all agree. */}
-                  {(activeSet?.kind === "song" ||
+                  {/* Songs lose the eye here while Arrangements is on; their
+                      arrangement is edited in slides view. */}
+                  {((activeSet?.kind === "song" && !arrangesSongs) ||
                     activeSet?.kind === "scripture" ||
                     activeSet?.kind === "message") &&
                     (() => {
@@ -1263,6 +1321,7 @@ function Presenter() {
                     <PhoneViewer
                       sets={phonePreviewSets}
                       hiddenBySet={hiddenBySet}
+                      arrangementsBySet={arrangesSongs ? arrangeBySet : undefined}
                       embedded
                       showSettings={false}
                       prefs={phonePrefs}
@@ -1332,10 +1391,14 @@ function Presenter() {
                 const d = sets[id];
                 if (!d) return null;
                 const sectionGroups = groupSlides(d.slides);
+                // With Arrangements on, a song gets the arrange button in place
+                // of the eye (even with one section: it can still repeat).
+                const arrangement = arrangementFor(d);
                 // Songs, scriptures and messages can hide sections in a gathering.
                 // A set with a single section has nothing to hide (hiding the only
                 // section is disallowed), so no visibility icon shows.
                 const canHide =
+                  !arrangement &&
                   (d.kind === "song" || d.kind === "scripture" || d.kind === "message") &&
                   sectionGroups.length > 1;
                 const hiddenKeys = hiddenBySet[id] ?? [];
@@ -1397,6 +1460,25 @@ function Presenter() {
                             )}
                           </button>
                         )}
+                        {arrangement && (
+                          <button
+                            onClick={() => setManageSet((prev) => (prev === id ? null : id))}
+                            className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition ${
+                              managing
+                                ? "bg-foreground text-background"
+                                : "hover:bg-foreground hover:text-background"
+                            }`}
+                            title={managing ? "Done arranging" : "Arrange sections"}
+                            aria-label={managing ? "Done arranging" : "Arrange sections"}
+                            aria-pressed={managing}
+                          >
+                            {managing ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : (
+                              <ListOrdered className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        )}
                       </div>
                       {id === live.setId && (
                         <span
@@ -1410,6 +1492,24 @@ function Presenter() {
                       <p className="mono uppercase text-xs tracking-wider text-muted-foreground">
                         No slides
                       </p>
+                    ) : arrangement ? (
+                      <>
+                        {managing && (
+                          <ArrangementRow
+                            options={sectionOptions(d.slides)}
+                            arrangement={arrangement}
+                            tints={TINTS}
+                            onChange={(next) => changeArrangement(id, next)}
+                            onBlocked={blockRemove}
+                          />
+                        )}
+                        <SlideGridForPresenter
+                          phytoSet={d}
+                          live={live}
+                          slideW={slideW}
+                          arrangement={arrangement}
+                        />
+                      </>
                     ) : (
                       <SlideGridForPresenter
                         phytoSet={d}
@@ -1743,14 +1843,21 @@ function PresenterThumb({
   phytoSet,
   live,
   disabled = false,
+  occ,
 }: {
   slide: Slide;
   index: number;
   phytoSet: PhytoSet;
   live: LiveApi;
   disabled?: boolean;
+  /** Which appearance of this slide in an arranged song (repeats). Unset
+   *  outside an arrangement, where a slide appears once. */
+  occ?: number;
 }) {
-  const isLive = live.setId === phytoSet.id && live.slideId === slide.id;
+  const isLive =
+    live.setId === phytoSet.id &&
+    live.slideId === slide.id &&
+    (occ === undefined || (live.slideOcc ?? 0) === occ);
   const updateSlide = useLibrary((s) => s.updateSlide);
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
@@ -1796,7 +1903,7 @@ function PresenterThumb({
       }
     >
       <button
-        onClick={() => live.go(phytoSet.id, slide.id)}
+        onClick={() => live.go(phytoSet.id, slide.id, occ ?? 0)}
         disabled={disabled || editing}
         className={`w-full overflow-hidden rounded-lg border-2 text-left transition focus:outline-none focus-visible:outline-none ${
           isLive
@@ -1900,6 +2007,7 @@ function SlideGridForPresenter({
   hiddenKeys = [],
   manageMode = false,
   onToggleSection,
+  arrangement,
 }: {
   phytoSet: PhytoSet;
   live: LiveApi;
@@ -1910,6 +2018,9 @@ function SlideGridForPresenter({
    *  be brought back; otherwise they collapse to a small marker. */
   manageMode?: boolean;
   onToggleSection?: (sectionKey: string, clientX: number, clientY: number) => void;
+  /** A song's arrangement (Settings → Arrangements): sections in this order,
+   *  repeats included, in place of the eye's hiding. */
+  arrangement?: string[];
 }) {
   // Media sections come from the editor's dividers; they're shown (coloured)
   // but can't be hidden, so a media set with no dividers is one group.
@@ -1957,6 +2068,48 @@ function SlideGridForPresenter({
           Math.floor((containerWidth - SECTION_PAD * 2 + SLIDE_GAP) / (slideW + SLIDE_GAP)),
         )
       : 999;
+
+  if (arrangement) {
+    // Sections in arrangement order, each in its written colour, so a repeat
+    // reads as the same section. `occ` tells repeats of a slide apart for live.
+    const tintOf = new Map(groups.map((g, gi) => [g.key, TINTS[gi % TINTS.length]]));
+    const occ = new Map<string, number>();
+    return (
+      <div ref={containerRef} className="flex flex-wrap gap-2">
+        {arrangedEntries(phytoSet.slides, arrangement).map((entry) => {
+          const g = entry.group;
+          const cols = Math.min(g.items.length, slidesPerRow);
+          const sectionWidth = cols * slideW + (cols - 1) * SLIDE_GAP + SECTION_PAD * 2;
+          return (
+            <div
+              key={entry.entryKey}
+              className="relative flex flex-wrap gap-2 rounded-xl p-2"
+              style={{
+                width: sectionWidth,
+                backgroundColor: `color-mix(in oklab, ${tintOf.get(g.key)} 45%, transparent)`,
+              }}
+            >
+              {g.items.map(({ slide, index }) => {
+                const n = occ.get(slide.id) ?? 0;
+                occ.set(slide.id, n + 1);
+                return (
+                  <div key={`${slide.id}-${n}`} style={{ width: slideW }}>
+                    <PresenterThumb
+                      slide={slide}
+                      index={index}
+                      phytoSet={phytoSet}
+                      live={live}
+                      occ={n}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="flex flex-wrap gap-2">

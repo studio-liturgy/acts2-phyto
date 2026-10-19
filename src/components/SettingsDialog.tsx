@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
+import { ArrangementsSettingRow } from "@/components/ArrangementsSettingRow";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
 import { deleteAccount, fetchStorageUsage, formatBytes, type StorageUsage } from "@/lib/account";
@@ -69,6 +70,7 @@ export function SettingsDialog({
         {/* Personal workspace settings work signed out too (kept on the device). */}
         <div className="mt-4">
           <WorkspaceSettingsRows />
+          <ArrangementsSettingRow />
         </div>
 
         <div className={GROUP}>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChordLine } from "@/components/ChordLine";
 import { guessKey, KEYS, transposeLyrics, type SongChords } from "@/lib/chords";
 import { groupSlides, hiddenSlideIndices } from "@/lib/sections";
+import { arrangedEntries } from "@/lib/arrangements";
 import { renderInline } from "@/lib/inline-format";
 import {
   DropdownMenu,
@@ -76,6 +77,7 @@ function setWrittenKey(set: PhoneSet): string {
 export function PhoneViewer({
   sets,
   hiddenBySet = {},
+  arrangementsBySet = {},
   embedded = false,
   showSettings = true,
   activeId,
@@ -89,6 +91,9 @@ export function PhoneViewer({
   /** Stable section keys hidden by the leader, keyed by set id. Those sections
    *  are dropped from the rendered content — the same hiding the presenter does. */
   hiddenBySet?: Record<string, string[]>;
+  /** Song arrangements (ordered section keys, repeats allowed), keyed by set
+   *  id. A song with one plays in that order instead of the hiding above. */
+  arrangementsBySet?: Record<string, string[]>;
   /** Rendered inside the presenter as a preview: fill the parent (not the whole
    *  screen) and don't touch document-level title/background. */
   embedded?: boolean;
@@ -449,6 +454,7 @@ export function PhoneViewer({
             <SetContent
               set={activeSet}
               hiddenKeys={hiddenBySet[activeSet.id] ?? []}
+              arrangement={arrangementsBySet[activeSet.id]}
               isDark={prefs.isDark}
               showChords={showChords}
               chordConfig={activeChordConfig}
@@ -597,12 +603,14 @@ type ChordViewConfig = { writtenKey: string; key: string; display: "letters" | "
 function SetContent({
   set,
   hiddenKeys,
+  arrangement,
   isDark,
   showChords,
   chordConfig,
 }: {
   set: PhoneSet;
   hiddenKeys: string[];
+  arrangement?: string[];
   isDark: boolean;
   showChords: boolean;
   chordConfig: ChordViewConfig | null;
@@ -611,6 +619,13 @@ function SetContent({
   // the phone mirrors the presenter's visibility exactly.
   const hidden = hiddenSlideIndices(set.slides ?? [], hiddenKeys);
   const slides = (set.slides ?? []).filter((_, i) => !hidden.has(i));
+  // An arranged song plays its sections in the leader's order, repeats
+  // included. Keys left over from an edit are skipped; if none survive, the
+  // hiding above applies, the same fallback as the presenter.
+  const arranged =
+    set.type === "song" && arrangement?.length
+      ? arrangedEntries(set.slides ?? [], arrangement)
+      : [];
 
   if (set.type === "scripture") {
     // Group slides by section, preserving order
@@ -667,9 +682,18 @@ function SetContent({
   }
 
   if (set.type === "song") {
-    // Group consecutive slides that share a section into one flowing block.
+    // Group consecutive slides that share a section into one flowing block;
+    // an arranged song takes one block per arrangement entry instead.
     const groups: { section: string | undefined; lines: string[] }[] = [];
-    for (const slide of slides) {
+    if (arranged.length > 0) {
+      for (const e of arranged) {
+        groups.push({
+          section: e.group.section ?? undefined,
+          lines: e.group.items.flatMap(({ slide }) => slide.lines ?? []),
+        });
+      }
+    }
+    for (const slide of arranged.length > 0 ? [] : slides) {
       const last = groups[groups.length - 1];
       if (last && last.section === slide.section) {
         last.lines.push(...(slide.lines ?? []));

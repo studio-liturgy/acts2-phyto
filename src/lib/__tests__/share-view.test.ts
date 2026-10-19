@@ -21,6 +21,7 @@ describe("parseShareView", () => {
         is_live: true,
         live_started_at: LIVE_AT,
         hidden_sections: { s2: ["bridge"] },
+        arrangements: { s2: ["Chorus#0", "Chorus#0"] },
       },
       sets: [
         {
@@ -46,6 +47,7 @@ describe("parseShareView", () => {
         is_live: true,
         live_started_at: new Date(LIVE_AT).getTime(),
         hidden_sections: { s2: ["bridge"] },
+        arrangements: { s2: ["Chorus#0", "Chorus#0"] },
       },
       sets: [
         { id: "s2", title: "Song", type: "song", content: { slides: [{ kind: "lyrics" }] } },
@@ -76,7 +78,13 @@ describe("parseShareView", () => {
     });
     expect(res).toEqual({
       kind: "gathering",
-      gathering: { title: "T", is_live: false, live_started_at: null, hidden_sections: {} },
+      gathering: {
+        title: "T",
+        is_live: false,
+        live_started_at: null,
+        hidden_sections: {},
+        arrangements: {},
+      },
       sets: [{ id: "a", title: "A", type: "song", content: { slides: [] } }],
     });
   });

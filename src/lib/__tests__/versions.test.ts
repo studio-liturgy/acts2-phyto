@@ -67,6 +67,7 @@ describe("versionsMismatchWorkspace", () => {
         multiLanguage: false,
         language: "en",
         language2: null,
+        arrangements: false,
       }),
     ).toBe(false);
   });
@@ -74,9 +75,9 @@ describe("versionsMismatchWorkspace", () => {
 
 describe("versionsOutsideLanguages (the dormant rule)", () => {
   const off = (language: "en" | "fr" | "zh") =>
-    ({ multiLanguage: false, language, language2: null }) as const;
+    ({ multiLanguage: false, language, language2: null, arrangements: false }) as const;
   const on = (language: "en" | "fr" | "zh", language2: "en" | "fr" | "ja") =>
-    ({ multiLanguage: true, language, language2 }) as const;
+    ({ multiLanguage: true, language, language2, arrangements: false }) as const;
 
   it("off: fine when the set has the system language, extras included", () => {
     expect(versionsOutsideLanguages(["FRLSG", "NIV"], off("en"))).toBe(false);
@@ -115,6 +116,7 @@ describe("legacy single-version sets", () => {
         multiLanguage: false,
         language: "zh",
         language2: null,
+        arrangements: false,
       }),
     ).toBe(true);
   });

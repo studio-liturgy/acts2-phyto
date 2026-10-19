@@ -78,6 +78,7 @@ function GatheringViewer() {
   const [gatheringName, setGatheringName] = useState<string | null>(null);
   const [sets, setSets] = useState<ShareSetRow[]>([]);
   const [hiddenBySet, setHiddenBySet] = useState<Record<string, string[]>>({});
+  const [arrangementsBySet, setArrangementsBySet] = useState<Record<string, string[]>>({});
   const prevLiveRef = useRef<boolean | null>(null);
   const stoppedRef = useRef(false);
 
@@ -161,6 +162,7 @@ function GatheringViewer() {
       if (live) {
         setSets(res.sets);
         setHiddenBySet(g.hidden_sections);
+        setArrangementsBySet(g.arrangements);
         setStatus("live");
       } else {
         setStatus("not-live");
@@ -215,5 +217,11 @@ function GatheringViewer() {
   }
 
   // Live
-  return <PhoneViewer sets={sets.map(toPhoneSet)} hiddenBySet={hiddenBySet} />;
+  return (
+    <PhoneViewer
+      sets={sets.map(toPhoneSet)}
+      hiddenBySet={hiddenBySet}
+      arrangementsBySet={arrangementsBySet}
+    />
+  );
 }

@@ -172,6 +172,9 @@ export interface Gathering {
 export interface LiveState {
   setId: string | null;
   slideId: string | null;
+  /** Which appearance of `slideId` is live when a song arrangement repeats a
+   *  section (0 = first). Absent or 0 everywhere else. */
+  slideOcc?: number;
   blackout: boolean;
   clear: boolean; // logo / clear screen
   /** Cross-fade duration for blackout transitions (ms). 0 = instant. */

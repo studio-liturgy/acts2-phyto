@@ -317,6 +317,9 @@ interface LibraryState {
    *  reset to `{}` by goLive at the start of each session. No-op when signed
    *  out. */
   pushHiddenSections: (gatheringId: string, hiddenBySet: Record<string, string[]>) => Promise<void>;
+  /** Push the leader's song arrangements (set id → ordered section keys) the
+   *  same way, for the phone view. Saved per gathering, like hidden sections. */
+  pushArrangements: (gatheringId: string, bySet: Record<string, string[]>) => Promise<void>;
   /** Hydrate local `is_live` from Supabase (the source of truth). Call on
    *  login / session restore. No-op when signed out. */
   refreshLiveState: () => Promise<void>;
@@ -410,7 +413,8 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       set({ workspaceSettings: local });
       if (
         local.multiLanguage !== DEFAULT_WORKSPACE_SETTINGS.multiLanguage ||
-        local.language !== DEFAULT_WORKSPACE_SETTINGS.language
+        local.language !== DEFAULT_WORKSPACE_SETTINGS.language ||
+        local.arrangements !== DEFAULT_WORKSPACE_SETTINGS.arrangements
       ) {
         await saveWorkspaceSettings({ groupId: null }, local);
       }
@@ -1143,6 +1147,25 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     if (error) console.error("[pushHiddenSections] error:", error);
   },
 
+  pushArrangements: async (gatheringId, bySet) => {
+    const session = useAuthStore.getState().session;
+    if (!session) return;
+    // Same shape and rules as pushHiddenSections: only this gathering's sets,
+    // empty entries dropped, no updatedAt bump, never written back as content.
+    const target = get().gatherings[gatheringId];
+    const allowed = new Set(target?.setIds ?? []);
+    const scoped: Record<string, string[]> = {};
+    for (const [setId, keys] of Object.entries(bySet)) {
+      if (allowed.has(setId) && keys.length > 0) scoped[setId] = keys;
+    }
+    const update = supabase
+      .from("gatherings")
+      .update({ arrangements: scoped })
+      .eq("id", gatheringId);
+    const { error } = await (target?.shared ? update : update.eq("user_id", session.user.id));
+    if (error) console.error("[pushArrangements] error:", error);
+  },
+
   refreshLiveState: async () => {
     const session = useAuthStore.getState().session;
     if (!session) return;
@@ -1288,6 +1311,63 @@ export async function loadGatheringHiddenSections(gatheringId: string): Promise<
   useHiddenSections.getState().hydrate(map);
 }
 
+// Per-tab song arrangements for the presenter, keyed by set id; values are the
+// ordered section keys (repeats allowed, see lib/arrangements.ts). Same life
+// cycle as the hidden sections above: sessionStorage, seeded from the
+// gathering's saved map. Kept separately from the eye's hides, so switching
+// Arrangements off brings the eye's state back untouched.
+const ARRANGEMENTS_KEY = "arrangements-v1";
+
+function readArrangements(): Record<string, string[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = sessionStorage.getItem(ARRANGEMENTS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {};
+}
+
+interface ArrangementsStore {
+  bySet: Record<string, string[]>;
+  setArrangement: (setId: string, keys: string[]) => void;
+  hydrate: (map: Record<string, string[]>) => void;
+}
+export const useArrangements = create<ArrangementsStore>((set) => ({
+  bySet: typeof window !== "undefined" ? readArrangements() : {},
+  setArrangement: (setId, keys) =>
+    set((s) => {
+      const next = { ...s.bySet, [setId]: keys };
+      try {
+        sessionStorage.setItem(ARRANGEMENTS_KEY, JSON.stringify(next));
+      } catch {}
+      return { bySet: next };
+    }),
+  hydrate: (map) =>
+    set((s) => {
+      const next = { ...s.bySet, ...map };
+      try {
+        sessionStorage.setItem(ARRANGEMENTS_KEY, JSON.stringify(next));
+      } catch {}
+      return { bySet: next };
+    }),
+}));
+
+/** Load a gathering's saved arrangements and seed the presenter, like
+ *  loadGatheringHiddenSections. No-op when signed out. */
+export async function loadGatheringArrangements(gatheringId: string): Promise<void> {
+  const session = useAuthStore.getState().session;
+  if (!session) return;
+  const { data, error } = await supabase
+    .from("gatherings")
+    .select("arrangements")
+    .eq("id", gatheringId)
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  if (error || !data) return;
+  const map = (data.arrangements as Record<string, string[]> | null) ?? {};
+  useArrangements.getState().hydrate(map);
+}
+
 // Ephemeral, non-persisted preview of the song template while the editor is
 // open. When non-null, slide views should render with this draft instead of
 // the saved `songTemplate` so the user can see changes live.
@@ -1317,7 +1397,8 @@ const STORAGE_KEY = "stage-live-v2";
 
 export interface LiveStore extends LiveState {
   setLive: (patch: Partial<LiveState>) => void;
-  go: (setId: string, slideId: string) => void;
+  /** `occ`: which appearance of the slide in an arranged song (default 0). */
+  go: (setId: string, slideId: string, occ?: number) => void;
   clearLive: () => void;
   toggleBlackout: () => void;
   toggleClear: () => void;
@@ -1341,6 +1422,7 @@ function defaultLive(): LiveState {
   return {
     setId: null,
     slideId: null,
+    slideOcc: 0,
     blackout: false,
     clear: false,
     blackoutFadeMs: 0,
@@ -1389,11 +1471,12 @@ export const useLive = create<LiveStore>((set, get) => ({
       } catch {}
     }
   },
-  go: (setId, slideId) => {
+  go: (setId, slideId, occ = 0) => {
     const videoCmd = videoCmdForSlide(setId, slideId, get().videoCmd?.nonce ?? 0);
+    const slideOcc = occ;
     if (get().blackout) {
       // Swap the slide silently under the blackout, then reveal with a fade.
-      get().setLive({ setId, slideId, clear: false, videoCmd, videoEnded: false });
+      get().setLive({ setId, slideId, slideOcc, clear: false, videoCmd, videoEnded: false });
       if (typeof window !== "undefined") {
         setTimeout(() => get().setLive({ blackout: false, blackoutFadeMs: 500 }), 80);
       }
@@ -1401,6 +1484,7 @@ export const useLive = create<LiveStore>((set, get) => ({
       get().setLive({
         setId,
         slideId,
+        slideOcc,
         blackout: false,
         clear: false,
         blackoutFadeMs: 0,
@@ -1458,6 +1542,7 @@ function liveSnapshot(s: LiveState): LiveState {
   return {
     setId: s.setId,
     slideId: s.slideId,
+    slideOcc: s.slideOcc ?? 0,
     blackout: s.blackout,
     clear: s.clear,
     blackoutFadeMs: s.blackoutFadeMs,
