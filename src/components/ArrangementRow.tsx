@@ -109,7 +109,7 @@ export function ArrangementRow({
                 if (next) onChange(next);
                 else onBlocked(e.clientX, e.clientY);
               }}
-              className="rounded-full p-0.5 opacity-60 transition hover:opacity-100"
+              className="rounded-full p-0.5 text-muted-foreground opacity-60 transition hover:text-foreground hover:opacity-100"
               title="Remove"
               aria-label={`Remove ${opt.label}`}
             >
