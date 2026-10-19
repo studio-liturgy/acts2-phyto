@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { supabaseMock } from "@/test/supabase-mock";
-import { emptyDiff, fakeSession, makeGathering, makeSet } from "@/test/fixtures";
+import {
+  emptyDiff,
+  fakeSession,
+  gatheringRow,
+  gatheringSetRows,
+  makeGathering,
+  makeSet,
+  setRow,
+} from "@/test/fixtures";
 import { resetDb } from "@/test/db-utils";
 
 vi.mock("@/lib/supabase", async () => {
@@ -8,7 +16,13 @@ vi.mock("@/lib/supabase", async () => {
   return { supabase: supabaseMock.client };
 });
 
-import { applyMerge, deterministicUuid, pushToSupabase, writeGatheringSetRows } from "@/lib/sync";
+import {
+  applyMerge,
+  deterministicUuid,
+  fetchRemote,
+  pushToSupabase,
+  writeGatheringSetRows,
+} from "@/lib/sync";
 import { useAuthStore } from "@/lib/authStore";
 import { db } from "@/lib/db";
 import { resolveSetRekey } from "@/lib/set-rekey";
@@ -179,6 +193,58 @@ describe("42501 re-ID guard (regression 54618ca)", () => {
     const before = supabaseMock.callsFor("sets", "upsert").length;
     expect(await pushToSupabase({ setIds: [set.id], gatheringIds: [] })).toBe(true);
     expect(supabaseMock.callsFor("sets", "upsert")).toHaveLength(before);
+  });
+
+  it("does not re-ID when the session is no longer valid (42501 as a signed-out caller)", async () => {
+    const set = makeSet();
+    await db.sets.put(set);
+    supabaseMock.configure({
+      session: null,
+      errors: [{ table: "sets", op: "upsert", error: { code: "42501", message: "RLS" }, times: 2 }],
+    });
+
+    expect(await pushToSupabase({ setIds: [set.id], gatheringIds: [] })).toBe(false);
+    expect(await db.sets.get(set.id)).toBeDefined();
+    expect(resolveSetRekey(set.id)).toBeNull();
+  });
+
+  it("a sync pass blocked by another account's sets in my gathering heals itself", async () => {
+    // Replays the Oct 19 console: "gathering_sets reference set ids missing from
+    // the sets fetch — aborting sync pass". My own gathering lists a set whose
+    // row belongs to another account; I hold a local copy. Every pass aborted,
+    // so this device never pulled again.
+    const theirs = makeSet();
+    const g = makeGathering({ setIds: [theirs.id] });
+    await db.sets.put(theirs);
+    await db.gatherings.put(g);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        sets: [setRow(theirs, "other-account")],
+        gatherings: [gatheringRow(g)],
+        // Join row ids are deterministic from (gathering_id, position), as live.
+        gathering_sets: [
+          {
+            ...gatheringSetRows(g)[0],
+            id: await deterministicUuid(g.id, "0"),
+          },
+        ],
+      },
+      errors: [{ table: "sets", op: "upsert", error: { code: "42501", message: "RLS" }, times: 2 }],
+    });
+
+    // This pass still aborts (its snapshot can't be trusted) but queues the heal.
+    expect(await fetchRemote(fakeSession.user.id)).toBeNull();
+    await vi.waitFor(async () => {
+      expect((await db.gatherings.get(g.id))?.setIds).not.toEqual([theirs.id]);
+    });
+
+    // The next pass goes through: the gathering now lists my own copy.
+    const copyId = resolveSetRekey(theirs.id)!;
+    expect((await db.gatherings.get(g.id))?.setIds).toEqual([copyId]);
+    await vi.waitFor(async () => {
+      expect(await fetchRemote(fakeSession.user.id)).not.toBeNull();
+    });
   });
 
   it("pushToSupabase drops a stranded duplicate on 23505 instead of retrying forever", async () => {

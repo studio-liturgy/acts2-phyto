@@ -487,6 +487,17 @@ export async function fetchRemote(
         "aborting sync pass (likely an unauthenticated/partial sets read)",
       unresolved,
     );
+    // Self-heal: a missing set I hold locally as my own is usually one whose
+    // row belongs to ANOTHER account (imported, or a second account used this
+    // browser), and it blocks every pass forever. Pushing it takes the 42501
+    // path, which proves the session first, keeps it as my own copy and
+    // repoints my gatherings at it, so the next pass resolves. Not awaited:
+    // this pass may hold the sync lock, and the push queues behind it.
+    const healable = unresolved.filter((id) => {
+      const local = localById.get(id);
+      return !!local && !local.shared;
+    });
+    if (healable.length) void pushToSupabase({ setIds: healable, gatheringIds: [] });
     return null;
   }
 
@@ -1284,6 +1295,15 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
             // the conflict-update on every retry, forever. Keep the set as this
             // account's own copy under a fresh id and push that instead.
             // Mirrors the gathering 42501 guard below.
+            // First prove the session is still this signed-in user: a signed-out or
+            // expired caller is refused the same way on its OWN rows, and re-IDing
+            // those would duplicate the library. That's a plain retry, not a re-ID.
+            const { data: who } = await supabase.auth.getUser();
+            if (who?.user?.id !== userId) {
+              console.error("[sync] pushToSupabase: set upsert refused, session invalid", s.id);
+              ok = false;
+              continue;
+            }
             console.warn("[sync] pushToSupabase: re-IDing set owned by another account:", s.id);
             const rekeyed = await rekeyOwnedSet(s.id);
             if (!rekeyed) continue;

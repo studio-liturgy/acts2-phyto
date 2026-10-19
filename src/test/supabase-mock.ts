@@ -261,6 +261,10 @@ class SupabaseMock {
     from: (table: string) => new QueryBuilder(this, table),
     auth: {
       getSession: async () => ({ data: { session: this.session } }),
+      getUser: async () => ({
+        data: { user: (this.session as { user?: unknown } | null)?.user ?? null },
+        error: null,
+      }),
     },
   };
 
