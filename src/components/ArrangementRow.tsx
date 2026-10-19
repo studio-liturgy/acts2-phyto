@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import {
   DropdownMenu,
@@ -6,13 +6,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  addEntry,
-  moveEntry,
-  removeEntry,
-  type Arrangement,
-  type SectionOption,
-} from "@/lib/arrangements";
+import { hideDragGhost } from "@/lib/drag-ghost";
+import { addEntry, removeEntry, type Arrangement, type SectionOption } from "@/lib/arrangements";
 
 /**
  * A song's arrangement in a gathering, as a row of section pills in play order.
@@ -35,17 +30,31 @@ export function ArrangementRow({
   tints: string[];
   onChange: (next: Arrangement) => void;
   onBlocked: (clientX: number, clientY: number) => void;
-  /** Stacked down the gutter beside the phone preview, outlined like the
-   *  eye's pills there. The slides view row has no outline. */
+  /** Stacked down the gutter beside the phone preview instead of a row. */
   column?: boolean;
 }) {
   const byKey = new Map(options.map((o) => [o.key, o]));
-  const [dragFrom, setDragFrom] = useState<number | null>(null);
-  const [dragOver, setDragOver] = useState<number | null>(null);
+  // Drag to reorder, the same way as the sets in a gathering: no browser
+  // ghost; the pills reorder live under the pointer (the dragged one dimmed)
+  // and the order commits on drop. Slots carry a stable key so the dragged
+  // pill keeps its identity as the row reorders around it.
+  type Slot = { slot: string; key: string };
+  const slotsOf = (arr: Arrangement): Slot[] => arr.map((k, i) => ({ slot: `${k}~${i}`, key: k }));
+  const [liveOrder, setLiveOrder] = useState<Slot[] | null>(null);
+  const liveRef = useRef<Slot[] | null>(null);
+  const dragIndex = useRef<number | null>(null);
+  const [dragUiIndex, setDragUiIndex] = useState<number | null>(null);
 
-  const endDrag = () => {
-    setDragFrom(null);
-    setDragOver(null);
+  // Called from onDrop and onDragEnd (fallback); the ref makes the second a no-op.
+  const commit = () => {
+    if (liveRef.current) {
+      const next = liveRef.current.map((s) => s.key);
+      if (next.some((k, i) => k !== arrangement[i])) onChange(next);
+    }
+    liveRef.current = null;
+    dragIndex.current = null;
+    setLiveOrder(null);
+    setDragUiIndex(null);
   };
 
   return (
@@ -54,46 +63,42 @@ export function ArrangementRow({
         column ? "flex flex-col items-end gap-1.5" : "mb-2 flex flex-wrap items-center gap-1.5"
       }
     >
-      {arrangement.map((key, i) => {
+      {(liveOrder ?? slotsOf(arrangement)).map(({ slot, key }, i) => {
         const opt = byKey.get(key);
         if (!opt) return null;
         const tint = tints[opt.index % tints.length];
-        // Where a drop on this pill would land the dragged one: after it when
-        // dragging forwards, before it when dragging backwards.
-        const after = dragFrom !== null && dragFrom < i;
-        const marker =
-          dragFrom !== null && dragOver === i && dragFrom !== i
-            ? column
-              ? after
-                ? "shadow-[0_3px_0_0_var(--foreground)]"
-                : "shadow-[0_-3px_0_0_var(--foreground)]"
-              : after
-                ? "shadow-[3px_0_0_0_var(--foreground)]"
-                : "shadow-[-3px_0_0_0_var(--foreground)]"
-            : "";
         return (
           <div
-            key={`${key}-${i}`}
+            key={slot}
             draggable
             onDragStart={(e) => {
               e.dataTransfer.effectAllowed = "move";
-              setDragFrom(i);
+              hideDragGhost(e);
+              dragIndex.current = i;
+              setDragUiIndex(i);
             }}
             onDragOver={(e) => {
-              if (dragFrom === null) return;
+              const from = dragIndex.current;
+              if (from === null) return;
               e.preventDefault();
-              if (dragOver !== i) setDragOver(i);
+              e.dataTransfer.dropEffect = "move";
+              if (from === i) return;
+              const next = [...(liveOrder ?? slotsOf(arrangement))];
+              const [moved] = next.splice(from, 1);
+              next.splice(i, 0, moved);
+              dragIndex.current = i;
+              setDragUiIndex(i);
+              liveRef.current = next;
+              setLiveOrder(next);
             }}
             onDrop={(e) => {
               e.preventDefault();
-              if (dragFrom !== null && dragFrom !== i)
-                onChange(moveEntry(arrangement, dragFrom, i));
-              endDrag();
+              commit();
             }}
-            onDragEnd={endDrag}
+            onDragEnd={commit}
             className={`pill mono flex cursor-grab items-center gap-1 py-1 pl-3 pr-1 text-[10px] uppercase tracking-wider active:cursor-grabbing ${
-              column ? "border border-foreground" : ""
-            } ${dragFrom === i ? "opacity-40" : ""} ${marker}`}
+              dragUiIndex === i ? "opacity-50" : ""
+            }`}
             style={{ backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }}
           >
             <span className="max-w-[9rem] truncate">{opt.label}</span>
