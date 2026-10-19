@@ -1268,8 +1268,24 @@ function Presenter() {
                       centered phone so its presence never shifts the phone.
                       Toggling reuses the same hiding as slides mode, so the
                       preview, phones and slides all agree. */}
-                  {/* Songs lose the eye here while Arrangements is on; their
-                      arrangement is edited in slides view. */}
+                  {/* Songs lose the eye here while Arrangements is on: the
+                      gutter holds the song's arrangement instead, the same
+                      one the slides view edits. */}
+                  {arrangesSongs && activeSet?.kind === "song" && activeSet.slides.length > 0 && (
+                    <div
+                      className="catalogue-scroll absolute top-1/2 flex max-h-full -translate-x-full -translate-y-1/2 flex-col items-end overflow-auto py-1 pr-4"
+                      style={{ left: "calc(50% - 190px)" }}
+                    >
+                      <ArrangementRow
+                        column
+                        options={sectionOptions(activeSet.slides)}
+                        arrangement={arrangementFor(activeSet) ?? []}
+                        tints={TINTS}
+                        onChange={(next) => changeArrangement(activeSet.id, next)}
+                        onBlocked={blockRemove}
+                      />
+                    </div>
+                  )}
                   {((activeSet?.kind === "song" && !arrangesSongs) ||
                     activeSet?.kind === "scripture" ||
                     activeSet?.kind === "message") &&
@@ -1825,16 +1841,20 @@ function MediaAutoAdvance() {
 // slides discards an unconfirmed edit rather than leaking it between thumbs.
 const useFastEditSlide = create<{
   editingId: string | null;
+  /** Which copy of the slide is being edited in an arranged song with
+   *  repeats; null outside an arrangement. Only that copy shows the box. */
+  editingOcc: number | null;
   draft: string;
-  open: (id: string, seed: string) => void;
+  open: (id: string, seed: string, occ?: number | null) => void;
   setDraft: (v: string) => void;
   close: () => void;
 }>((set) => ({
   editingId: null,
+  editingOcc: null,
   draft: "",
-  open: (id, seed) => set({ editingId: id, draft: seed }),
+  open: (id, seed, occ = null) => set({ editingId: id, editingOcc: occ, draft: seed }),
   setDraft: (v) => set({ draft: v }),
-  close: () => set({ editingId: null, draft: "" }),
+  close: () => set({ editingId: null, editingOcc: null, draft: "" }),
 }));
 
 function PresenterThumb({
@@ -1881,12 +1901,15 @@ function PresenterThumb({
   // may be stacked in two versions, so it's edited in the set editor only.
   const canEdit = slide.kind === "lyric" || slide.kind === "point";
   const editingId = useFastEditSlide((s) => s.editingId);
+  const editingOcc = useFastEditSlide((s) => s.editingOcc);
   const draft = useFastEditSlide((s) => s.draft);
   const openEdit = useFastEditSlide((s) => s.open);
   const setDraft = useFastEditSlide((s) => s.setDraft);
   const closeEdit = useFastEditSlide((s) => s.close);
-  const editing = editingId === slide.id;
-  const startEdit = () => openEdit(slide.id, (slide.lines ?? []).map(stripChordsRaw).join("\n"));
+  // A repeated slide (arranged song) opens the box only on the copy clicked.
+  const editing = editingId === slide.id && (occ ?? null) === editingOcc;
+  const startEdit = () =>
+    openEdit(slide.id, (slide.lines ?? []).map(stripChordsRaw).join("\n"), occ ?? null);
   const confirmEdit = () => {
     const merged = reapplyChords((slide.lines ?? []).join("\n"), draft);
     updateSlide(phytoSet.id, slide.id, { lines: merged.split("\n") });

@@ -28,12 +28,16 @@ export function ArrangementRow({
   tints,
   onChange,
   onBlocked,
+  column = false,
 }: {
   options: SectionOption[];
   arrangement: Arrangement;
   tints: string[];
   onChange: (next: Arrangement) => void;
   onBlocked: (clientX: number, clientY: number) => void;
+  /** Stacked down the gutter beside the phone preview, outlined like the
+   *  eye's pills there. The slides view row has no outline. */
+  column?: boolean;
 }) {
   const byKey = new Map(options.map((o) => [o.key, o]));
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -45,18 +49,27 @@ export function ArrangementRow({
   };
 
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-1.5">
+    <div
+      className={
+        column ? "flex flex-col items-end gap-1.5" : "mb-2 flex flex-wrap items-center gap-1.5"
+      }
+    >
       {arrangement.map((key, i) => {
         const opt = byKey.get(key);
         if (!opt) return null;
         const tint = tints[opt.index % tints.length];
         // Where a drop on this pill would land the dragged one: after it when
-        // dragging rightwards, before it when dragging leftwards.
+        // dragging forwards, before it when dragging backwards.
+        const after = dragFrom !== null && dragFrom < i;
         const marker =
           dragFrom !== null && dragOver === i && dragFrom !== i
-            ? dragFrom < i
-              ? "shadow-[3px_0_0_0_var(--foreground)]"
-              : "shadow-[-3px_0_0_0_var(--foreground)]"
+            ? column
+              ? after
+                ? "shadow-[0_3px_0_0_var(--foreground)]"
+                : "shadow-[0_-3px_0_0_var(--foreground)]"
+              : after
+                ? "shadow-[3px_0_0_0_var(--foreground)]"
+                : "shadow-[-3px_0_0_0_var(--foreground)]"
             : "";
         return (
           <div
@@ -78,9 +91,9 @@ export function ArrangementRow({
               endDrag();
             }}
             onDragEnd={endDrag}
-            className={`pill mono flex cursor-grab items-center gap-1 border border-foreground py-1 pl-3 pr-1 text-[10px] uppercase tracking-wider active:cursor-grabbing ${
-              dragFrom === i ? "opacity-40" : ""
-            } ${marker}`}
+            className={`pill mono flex cursor-grab items-center gap-1 py-1 pl-3 pr-1 text-[10px] uppercase tracking-wider active:cursor-grabbing ${
+              column ? "border border-foreground" : ""
+            } ${dragFrom === i ? "opacity-40" : ""} ${marker}`}
             style={{ backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }}
           >
             <span className="max-w-[9rem] truncate">{opt.label}</span>
@@ -111,7 +124,7 @@ export function ArrangementRow({
             <Plus className="h-3.5 w-3.5" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <DropdownMenuContent align={column ? "end" : "start"}>
           {options.map((o) => (
             <DropdownMenuItem
               key={o.key}
