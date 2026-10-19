@@ -2152,7 +2152,7 @@ function GatheringCard({
                       to="/set/$setId"
                       params={{ setId: id }}
                       onClick={() => markGatheringEditReturn(gatheringId)}
-                      className="rounded-full p-0.5 opacity-60 transition hover:opacity-100"
+                      className="-mr-1 rounded-full p-0.5 opacity-60 transition hover:opacity-100"
                       title="Edit set"
                       aria-label="Edit set"
                     >
