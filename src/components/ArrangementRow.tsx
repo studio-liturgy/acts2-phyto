@@ -96,7 +96,7 @@ export function ArrangementRow({
               commit();
             }}
             onDragEnd={commit}
-            className={`pill mono flex cursor-grab items-center gap-1 py-1 pl-3 pr-1 text-[10px] uppercase tracking-wider active:cursor-grabbing ${
+            className={`pill mono flex h-7 cursor-grab items-center gap-1 pl-3 pr-1.5 text-[10px] uppercase tracking-wider active:cursor-grabbing ${
               dragUiIndex === i ? "opacity-50" : ""
             }`}
             style={{ backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }}
@@ -109,7 +109,7 @@ export function ArrangementRow({
                 if (next) onChange(next);
                 else onBlocked(e.clientX, e.clientY);
               }}
-              className="flex h-5 w-5 items-center justify-center rounded-full transition hover:bg-foreground hover:text-background"
+              className="rounded-full p-0.5 opacity-60 transition hover:opacity-100"
               title="Remove"
               aria-label={`Remove ${opt.label}`}
             >
@@ -129,12 +129,14 @@ export function ArrangementRow({
             <Plus className="h-3.5 w-3.5" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align={column ? "end" : "start"}>
+        <DropdownMenuContent align={column ? "end" : "start"} className="w-max min-w-0">
           {options.map((o) => (
             <DropdownMenuItem
               key={o.key}
               onClick={() => onChange(addEntry(arrangement, o.key))}
-              className="mono uppercase text-[10px] tracking-wider focus:bg-foreground focus:text-background"
+              className={`mono uppercase text-[10px] tracking-wider focus:bg-foreground focus:text-background ${
+                column ? "justify-end text-right" : ""
+              }`}
             >
               {o.label}
             </DropdownMenuItem>
