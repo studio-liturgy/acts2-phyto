@@ -82,11 +82,11 @@ export function ScriptureSettingsDialog({
             />
           </div>
           <div className={ROW}>
-            <div className={LABEL}>Version reference</div>
+            <div className={LABEL}>Hide version reference</div>
             <PillSwitch
-              label="Version reference"
-              checked={versionRefs}
-              onCheckedChange={setVersionRefs}
+              label="Hide version reference"
+              checked={!versionRefs}
+              onCheckedChange={(hide) => setVersionRefs(!hide)}
             />
           </div>
           <div className={ROW}>
