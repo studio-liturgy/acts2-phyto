@@ -110,7 +110,10 @@ export function parseScriptureFromText(
 
     const flushVerse = () => {
       const content = currentLines.join("\n").trim();
-      if (content || currentRef) {
+      // Only text makes a verse. A header closes the (empty) verse before it,
+      // and counting that as a verse let "verses per slide" group the next
+      // passage's first verse under the previous passage's reference.
+      if (content) {
         verses.push({
           ref: currentRef,
           lines: content ? content.split("\n") : [],

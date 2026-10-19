@@ -63,6 +63,28 @@ describe("scripture round-trip", () => {
     const reparsed = parseScriptureFromText(slidesToScriptureText(stored), 1);
     expect(reconcileSlideIds(reparsed, stored).changed).toBe(false);
   });
+
+  // Reported 2026-10-19: with Verses per slide at 2, the first verse of a
+  // second passage showed the first passage's reference and sat in its group.
+  it("never pulls a passage's first verse into the passage before it", () => {
+    const box = [
+      "[John 3:13 NIV]",
+      "No one has ever gone into heaven",
+      "---",
+      "[John 3:5-10 NIV]",
+      "Jesus answered",
+      "---",
+      "You should not be surprised",
+    ].join("\n");
+    for (const per of [1, 2, 3]) {
+      const slides = parseScriptureFromText(box, per);
+      expect(slides.map((s) => [s.lines, s.reference, s.importIndex])).toEqual([
+        [["No one has ever gone into heaven"], "John 3:13 NIV", 0],
+        [["Jesus answered"], "John 3:5-10 NIV", 1],
+        [["You should not be surprised"], "John 3:5-10 NIV", 1],
+      ]);
+    }
+  });
 });
 
 describe("reconcileSlideIds", () => {
