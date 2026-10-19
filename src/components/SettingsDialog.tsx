@@ -8,7 +8,8 @@ import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
 import { deleteAccount, fetchStorageUsage, formatBytes, type StorageUsage } from "@/lib/account";
 
-const ROW = "flex items-center justify-between gap-4 py-2";
+/** A setting row: the same height as WorkspaceSettingsRows / Arrangements. */
+const SETTING_ROW = "flex min-h-11 items-center justify-between gap-4";
 const LABEL = "mono text-xs uppercase tracking-wider";
 const GROUP = "mt-2";
 
@@ -67,14 +68,12 @@ export function SettingsDialog({
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
         <DialogTitle className="text-2xl font-normal leading-tight">Settings</DialogTitle>
 
-        {/* Personal workspace settings work signed out too (kept on the device). */}
+        {/* Personal workspace settings work signed out too (kept on the device).
+            The setting rows share one height, so they're evenly spaced. */}
         <div className="mt-4">
           <WorkspaceSettingsRows />
           <ArrangementsSettingRow />
-        </div>
-
-        <div className={GROUP}>
-          <div className={ROW}>
+          <div className={SETTING_ROW}>
             <div className={LABEL}>Light / dark mode</div>
             <ThemeToggle />
           </div>

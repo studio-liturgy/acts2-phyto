@@ -1,7 +1,7 @@
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const ROW = "flex items-center justify-between gap-4 py-2";
+const ROW = "flex min-h-11 items-center justify-between gap-4";
 const LABEL = "mono text-xs uppercase tracking-wider";
 
 /**
