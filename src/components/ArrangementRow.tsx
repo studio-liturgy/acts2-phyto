@@ -134,7 +134,7 @@ export function ArrangementRow({
             <DropdownMenuItem
               key={o.key}
               onClick={() => onChange(addEntry(arrangement, o.key))}
-              className="mono uppercase text-xs tracking-wider focus:bg-foreground focus:text-background"
+              className="mono uppercase text-[10px] tracking-wider focus:bg-foreground focus:text-background"
             >
               {o.label}
             </DropdownMenuItem>
