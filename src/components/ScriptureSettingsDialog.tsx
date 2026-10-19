@@ -106,7 +106,7 @@ export function ScriptureSettingsDialog({
         >
           Done
         </button>
-        <p className="mono mt-3 text-center text-[10px] uppercase tracking-wider text-muted-foreground">
+        <p className="mono mt-3 text-[10px] uppercase tracking-wider text-muted-foreground">
           These settings apply to this set only.
         </p>
       </DialogContent>
