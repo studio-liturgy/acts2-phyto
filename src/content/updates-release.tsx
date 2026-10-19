@@ -22,7 +22,7 @@ export function LiveGatheringsEntry() {
     <li className="border-t border-[var(--brand-white)]/20 pt-8">
       <div className="text-2xl">October 18, 2026</div>
 
-      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Gatherings</div>
+      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Live Gatherings</div>
       <ul className="mt-2 space-y-1">
         <FeatureItem>
           A live gathering now stays live until you end it or go live on another one. If it&rsquo;s
@@ -34,11 +34,15 @@ export function LiveGatheringsEntry() {
         </FeatureItem>
       </ul>
 
-      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Song editor</div>
+      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Bug Fixes</div>
       <ul className="mt-2 space-y-1">
         <FeatureItem>
           Typing on a line with chords no longer makes the cursor jump or puts letters in backwards,
           in either the lyrics or the chords
+        </FeatureItem>
+        <FeatureItem>
+          Creating a new set in a group now opens straight into the editor, without briefly showing
+          &ldquo;Set not found&rdquo;
         </FeatureItem>
       </ul>
     </li>
