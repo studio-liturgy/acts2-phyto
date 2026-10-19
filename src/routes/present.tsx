@@ -4,12 +4,11 @@ import {
   useLive,
   useSongTemplateDraft,
   useScriptureTemplateDraft,
-  useHiddenSections,
-  useArrangements,
+  useGatheringSections,
+  gatheringSectionsReady,
   isVideoPlaying,
   startLiveHeartbeat,
-  loadGatheringHiddenSections,
-  loadGatheringArrangements,
+  loadGatheringSections,
 } from "@/lib/store";
 import { useIsSignedIn } from "@/lib/authStore";
 import { useTheme } from "@/hooks/use-theme";
@@ -235,10 +234,7 @@ function Presenter() {
   // Seed this gathering's saved section-hiding when it opens, so hides persist
   // per gathering across sessions/devices (not just in this tab).
   useEffect(() => {
-    if (gatheringFromUrl) {
-      loadGatheringHiddenSections(gatheringFromUrl);
-      loadGatheringArrangements(gatheringFromUrl);
-    }
+    if (gatheringFromUrl) loadGatheringSections(gatheringFromUrl);
   }, [gatheringFromUrl]);
 
   const activeGathering = gatheringFromUrl ? gatherings[gatheringFromUrl] : null;
@@ -306,15 +302,22 @@ function Presenter() {
   const [editingGatheringName, setEditingGatheringName] = useState(false);
   const gatheringNameInputRef = useRef<HTMLInputElement>(null);
 
-  // Per-tab section hiding, used while running a gathering. Keyed by set id;
-  // values are the stable section keys (label + occurrence) of hidden groups.
+  // Per-gathering section hiding, used while running a gathering: set id →
+  // the stable section keys (label + occurrence) of hidden groups, for THIS
+  // gathering only (the same set can be set up differently in another).
   // Persisted in sessionStorage (see store) so it survives leaving the presenter
   // to edit a set or go home, and clears only when the tab closes. Using the
   // stable key (not the slide id) is what keeps a section hidden after the set
   // is edited, since editing regenerates every slide id. `manageSet` is the set
   // whose sections are currently being toggled (eye icon clicked).
-  const hiddenBySet = useHiddenSections((s) => s.hiddenBySet);
-  const setHidden = useHiddenSections((s) => s.setHidden);
+  const sectionsGid = activeGathering?.id ?? "";
+  const hiddenBySet = useGatheringSections((s) => s.hidden[sectionsGid]) ?? NO_SECTIONS;
+  const setHiddenFor = useGatheringSections((s) => s.setHidden);
+  // Hold a gathering's sections until its own saved state is in, so it never
+  // shows another state first (only on a gathering's first open in a tab).
+  const sectionsReady = useGatheringSections((s) =>
+    activeGathering ? gatheringSectionsReady(s, sectionsGid) : true,
+  );
   const [manageSet, setManageSet] = useState<string | null>(null);
   // Cursor-following warning shown when the user tries to hide the last
   // remaining visible section. Auto-clears 3s after the blocked click.
@@ -338,28 +341,29 @@ function Presenter() {
       }
     }
     const next = alreadyHidden ? cur.filter((k) => k !== sectionKey) : [...cur, sectionKey];
-    setHidden(setId, next);
     // Mirror the change to the shared gathering so congregants' phones drop the
     // same sections. Only meaningful inside a live gathering; harmless otherwise.
     if (activeGathering) {
+      setHiddenFor(activeGathering.id, setId, next);
       pushHiddenSections(activeGathering.id, { ...hiddenBySet, [setId]: next });
     }
   };
 
   // Song arrangements (Settings → Arrangements), in place of the eye for songs
-  // inside a gathering. Kept apart from the eye's hides: switching the setting
-  // off brings those back as they were. A song with no stored arrangement
-  // starts from the eye's state (written order minus hidden sections).
-  const arrangeBySet = useArrangements((s) => s.bySet);
-  const setArrangement = useArrangements((s) => s.setArrangement);
+  // inside a gathering, per gathering like the hiding above. Kept apart from
+  // the eye's hides: switching the setting off brings those back as they were.
+  // A song with no stored arrangement starts from the eye's state (written
+  // order minus hidden sections).
+  const arrangeBySet = useGatheringSections((s) => s.arranged[sectionsGid]) ?? NO_SECTIONS;
+  const setArrangementFor = useGatheringSections((s) => s.setArrangement);
   const arrangesSongs = arrangementsOn && !!activeGathering;
   const arrangementFor = (d: PhytoSet | null | undefined): string[] | null =>
     arrangesSongs && d?.kind === "song"
       ? effectiveArrangement(d.slides, arrangeBySet[d.id], hiddenBySet[d.id])
       : null;
   const changeArrangement = (setId: string, next: string[]) => {
-    setArrangement(setId, next);
     if (activeGathering) {
+      setArrangementFor(activeGathering.id, setId, next);
       pushArrangements(activeGathering.id, { ...arrangeBySet, [setId]: next });
     }
   };
@@ -1261,7 +1265,7 @@ function Presenter() {
                 <div className="mono absolute inset-0 flex items-center justify-center text-xs uppercase tracking-wider text-muted-foreground">
                   Gathering is empty. Add a set to preview the phone view.
                 </div>
-              ) : (
+              ) : !sectionsReady ? null : (
                 <>
                   {/* Section visibility gutter — one marker per section of the
                       active song, in order. Absolutely placed to the LEFT of the
@@ -1401,146 +1405,151 @@ function Presenter() {
             <SlideGridForPresenter phytoSet={activeSet} live={live} slideW={slideW} />
           )}
 
-          {effectiveViewMode === "slides" && activeGathering && setList.length > 0 && (
-            <div className="space-y-8">
-              {setList.map((id, i) => {
-                const d = sets[id];
-                if (!d) return null;
-                const sectionGroups = groupSlides(d.slides);
-                // With Arrangements on, a song gets the arrange button in place
-                // of the eye (even with one section: it can still repeat).
-                const arrangement = arrangementFor(d);
-                // Songs, scriptures and messages can hide sections in a gathering.
-                // A set with a single section has nothing to hide (hiding the only
-                // section is disallowed), so no visibility icon shows.
-                const canHide =
-                  !arrangement &&
-                  (d.kind === "song" || d.kind === "scripture" || d.kind === "message") &&
-                  sectionGroups.length > 1;
-                const hiddenKeys = hiddenBySet[id] ?? [];
-                // Count only keys that still match a current section group, so a
-                // stale key left over from a prior edit never shows a phantom
-                // "hidden" badge.
-                const activeHiddenCount = canHide
-                  ? (() => {
-                      const groupKeys = new Set(sectionGroups.map((g) => g.key));
-                      return hiddenKeys.filter((k) => groupKeys.has(k)).length;
-                    })()
-                  : 0;
-                const hasHidden = activeHiddenCount > 0;
-                const managing = manageSet === id;
-                return (
-                  <section key={id} id={`set-section-${id}`}>
-                    <div className="mb-2 flex items-center gap-3">
-                      <h3 className="text-lg">
-                        <span className="mono mr-2 text-sm text-muted-foreground">{i + 1}.</span>
-                        {d.name}
-                      </h3>
-                      <KindBadge kind={d.kind} />
-                      <VersionWarning set={d} />
-                      <div className="flex items-center gap-1.5">
-                        <Link
-                          to="/set/$setId"
-                          params={{ setId: d.id }}
-                          search={{ redirectTo: presenterReturn(d.id) }}
-                          className="pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                          title="Edit set"
-                          aria-label="Edit set"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Link>
-                        {canHide && (
-                          <button
-                            onClick={() => setManageSet((prev) => (prev === id ? null : id))}
-                            className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition ${
-                              managing
-                                ? "bg-foreground text-background"
-                                : "hover:bg-foreground hover:text-background"
-                            }`}
-                            title={
-                              managing
-                                ? "Done hiding sections"
-                                : hasHidden
-                                  ? `Sections hidden (${activeHiddenCount}): click to manage`
-                                  : "Hide sections"
-                            }
-                            aria-label={managing ? "Done hiding sections" : "Hide sections"}
-                            aria-pressed={managing}
+          {effectiveViewMode === "slides" &&
+            activeGathering &&
+            sectionsReady &&
+            setList.length > 0 && (
+              <div className="space-y-8">
+                {setList.map((id, i) => {
+                  const d = sets[id];
+                  if (!d) return null;
+                  const sectionGroups = groupSlides(d.slides);
+                  // With Arrangements on, a song gets the arrange button in place
+                  // of the eye (even with one section: it can still repeat).
+                  const arrangement = arrangementFor(d);
+                  // Songs, scriptures and messages can hide sections in a gathering.
+                  // A set with a single section has nothing to hide (hiding the only
+                  // section is disallowed), so no visibility icon shows.
+                  const canHide =
+                    !arrangement &&
+                    (d.kind === "song" || d.kind === "scripture" || d.kind === "message") &&
+                    sectionGroups.length > 1;
+                  const hiddenKeys = hiddenBySet[id] ?? [];
+                  // Count only keys that still match a current section group, so a
+                  // stale key left over from a prior edit never shows a phantom
+                  // "hidden" badge.
+                  const activeHiddenCount = canHide
+                    ? (() => {
+                        const groupKeys = new Set(sectionGroups.map((g) => g.key));
+                        return hiddenKeys.filter((k) => groupKeys.has(k)).length;
+                      })()
+                    : 0;
+                  const hasHidden = activeHiddenCount > 0;
+                  const managing = manageSet === id;
+                  return (
+                    <section key={id} id={`set-section-${id}`}>
+                      <div className="mb-2 flex items-center gap-3">
+                        <h3 className="text-lg">
+                          <span className="mono mr-2 text-sm text-muted-foreground">{i + 1}.</span>
+                          {d.name}
+                        </h3>
+                        <KindBadge kind={d.kind} />
+                        <VersionWarning set={d} />
+                        <div className="flex items-center gap-1.5">
+                          <Link
+                            to="/set/$setId"
+                            params={{ setId: d.id }}
+                            search={{ redirectTo: presenterReturn(d.id) }}
+                            className="pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                            title="Edit set"
+                            aria-label="Edit set"
                           >
-                            {managing ? (
-                              <Check className="h-3.5 w-3.5" />
-                            ) : hasHidden ? (
-                              <EyeOff className="h-3.5 w-3.5" />
-                            ) : (
-                              <Eye className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        )}
-                        {arrangement && (
-                          <button
-                            onClick={() => setManageSet((prev) => (prev === id ? null : id))}
-                            className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition ${
-                              managing
-                                ? "bg-foreground text-background"
-                                : "hover:bg-foreground hover:text-background"
-                            }`}
-                            title={managing ? "Done arranging" : "Arrange sections"}
-                            aria-label={managing ? "Done arranging" : "Arrange sections"}
-                            aria-pressed={managing}
-                          >
-                            {managing ? (
-                              <Check className="h-3.5 w-3.5" />
-                            ) : (
-                              <ListOrdered className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        )}
-                      </div>
-                      {id === live.setId && (
-                        <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: kindLiveColor(d.kind) }}
-                          title="Live"
-                        />
-                      )}
-                    </div>
-                    {d.slides.length === 0 ? (
-                      <p className="mono uppercase text-xs tracking-wider text-muted-foreground">
-                        No slides
-                      </p>
-                    ) : arrangement ? (
-                      <>
-                        {managing && (
-                          <ArrangementRow
-                            options={sectionOptions(d.slides)}
-                            arrangement={arrangement}
-                            tints={TINTS}
-                            onChange={(next) => changeArrangement(id, next)}
-                            onBlocked={blockRemove}
+                            <Pencil className="h-3 w-3" />
+                          </Link>
+                          {canHide && (
+                            <button
+                              onClick={() => setManageSet((prev) => (prev === id ? null : id))}
+                              className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition ${
+                                managing
+                                  ? "bg-foreground text-background"
+                                  : "hover:bg-foreground hover:text-background"
+                              }`}
+                              title={
+                                managing
+                                  ? "Done hiding sections"
+                                  : hasHidden
+                                    ? `Sections hidden (${activeHiddenCount}): click to manage`
+                                    : "Hide sections"
+                              }
+                              aria-label={managing ? "Done hiding sections" : "Hide sections"}
+                              aria-pressed={managing}
+                            >
+                              {managing ? (
+                                <Check className="h-3.5 w-3.5" />
+                              ) : hasHidden ? (
+                                <EyeOff className="h-3.5 w-3.5" />
+                              ) : (
+                                <Eye className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
+                          {arrangement && (
+                            <button
+                              onClick={() => setManageSet((prev) => (prev === id ? null : id))}
+                              className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition ${
+                                managing
+                                  ? "bg-foreground text-background"
+                                  : "hover:bg-foreground hover:text-background"
+                              }`}
+                              title={managing ? "Done arranging" : "Arrange sections"}
+                              aria-label={managing ? "Done arranging" : "Arrange sections"}
+                              aria-pressed={managing}
+                            >
+                              {managing ? (
+                                <Check className="h-3.5 w-3.5" />
+                              ) : (
+                                <ListOrdered className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                        {id === live.setId && (
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: kindLiveColor(d.kind) }}
+                            title="Live"
                           />
                         )}
+                      </div>
+                      {d.slides.length === 0 ? (
+                        <p className="mono uppercase text-xs tracking-wider text-muted-foreground">
+                          No slides
+                        </p>
+                      ) : arrangement ? (
+                        <>
+                          {managing && (
+                            <ArrangementRow
+                              options={sectionOptions(d.slides)}
+                              arrangement={arrangement}
+                              tints={TINTS}
+                              onChange={(next) => changeArrangement(id, next)}
+                              onBlocked={blockRemove}
+                            />
+                          )}
+                          <SlideGridForPresenter
+                            phytoSet={d}
+                            live={live}
+                            slideW={slideW}
+                            arrangement={arrangement}
+                          />
+                        </>
+                      ) : (
                         <SlideGridForPresenter
                           phytoSet={d}
                           live={live}
                           slideW={slideW}
-                          arrangement={arrangement}
+                          hiddenKeys={hiddenKeys}
+                          manageMode={managing}
+                          onToggleSection={(sectionKey, x, y) =>
+                            toggleSection(id, sectionKey, x, y)
+                          }
                         />
-                      </>
-                    ) : (
-                      <SlideGridForPresenter
-                        phytoSet={d}
-                        live={live}
-                        slideW={slideW}
-                        hiddenKeys={hiddenKeys}
-                        manageMode={managing}
-                        onToggleSection={(sectionKey, x, y) => toggleSection(id, sectionKey, x, y)}
-                      />
-                    )}
-                  </section>
-                );
-              })}
-            </div>
-          )}
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
+            )}
         </main>
 
         {/* Right rail — hidden in mobile-preview mode. */}
@@ -2019,6 +2028,8 @@ function PresenterThumb({
 }
 
 const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+/** Stable empty set → keys map, for a gathering with no section state yet. */
+const NO_SECTIONS: Record<string, string[]> = {};
 
 const SLIDE_GAP = 8;
 const SECTION_PAD = 8;

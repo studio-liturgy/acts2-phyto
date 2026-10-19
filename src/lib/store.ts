@@ -1253,119 +1253,105 @@ if (typeof window !== "undefined") {
   });
 }
 
-// Per-tab section visibility for the presenter, keyed by set id; values are the
-// leader slide ids of hidden section groups. Backed by sessionStorage so the
-// hiding survives leaving the presenter (home, set editor) but is cleared when
-// the tab closes.
-const HIDDEN_SECTIONS_KEY = "hidden-sections-v1";
+// Per-gathering section state for the presenter: the eye's hidden sections and
+// the song arrangements, each keyed gathering id → set id → section keys. Keyed
+// by gathering because the same set can sit in several gatherings with a
+// different setup in each. Backed by sessionStorage so it survives leaving the
+// presenter (home, set editor) and a gathering opened before in this tab shows
+// its own state at once; the gathering's saved copy (Supabase) then replaces
+// it. The two are kept apart, so switching Arrangements off brings the eye's
+// hides back untouched.
+const GATHERING_SECTIONS_KEY = "gathering-sections-v1";
 
-function readHiddenSections(): Record<string, string[]> {
-  if (typeof window === "undefined") return {};
+type BySet = Record<string, string[]>;
+type ByGathering = Record<string, BySet>;
+
+function readGatheringSections(): { hidden: ByGathering; arranged: ByGathering } {
+  const empty = { hidden: {}, arranged: {} };
+  if (typeof window === "undefined") return empty;
   try {
-    const raw = sessionStorage.getItem(HIDDEN_SECTIONS_KEY);
-    if (raw) return JSON.parse(raw);
+    const raw = sessionStorage.getItem(GATHERING_SECTIONS_KEY);
+    if (raw) return { ...empty, ...JSON.parse(raw) };
   } catch {}
-  return {};
+  return empty;
 }
 
-interface HiddenSectionsStore {
-  hiddenBySet: Record<string, string[]>;
-  setHidden: (setId: string, leaderIds: string[]) => void;
-  /** Merge a set→hidden-keys map in (used to seed a gathering's saved hides). */
-  hydrate: (map: Record<string, string[]>) => void;
+function writeGatheringSections(hidden: ByGathering, arranged: ByGathering) {
+  try {
+    sessionStorage.setItem(GATHERING_SECTIONS_KEY, JSON.stringify({ hidden, arranged }));
+  } catch {}
 }
-export const useHiddenSections = create<HiddenSectionsStore>((set) => ({
-  hiddenBySet: typeof window !== "undefined" ? readHiddenSections() : {},
-  setHidden: (setId, leaderIds) =>
+
+interface GatheringSectionsStore {
+  hidden: ByGathering;
+  arranged: ByGathering;
+  /** Gatherings whose saved state has been read this page load (or can't be). */
+  loaded: Record<string, true>;
+  setHidden: (gatheringId: string, setId: string, keys: string[]) => void;
+  setArrangement: (gatheringId: string, setId: string, keys: string[]) => void;
+  /** Replace a gathering's state with its saved copy, and mark it loaded. */
+  hydrate: (gatheringId: string, hidden: BySet, arranged: BySet) => void;
+  markLoaded: (gatheringId: string) => void;
+}
+export const useGatheringSections = create<GatheringSectionsStore>((set) => ({
+  ...readGatheringSections(),
+  loaded: {},
+  setHidden: (gid, setId, keys) =>
     set((s) => {
-      const next = { ...s.hiddenBySet, [setId]: leaderIds };
-      try {
-        sessionStorage.setItem(HIDDEN_SECTIONS_KEY, JSON.stringify(next));
-      } catch {}
-      return { hiddenBySet: next };
+      const hidden = { ...s.hidden, [gid]: { ...s.hidden[gid], [setId]: keys } };
+      writeGatheringSections(hidden, s.arranged);
+      return { hidden };
     }),
-  hydrate: (map) =>
+  setArrangement: (gid, setId, keys) =>
     set((s) => {
-      const next = { ...s.hiddenBySet, ...map };
-      try {
-        sessionStorage.setItem(HIDDEN_SECTIONS_KEY, JSON.stringify(next));
-      } catch {}
-      return { hiddenBySet: next };
+      const arranged = { ...s.arranged, [gid]: { ...s.arranged[gid], [setId]: keys } };
+      writeGatheringSections(s.hidden, arranged);
+      return { arranged };
     }),
+  hydrate: (gid, h, a) =>
+    set((s) => {
+      const hidden = { ...s.hidden, [gid]: h };
+      const arranged = { ...s.arranged, [gid]: a };
+      writeGatheringSections(hidden, arranged);
+      return { hidden, arranged, loaded: { ...s.loaded, [gid]: true } };
+    }),
+  markLoaded: (gid) => set((s) => ({ loaded: { ...s.loaded, [gid]: true } })),
 }));
 
-/** Load a gathering's saved hidden-section map (per-gathering, owner-only) and
- *  seed the presenter's local state, so hiding persists across sessions and
- *  devices rather than living only in this tab. No-op when signed out. */
-export async function loadGatheringHiddenSections(gatheringId: string): Promise<void> {
+/** True once a gathering's section state can be shown without first showing
+ *  something else: it was read this page load, or this tab holds its own copy. */
+export function gatheringSectionsReady(
+  s: Pick<GatheringSectionsStore, "hidden" | "arranged" | "loaded">,
+  gatheringId: string,
+): boolean {
+  return !!s.loaded[gatheringId] || gatheringId in s.hidden || gatheringId in s.arranged;
+}
+
+/** Load a gathering's saved hidden sections and arrangements (one read, so
+ *  both land together) and replace its state in the presenter. Signed out,
+ *  or on a failed read, the tab's own copy stands. */
+export async function loadGatheringSections(gatheringId: string): Promise<void> {
+  const store = useGatheringSections.getState();
   const session = useAuthStore.getState().session;
-  if (!session) return;
+  if (!session) {
+    store.markLoaded(gatheringId);
+    return;
+  }
   const { data, error } = await supabase
     .from("gatherings")
-    .select("hidden_sections")
+    .select("hidden_sections, arrangements")
     .eq("id", gatheringId)
     .eq("user_id", session.user.id)
     .maybeSingle();
-  if (error || !data) return;
-  const map = (data.hidden_sections as Record<string, string[]>) ?? {};
-  useHiddenSections.getState().hydrate(map);
-}
-
-// Per-tab song arrangements for the presenter, keyed by set id; values are the
-// ordered section keys (repeats allowed, see lib/arrangements.ts). Same life
-// cycle as the hidden sections above: sessionStorage, seeded from the
-// gathering's saved map. Kept separately from the eye's hides, so switching
-// Arrangements off brings the eye's state back untouched.
-const ARRANGEMENTS_KEY = "arrangements-v1";
-
-function readArrangements(): Record<string, string[]> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = sessionStorage.getItem(ARRANGEMENTS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return {};
-}
-
-interface ArrangementsStore {
-  bySet: Record<string, string[]>;
-  setArrangement: (setId: string, keys: string[]) => void;
-  hydrate: (map: Record<string, string[]>) => void;
-}
-export const useArrangements = create<ArrangementsStore>((set) => ({
-  bySet: typeof window !== "undefined" ? readArrangements() : {},
-  setArrangement: (setId, keys) =>
-    set((s) => {
-      const next = { ...s.bySet, [setId]: keys };
-      try {
-        sessionStorage.setItem(ARRANGEMENTS_KEY, JSON.stringify(next));
-      } catch {}
-      return { bySet: next };
-    }),
-  hydrate: (map) =>
-    set((s) => {
-      const next = { ...s.bySet, ...map };
-      try {
-        sessionStorage.setItem(ARRANGEMENTS_KEY, JSON.stringify(next));
-      } catch {}
-      return { bySet: next };
-    }),
-}));
-
-/** Load a gathering's saved arrangements and seed the presenter, like
- *  loadGatheringHiddenSections. No-op when signed out. */
-export async function loadGatheringArrangements(gatheringId: string): Promise<void> {
-  const session = useAuthStore.getState().session;
-  if (!session) return;
-  const { data, error } = await supabase
-    .from("gatherings")
-    .select("arrangements")
-    .eq("id", gatheringId)
-    .eq("user_id", session.user.id)
-    .maybeSingle();
-  if (error || !data) return;
-  const map = (data.arrangements as Record<string, string[]> | null) ?? {};
-  useArrangements.getState().hydrate(map);
+  if (error || !data) {
+    store.markLoaded(gatheringId);
+    return;
+  }
+  store.hydrate(
+    gatheringId,
+    (data.hidden_sections as BySet | null) ?? {},
+    (data.arrangements as BySet | null) ?? {},
+  );
 }
 
 // Ephemeral, non-persisted preview of the song template while the editor is
