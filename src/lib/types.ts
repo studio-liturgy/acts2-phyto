@@ -60,6 +60,15 @@ export interface Slide {
   /** Scripture-only: the reference per version, so a translation can show its own
    *  localized book name. Keyed like linesByVersion. */
   referencesByVersion?: Record<string, string>;
+  /** Scripture-only, fetched verses: the verses this slide holds, chapter-
+   *  qualified in the primary version's numbering ("1:1", "1:1-2",
+   *  "3:36-4:1"). Kept whatever the set's settings, so "Reference per slide"
+   *  can be switched on later without fetching again. */
+  verses?: string;
+  /** Scripture-only: the set had "Reference per slide" on when this slide was
+   *  built, so it shows its own verses ("John 1:1 NIV") rather than the
+   *  passage's reference (see lib/verse-ref.ts shownReference). */
+  refPerSlide?: boolean;
   /** Message-only (kind === "point"): which preset layout this point uses.
    *  Quote → `lines` is the quotation + `attribution`; Bullets → `title` heading
    *  + `lines` bullets; Statement → `lines` is one short line. */
@@ -114,6 +123,10 @@ export interface Set {
    *  version code ("John 3:16 NIV"), on the editor's reference line and on the
    *  slide. Absent = on. Toggling it rewrites the existing references too. */
   versionRefs?: boolean;
+  /** Scripture/message: "Reference per slide". Each fetched verse slide shows
+   *  its own verses ("John 1:1", "John 1:1-2") instead of the passage's
+   *  reference ("John 1"). Absent = off. */
+  refPerSlide?: boolean;
   /** Scripture/message: the bible versions (translation codes) on each verse
    *  slide, in stacking order; one entry for a single translation, two when a
    *  second was imported alongside. Which of them a workspace shows is decided

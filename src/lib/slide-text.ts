@@ -3,6 +3,31 @@
 // set.$setId.tsx so the editor and the unit tests share one implementation.
 import type { Slide } from "./types";
 import { stableStringify } from "./sync";
+import { parseVerseTag, spanRanges, verseTag } from "./verse-ref";
+
+/** Options for turning scripture text into slides. */
+export interface ScriptureParseOptions {
+  /** The set shows "Reference per slide": fetched verses that know their
+   *  verses are marked to show them (see Slide.refPerSlide). */
+  refPerSlide?: boolean;
+}
+
+/** A block's opening lines: its `[ref]` header (when it opens an import) and
+ *  its `{verses}` tag (when it was fetched). */
+function blockHead(header: string, verses: string | undefined, manual?: boolean): string {
+  const tag = verses && !manual ? verseTag(verses) : "";
+  return [header, tag].filter(Boolean).join("\n");
+}
+
+/** The verse fields a parsed scripture slide carries. */
+function verseFields(
+  verses: string | undefined,
+  manual: boolean | undefined,
+  opts: ScriptureParseOptions,
+): Partial<Slide> {
+  if (!verses || manual) return {};
+  return opts.refPerSlide ? { verses, refPerSlide: true } : { verses };
+}
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -55,7 +80,11 @@ export function lyricsToSlides(text: string): Slide[] {
 // Lines matching /^\[.+\]$/ set the current verse reference.
 // --- forces a slide boundary; versesPer groups verses within each segment.
 // Segments with no [ref] inherit the last seen ref from previous segments.
-export function parseScriptureFromText(text: string, versesPer: number): Slide[] {
+export function parseScriptureFromText(
+  text: string,
+  versesPer: number,
+  opts: ScriptureParseOptions = {},
+): Slide[] {
   const segments = text.split(/^---\s*$/m);
   const slides: Slide[] = [];
   let inheritedRef = "";
@@ -68,9 +97,16 @@ export function parseScriptureFromText(text: string, versesPer: number): Slide[]
   let manual = false;
 
   for (const segment of segments) {
-    const verses: { ref: string; lines: string[]; importIndex: number; manual: boolean }[] = [];
+    const verses: {
+      ref: string;
+      lines: string[];
+      importIndex: number;
+      manual: boolean;
+      verses?: string;
+    }[] = [];
     let currentRef = inheritedRef;
     let currentLines: string[] = [];
+    let currentVerses: string | undefined;
 
     const flushVerse = () => {
       const content = currentLines.join("\n").trim();
@@ -80,19 +116,24 @@ export function parseScriptureFromText(text: string, versesPer: number): Slide[]
           lines: content ? content.split("\n") : [],
           importIndex: Math.max(0, importIndex),
           manual,
+          verses: currentVerses,
         });
       }
       currentLines = [];
+      currentVerses = undefined;
     };
 
     for (const line of segment.split("\n")) {
       const h = parseScriptureHeader(line);
+      const tag = h ? null : parseVerseTag(line);
       if (h) {
         flushVerse();
         currentRef = h.ref;
         inheritedRef = currentRef;
         importIndex += 1;
         manual = h.manual;
+      } else if (tag && currentVerses === undefined && !currentLines.join("").trim()) {
+        currentVerses = tag;
       } else {
         currentLines.push(line);
       }
@@ -103,6 +144,10 @@ export function parseScriptureFromText(text: string, versesPer: number): Slide[]
       const group = verses.slice(i, i + versesPer);
       const lines = group.flatMap((v) => v.lines);
       if (lines.length === 0) continue;
+      const span = group.reduce<string | undefined>(
+        (acc, v) => spanRanges(acc, v.verses),
+        undefined,
+      );
       slides.push({
         id: uid(),
         kind: "scripture" as const,
@@ -111,6 +156,7 @@ export function parseScriptureFromText(text: string, versesPer: number): Slide[]
         section: group[0].ref.trim() || undefined,
         importIndex: group[0].importIndex,
         ...(group[0].manual ? { manual: true } : {}),
+        ...verseFields(span, group[0].manual, opts),
       });
     }
   }
@@ -150,8 +196,8 @@ export function slidesToScriptureText(slides: Slide[]): string {
       s.importIndex !== undefined && lastImportIndex !== undefined
         ? s.importIndex !== lastImportIndex
         : ref !== lastRef || slideParts.length === 0;
-    const header = boundary ? scriptureHeader(ref, s.manual) : "";
-    slideParts.push(header ? `${header}\n${text}` : text);
+    const head = blockHead(boundary ? scriptureHeader(ref, s.manual) : "", s.verses, s.manual);
+    slideParts.push(head ? `${head}\n${text}` : text);
     lastRef = ref;
     lastImportIndex = s.importIndex;
   }
@@ -183,7 +229,8 @@ export function slidesToVersionText(slides: Slide[], versions: string[]): Record
         s.referencesByVersion?.[v] ?? (s.manual && v !== primary ? "" : (s.reference ?? ""));
       const text = s.linesByVersion?.[v] ?? (v === primary ? (s.lines ?? []).join("\n") : "");
       const header = boundary || (ref && ref !== lastRef[v]) ? scriptureHeader(ref, s.manual) : "";
-      out[v].push(header ? `${header}\n${text}` : text);
+      const head = blockHead(header, s.verses, s.manual);
+      out[v].push(head ? `${head}\n${text}` : text);
       lastRef[v] = ref;
     }
     lastImportIndex = s.importIndex;
@@ -217,28 +264,47 @@ export function parseScriptureHeader(line: string): { ref: string; manual: boole
     : { ref: inner, manual: false };
 }
 
+type Segment = { ref?: string; manual?: boolean; verses?: string; text: string };
+
 /** Split one scripture box into its `---`-separated verse blocks, pulling a
- *  leading `[ref]` (or manual `[~ref]`) header off each. */
-function scriptureSegments(text: string): { ref?: string; manual?: boolean; text: string }[] {
+ *  leading `[ref]` (or manual `[~ref]`) header and `{verses}` tag off each. */
+function scriptureSegments(text: string): Segment[] {
   return text.split(/^---\s*$/m).map((seg) => {
     let ref: string | undefined;
     let manual: boolean | undefined;
+    let verses: string | undefined;
     let sawContent = false;
     const body: string[] = [];
     for (const line of seg.split("\n")) {
-      const h = parseScriptureHeader(line);
       // The [ref] header may sit behind the blank line that the --- split
       // leaves at the top of a segment, so ignore leading blanks when finding it.
-      if (h && ref === undefined && !sawContent) {
-        ref = h.ref;
-        if (h.manual) manual = true;
-        continue;
+      if (!sawContent && verses === undefined) {
+        const h = ref === undefined ? parseScriptureHeader(line) : null;
+        if (h) {
+          ref = h.ref;
+          if (h.manual) manual = true;
+          continue;
+        }
+        const tag = parseVerseTag(line);
+        if (tag) {
+          verses = tag;
+          continue;
+        }
       }
       if (line.trim()) sawContent = true;
       body.push(line);
     }
-    return { ref, manual, text: body.join("\n").trim() };
+    return { ref, manual, ...(verses ? { verses } : {}), text: body.join("\n").trim() };
   });
+}
+
+/** The verses of block `i`: the first version's box that has a tag says. */
+function segmentVerses(segs: Record<string, Segment[]>, versions: string[], i: number) {
+  for (const v of versions) {
+    const t = segs[v][i]?.verses;
+    if (t) return t;
+  }
+  return undefined;
 }
 
 /** One editable verse across the versions, for the row-based scripture editor:
@@ -253,13 +319,15 @@ export interface VerseRow {
   starts: boolean;
   /** The import this verse belongs to was typed in by hand (see scriptureHeader). */
   manual?: boolean;
+  /** The verses this row holds ("1:1-2"), for a fetched verse that knows. */
+  verses?: string;
 }
 
 /** Parse the version boxes into aligned verse rows (so the editor can draw a
  *  divider between verses instead of a literal "---"). */
 export function toVerseRows(byVersionText: Record<string, string>, versions: string[]): VerseRow[] {
   const primary = versions[0];
-  const segs: Record<string, { ref?: string; manual?: boolean; text: string }[]> = {};
+  const segs: Record<string, Segment[]> = {};
   for (const v of versions) segs[v] = scriptureSegments(byVersionText[v] ?? "");
   const count = Math.max(...versions.map((v) => segs[v].length), 0);
   const rows: VerseRow[] = [];
@@ -280,7 +348,8 @@ export function toVerseRows(byVersionText: Record<string, string>, versions: str
     // header; the very first verse always begins one.
     const starts = i === 0 || segs[primary][i]?.ref !== undefined;
     if (starts) manual = !!segs[primary][i]?.manual;
-    rows.push({ refs, text, starts, ...(manual ? { manual } : {}) });
+    const verses = manual ? undefined : segmentVerses(segs, versions, i);
+    rows.push({ refs, text, starts, ...(manual ? { manual } : {}), ...(verses ? { verses } : {}) });
   }
   return rows;
 }
@@ -288,14 +357,19 @@ export function toVerseRows(byVersionText: Record<string, string>, versions: str
 /** Serialize verse rows back to the version boxes. Inverse of toVerseRows.
  *  A `[ref]` header is written only on the verses that begin an import, so the
  *  round-trip preserves import boundaries instead of stamping a header on every
- *  verse (which would then read back as one import per verse). */
+ *  verse (which would then read back as one import per verse). A fetched
+ *  verse's `{verses}` tag goes in every box, so it survives a version swap. */
 export function fromVerseRows(rows: VerseRow[], versions: string[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const v of versions) {
     out[v] = rows
       .map((r) => {
-        const header = r.starts ? scriptureHeader(r.refs[v], r.manual) : "";
-        return header ? `${header}\n${r.text[v]}` : r.text[v];
+        const head = blockHead(
+          r.starts ? scriptureHeader(r.refs[v], r.manual) : "",
+          r.verses,
+          r.manual,
+        );
+        return head ? `${head}\n${r.text[v]}` : r.text[v];
       })
       .join("\n---\n");
   }
@@ -322,6 +396,9 @@ export function mergeRowsUp(rows: VerseRow[], ri: number, versions: string[]): V
       versions.map((v) => [v, joinVerse(prev.text[v] ?? "", cur.text[v] ?? "")]),
     ),
   };
+  // Two verses joined hold both: "1:1" + "1:2" is "1:1-2".
+  const verses = spanRanges(prev.verses, cur.verses);
+  if (verses) merged.verses = verses;
   return rows.map((r, i) => (i === ri - 1 ? merged : r)).filter((_, i) => i !== ri);
 }
 
@@ -330,9 +407,10 @@ export function mergeRowsUp(rows: VerseRow[], ri: number, versions: string[]): V
 export function versionTextToSlides(
   byVersionText: Record<string, string>,
   versions: string[],
+  opts: ScriptureParseOptions = {},
 ): Slide[] {
   const primary = versions[0];
-  const segsByVersion: Record<string, { ref?: string; manual?: boolean; text: string }[]> = {};
+  const segsByVersion: Record<string, Segment[]> = {};
   for (const v of versions) segsByVersion[v] = scriptureSegments(byVersionText[v] ?? "");
   const count = Math.max(...versions.map((v) => segsByVersion[v].length), 0);
 
@@ -370,6 +448,7 @@ export function versionTextToSlides(
       linesByVersion: byVersion,
       ...(Object.keys(referencesByVersion).length ? { referencesByVersion } : {}),
       ...(manual ? { manual } : {}),
+      ...verseFields(segmentVerses(segsByVersion, versions, i), manual, opts),
     });
   }
   return slides;

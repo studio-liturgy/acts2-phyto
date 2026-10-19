@@ -7,11 +7,19 @@ vi.mock("@/lib/supabase", async () => {
   return { supabase: supabaseMock.client };
 });
 
+// "Reference per slide" fetches a passage again for its verse numbers.
+const fetchScriptureMock = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/bible", async (orig) => ({
+  ...(await orig<typeof import("@/lib/bible")>()),
+  fetchScripture: fetchScriptureMock,
+}));
+
 import { db } from "@/lib/db";
 import { useLibrary } from "@/lib/store";
 import { mergeHiddenVersions, useScriptureVersions } from "@/hooks/use-scripture-versions";
 import { resetDb } from "@/test/db-utils";
 import { makeSet } from "@/test/fixtures";
+import { shownReference } from "@/lib/verse-ref";
 import type { SetKind, Slide } from "@/lib/types";
 
 // Drives the hook exactly as the Importers component does.
@@ -83,6 +91,69 @@ describe("useScriptureVersions", () => {
     const after = useLibrary.getState().sets[scripture.id];
     expect(after.slides.map((s) => s.id)).toEqual(["v1", "v2"]);
     expect(after.updatedAt).toBe(before);
+  });
+});
+
+describe("Reference per slide", () => {
+  let api: ReturnType<typeof useScriptureVersions> | undefined;
+  function Exposed({ setId, kind }: { setId: string; kind: SetKind }) {
+    api = useScriptureVersions({ setId, kind });
+    return null;
+  }
+  const passage = {
+    reference: "John 3:16-17",
+    bookName: "John",
+    verses: [
+      { chapter: 3, verse: 16, text: "For God" },
+      { chapter: 3, verse: 17, text: "so loved" },
+    ],
+  };
+
+  it("an older message's verses learn their numbers from the passage, text untouched", async () => {
+    fetchScriptureMock.mockReset().mockResolvedValue(passage);
+    const message = makeSet({ kind: "message", slides: [...verses, point] });
+    await db.sets.put(message);
+    await useLibrary.getState().loadFromDb();
+    await act(async () => root.render(<Exposed setId={message.id} kind="message" />));
+
+    await act(async () => api!.setRefPerSlide(true));
+
+    const set = useLibrary.getState().sets[message.id];
+    expect(set.refPerSlide).toBe(true);
+    expect(fetchScriptureMock).toHaveBeenCalledTimes(1);
+    expect(fetchScriptureMock.mock.calls[0][0]).toBe("John 3:16");
+    expect(set.slides.map((s) => s.lines)).toEqual([["For God"], ["so loved"], ["Grace"]]);
+    expect(set.slides.map((s) => shownReference(s.reference, s))).toEqual([
+      "John 3:16",
+      "John 3:17",
+      undefined,
+    ]);
+
+    // Off again: back to the passage's reference, the numbers kept for later.
+    await act(async () => api!.setRefPerSlide(false));
+    const off = useLibrary.getState().sets[message.id].slides;
+    expect(off.map((s) => shownReference(s.reference, s))).toEqual([
+      "John 3:16",
+      "John 3:16",
+      undefined,
+    ]);
+    expect(off.map((s) => s.verses)).toEqual(["3:16", "3:17", undefined]);
+  });
+
+  it("a scripture set's slides follow the switch through its text box", async () => {
+    fetchScriptureMock.mockReset().mockResolvedValue(passage);
+    const scripture = makeSet({ kind: "scripture", slides: verses });
+    await db.sets.put(scripture);
+    await useLibrary.getState().loadFromDb();
+    await act(async () => root.render(<Exposed setId={scripture.id} kind="scripture" />));
+
+    await act(async () => api!.setRefPerSlide(true));
+    // The live sync re-parses the box on the next render.
+    await act(async () => root.render(<Exposed setId={scripture.id} kind="scripture" />));
+
+    const slides = useLibrary.getState().sets[scripture.id].slides;
+    expect(slides.map((s) => s.lines)).toEqual([["For God"], ["so loved"]]);
+    expect(slides.map((s) => shownReference(s.reference, s))).toEqual(["John 3:16", "John 3:17"]);
   });
 });
 

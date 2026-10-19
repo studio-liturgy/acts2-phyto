@@ -31,6 +31,16 @@ import {
 } from "@/lib/versions";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { useYvNames } from "@/hooks/use-yv-names";
+import {
+  type FetchedPassage,
+  fillRowVerses,
+  fillSlideVerses,
+  rowPassagesMissingVerses,
+  slidePassagesMissingVerses,
+  verseRange,
+  verseTag,
+  withRefPerSlide,
+} from "@/lib/verse-ref";
 
 /**
  * The scripture importer's state and behaviour, with the two-version support
@@ -71,6 +81,9 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   // Whether references carry their version code ("John 3:16 NIV"); on unless
   // the set says otherwise.
   const versionRefs = useLibrary((st) => st.sets[setId]?.versionRefs !== false);
+  // "Reference per slide": each fetched verse slide shows its own verses.
+  const refPerSlide = useLibrary((st) => st.sets[setId]?.refPerSlide === true);
+  const parseOpts = useMemo(() => ({ refPerSlide }), [refPerSlide]);
   const storedImports = useLibrary((st) => st.sets[setId]?.scriptureImports);
   const storeSlides = useLibrary((s) => s.sets[setId]?.slides);
   // The versions used in previous sets, newest first: listed on top of both
@@ -171,6 +184,12 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
   }, [storeSlides, scriptureKind, manualText, manualText2, seedBoxes]);
 
   const [versesPer, setVersesPer] = useState(1);
+  // The boxes as last rendered, for an async step that must apply its result
+  // to the text as it is by then (edits made while it fetched included).
+  const boxesRef = useRef<[string, string]>([manualText, manualText2]);
+  useEffect(() => {
+    boxesRef.current = [manualText, manualText2];
+  }, [manualText, manualText2]);
   const [keepLineBreaks, setKeepLineBreaks] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -200,7 +219,9 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       const boxes: Record<string, string> = { [editVersions[0]]: manualText };
       if (editVersions[1]) boxes[editVersions[1]] = manualText2;
       parsed =
-        manualText.trim() || manualText2.trim() ? versionTextToSlides(boxes, editVersions) : [];
+        manualText.trim() || manualText2.trim()
+          ? versionTextToSlides(boxes, editVersions, parseOpts)
+          : [];
       parsed = mergeHiddenVersions(
         parsed,
         current,
@@ -209,7 +230,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
         readSet()?.versions,
       );
     } else {
-      parsed = manualText.trim() ? parseScriptureFromText(manualText, versesPer) : [];
+      parsed = manualText.trim() ? parseScriptureFromText(manualText, versesPer, parseOpts) : [];
     }
     const { slides, changed } = reconcileSlideIds(parsed, current);
     if (changed) updateSet(setId, { slides });
@@ -217,6 +238,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     manualText,
     manualText2,
     versesPer,
+    parseOpts,
     kind,
     setId,
     boxMode,
@@ -261,9 +283,13 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
             .join(" ");
           // The version code rides with the reference ("John 3:16 NIV"), on the
           // editor's reference line and on the slide, unless the set turned
-          // version references off.
-          b1.push(i === 0 ? `[${withVersionCode(first.reference, v1, versionRefs)}]\n${t1}` : t1);
-          b2.push(i === 0 ? `[${withVersionCode(second.reference, v2, versionRefs)}]\n${t2}` : t2);
+          // version references off. Every block also carries its verses
+          // ("{3:16-17}"), for "Reference per slide".
+          const tag = verseTag(verseRange(chunk) ?? "");
+          const h1 = i === 0 ? `[${withVersionCode(first.reference, v1, versionRefs)}]\n` : "";
+          const h2 = i === 0 ? `[${withVersionCode(second.reference, v2, versionRefs)}]\n` : "";
+          b1.push(`${h1}${tag}\n${t1}`);
+          b2.push(`${h2}${tag}\n${t2}`);
         }
         return {
           box1: b1.join("\n---\n"),
@@ -278,11 +304,10 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
       });
       const b1: string[] = [];
       for (let i = 0; i < verses.length; i += vPer) {
-        const group = verses
-          .slice(i, i + vPer)
-          .map((x) => x.text.trim())
-          .join(" ");
-        b1.push(i === 0 ? `[${withVersionCode(reference, v1, versionRefs)}]\n${group}` : group);
+        const chunk = verses.slice(i, i + vPer);
+        const group = chunk.map((x) => x.text.trim()).join(" ");
+        const head = i === 0 ? `[${withVersionCode(reference, v1, versionRefs)}]\n` : "";
+        b1.push(`${head}${verseTag(verseRange(chunk) ?? "")}\n${group}`);
       }
       return { box1: b1.join("\n---\n"), box2: "", unmatched: 0, ref1: reference };
     },
@@ -320,8 +345,12 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
         const b = await fetchImportBlocks(q, v1, v2, vPer);
         const existing = readSet()?.slides ?? [];
         const built = boxMode
-          ? versionTextToSlides(v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 }, versions)
-          : parseScriptureFromText(b.box1, vPer);
+          ? versionTextToSlides(
+              v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
+              versions,
+              parseOpts,
+            )
+          : parseScriptureFromText(b.box1, vPer, parseOpts);
         const nextIdx = existing.reduce((m, s) => Math.max(m, s.importIndex ?? 0), -1) + 1;
         updateSet(setId, {
           slides: [...existing, ...built.map((s) => ({ ...s, importIndex: nextIdx }))],
@@ -359,7 +388,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
         if (i > 0) parts.push("---");
         const group = verses.slice(i, i + versesPer);
         const verseTexts = group.map((v) => v.text.trim()).join(" ");
-        parts.push(i === 0 ? `[${labelled}]\n${verseTexts}` : verseTexts);
+        const tag = verseTag(verseRange(group) ?? "");
+        parts.push(i === 0 ? `[${labelled}]\n${tag}\n${verseTexts}` : `${tag}\n${verseTexts}`);
       }
       const newBlock = parts.join("\n\n");
       setManualText((prev) => (prev.trim() ? `${prev}\n\n---\n\n${newBlock}` : newBlock));
@@ -544,6 +574,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
         const built = versionTextToSlides(
           v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
           newVersions,
+          parseOpts,
         ).map((x) => ({ ...x, importIndex: run[0].importIndex ?? 0 }));
         result.push(...built);
       }
@@ -754,6 +785,7 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
         slides = versionTextToSlides(
           v2 ? { [v1]: b.box1, [v2]: b.box2 } : { [v1]: b.box1 },
           newVersions,
+          parseOpts,
         );
       }
       const {
@@ -842,6 +874,81 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     if (boxVersions[1]) setManualText2(boxes[boxVersions[1]] ?? "");
   };
 
+  /** Each passage label's verses, fetched for matching against the text
+   *  already in the set; `fallback` is the version when a label names none.
+   *  A passage that can't be fetched is left out (and named in the error). */
+  const fetchPassages = async (labels: string[], fallback: string) => {
+    const got = await mapPool(labels, REFETCH_AT_ONCE, async (label) => {
+      const { ref, code } = splitRefLabel(label);
+      const { verses } = await fetchScripture(ref, code ?? fallback, { hints: [fallback] });
+      return verses;
+    });
+    const fetched = new Map<string, FetchedPassage>();
+    const failed: string[] = [];
+    labels.forEach((label, i) => {
+      const verses = got[i];
+      if (verses) fetched.set(label, verses);
+      else failed.push(label);
+    });
+    // Worded like a version change's re-fetch: the passage keeps showing its
+    // own reference.
+    noteFailed(failed);
+    return fetched;
+  };
+
+  /**
+   * "Reference per slide": every fetched verse slide shows its own verses
+   * ("John 1:1", "John 1:1-2") instead of the passage's reference. Slides
+   * imported before verses were remembered are matched against their passage,
+   * fetched again quietly; their text stays exactly as it is.
+   */
+  const setRefPerSlide = async (on: boolean) => {
+    updateSet(setId, { refPerSlide: on });
+    if (!scriptureKind) return;
+    setErr(null);
+    if (kind === "message") {
+      const mark = (slides: Slide[]) =>
+        slides.map((sl) => (sl.kind !== "scripture" || sl.manual ? sl : withRefPerSlide(sl, on)));
+      updateSet(setId, { slides: mark(readSet()?.slides ?? []) });
+      if (!on) return;
+      const labels = slidePassagesMissingVerses(readSet()?.slides ?? []);
+      if (!labels.length) return;
+      const primary = storedVersions?.[0] ?? translation;
+      setBusy(true);
+      try {
+        const fetched = await fetchPassages(labels, primary);
+        // Matched against the slides as they are now, edits made meanwhile included.
+        const cur = readSet()?.slides ?? [];
+        updateSet(setId, { slides: mark(fillSlideVerses(cur, primary, fetched)) });
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    // A scripture set's slides follow the boxes (the live sync above marks them).
+    if (!on) return;
+    const cols = boxVersions;
+    const rowsNow = () =>
+      toVerseRows(
+        Object.fromEntries(
+          cols.map((v, i) => [v, i === 0 ? boxesRef.current[0] : boxesRef.current[1]]),
+        ),
+        cols,
+      );
+    const labels = rowPassagesMissingVerses(rowsNow(), cols[0]);
+    if (!labels.length) return;
+    setBusy(true);
+    try {
+      const fetched = await fetchPassages(labels, boxMode ? editVersions[0] : translation);
+      if (!fetched.size) return;
+      const boxes = fromVerseRows(fillRowVerses(rowsNow(), cols[0], fetched), cols);
+      setManualText(boxes[cols[0]] ?? "");
+      if (cols[1]) setManualText2(boxes[cols[1]] ?? "");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /**
    * A blank hand-typed verse at the end of the set: its reference and text are
    * typed in (a column per version the set edits) rather than fetched. A
@@ -907,6 +1014,8 @@ export function useScriptureVersions({ setId, kind }: { setId: string; kind: Set
     addManualVerse,
     versionRefs,
     setVersionRefs,
+    refPerSlide,
+    setRefPerSlide,
     clearBoxes,
     versionsMismatch,
     frozen,

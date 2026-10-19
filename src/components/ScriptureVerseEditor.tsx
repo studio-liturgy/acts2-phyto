@@ -115,6 +115,8 @@ export function ScriptureVerseEditor({
         refs: { ...row.refs },
         starts: false,
         text: Object.fromEntries(versions.map((ver) => [ver, ver === v ? tail : ""])),
+        // Both halves of a split verse are still that verse.
+        ...(row.verses ? { verses: row.verses } : {}),
       };
       next = [
         ...rows.slice(0, ri),

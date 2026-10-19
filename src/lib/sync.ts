@@ -62,6 +62,7 @@ type SetContentField =
   | "loop"
   | "loopSection"
   | "versionRefs"
+  | "refPerSlide"
   | "dissolveMs"
   | "versions"
   | "scriptureImports";
@@ -600,6 +601,7 @@ export function setFingerprint(s: PhytoSet): string {
     loop: s.loop ?? null,
     loopSection: s.loopSection ?? null,
     versionRefs: s.versionRefs ?? null,
+    refPerSlide: s.refPerSlide ?? null,
     dissolveMs: s.dissolveMs ?? null,
     versions: s.versions ?? null,
   });

@@ -2,6 +2,7 @@ import type { Slide, SetTemplate } from "@/lib/types";
 import { stripChords } from "@/lib/chords";
 import { STAGE_H, STAGE_W, fitOrigin, fitScale } from "@/lib/slide-fit";
 import { displayLinesForVersions } from "@/lib/versions";
+import { shownReference } from "@/lib/verse-ref";
 import { renderInline } from "@/lib/inline-format";
 import { scriptOfTranslation, versionLangTag } from "@/lib/bible";
 import { langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
@@ -330,6 +331,10 @@ export function SlideView({
     [slide, versions],
   );
   const stacked = versionLines.length > 0;
+  // The reference a single-version scripture slide shows: the passage's, or
+  // this slide's own verses with "Reference per slide" on.
+  const reference =
+    slide?.kind === "scripture" ? shownReference(slide.reference, slide) : undefined;
 
   const hasText = !!(displayLines.some((l) => l.trim()) || stacked || slide?.title);
   const bg = slide?.imageUrl
@@ -413,9 +418,9 @@ export function SlideView({
                     {renderInline(slide.title)}
                   </div>
                 )}
-                {slide?.reference && slide.kind === "scripture" && refAbove && !stacked && (
+                {reference && refAbove && !stacked && (
                   <div className="mb-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
-                    {slide.reference}
+                    {reference}
                   </div>
                 )}
                 {stacked
@@ -477,9 +482,9 @@ export function SlideView({
                         {renderInline(l)}
                       </div>
                     ))}
-                {slide?.reference && slide.kind === "scripture" && !refAbove && !stacked && (
+                {reference && !refAbove && !stacked && (
                   <div className="mt-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
-                    {slide.reference}
+                    {reference}
                   </div>
                 )}
                 {!slide && <div className={`text-3xl ${placeholderText}`}>No slide selected</div>}

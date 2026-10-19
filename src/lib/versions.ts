@@ -12,6 +12,7 @@ import {
   type AlignedVerse,
 } from "./bible";
 import type { WorkspaceSettings } from "./workspace-settings";
+import { shownReference } from "./verse-ref";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -72,7 +73,7 @@ export function displayLinesForVersions(slide: Slide, versions: string[]): Displ
         key: version,
         text,
         version,
-        reference: slide.referencesByVersion?.[version] ?? slide.reference,
+        reference: shownReference(slide.referencesByVersion?.[version] ?? slide.reference, slide),
       });
   }
   return out;

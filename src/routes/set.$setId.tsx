@@ -31,6 +31,7 @@ import { MessageElements } from "@/components/MessageElements";
 import { MessageBlockEditor } from "@/components/MessageBlockEditor";
 import { ScriptureVerseEditor } from "@/components/ScriptureVerseEditor";
 import { VersionPicker } from "@/components/VersionPicker";
+import { ScriptureSettingsDialog } from "@/components/ScriptureSettingsDialog";
 import { VersionWarning } from "@/components/VersionWarning";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1081,78 +1082,6 @@ function PillInput({
   );
 }
 
-/** The scripture importer's options row: verses per slide and line breaks.
- *  Two stacked versions halve the room on a slide, so the ceiling drops to 2. */
-function ImportOptions({
-  twoVersions,
-  setTwoVersions,
-  busy,
-  versesPer,
-  setVersesPer,
-  keepLineBreaks,
-  setKeepLineBreaks,
-  versionRefs,
-  setVersionRefs,
-  maxVerses = 3,
-}: {
-  /** The set carries a 2nd bible version (a picker beside the 1st). */
-  twoVersions: boolean;
-  setTwoVersions: (on: boolean) => void;
-  /** A fetch is running: the switch waits for it. */
-  busy: boolean;
-  versesPer: number;
-  setVersesPer: (n: number) => void;
-  keepLineBreaks: boolean;
-  setKeepLineBreaks: (on: boolean) => void;
-  /** References carry their version code; toggling relabels existing ones. */
-  versionRefs: boolean;
-  setVersionRefs: (on: boolean) => void;
-  maxVerses?: number;
-}) {
-  return (
-    <div className="flex flex-col justify-end">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
-        <div className="flex items-center gap-2">
-          <span className="mono text-[10px] uppercase tracking-wider">Two versions</span>
-          <PillSwitch
-            label="Two versions"
-            checked={twoVersions}
-            disabled={busy}
-            onCheckedChange={setTwoVersions}
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="mono text-[10px] uppercase tracking-wider">Verses per slide</div>
-          <NumberStepper
-            value={Math.min(versesPer, maxVerses)}
-            onChange={(n) => setVersesPer(Math.min(maxVerses, Math.max(1, Math.round(n))))}
-            min={1}
-            max={maxVerses}
-            decrementLabel="Fewer verses per slide"
-            incrementLabel="More verses per slide"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="mono text-[10px] uppercase tracking-wider">Line breaks</span>
-          <PillSwitch
-            label="Line breaks"
-            checked={keepLineBreaks}
-            onCheckedChange={setKeepLineBreaks}
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="mono text-[10px] uppercase tracking-wider">Version reference</span>
-          <PillSwitch
-            label="Version reference"
-            checked={versionRefs}
-            onCheckedChange={setVersionRefs}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /** Section colours, in the presenter's order (see present.tsx TINTS). */
 const SECTION_TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
 
@@ -1729,6 +1658,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
 
   const [ref, setRef] = useState("");
   const [version2Open, setVersion2Open] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [showUpdateVersions, setShowUpdateVersions] = useState(false);
   // Who else sees the set, named in the re-import dialog (a re-import changes
   // it for everyone it's shared with). Fetched when the dialog opens.
@@ -2336,26 +2266,55 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               is frozen (greyed, inert) until it's resolved: UPDATE below, or
               delete the verses. */}
           <div className={scripture.frozen ? "hidden" : ""}>
-            <PillInput
-              value={ref}
-              onChange={setRef}
-              placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2"
-              onEnter={() => {
-                if (ref.trim() && !busy && !scripture.frozen) importScripture();
-              }}
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <PillInput
+                  value={ref}
+                  onChange={setRef}
+                  placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2"
+                  onEnter={() => {
+                    if (ref.trim() && !busy && !scripture.frozen) importScripture();
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className="pill mono uppercase shrink-0 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+              >
+                Settings
+              </button>
+            </div>
+            <ScriptureSettingsDialog
+              open={settingsOpen}
+              onOpenChange={setSettingsOpen}
+              twoVersions={scripture.twoVersions}
+              setTwoVersions={scripture.setTwoVersions}
+              busy={busy}
+              versesPer={versesPer}
+              setVersesPer={setVersesPer}
+              maxVerses={scripture.bilingual ? 2 : 3}
+              keepLineBreaks={keepLineBreaks}
+              setKeepLineBreaks={setKeepLineBreaks}
+              versionRefs={scripture.versionRefs}
+              setVersionRefs={scripture.setVersionRefs}
+              refPerSlide={scripture.refPerSlide}
+              setRefPerSlide={(on) => void scripture.setRefPerSlide(on)}
             />
             <div className="mt-3 grid grid-cols-2 gap-3">
-              <VersionPicker
-                label={scripture.twoVersions ? "1st version" : "Version"}
-                value={translation}
-                open={versionOpen}
-                setOpen={setVersionOpen}
-                onPick={setTranslation}
-                exclude={scripture.twoVersions ? translation2 : ""}
-                groups={scripture.versionGroups}
-                recent={scripture.recentVersions}
-              />
-              {scripture.twoVersions ? (
+              <div className={scripture.twoVersions ? "" : "col-span-2"}>
+                <VersionPicker
+                  label={scripture.twoVersions ? "1st version" : "Version"}
+                  value={translation}
+                  open={versionOpen}
+                  setOpen={setVersionOpen}
+                  onPick={setTranslation}
+                  exclude={scripture.twoVersions ? translation2 : ""}
+                  groups={scripture.versionGroups}
+                  recent={scripture.recentVersions}
+                />
+              </div>
+              {scripture.twoVersions && (
                 <VersionPicker
                   label="2nd version"
                   value={translation2}
@@ -2367,36 +2326,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                   groups={scripture.versionGroups}
                   recent={scripture.recentVersions}
                 />
-              ) : (
-                <ImportOptions
-                  twoVersions={false}
-                  setTwoVersions={scripture.setTwoVersions}
-                  busy={busy}
-                  versesPer={versesPer}
-                  setVersesPer={setVersesPer}
-                  keepLineBreaks={keepLineBreaks}
-                  setKeepLineBreaks={setKeepLineBreaks}
-                  versionRefs={scripture.versionRefs}
-                  setVersionRefs={scripture.setVersionRefs}
-                />
               )}
             </div>
-            {scripture.twoVersions && (
-              <div className="mt-2">
-                <ImportOptions
-                  twoVersions
-                  setTwoVersions={scripture.setTwoVersions}
-                  busy={busy}
-                  versesPer={versesPer}
-                  setVersesPer={setVersesPer}
-                  keepLineBreaks={keepLineBreaks}
-                  setKeepLineBreaks={setKeepLineBreaks}
-                  versionRefs={scripture.versionRefs}
-                  setVersionRefs={scripture.setVersionRefs}
-                  maxVerses={scripture.bilingual ? 2 : 3}
-                />
-              </div>
-            )}
             {scripture.bilingual && (
               <button
                 type="button"

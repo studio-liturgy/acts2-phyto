@@ -8,6 +8,7 @@ import { currentCaret, useUndo } from "@/hooks/use-undo";
 import { plainLength, splitMarkup } from "@/lib/inline-format";
 import { focusCell } from "@/lib/rich-caret";
 import { joinVerse } from "@/lib/slide-text";
+import { spanRanges } from "@/lib/verse-ref";
 import { SlideView } from "@/components/SlideView";
 import {
   AlertDialog,
@@ -506,11 +507,18 @@ export function MessageBlockEditor({
                 if (joined) linesByVersion[v] = joined;
               }
               const primaryText = linesByVersion[primaryVersion] ?? "";
+              // Two verses joined hold both: "1:1" + "1:2" is "1:1-2".
+              const verses = spanRanges(prev.verses, slide.verses);
               updateSet(setId, {
                 slides: slides
                   .map((x) =>
                     x.id === prev.id
-                      ? { ...x, linesByVersion, lines: primaryText ? [primaryText] : [] }
+                      ? {
+                          ...x,
+                          linesByVersion,
+                          lines: primaryText ? [primaryText] : [],
+                          ...(verses ? { verses } : {}),
+                        }
                       : x,
                   )
                   .filter((x) => x.id !== slide.id),
