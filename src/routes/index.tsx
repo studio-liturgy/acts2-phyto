@@ -567,12 +567,6 @@ function Library() {
 
   // Only one gathering card can be in edit mode at a time.
   const [editingGatheringId, setEditingGatheringId] = useState<string | null>(null);
-  // Back from a set opened by a gathering's edit-mode pencil: that gathering
-  // is still being edited.
-  useEffect(() => {
-    const id = takeGatheringEditReturn();
-    if (id) setEditingGatheringId(id);
-  }, []);
 
   // The Share control now lives beside the section title (one gathering per
   // workspace), targeting the primary gathering — the live one leads, else the
@@ -591,6 +585,9 @@ function Library() {
   });
 
   // Switching workspace resets the home view: search, filter, edit modes.
+  // This also runs when the page opens, so it's where a gathering left in edit
+  // mode (its pencil opened one of its sets) comes back in edit mode; a
+  // separate restore effect ran first and was wiped here.
   useEffect(() => {
     setCatalogueFilter("");
     setShowCatalogueSearch(false);
@@ -598,7 +595,7 @@ function Library() {
     setInboxOpen(false);
     setEditMode(false);
     setSelectedIds(new Set());
-    setEditingGatheringId(null);
+    setEditingGatheringId(takeGatheringEditReturn());
   }, [activeWorkspace]);
 
   const catalogueRows = useMemo(() => {
@@ -2155,7 +2152,7 @@ function GatheringCard({
                       to="/set/$setId"
                       params={{ setId: id }}
                       onClick={() => markGatheringEditReturn(gatheringId)}
-                      className="rounded-full p-0.5 transition hover:bg-white/25"
+                      className="rounded-full p-0.5 opacity-60 transition hover:opacity-100"
                       title="Edit set"
                       aria-label="Edit set"
                     >
@@ -2166,7 +2163,7 @@ function GatheringCard({
                     <button
                       draggable={false}
                       onClick={() => onRemoveAt(i)}
-                      className="rounded-full p-0.5 transition hover:bg-white/25"
+                      className="rounded-full p-0.5 opacity-60 transition hover:opacity-100"
                       aria-label="Remove from gathering"
                     >
                       <X className="h-3.5 w-3.5" />
