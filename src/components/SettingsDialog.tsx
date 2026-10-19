@@ -66,7 +66,7 @@ export function SettingsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-        <DialogTitle className="text-2xl font-normal leading-tight">Settings</DialogTitle>
+        <DialogTitle className="text-2xl font-normal leading-tight">Account Settings</DialogTitle>
 
         {/* Personal workspace settings work signed out too (kept on the device).
             The setting rows share one height, so they're evenly spaced. */}

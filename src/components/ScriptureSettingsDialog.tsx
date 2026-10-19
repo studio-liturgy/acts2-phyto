@@ -51,7 +51,7 @@ export function ScriptureSettingsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-        <DialogTitle className="text-2xl font-normal leading-tight">Settings</DialogTitle>
+        <DialogTitle className="text-2xl font-normal leading-tight">Scripture Settings</DialogTitle>
         <div className="mt-4">
           <div className={ROW}>
             <div className={LABEL}>Two versions</div>
@@ -106,6 +106,9 @@ export function ScriptureSettingsDialog({
         >
           Done
         </button>
+        <p className="mono mt-3 text-center text-[10px] uppercase tracking-wider text-muted-foreground">
+          These settings apply to this set only.
+        </p>
       </DialogContent>
     </Dialog>
   );
