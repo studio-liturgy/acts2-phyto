@@ -11,6 +11,7 @@ vi.mock("@/lib/supabase", async () => {
 import { applyMerge, deterministicUuid, pushToSupabase, writeGatheringSetRows } from "@/lib/sync";
 import { useAuthStore } from "@/lib/authStore";
 import { db } from "@/lib/db";
+import { resolveSetRekey } from "@/lib/set-rekey";
 
 beforeEach(async () => {
   supabaseMock.configure({ session: fakeSession });
@@ -136,6 +137,48 @@ describe("42501 re-ID guard (regression 54618ca)", () => {
     expect(local[0].id).not.toBe(g.id);
     expect(local[0].share_token).not.toBe(g.share_token);
     expect(supabaseMock.tables["gatherings"]).toMatchObject([{ id: local[0].id }]);
+  });
+
+  it("pushToSupabase keeps an owned set whose id another account owns as this account's copy", async () => {
+    // Replays the Oct 19 flood: editing a set whose id exists remotely under a
+    // row this account can't update. Every upsert hit RLS 42501 (USING), the
+    // push returned false and store.ts re-queued it every 500 ms, forever.
+    const set = makeSet();
+    const gathering = makeGathering({ setIds: ["other-set", set.id] });
+    await db.sets.put(set);
+    await db.gatherings.put(gathering);
+
+    supabaseMock.configure({
+      session: fakeSession,
+      errors: [{ table: "sets", op: "upsert", error: { code: "42501", message: "RLS" }, times: 2 }],
+    });
+
+    expect(await pushToSupabase({ setIds: [set.id], gatheringIds: [] })).toBe(true);
+
+    // The local set now lives under a fresh id with the same content.
+    expect(await db.sets.get(set.id)).toBeUndefined();
+    const local = await db.sets.toArray();
+    expect(local).toHaveLength(1);
+    expect(local[0].id).not.toBe(set.id);
+    expect(local[0].name).toBe(set.name);
+    expect(local[0].slides).toEqual(set.slides);
+    expect(resolveSetRekey(set.id)).toBe(local[0].id);
+
+    // The copy is what landed remotely, owned by this account.
+    expect(supabaseMock.tables["sets"]).toMatchObject([
+      { id: local[0].id, user_id: fakeSession.user.id },
+    ]);
+
+    // The gathering that listed it now points at the copy, locally and remotely.
+    expect((await db.gatherings.get(gathering.id))?.setIds).toEqual(["other-set", local[0].id]);
+    const joinRows = supabaseMock.tables["gathering_sets"] ?? [];
+    expect(joinRows.map((r) => r.set_id)).toContain(local[0].id);
+    expect(joinRows.map((r) => r.set_id)).not.toContain(set.id);
+
+    // A second push of the old id is a no-op, not another doomed upsert.
+    const before = supabaseMock.callsFor("sets", "upsert").length;
+    expect(await pushToSupabase({ setIds: [set.id], gatheringIds: [] })).toBe(true);
+    expect(supabaseMock.callsFor("sets", "upsert")).toHaveLength(before);
   });
 
   it("pushToSupabase drops a stranded duplicate on 23505 instead of retrying forever", async () => {

@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
 import { db } from "./db";
 import { ownGroupTagUpdates } from "./group-grants";
+import { recordSetRekey } from "./set-rekey";
 import type { Set as PhytoSet, Gathering } from "./types";
 import { useSyncStatusStore } from "../hooks/use-sync-status";
 import { nanoid } from "nanoid";
@@ -1176,6 +1177,41 @@ export async function applyMerge(
 // Push local → Supabase
 // ---------------------------------------------------------------------------
 
+/** Move a local set to a fresh id, as this account's own personal copy, and
+ *  point every local gathering that listed it at the copy. Reads the row
+ *  inside the transaction so an edit made during the failed push isn't lost.
+ *  The group tags are dropped: a group this account still belonged to would
+ *  have let the original update through. Returns null if the set is gone. */
+async function rekeyOwnedSet(
+  oldId: string,
+): Promise<{ copy: PhytoSet; gatheringIds: string[] } | null> {
+  const newId = crypto.randomUUID() as string;
+  let result: { copy: PhytoSet; gatheringIds: string[] } | null = null;
+  await db.transaction("rw", db.sets, db.gatherings, async () => {
+    const cur = await db.sets.get(oldId);
+    if (!cur) return;
+    const copy: PhytoSet = {
+      ...cur,
+      id: newId,
+      group_id: null,
+      groupIds: [],
+      shared: false,
+      shared_by: undefined,
+    };
+    await db.sets.delete(oldId);
+    await db.sets.put(copy);
+    const affected = await db.gatherings.filter((g) => g.setIds.includes(oldId)).toArray();
+    for (const g of affected) {
+      await db.gatherings.update(g.id, {
+        setIds: g.setIds.map((sid) => (sid === oldId ? newId : sid)),
+      });
+    }
+    result = { copy, gatheringIds: affected.map((g) => g.id) };
+  });
+  if (result) recordSetRekey(oldId, newId);
+  return result;
+}
+
 /** Which rows to push. Omit for a FULL push (every row — used by the conflict
  *  dialog's Push and as a fallback). Provide ids for an INCREMENTAL push that
  *  reads and uploads only the changed rows (the debounced hot path). */
@@ -1197,7 +1233,7 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
     // Incremental: read ONLY the dirty rows (filtering out any deleted between
     // mark and push). Full: read everything. bulkGet returns undefined for
     // missing ids, so a row deleted after being marked dirty is simply skipped.
-    const [sets, gatherings] = target
+    const [sets, pushGatherings] = target
       ? await Promise.all([
           db.sets.bulkGet(target.setIds).then((rows) => rows.filter((r): r is PhytoSet => !!r)),
           db.gatherings
@@ -1205,6 +1241,10 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
             .then((rows) => rows.filter((r): r is Gathering => !!r)),
         ])
       : await Promise.all([db.sets.toArray(), db.gatherings.toArray()]);
+    let gatherings = pushGatherings;
+    // Gatherings whose setIds were rewritten by a set re-key below; they are
+    // re-read and pushed in this same run so their join rows follow the copy.
+    const rekeyedGatheringIds = new Set<string>();
 
     // Foreign (shared-with-me) sets take the collaborative push (no user_id/
     // group_id rewrite); my own sets take the owner push. Split so each row is
@@ -1238,7 +1278,31 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
             .from("sets")
             .upsert([toSupabaseSet(s, userId, deviceId)], { onConflict: "id" })
             .select();
-          if (rowErr) {
+          if (rowErr?.code === "42501") {
+            // The id exists remotely under a row this account can't update
+            // (another account's set, or a group/share it lost): RLS rejects
+            // the conflict-update on every retry, forever. Keep the set as this
+            // account's own copy under a fresh id and push that instead.
+            // Mirrors the gathering 42501 guard below.
+            console.warn("[sync] pushToSupabase: re-IDing set owned by another account:", s.id);
+            const rekeyed = await rekeyOwnedSet(s.id);
+            if (!rekeyed) continue;
+            rekeyed.gatheringIds.forEach((id) => rekeyedGatheringIds.add(id));
+            const { data: reData, error: reErr } = await supabase
+              .from("sets")
+              .upsert([toSupabaseSet(rekeyed.copy, userId, deviceId)], { onConflict: "id" })
+              .select();
+            if (reErr) {
+              console.error(
+                "[sync] pushToSupabase: re-IDed set upsert error",
+                rekeyed.copy.id,
+                reErr,
+              );
+              ok = false;
+            } else if (reData?.length) {
+              savedSets.push(...(reData as Record<string, unknown>[]));
+            }
+          } else if (rowErr) {
             console.error("[sync] pushToSupabase: set upsert error", s.id, rowErr);
             ok = false;
           } else if (rowData?.length) {
@@ -1284,6 +1348,13 @@ async function doPush(userId: string, target?: PushTarget): Promise<boolean> {
             updatedAt: new Date(row.updated_at as string).getTime(),
           });
       }
+    }
+
+    if (rekeyedGatheringIds.size) {
+      const fresh = (await db.gatherings.bulkGet([...rekeyedGatheringIds])).filter(
+        (r): r is Gathering => !!r,
+      );
+      gatherings = [...gatherings.filter((p) => !rekeyedGatheringIds.has(p.id)), ...fresh];
     }
 
     // Foreign (group) gatherings take the collaborative push (no user_id

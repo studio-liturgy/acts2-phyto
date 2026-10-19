@@ -97,6 +97,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "
 import type { Slide, SetKind } from "@/lib/types";
 import { z } from "zod";
 import { APP_NAME } from "@/lib/appConfig";
+import { resolveSetRekey } from "@/lib/set-rekey";
 
 const searchSchema = z.object({
   redirectTo: z
@@ -380,6 +381,22 @@ function SetEditor() {
   const { redirectTo } = Route.useSearch();
   const navigate = useNavigate();
   const phytoSet = useLibrary((s) => s.sets[setId]);
+  // Sync moved this set to a fresh id (its old id belonged to a row this
+  // account can't write): follow it to the new address.
+  const movedTo = useLibrary((s) => {
+    if (s.sets[setId]) return null;
+    const id = resolveSetRekey(setId);
+    return id && s.sets[id] ? id : null;
+  });
+  useEffect(() => {
+    if (!movedTo) return;
+    navigate({
+      to: "/set/$setId",
+      params: { setId: movedTo },
+      search: { redirectTo },
+      replace: true,
+    });
+  }, [movedTo, navigate, redirectTo]);
   const { updateSet, addSlide, updateSlide, removeSlide, reorderSlides, deleteSet } = useLibrary();
   const songTemplate = useLibrary((s) => s.songTemplate);
   const songDraft = useSongTemplateDraft((s) => s.draft);
@@ -450,6 +467,7 @@ function SetEditor() {
   }, [phytoSet, selected, multiSel, removeSlide]);
 
   if (!phytoSet) {
+    if (movedTo) return null;
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">

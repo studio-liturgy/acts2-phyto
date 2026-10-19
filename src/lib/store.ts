@@ -33,6 +33,7 @@ import {
 import { isInlineImage } from "./image-upload";
 import { moveSlideKeepingSections, movedSlideId } from "./sections";
 import { hasInlineImages, migrateSetImagesToR2 } from "./migrate-images";
+import { pushRetryDelay } from "./push-retry";
 
 function uid() {
   return crypto.randomUUID();
@@ -148,6 +149,11 @@ function keepFirstSection(slides: Slide[], orphaned?: string): Slide[] {
   });
 }
 
+// Failed pushes in a row. Each one doubles the wait before the next attempt
+// (capped at a minute), for edits and retries alike, so a push that keeps
+// failing can't hammer the database. Reset by the first push that lands.
+let pushFailures = 0;
+
 function schedulePush(opts?: { set?: string; gathering?: string }) {
   if (opts?.set) dirtySetIds.add(opts.set);
   if (opts?.gathering) dirtyGatheringIds.add(opts.gathering);
@@ -159,14 +165,27 @@ function schedulePush(opts?: { set?: string; gathering?: string }) {
     dirtySetIds.clear();
     dirtyGatheringIds.clear();
     pushToSupabase({ setIds, gatheringIds }).then((ok) => {
-      if (ok) return;
+      if (ok) {
+        pushFailures = 0;
+        return;
+      }
       // Push failed (e.g. offline). Re-mark the rows dirty and reschedule so the
       // change isn't lost; the load-time diff is the cross-session safety net.
+      pushFailures += 1;
       setIds.forEach((id) => dirtySetIds.add(id));
       gatheringIds.forEach((id) => dirtyGatheringIds.add(id));
       schedulePush();
     });
-  }, 500);
+  }, pushRetryDelay(pushFailures));
+}
+
+// Back online: retry a waiting push now instead of sitting out the backoff.
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    if (!pushTimer) return;
+    pushFailures = 0;
+    schedulePush();
+  });
 }
 
 // Best-effort cleanup of R2-hosted uploads when their slides go away. Only
