@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
 import { db } from "./db";
+import { ownGroupTagUpdates } from "./group-grants";
 import type { Set as PhytoSet, Gathering } from "./types";
 import { useSyncStatusStore } from "../hooks/use-sync-status";
 import { nanoid } from "nanoid";
@@ -2159,13 +2160,15 @@ export async function syncGroups(): Promise<void> {
 
     // 1) My own sets: mirror their grants into local groupIds (so they appear in
     //    the group views), clearing ones no longer granted.
-    const myUpdates: PhytoSet[] = [];
-    for (const s of local) {
-      if (s.shared) continue;
-      const desired = groupsBySet.get(s.id) ?? [];
-      if (!sameSet(desired, s.groupIds ?? [])) myUpdates.push({ ...s, groupIds: desired });
+    //    A grant this tab is still creating counts as granted, and only the tag
+    //    is written: `local` was read before the grant fetch, so putting whole
+    //    rows back would revert edits made while it was in flight.
+    const myUpdates = ownGroupTagUpdates(local, groupsBySet);
+    if (myUpdates.length) {
+      await db.sets.bulkUpdate(
+        myUpdates.map((u) => ({ key: u.id, changes: { groupIds: u.groupIds } })),
+      );
     }
-    if (myUpdates.length) await db.sets.bulkPut(myUpdates);
 
     // 2) Granted sets, last-write-wins by updatedAt. FOREIGN ones (owned by
     //    others) are pulled and tagged; my OWN granted ones adopt other members'

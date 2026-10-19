@@ -396,3 +396,74 @@ describe("syncGroups: my own group gatherings", () => {
     expect(await db.gatherings.get(edited.id)).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// A set created inside a group is pushed first and granted second. A sync that
+// lands between the two sees no grant yet; it must not strip the group tag, or
+// the new set drops out of the group view ("Set not found") until the grant
+// lands.
+// ---------------------------------------------------------------------------
+
+import { clearGroupGrantPending, markGroupGrantPending } from "@/lib/group-grants";
+
+describe("syncGroups: a set just created in a group", () => {
+  const tables = (grants: ReturnType<typeof grant>[], sets: ReturnType<typeof setRow>[] = []) => ({
+    group_members: [membership],
+    group_sets: grants,
+    sets,
+    gatherings: [],
+    gathering_sets: [],
+  });
+
+  it("keeps the group tag while the grant is pending, then follows the server", async () => {
+    // createSet: optimistic tag + pending grant.
+    const created = makeSet({ name: "New Song", groupIds: [GROUP_ID] });
+    await db.sets.put(created);
+    markGroupGrantPending(created.id, GROUP_ID);
+
+    // The editor opens and the poll runs before the grant row exists.
+    supabaseMock.configure({ session: fakeSession, tables: tables([]) });
+    await syncGroups();
+    expect((await db.sets.get(created.id))?.groupIds).toEqual([GROUP_ID]);
+
+    // The grant lands.
+    clearGroupGrantPending(created.id, GROUP_ID);
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: tables([grant(created.id, USER_ID)], [setRow(created)]),
+    });
+    await syncGroups();
+    expect((await db.sets.get(created.id))?.groupIds).toEqual([GROUP_ID]);
+
+    // Revoked later (nothing pending): the tag is cleared as before.
+    supabaseMock.configure({ session: fakeSession, tables: tables([]) });
+    await syncGroups();
+    expect((await db.sets.get(created.id))?.groupIds).toEqual([]);
+  });
+
+  it("changes only the group tag, not content edited while the grants were loading", async () => {
+    const mine = makeSet({ name: "Before", groupIds: [GROUP_ID] });
+    await db.sets.put(mine);
+    supabaseMock.configure({ session: fakeSession, tables: tables([]) });
+    // The user edits the set while the grant read is in flight.
+    const realFrom = supabaseMock.client.from;
+    const spy = vi.spyOn(supabaseMock.client, "from").mockImplementation((table: string) => {
+      const qb = realFrom(table);
+      if (table !== "group_sets") return qb;
+      const realThen = qb.then.bind(qb);
+      qb.then = ((res, rej) =>
+        db.sets
+          .update(mine.id, { name: "Typed meanwhile" })
+          .then(() => realThen(res, rej))) as typeof qb.then;
+      return qb;
+    });
+    try {
+      await syncGroups();
+    } finally {
+      spy.mockRestore();
+    }
+    const after = await db.sets.get(mine.id);
+    expect(after?.name).toBe("Typed meanwhile");
+    expect(after?.groupIds).toEqual([]);
+  });
+});

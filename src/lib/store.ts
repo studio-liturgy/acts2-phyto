@@ -21,6 +21,7 @@ import {
   type MyGroup,
 } from "./sync";
 import { isLiveNow, type LiveWindow } from "./live-session";
+import { clearGroupGrantPending, markGroupGrantPending } from "./group-grants";
 import {
   DEFAULT_WORKSPACE_SETTINGS,
   fetchWorkspaceSettings,
@@ -650,6 +651,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       // in the group right away; the grant row is created once the set lands.
       groupIds: inGroup ? [ws] : undefined,
     };
+    // Until the grant row exists, group sync must keep the optimistic tag, or
+    // the new set drops out of the group view mid-create.
+    if (inGroup) markGroupGrantPending(id, ws);
     set((s) => ({
       sets: { ...s.sets, [id]: record },
       order: [id, ...s.order],
@@ -657,8 +661,12 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     db.sets.put(record).then(async () => {
       if (inGroup) {
         // Push the set first so the group_sets FK resolves, then grant.
-        await pushToSupabase({ setIds: [id], gatheringIds: [] });
-        await shareSetsToGroupRemote([id], ws);
+        try {
+          await pushToSupabase({ setIds: [id], gatheringIds: [] });
+          await shareSetsToGroupRemote([id], ws);
+        } finally {
+          clearGroupGrantPending(id, ws);
+        }
       } else {
         schedulePush({ set: id });
       }
