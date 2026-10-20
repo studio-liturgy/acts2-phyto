@@ -146,3 +146,12 @@ describe("song patterns", () => {
     expect(songPatternStyle([], 6)).toEqual({});
   });
 });
+
+describe("re-dividing keeps every role (3 lines per slide to 2)", () => {
+  it("line 3 keeps its role when the break moves above it", () => {
+    const three = "One\nTwo\nThree\n---\nFour";
+    const two = "One\nTwo\n---\nThree\nFour";
+    const r: LineRoles = ["leader", "leader", "people", null, "people"];
+    expect(remapRoles(three, two, r)).toEqual(["leader", "leader", null, "people", "people"]);
+  });
+});

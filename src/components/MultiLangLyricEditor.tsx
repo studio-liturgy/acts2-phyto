@@ -480,8 +480,23 @@ export function MultiLangLyricEditor({
     return true;
   };
 
-  // Cmd+Enter / Cmd+Backspace: move one language's lines down or up, leaving
-  // every other language where it is.
+  // Cmd+Enter: a slide break after this line (by hand, so the stepper reads
+  // C), the caret onto the next line, which is made if there isn't one.
+  const breakAfter = (row: number, lang: LangCode) => {
+    step();
+    // Already the end of a slide: just go to the next line.
+    if (rows[row + 1]?.kind !== "break") markCustom();
+    pendingFocus.current = { line: lineNo(rows, row) + 1, lang };
+    setRows((rs) => {
+      const next = [...rs];
+      if (next[row + 1]?.kind !== "break") next.splice(row + 1, 0, { kind: "break" });
+      if (next[row + 2]?.kind !== "line") next.splice(row + 2, 0, { kind: "line", byLang: {} });
+      return next;
+    });
+  };
+
+  // Shift+Enter / Cmd+Backspace: move one language's lines down or up,
+  // leaving every other language where it is.
   const insertCell = (row: number, lang: LangCode) => {
     step();
     setRows((rs) => insertColumnCell(rs, row, lang));
@@ -749,6 +764,7 @@ export function MultiLangLyricEditor({
                 }}
                 insertLineAfter={insertLineAfter}
                 insertCell={insertCell}
+                breakAfter={breakAfter}
                 removeCell={removeCell}
                 removeRow={removeRow}
                 pasteDown={pasteDown}
@@ -775,9 +791,7 @@ export function MultiLangLyricEditor({
         </div>
       </div>
 
-      <p className="mono text-[10px] uppercase tracking-wider opacity-40">
-        Line N is slide N in every language · removing a language keeps its words
-      </p>
+      <p className="mono text-[10px] uppercase tracking-wider opacity-40">Cmd+Enter: new slide</p>
     </div>
   );
 }
@@ -805,6 +819,7 @@ function Row({
   onStripEditing,
   insertLineAfter,
   insertCell,
+  breakAfter,
   removeCell,
   removeRow,
   pasteDown,
@@ -835,6 +850,7 @@ function Row({
   onStripEditing: (row: number, index: number | null) => void;
   insertLineAfter: (row: number, lang: LangCode) => void;
   insertCell: (row: number, lang: LangCode) => void;
+  breakAfter: (row: number, lang: LangCode) => void;
   removeCell: (row: number, lang: LangCode) => void;
   removeRow: (row: number, lang?: LangCode) => void;
   pasteDown: (row: number, lang: LangCode, text: string) => boolean;
@@ -927,6 +943,11 @@ function Row({
               onKeyDown={(e) => {
                 const el = e.currentTarget;
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  // A new slide after this line (same as Call and Response).
+                  e.preventDefault();
+                  breakAfter(index, code);
+                } else if (e.key === "Enter" && e.shiftKey) {
+                  // This language's lines move down one; the others stay.
                   e.preventDefault();
                   insertCell(index, code);
                 } else if (e.key === "Backspace" && (e.metaKey || e.ctrlKey)) {

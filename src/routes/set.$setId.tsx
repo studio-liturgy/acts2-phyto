@@ -1587,7 +1587,7 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
         onClick={toggleHidden}
         aria-label={hidden ? "Show the chord sheet" : "Hide the chord sheet"}
         aria-expanded={!hidden}
-        className="mono flex w-full items-center justify-between gap-2 rounded-2xl p-4 text-left text-[10px] uppercase tracking-wider"
+        className="mono flex w-full items-center justify-between gap-2 rounded-2xl p-4 text-left text-[10px] uppercase tracking-wider transition hover:bg-muted"
       >
         <span>Chord sheet</span>
 

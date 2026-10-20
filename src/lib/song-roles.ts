@@ -98,28 +98,37 @@ function lcsPairs(a: string[], b: string[]): number[] {
  * before it (Enter at the end of a People line starts another People line).
  */
 export function remapRoles(oldText: string, newText: string, roles: LineRoles): LineRoles {
-  const a = oldText.split("\n");
-  const b = newText.split("\n");
+  // Only lines that can take a role are matched: slide breaks, labels and
+  // blanks are left out, so moving a break (re-dividing) can't pair a break
+  // with a break and leave the lyric beside it without its role.
+  const oldLines = oldText.split("\n");
+  const newLines = newText.split("\n");
+  const ai = oldLines.flatMap((l, i) => (canTakeRole(l) ? [i] : []));
+  const bi = newLines.flatMap((l, i) => (canTakeRole(l) ? [i] : []));
+  const a = ai.map((i) => oldLines[i]);
+  const b = bi.map((i) => newLines[i]);
+  const ar = ai.map((i) => roles[i] ?? null);
   const pairs = lcsPairs(a, b);
-  const out: LineRoles = new Array(b.length).fill(null);
+  const mapped: (Role | null)[] = new Array(b.length).fill(null);
   let oi = 0;
   let nj = 0;
   const fillGap = (oEnd: number, nEnd: number) => {
-    const old = roles.slice(oi, oEnd);
+    const old = ar.slice(oi, oEnd);
     const last = old.length ? (old[old.length - 1] ?? null) : null;
-    for (let k = 0; nj + k < nEnd; k++) out[nj + k] = old[k] ?? last;
+    for (let k = 0; nj + k < nEnd; k++) mapped[nj + k] = old[k] ?? last;
   };
   for (let i = 0; i < a.length; i++) {
     const j = pairs[i];
     if (j < 0) continue;
     fillGap(i, j);
-    out[j] = roles[i] ?? null;
+    mapped[j] = ar[i];
     oi = i + 1;
     nj = j + 1;
   }
   fillGap(a.length, b.length);
-  // Lines that can't take a role (blanks, ---, labels) never keep one.
-  return out.map((r, i) => (r && canTakeRole(b[i] ?? "") ? r : null));
+  const out: LineRoles = new Array(newLines.length).fill(null);
+  bi.forEach((idx, k) => (out[idx] = mapped[k]));
+  return out;
 }
 
 /** The stored lyrics' line roles from the slides they made (inverse of
