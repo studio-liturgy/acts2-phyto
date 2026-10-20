@@ -493,22 +493,27 @@ export function MultiLangLyricEditor({
     const raw = cur?.kind === "line" ? (cur.byLang[lang] ?? "") : "";
     const shown = stripChordsRaw(raw);
     if (caret > 0 && caret < shown.length) {
-      // Mid-line: this language's words after the cursor start a new line on
-      // a new slide (chords stay with their words), the cursor at its start.
+      // Mid-line: this language's words after the cursor go onto a new
+      // slide (chords stay with their words), the cursor at their start. If
+      // the next line's cell in this language is empty they drop into it, as
+      // in scripture's second version; otherwise a new line is made.
       const [left, right] = splitChordLine(raw, caret);
-      markCustom();
+      const hasBreak = rows[row + 1]?.kind === "break";
+      if (!hasBreak) markCustom();
       pendingFocus.current = { line: lineNo(rows, row) + 1, lang, caret: 0 };
       setRows((rs) => {
         const next = [...rs];
         const r = next[row];
         if (r?.kind !== "line") return rs;
         next[row] = { ...r, byLang: { ...r.byLang, [lang]: left.trimEnd() } };
-        next.splice(
-          row + 1,
-          0,
-          { kind: "break" },
-          { kind: "line", byLang: { [lang]: right.trimStart() } },
-        );
+        if (next[row + 1]?.kind !== "break") next.splice(row + 1, 0, { kind: "break" });
+        const below = next[row + 2];
+        const tail = right.trimStart();
+        if (below?.kind === "line" && !below.byLang[lang]?.trim()) {
+          next[row + 2] = { ...below, byLang: { ...below.byLang, [lang]: tail } };
+        } else {
+          next.splice(row + 2, 0, { kind: "line", byLang: { [lang]: tail } });
+        }
         return next;
       });
       return;
@@ -931,8 +936,8 @@ function Row({
                 aria-label="Start a new slide here"
               >
                 <span className="h-0 w-full border-t border-dashed border-transparent group-hover:border-foreground/60" />
-                <span className="mono absolute left-2 rounded-full bg-background px-1.5 text-[9px] uppercase tracking-wider text-muted-foreground opacity-0 group-hover:opacity-100">
-                  Split
+                <span className="mono absolute left-2 flex items-center gap-0.5 rounded-full bg-background px-1.5 text-[9px] uppercase tracking-wider text-muted-foreground opacity-0 group-hover:opacity-100">
+                  <Plus className="h-2.5 w-2.5" /> Slide break
                 </span>
               </button>
             )}

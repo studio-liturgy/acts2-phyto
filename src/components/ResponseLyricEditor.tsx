@@ -518,8 +518,8 @@ function Line({
             aria-label="Start a new slide here"
           >
             <span className="h-0 w-full border-t border-dashed border-transparent group-hover:border-foreground/60" />
-            <span className="mono absolute right-2 rounded-full bg-background px-1.5 text-[9px] uppercase tracking-wider text-muted-foreground opacity-0 group-hover:opacity-100">
-              Split
+            <span className="mono absolute right-2 flex items-center gap-0.5 rounded-full bg-background px-1.5 text-[9px] uppercase tracking-wider text-muted-foreground opacity-0 group-hover:opacity-100">
+              <Plus className="h-2.5 w-2.5" /> Slide break
             </span>
           </button>
         )}
