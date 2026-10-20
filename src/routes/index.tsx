@@ -68,7 +68,7 @@ import { GroupPanelDialog } from "@/components/GroupPanelDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { VersionWarning } from "@/components/VersionWarning";
 import { DotsGrip } from "@/components/DragBits";
-import { songPatternImage, songPatterns } from "@/lib/song-layout";
+import { songPatternStyle, songPatterns } from "@/lib/song-layout";
 import { hideDragGhost, setCircleDragGhost } from "@/lib/drag-ghost";
 
 const KIND_COLOR: Record<string, string> = {
@@ -1312,7 +1312,7 @@ function Library() {
                         onClick={editMode ? () => toggleSelected(d.id) : undefined}
                         className={`pill group flex items-center gap-4 px-5 py-2 ${kindBg(d.kind)} ${editMode ? "cursor-pointer" : ""}`}
                         // Song Settings as a faint pattern across the pill.
-                        style={{ backgroundImage: songPatternImage(songPatterns(d), 6) }}
+                        style={songPatternStyle(songPatterns(d), 6)}
                       >
                         {editMode ? (
                           <span

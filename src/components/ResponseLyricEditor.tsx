@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
+import { DotsGrip } from "@/components/DragBits";
+import { hideDragGhost } from "@/lib/drag-ghost";
 import { ChordStrip } from "@/components/ChordStrip";
 import {
   reapplyChords,
@@ -10,8 +12,10 @@ import {
 } from "@/lib/chords";
 import { useGridChordBus, wordStartAt } from "@/lib/grid-chord-bus";
 import {
+  breakAfter,
   breakBefore,
   fromDoc,
+  moveLine,
   insertLines,
   neighbourLine,
   removeLine,
@@ -26,8 +30,9 @@ const ROLE_COLOR: Record<Role, string> = {
   leader: "var(--brand-blue)",
   people: "var(--brand-orange)",
 };
-const SECTION_TINT = "var(--brand-green)";
-const FIRST_COL = "6rem";
+// Section colours, matching the slide panel's groups.
+const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+const FIRST_COL = "5.5rem";
 
 /**
  * The Call and Response editor: one row per line, the reader in the first
@@ -35,9 +40,11 @@ const FIRST_COL = "6rem";
  * Leader blue and People orange. Click the role to cycle Leader, People, none.
  *
  * Slides break where you say: hover between two lines and click Split, or
- * press Cmd+Enter to break above the line you're in. A break shows as a line
- * across the grid (x removes it), and line numbers restart on each slide.
- * Sections are full-width rows. Enter starts a new line for the same reader.
+ * press Cmd+Enter to break after the line you're in (the cursor moves past
+ * it). A break shows as a line across the grid (x removes it). Sections are
+ * full-width rows in the slide panel's colours; drag a section or a break by
+ * its grip to move it. Enter splits the line at the cursor; Shift+Enter starts
+ * an empty line below for the same reader.
  *
  * It edits the plain lyrics text (with its roles alongside), so it's the same
  * song the plain editor shows: switching modes changes nothing underneath.
@@ -68,6 +75,14 @@ export function ResponseLyricEditor({
   const [stripClose, setStripClose] = useState(0);
 
   const doc = () => toDoc(lyrics, roles);
+  // Dragging a section or break row: its current stored index.
+  const dragFrom = useRef<number | null>(null);
+  const dragOver = (to: number) => {
+    const from = dragFrom.current;
+    if (from === null || from === to || from + 1 === to) return;
+    commit(moveLine(doc(), from, to), undefined, true);
+    dragFrom.current = to > from ? to - 1 : to;
+  };
   const commit = (d: Doc, focus?: { index: number; caret: number }, typing = false) => {
     if (focus) pendingFocus.current = focus;
     const { lyrics: text, roles: r } = fromDoc(d);
@@ -172,12 +187,28 @@ export function ResponseLyricEditor({
               return (
                 <div
                   key={row.index}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    dragOver(row.index);
+                  }}
                   className="flex items-center border-b"
                   style={{
                     gridColumn: "1 / -1",
-                    backgroundColor: `color-mix(in oklab, ${SECTION_TINT} 22%, transparent)`,
+                    backgroundColor: `color-mix(in oklab, ${TINTS[row.group % TINTS.length]} 22%, transparent)`,
                   }}
                 >
+                  <span
+                    draggable
+                    onDragStart={(e) => {
+                      dragFrom.current = row.index;
+                      hideDragGhost(e);
+                    }}
+                    onDragEnd={() => (dragFrom.current = null)}
+                    className="flex shrink-0 cursor-grab items-center pl-2"
+                    title="Drag to move this section"
+                  >
+                    <DotsGrip className="opacity-50" size={12} />
+                  </span>
                   <input
                     value={row.text}
                     onChange={(e) => {
@@ -206,10 +237,25 @@ export function ResponseLyricEditor({
               return (
                 <div
                   key={row.index}
-                  className="group relative flex h-3 items-center"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    dragOver(row.index);
+                  }}
+                  className="group relative flex h-4 items-center"
                   style={{ gridColumn: "1 / -1" }}
-                  title="Slide break"
+                  title="Slide break: drag to move"
                 >
+                  <span
+                    draggable
+                    onDragStart={(e) => {
+                      dragFrom.current = row.index;
+                      hideDragGhost(e);
+                    }}
+                    onDragEnd={() => (dragFrom.current = null)}
+                    className="flex shrink-0 cursor-grab items-center px-2"
+                  >
+                    <DotsGrip className="opacity-50" size={10} />
+                  </span>
                   <div className="h-0.5 w-full bg-foreground/50" />
                   <button
                     type="button"
@@ -230,8 +276,8 @@ export function ResponseLyricEditor({
               <Line
                 key={row.index}
                 index={row.index}
-                n={row.n}
                 first={row.first}
+                onDragOverRow={() => dragOver(row.index)}
                 role={role}
                 tint={tint}
                 text={text}
@@ -268,8 +314,17 @@ export function ResponseLyricEditor({
                   const d = doc();
                   const caret = el.selectionStart;
                   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                    // A slide break after this line; the cursor goes past it.
                     e.preventDefault();
-                    commit(breakBefore(d, row.index), { index: row.index + 1, caret });
+                    const { doc: next, focus } = breakAfter(d, row.index, role);
+                    commit(next, { index: focus, caret: 0 });
+                  } else if (e.shiftKey && e.key === "Enter") {
+                    // A new empty line below, same reader.
+                    e.preventDefault();
+                    commit(insertLines(d, row.index + 1, [" "], [role]), {
+                      index: row.index + 1,
+                      caret: 0,
+                    });
                   } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
                     e.preventDefault();
                     if (e.shiftKey) onRedo();
@@ -352,7 +407,7 @@ export function ResponseLyricEditor({
 
       <p className="mono text-[10px] uppercase tracking-wider opacity-40">
         Click a role to change it · hover between lines and click Split, or press Cmd+Enter, to
-        start a new slide
+        start a new slide · drag a section or a break by its grip to move it
       </p>
     </div>
   );
@@ -360,8 +415,8 @@ export function ResponseLyricEditor({
 
 function Line({
   index,
-  n,
   first,
+  onDragOverRow,
   role,
   tint,
   text,
@@ -381,8 +436,8 @@ function Line({
   onPasteLines,
 }: {
   index: number;
-  n: number;
   first: boolean;
+  onDragOverRow: () => void;
   role: Role | null;
   tint: string;
   text: string;
@@ -404,32 +459,33 @@ function Line({
   const bg = `color-mix(in oklab, ${tint} 8%, transparent)`;
   return (
     <>
-      <div
-        className="flex items-end gap-2 border-b border-r px-2 py-1"
-        style={{ backgroundColor: bg }}
+      {/* The reader: the whole cell in its colour. Click to cycle. */}
+      <button
+        type="button"
+        onClick={onCycleRole}
+        onDragOver={(e) => {
+          e.preventDefault();
+          onDragOverRow();
+        }}
         data-row={index}
+        title="Click to change who reads this line"
+        aria-label={`Reader: ${role ? ROLE_LABEL[role] : "none"}`}
+        className={`mono flex items-end border-b border-r px-2 pb-1.5 text-[10px] uppercase tracking-wider transition ${
+          role
+            ? "text-[var(--brand-white)] hover:opacity-90"
+            : "text-muted-foreground hover:bg-muted"
+        }`}
+        style={role ? { backgroundColor: tint } : undefined}
       >
-        <span className="mono w-4 shrink-0 pb-0.5 text-right text-[11px] tabular-nums text-muted-foreground">
-          {n}
-        </span>
-        <button
-          type="button"
-          onClick={onCycleRole}
-          title="Click to change who reads this line"
-          aria-label={`Reader: ${role ? ROLE_LABEL[role] : "none"}`}
-          className={`mono flex h-6 min-w-0 flex-1 items-center justify-center rounded-full text-[10px] uppercase tracking-wider transition ${
-            role
-              ? "text-[var(--brand-white)] hover:opacity-85"
-              : "border border-dashed border-foreground/30 text-muted-foreground hover:border-foreground/60"
-          }`}
-          style={role ? { backgroundColor: tint } : undefined}
-        >
-          {role ? ROLE_LABEL[role] : "Role"}
-        </button>
-      </div>
+        {role ? ROLE_LABEL[role] : "Role"}
+      </button>
       <div
         className="relative flex min-w-0 flex-col justify-end border-b"
         style={{ backgroundColor: bg }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          onDragOverRow();
+        }}
       >
         {!first && (
           // Hover the seam above this line to split the slide here.

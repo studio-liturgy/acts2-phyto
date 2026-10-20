@@ -3,13 +3,21 @@
 // row per stored line. `[Label]` lines are section rows, `---` lines are slide
 // breaks, blank lines are skipped, and every other line is a lyric row with
 // its reader (the roles array runs alongside the text, one entry per line).
+// A line holding a single space is a lyric row still being typed into (a new
+// empty line): it shows as a row but makes nothing on a slide.
 //
 // Every edit returns the new text AND the new roles together, so the two can
 // never drift apart.
 import type { LineRoles, Role } from "./song-roles";
 
 export type ResponseRow =
-  | { kind: "section"; index: number; text: string }
+  | {
+      kind: "section";
+      index: number;
+      text: string;
+      /** Which of the slide panel's section groups this is (its colour). */
+      group: number;
+    }
   | { kind: "break"; index: number }
   | {
       kind: "line";
@@ -24,18 +32,30 @@ export type ResponseRow =
 const SECTION_RE = /^\s*\[(.+)\]\s*$/;
 const BREAK_RE = /^\s*---\s*$/;
 
+/** A lyric row: words, or the one-space placeholder of a new empty line. */
+export function isLyricLine(line: string): boolean {
+  return (!!line.trim() || line === " ") && !SECTION_RE.test(line) && !BREAK_RE.test(line);
+}
+
 export function responseRows(lyrics: string): ResponseRow[] {
   const out: ResponseRow[] = [];
   let n = 0;
+  // The slide panel groups slides by section, colouring each group in turn;
+  // lines before the first label are a group of their own.
+  let group = -1;
+  let sawLine = false;
   lyrics.split("\n").forEach((line, index) => {
     const sec = SECTION_RE.exec(line);
     if (sec) {
-      out.push({ kind: "section", index, text: sec[1] });
+      group += 1;
+      out.push({ kind: "section", index, text: sec[1], group });
       n = 0;
     } else if (BREAK_RE.test(line)) {
       out.push({ kind: "break", index });
       n = 0;
-    } else if (line.trim()) {
+    } else if (isLyricLine(line)) {
+      if (!sawLine && group < 0) group = 0;
+      sawLine = true;
       n += 1;
       out.push({ kind: "line", index, text: line, n, first: n === 1 });
     }
@@ -80,6 +100,27 @@ export function setLine(doc: Doc, at: number, text: string, role?: Role | null):
   return { lines, roles };
 }
 
+/** A slide break below line `at`, unless one is already there; returns the
+ *  doc and the index of the lyric line after the break (adding an empty line
+ *  for `role` when there isn't one), where the cursor goes. */
+export function breakAfter(doc: Doc, at: number, role: Role | null): { doc: Doc; focus: number } {
+  let next = at + 1;
+  let d = doc;
+  if (!BREAK_RE.test(d.lines[next] ?? "")) d = insertLines(d, next, ["---"], [null]);
+  next += 1;
+  if (!isLyricLine(d.lines[next] ?? "")) d = insertLines(d, next, [" "], [role]);
+  return { doc: d, focus: next };
+}
+
+/** Move line `from` (a section or break row) to sit before line `to`. */
+export function moveLine(doc: Doc, from: number, to: number): Doc {
+  if (from === to || from + 1 === to) return doc;
+  const line = doc.lines[from];
+  const role = doc.roles[from];
+  const removed = removeLine(doc, from);
+  return insertLines(removed, to > from ? to - 1 : to, [line], [role]);
+}
+
 /** A slide break above line `at`, unless one is already there. */
 export function breakBefore(doc: Doc, at: number): Doc {
   let p = at - 1;
@@ -93,8 +134,7 @@ export function breakBefore(doc: Doc, at: number): Doc {
 export function neighbourLine(lyrics: string, at: number, dir: -1 | 1): number {
   const lines = lyrics.split("\n");
   for (let i = at + dir; i >= 0 && i < lines.length; i += dir) {
-    const l = lines[i];
-    if (l.trim() && !SECTION_RE.test(l) && !BREAK_RE.test(l)) return i;
+    if (isLyricLine(lines[i])) return i;
   }
   return -1;
 }

@@ -124,6 +124,24 @@ describe("switching layouts keeps every word", () => {
       { kind: "line", byLang: { ja: "ただ", en: "Only" } },
     ]);
   });
+
+  it("a section deleted in the plain editor stays deleted", () => {
+    const slides = rowsToSlides(rows, ["en"]);
+    const { hidden } = leaveMultilang({ slides, langs: ["en", "ja"] }, "en");
+    const plain: Slide[] = [
+      { id: "p", kind: "lyric", lines: ["Amazing grace", "How sweet the sound"] },
+    ];
+    const back = returnToMultilang(hidden, plain);
+    expect(back.some((r) => r.kind === "section")).toBe(false);
+    expect(back).toEqual([
+      {
+        kind: "line",
+        byLang: { en: "Amazing grace", ja: "おどろくばかりの", es: "Sublime gracia" },
+      },
+      { kind: "line", byLang: { en: "How sweet the sound", ja: "めぐみなりき" } },
+      { kind: "line", byLang: { ja: "ただ" } },
+    ]);
+  });
 });
 
 describe("two lines per slide", () => {

@@ -270,24 +270,32 @@ export function leaveMultilang(
 }
 
 /**
- * Back into Multilanguage: the hidden grid, with the kept language's column
- * refilled from the plain editor's current words (so edits made meanwhile
- * survive), line by line in order. Extra plain lines add rows at the end; if
- * there are fewer, the kept column empties below them.
+ * Back into Multi-Language: the plain editor's words (and its sections, as
+ * they are now: a section deleted or added meanwhile stays that way) fill the
+ * kept language's column line by line, and the hidden languages fill theirs
+ * from the kept grid in the same line order. Hidden lines past the plain
+ * words are kept at the end, so nothing hidden is lost.
  */
 export function returnToMultilang(hidden: HiddenLangs, plain: Slide[]): MultiRow[] {
-  const words = plain.flatMap((s) => (s.lines ?? []).map((l) => l.trim()).filter(Boolean));
-  const rows: MultiRow[] = hidden.rows.map((r) =>
-    r.kind === "section" ? { ...r } : { kind: "line", byLang: { ...r.byLang } },
-  );
+  const others = hidden.rows.flatMap((r) =>
+    r.kind === "line"
+      ? [Object.fromEntries(Object.entries(r.byLang).filter(([l]) => l !== hidden.kept))]
+      : [],
+  ) as Partial<Record<LangCode, string>>[];
+  const rows: MultiRow[] = [];
+  let prevSection: string | undefined;
   let k = 0;
-  for (const r of rows) {
-    if (r.kind !== "line") continue;
-    const text = words[k++];
-    if (text) r.byLang[hidden.kept] = text;
-    else delete r.byLang[hidden.kept];
+  for (const s of plain) {
+    if (s.section !== prevSection) {
+      if (s.section) rows.push({ kind: "section", text: s.section });
+      prevSection = s.section;
+    }
+    for (const line of s.lines ?? []) {
+      if (!line.trim()) continue;
+      rows.push({ kind: "line", byLang: { ...(others[k++] ?? {}), [hidden.kept]: line.trim() } });
+    }
   }
-  for (; k < words.length; k++) rows.push({ kind: "line", byLang: { [hidden.kept]: words[k] } });
+  for (; k < others.length; k++) rows.push({ kind: "line", byLang: { ...others[k] } });
   return rows.filter((r) => r.kind === "section" || hasWords(r));
 }
 

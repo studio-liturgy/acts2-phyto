@@ -87,7 +87,7 @@ import { loadPrefs, phoneSetHasChords, type PhoneSet, type ViewerPrefs } from "@
 import { Switch } from "@/components/ui/switch";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
-import { SONG_LAYOUTS, songLayoutOf, songPatternImage, songPatterns } from "@/lib/song-layout";
+import { SONG_LAYOUTS, songLayoutOf, songPatternStyle, songPatterns } from "@/lib/song-layout";
 import { SongLanguageBar } from "@/components/SongLanguageBar";
 import { editedLangLines, songLangs } from "@/lib/multiling";
 
@@ -155,7 +155,7 @@ function SetTypeBadge({ set }: { set: PhytoSet }) {
   return (
     <span
       className="pill mono shrink-0 whitespace-nowrap bg-[var(--brand-blue)] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[var(--brand-white)]"
-      style={{ backgroundImage: songPatternImage(songPatterns(set), 6, 0.14) }}
+      style={songPatternStyle(songPatterns(set), 6, 0.14)}
     >
       {label}
     </span>
@@ -167,11 +167,11 @@ function SetTypeBadge({ set }: { set: PhytoSet }) {
 function KindDot({ kind, set }: { kind: SetKind; set?: PhytoSet }) {
   // Songs carry their Song Settings as a faint pattern (chords: lines,
   // Multilanguage: grid, Call and Response: cross hatching), 3 stripes across.
-  const pattern = set ? songPatternImage(songPatterns(set), 4, 0.22) : undefined;
+  const pattern = set ? songPatternStyle(songPatterns(set), 4, 0.22) : {};
   return (
     <span
       className="h-3 w-3 shrink-0 rounded-full"
-      style={{ backgroundColor: kindLiveColor(kind), backgroundImage: pattern }}
+      style={{ backgroundColor: kindLiveColor(kind), ...pattern }}
       title={kind === "mixed" ? "Mixed" : kind}
       aria-label={kind}
     />

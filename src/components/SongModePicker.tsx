@@ -8,7 +8,7 @@ import {
 import {
   SONG_LAYOUTS,
   songLayoutOf,
-  songPatternImage,
+  songPatternStyle,
   type SongLayout,
   type SongPattern,
 } from "@/lib/song-layout";
@@ -29,7 +29,7 @@ function Swatch({ layout }: { layout: SongLayout }) {
       className="inline-block h-4 w-7 shrink-0 rounded-full"
       style={{
         backgroundColor: "var(--brand-blue)",
-        backgroundImage: songPatternImage(LAYOUT_PATTERN[layout], 4, 0.35),
+        ...songPatternStyle(LAYOUT_PATTERN[layout], 4, 0.35),
       }}
     />
   );
@@ -58,7 +58,8 @@ export function SongModePicker({ setId }: { setId: string }) {
         >
           <Swatch layout={layout} />
           {current.label}
-          <ChevronDown className="h-3 w-3 shrink-0" />
+          {/* Nudged down: the caps sit low in Space Mono, so a centred icon reads high. */}
+          <ChevronDown className="relative top-px h-3 w-3 shrink-0" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-0">

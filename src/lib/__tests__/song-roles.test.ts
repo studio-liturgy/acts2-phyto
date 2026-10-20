@@ -9,7 +9,7 @@ import {
   rolesFromSlides,
   type LineRoles,
 } from "@/lib/song-roles";
-import { songPatternImage, songPatterns } from "@/lib/song-layout";
+import { songPatternStyle, songPatterns } from "@/lib/song-layout";
 import { wordStartAt } from "@/lib/grid-chord-bus";
 
 const text = "[Call]\nThe Lord be with you\nAnd also with you\n---\nLift up your hearts";
@@ -121,10 +121,13 @@ describe("song patterns", () => {
     expect(songPatterns({ ...song, kind: "scripture", songLayout: "response" })).toEqual([]);
   });
 
-  it("never repeats a layer (lines under a grid)", () => {
-    const img = songPatternImage(["lines", "grid"], 6)!;
-    expect(img.match(/\(0deg/g)).toHaveLength(1);
-    expect(img).toContain("90deg");
-    expect(songPatternImage([], 6)).toBeUndefined();
+  it("chords are dots (sized), modes are stripes, no layer twice", () => {
+    const dots = songPatternStyle(["lines"], 6);
+    expect(dots.backgroundImage).toContain("radial-gradient");
+    expect(dots.backgroundSize).toBe("6px 6px");
+    const grid = songPatternStyle(["lines", "grid"], 6);
+    expect(grid.backgroundImage!.match(/\(0deg/g)).toHaveLength(1);
+    expect(grid.backgroundSize).toBe("6px 6px, auto, auto");
+    expect(songPatternStyle([], 6)).toEqual({});
   });
 });

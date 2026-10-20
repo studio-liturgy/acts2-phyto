@@ -15,9 +15,9 @@ export function renderRoleLine(
 ): ReactNode {
   if (!role) return renderInline(line);
   return (
-    <>
+    <span className={`relative ${isBoldRole(role) ? "font-bold" : ""}`}>
       {mark && <RoleMark role={role} />}
-      <span className={isBoldRole(role) ? "font-bold" : undefined}>{renderInline(line)}</span>
-    </>
+      {renderInline(line)}
+    </span>
   );
 }

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { breakBefore, responseRows, toDoc, fromDoc, neighbourLine } from "@/lib/response-grid";
+import {
+  breakAfter,
+  breakBefore,
+  fromDoc,
+  moveLine,
+  neighbourLine,
+  responseRows,
+  toDoc,
+} from "@/lib/response-grid";
 
 const lyrics =
   "[Call]\nThe Lord be with you\nAnd also with you\n---\nLift up your hearts\n\nWe lift them";
@@ -31,5 +39,39 @@ describe("Call and Response grid rows", () => {
     expect(neighbourLine(lyrics, 4, -1)).toBe(2);
     expect(neighbourLine(lyrics, 4, 1)).toBe(6);
     expect(neighbourLine(lyrics, 1, -1)).toBe(-1);
+  });
+
+  it("Cmd+Enter: a break after the line, and an empty line for the cursor", () => {
+    const doc = toDoc("A\nB", ["leader", "people"]);
+    const one = breakAfter(doc, 0, "leader");
+    expect(fromDoc(one.doc).lyrics).toBe("A\n---\nB");
+    expect(one.focus).toBe(2);
+    const end = breakAfter(doc, 1, "people");
+    expect(fromDoc(end.doc).lyrics).toBe("A\nB\n---\n ");
+    expect(end.doc.roles).toEqual(["leader", "people", null, "people"]);
+    expect(end.focus).toBe(3);
+  });
+
+  it("an empty new line shows as a row; + Line works", () => {
+    expect(responseRows("A\n ").map((r) => r.kind)).toEqual(["line", "line"]);
+    expect(responseRows("A\n\nB").map((r) => r.kind)).toEqual(["line", "line"]);
+  });
+
+  it("sections take the slide panel's group colours", () => {
+    const rows = responseRows("Intro line\n[Verse]\nA\n[Chorus]\nB");
+    expect(rows.flatMap((r) => (r.kind === "section" ? [r.group] : []))).toEqual([1, 2]);
+    expect(
+      responseRows("[Verse]\nA\n[Chorus]\nB").flatMap((r) =>
+        r.kind === "section" ? [r.group] : [],
+      ),
+    ).toEqual([0, 1]);
+  });
+
+  it("drags a break or section to sit before another line", () => {
+    const doc = toDoc("A\n---\nB\nC", ["leader", null, "people", "leader"]);
+    const moved = moveLine(doc, 1, 3);
+    expect(fromDoc(moved).lyrics).toBe("A\nB\n---\nC");
+    expect(moved.roles).toEqual(["leader", "people", null, "leader"]);
+    expect(fromDoc(moveLine(doc, 1, 0)).lyrics).toBe("---\nA\nB\nC");
   });
 });

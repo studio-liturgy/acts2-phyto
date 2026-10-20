@@ -52,8 +52,10 @@ export function ChordLine({
     if (!parsed.text) return null;
     return (
       <p className={lineClass}>
-        {label}
-        {parsed.text}
+        <span className="relative">
+          {label}
+          {parsed.text}
+        </span>
       </p>
     );
   }
@@ -73,27 +75,22 @@ export function ChordLine({
 
   return (
     <p className={lineClass}>
-      {label && (
-        <span className="inline-block align-bottom">
-          <span className={`block leading-tight ${chordClassName}`} style={chordStyle}>
-            {"\u00A0"}
-          </span>
-          <span className="block">{label}</span>
-        </span>
-      )}
-      {toChordSegments(parsed, render).map((seg, i) => (
-        <Fragment key={i}>
-          <span className="inline-block align-bottom">
-            {/* Explicit NBSP: keeps the empty chord row at full height so
+      <span className="relative">
+        {label}
+        {toChordSegments(parsed, render).map((seg, i) => (
+          <Fragment key={i}>
+            <span className="inline-block align-bottom">
+              {/* Explicit NBSP: keeps the empty chord row at full height so
                 every word in the line shares one baseline. */}
-            <span className={`block leading-tight ${chordClassName}`} style={chordStyle}>
-              {seg.chord ?? "\u00A0"}
+              <span className={`block leading-tight ${chordClassName}`} style={chordStyle}>
+                {seg.chord ?? "\u00A0"}
+              </span>
+              <span className="block">{seg.text || "\u00A0"}</span>
             </span>
-            <span className="block">{seg.text || "\u00A0"}</span>
-          </span>
-          {seg.space ? " " : null}
-        </Fragment>
-      ))}
+            {seg.space ? " " : null}
+          </Fragment>
+        ))}
+      </span>
     </p>
   );
 }

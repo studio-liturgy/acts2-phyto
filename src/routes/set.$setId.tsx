@@ -1574,7 +1574,7 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
   return (
     <div className="mb-4 rounded-2xl border border-foreground p-4">
       <div
-        className={`mono flex items-baseline justify-between gap-2 text-[10px] uppercase tracking-wider ${hidden ? "" : "mb-3"}`}
+        className={`mono flex items-center justify-between gap-2 text-[10px] uppercase tracking-wider ${hidden ? "" : "mb-3"}`}
       >
         <span>Chord sheet</span>
 

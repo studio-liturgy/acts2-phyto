@@ -21,10 +21,8 @@ export function songLayoutOf(set: Pick<PhytoSet, "kind" | "songLayout">): SongLa
 
 export type SongPattern = "lines" | "grid" | "hatch";
 
-/** The patterns drawn over a song, bottom first. Chords are horizontal lines,
- *  Multilanguage a grid, Call and Response cross hatching. Chords stack under
- *  the layout's pattern (under a grid they disappear into it, so a
- *  Multilanguage song with chords reads as Multilanguage). */
+/** The patterns drawn over a song, bottom first: chords (dots) under the
+ *  mode's pattern (Multi-Language grid, Call and Response hatching). */
 export function songPatterns(set: Pick<PhytoSet, "kind" | "songLayout" | "chords">): SongPattern[] {
   if (set.kind !== "song") return [];
   const out: SongPattern[] = [];
@@ -36,24 +34,41 @@ export function songPatterns(set: Pick<PhytoSet, "kind" | "songLayout" | "chords
 }
 
 /**
- * CSS `background-image` for the patterns, drawn in a faint white over the
- * pill's own colour. `period` is the spacing in px: the home pill uses 6, the
- * presenter's 12px dot 4 (three stripes across it).
+ * The patterns as CSS background layers, drawn in a faint white over the
+ * pill's own colour. Chords are small dots, Multi-Language a grid, Call and
+ * Response cross hatching. `period` is the spacing in px: the home pill uses
+ * 6, the presenter's 12px dot 4 (three across it).
  */
-export function songPatternImage(
+export function songPatternStyle(
   patterns: SongPattern[],
   period: number,
   alpha = 0.12,
-): string | undefined {
-  if (patterns.length === 0) return undefined;
+): { backgroundImage?: string; backgroundSize?: string } {
+  if (patterns.length === 0) return {};
   const ink = `rgba(255, 255, 255, ${alpha})`;
+  const layers: { image: string; size: string }[] = [];
+  const add = (image: string, size = "auto") => {
+    if (!layers.some((l) => l.image === image)) layers.push({ image, size });
+  };
   const stripe = (angle: number) =>
     `repeating-linear-gradient(${angle}deg, ${ink} 0 1px, transparent 1px ${period}px)`;
-  const layers: string[] = [];
   for (const p of patterns) {
-    if (p === "lines") layers.push(stripe(0));
-    if (p === "grid") layers.push(stripe(0), stripe(90));
-    if (p === "hatch") layers.push(stripe(45), stripe(-45));
+    if (p === "lines") {
+      // A dot is fainter than a line at the same ink, so it's a little stronger.
+      const dot = `rgba(255, 255, 255, ${Math.min(1, alpha * 1.8)})`;
+      add(`radial-gradient(circle, ${dot} 0 0.8px, transparent 1.2px)`, `${period}px ${period}px`);
+    }
+    if (p === "grid") {
+      add(stripe(0));
+      add(stripe(90));
+    }
+    if (p === "hatch") {
+      add(stripe(45));
+      add(stripe(-45));
+    }
   }
-  return [...new Set(layers)].join(", ");
+  return {
+    backgroundImage: layers.map((l) => l.image).join(", "),
+    backgroundSize: layers.map((l) => l.size).join(", "),
+  };
 }
