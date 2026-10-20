@@ -13,7 +13,7 @@ import {
 } from "@/lib/chords";
 import { useGridChordBus, wordStartAt } from "@/lib/grid-chord-bus";
 import {
-  breakAfter,
+  breakAtCaret,
   breakBefore,
   fromDoc,
   mergeIntoPrevious,
@@ -42,8 +42,8 @@ const FIRST_COL = "5.5rem";
  * Leader blue and People orange. Click the role to cycle Leader, People, none.
  *
  * Slides break where you say: hover between two lines and click Split, or
- * press Cmd+Enter to break after the line you're in (the cursor moves past
- * it). A break shows as a line across the grid (x removes it). Sections are
+ * press Cmd+Enter (mid-line, the words after the cursor start the new slide;
+ * at the end of a line, the break goes after it). A break shows as a line across the grid (x removes it). Sections are
  * full-width rows in the slide panel's colours; drag a section or a break by
  * its grip to move it. Enter splits the line at the cursor; Shift+Enter starts
  * an empty line below for the same reader.
@@ -334,9 +334,9 @@ export function ResponseLyricEditor({
                   const d = doc();
                   const caret = el.selectionStart;
                   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                    // A slide break after this line; the cursor goes past it.
+                    // A new slide: mid-line, the words after the cursor go with it.
                     e.preventDefault();
-                    const { doc: next, focus } = breakAfter(d, row.index, role);
+                    const { doc: next, focus } = breakAtCaret(d, row.index, caret, role);
                     commit(next, { index: focus, caret: 0 }, false, true);
                   } else if (e.shiftKey && e.key === "Enter") {
                     // A new empty line below, same reader.

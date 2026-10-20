@@ -8,6 +8,7 @@
 //
 // Every edit returns the new text AND the new roles together, so the two can
 // never drift apart.
+import { splitChordLine, stripChordsRaw } from "./chords";
 import type { LineRoles, Role } from "./song-roles";
 
 export type ResponseRow =
@@ -165,4 +166,27 @@ export function mergeIntoPrevious(
   const joined = head + tail;
   const merged = setLine(doc, prev, joined.trim() ? joined : " ");
   return { doc: removeLine(merged, at), focus: prev, caret: shown(head).length };
+}
+
+/**
+ * Cmd+Enter at `caret` (in the words as shown, chords hidden). In the middle
+ * of a line: the words after the caret go to a new line on a new slide (each
+ * chord stays with its word), the caret at its start. At the end (or start)
+ * of a line: a break after it, the caret onto the next line (`breakAfter`).
+ */
+export function breakAtCaret(
+  doc: Doc,
+  at: number,
+  caret: number,
+  role: Role | null,
+): { doc: Doc; focus: number } {
+  const line = doc.lines[at] ?? "";
+  const shown = stripChordsRaw(line.trim() ? line : "");
+  if (caret <= 0 || caret >= shown.length) return breakAfter(doc, at, role);
+  const [left, right] = splitChordLine(line, caret);
+  const kept = setLine(doc, at, left.trimEnd() || " ");
+  return {
+    doc: insertLines(kept, at + 1, ["---", right.trimStart() || " "], [null, role]),
+    focus: at + 2,
+  };
 }

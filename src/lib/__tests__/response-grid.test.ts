@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   breakAfter,
+  breakAtCaret,
   breakBefore,
   fromDoc,
   mergeIntoPrevious,
@@ -98,5 +99,17 @@ describe("Call and Response grid rows", () => {
     // Not across a section, nor at the top.
     expect(mergeIntoPrevious(doc, 4, strip)).toBeNull();
     expect(mergeIntoPrevious(doc, 0, strip)).toBeNull();
+  });
+
+  it("Cmd+Enter mid-line: the words after the cursor start a new slide", () => {
+    const doc = toDoc("(G)Amazing (C)grace how sweet\nNext", ["people", "leader"]);
+    const r = breakAtCaret(doc, 0, 14, "people");
+    expect(fromDoc(r.doc).lyrics).toBe("(G)Amazing (C)grace\n---\nhow sweet\nNext");
+    expect(r.doc.roles).toEqual(["people", null, "people", "leader"]);
+    expect(r.focus).toBe(2);
+    // At the end of the line: just a break after it.
+    expect(fromDoc(breakAtCaret(doc, 0, 24, "people").doc).lyrics).toBe(
+      "(G)Amazing (C)grace how sweet\n---\nNext",
+    );
   });
 });

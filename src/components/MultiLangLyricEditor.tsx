@@ -5,7 +5,13 @@ import { LangPickerMenu } from "@/components/LangSearch";
 import { DotsGrip } from "@/components/DragBits";
 import { hideDragGhost } from "@/lib/drag-ghost";
 import { LANGS, type LangCode, type LangDef, langColor, langDef, langFontStack } from "@/lib/langs";
-import { reapplyChords, setChordAt, stripChordsRaw, type SongChords } from "@/lib/chords";
+import {
+  reapplyChords,
+  setChordAt,
+  splitChordLine,
+  stripChordsRaw,
+  type SongChords,
+} from "@/lib/chords";
 import { useGridChordBus, wordStartAt } from "@/lib/grid-chord-bus";
 import { ChordStrip } from "@/components/ChordStrip";
 import {
@@ -15,9 +21,7 @@ import {
   divideRows,
   clearColumnRange,
   columnRangeText,
-  insertColumnCell,
   pasteDownColumn,
-  removeColumnCell,
   rowsToSlides,
   shownLangs,
   slidesToRows,
@@ -483,8 +487,32 @@ export function MultiLangLyricEditor({
 
   // Cmd+Enter: a slide break after this line (by hand, so the stepper reads
   // C), the caret onto the next line, which is made if there isn't one.
-  const breakAfter = (row: number, lang: LangCode) => {
+  const breakAfter = (row: number, lang: LangCode, caret: number) => {
     step();
+    const cur = rows[row];
+    const raw = cur?.kind === "line" ? (cur.byLang[lang] ?? "") : "";
+    const shown = stripChordsRaw(raw);
+    if (caret > 0 && caret < shown.length) {
+      // Mid-line: this language's words after the cursor start a new line on
+      // a new slide (chords stay with their words), the cursor at its start.
+      const [left, right] = splitChordLine(raw, caret);
+      markCustom();
+      pendingFocus.current = { line: lineNo(rows, row) + 1, lang, caret: 0 };
+      setRows((rs) => {
+        const next = [...rs];
+        const r = next[row];
+        if (r?.kind !== "line") return rs;
+        next[row] = { ...r, byLang: { ...r.byLang, [lang]: left.trimEnd() } };
+        next.splice(
+          row + 1,
+          0,
+          { kind: "break" },
+          { kind: "line", byLang: { [lang]: right.trimStart() } },
+        );
+        return next;
+      });
+      return;
+    }
     // Already the end of a slide: just go to the next line.
     if (rows[row + 1]?.kind !== "break") markCustom();
     pendingFocus.current = { line: lineNo(rows, row) + 1, lang };
@@ -502,19 +530,6 @@ export function MultiLangLyricEditor({
     markCustom();
     pendingFocus.current = { line: lineNo(rows, row), lang, caret: 0 };
     setRows((rs) => rs.filter((_, i) => i !== row - 1));
-  };
-
-  // Cmd+Backspace: pull one language's lines up, leaving every other
-  // language where it is (insertCell, its opposite, has no key).
-  const insertCell = (row: number, lang: LangCode) => {
-    step();
-    setRows((rs) => insertColumnCell(rs, row, lang));
-    pendingFocus.current = { line: lineNo(rows, row) + 1, lang };
-  };
-  const removeCell = (row: number, lang: LangCode) => {
-    step();
-    setRows((rs) => removeColumnCell(rs, row, lang));
-    pendingFocus.current = { line: Math.max(0, lineNo(rows, row) - 1), lang };
   };
 
   // Arrow keys move the caret between the same column's line cells.
@@ -777,11 +792,9 @@ export function MultiLangLyricEditor({
                   } else stripEdit.current = { row, index: at };
                 }}
                 insertLineAfter={insertLineAfter}
-                insertCell={insertCell}
                 breakAfter={breakAfter}
                 breakAbove={rows[i - 1]?.kind === "break"}
                 removeBreakAbove={removeBreakAbove}
-                removeCell={removeCell}
                 removeRow={removeRow}
                 pasteDown={pasteDown}
                 moveCaret={moveCaret}
@@ -834,11 +847,9 @@ function Row({
   stripClose,
   onStripEditing,
   insertLineAfter,
-  insertCell,
   breakAfter,
   breakAbove,
   removeBreakAbove,
-  removeCell,
   removeRow,
   pasteDown,
   moveCaret,
@@ -867,12 +878,10 @@ function Row({
   stripClose: number;
   onStripEditing: (row: number, index: number | null) => void;
   insertLineAfter: (row: number, lang: LangCode) => void;
-  insertCell: (row: number, lang: LangCode) => void;
-  breakAfter: (row: number, lang: LangCode) => void;
+  breakAfter: (row: number, lang: LangCode, caret: number) => void;
   /** The row above is a slide break. */
   breakAbove: boolean;
   removeBreakAbove: (row: number, lang: LangCode) => void;
-  removeCell: (row: number, lang: LangCode) => void;
   removeRow: (row: number, lang?: LangCode) => void;
   pasteDown: (row: number, lang: LangCode, text: string) => boolean;
   moveCaret: (row: number, lang: LangCode, dir: -1 | 1) => void;
@@ -966,10 +975,7 @@ function Row({
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                   // A new slide after this line (same as Call and Response).
                   e.preventDefault();
-                  breakAfter(index, code);
-                } else if (e.key === "Backspace" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  removeCell(index, code);
+                  breakAfter(index, code, el.selectionStart);
                 } else if (e.key === "Enter") {
                   e.preventDefault();
                   insertLineAfter(index, code);
