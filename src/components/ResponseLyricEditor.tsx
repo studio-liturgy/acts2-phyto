@@ -363,11 +363,17 @@ export function ResponseLyricEditor({
                     );
                     commit(next, { index: row.index + 1, caret: 0 });
                   } else if (e.key === "Backspace" && caret === 0 && el.selectionEnd === 0) {
-                    // Joins this line onto the end of the line above.
+                    // Removes a slide break right above, else joins this line
+                    // onto the end of the line above.
                     const merged = mergeIntoPrevious(d, row.index, stripChordsRaw);
                     if (merged) {
                       e.preventDefault();
-                      commit(merged.doc, { index: merged.focus, caret: merged.caret });
+                      commit(
+                        merged.doc,
+                        { index: merged.focus, caret: merged.caret },
+                        false,
+                        !!merged.breakRemoved,
+                      );
                     }
                   } else if (e.key === "ArrowUp" && caret === 0) {
                     const prev = neighbourLine(lyrics, row.index, -1);

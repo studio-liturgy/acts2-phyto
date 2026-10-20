@@ -126,6 +126,34 @@ describe("what this build writes", () => {
   });
 });
 
+describe("song modes in a .phyto file", () => {
+  it("carries breaks, C, kept roles and the hidden grid through", () => {
+    const set = makeSet({
+      kind: "song",
+      songLayout: "response",
+      customBreaks: true,
+      showRoles: true,
+      roleAlign: "left",
+      lineRoles: ["leader", null, "people"],
+      hiddenLangs: {
+        kept: "en",
+        langs: ["en", "ja"],
+        rows: [
+          { kind: "section", text: "Verse" },
+          { kind: "line", byLang: { en: "One", ja: "いち" } },
+          { kind: "break" },
+          { kind: "line", byLang: { en: "Two" } },
+        ],
+      },
+    });
+    const file = buildPhytoFile([set], []);
+    expect(file.version).toBe(PHYTO_FILE_VERSION);
+    expect([1, 2]).toContain(file.version);
+    const read = migratePhytoFile(JSON.parse(JSON.stringify(file)));
+    expect(read.sets).toEqual([set]);
+  });
+});
+
 describe("malformed files", () => {
   it("rejects what isn't a .phyto file", () => {
     expect(() => migratePhytoFile(null)).toThrow(/not a JSON object/);

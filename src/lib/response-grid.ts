@@ -140,20 +140,23 @@ export function neighbourLine(lyrics: string, at: number, dir: -1 | 1): number {
 }
 
 /**
- * Backspace at the start of a line: the line joins the end of the lyric line
- * before it (any slide break between them stays where it is). Nothing happens
- * at the top, or across a section. Returns where the caret goes: the join, in
+ * Backspace at the start of a line: with a slide break above, the break goes;
+ * otherwise the line joins the end of the lyric line before it. Nothing
+ * happens at the top, or across a section. `breakRemoved` tells the caller. Returns where the caret goes: the join, in
  * the words as shown (chords hidden).
  */
 export function mergeIntoPrevious(
   doc: Doc,
   at: number,
   shown: (line: string) => string,
-): { doc: Doc; focus: number; caret: number } | null {
+): { doc: Doc; focus: number; caret: number; breakRemoved?: boolean } | null {
   let prev = at - 1;
   for (; prev >= 0; prev--) {
     const l = doc.lines[prev];
     if (SECTION_RE.test(l)) return null;
+    // A slide break above: Backspace removes it (the line stays put).
+    if (BREAK_RE.test(l))
+      return { doc: removeLine(doc, prev), focus: at - 1, caret: 0, breakRemoved: true };
     if (isLyricLine(l)) break;
   }
   if (prev < 0) return null;

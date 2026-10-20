@@ -74,10 +74,13 @@ export function LangPickerMenu({
   available,
   onAdd,
   label,
+  align = "left",
 }: {
   available: readonly LangDef[];
   onAdd: (code: LangCode) => void;
   label: string;
+  /** Which edge of the button the menu lines up with. */
+  align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -127,7 +130,7 @@ export function LangPickerMenu({
           onMouseDown={(e) => {
             if (e.target !== inputRef.current) e.preventDefault();
           }}
-          className="catalogue-scroll absolute left-0 z-50 mt-1 max-h-60 w-64 origin-top-left overflow-auto rounded-2xl border border-foreground bg-popover shadow-md animate-in fade-in-0 zoom-in-95 slide-in-from-top-2"
+          className={`catalogue-scroll absolute ${align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"} z-50 mt-1 max-h-60 w-64 overflow-auto rounded-2xl border border-foreground bg-popover shadow-md animate-in fade-in-0 zoom-in-95 slide-in-from-top-2`}
         >
           <div className="sticky top-0 z-10 border-b border-foreground/20 bg-popover">
             <input

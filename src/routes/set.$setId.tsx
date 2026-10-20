@@ -1580,14 +1580,14 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
   }
 
   return (
-    <div className="mb-4 rounded-2xl border border-foreground">
+    <div className="mb-4 overflow-hidden rounded-2xl border border-foreground">
       {/* The whole title bar folds and unfolds the sheet. */}
       <button
         type="button"
         onClick={toggleHidden}
         aria-label={hidden ? "Show the chord sheet" : "Hide the chord sheet"}
         aria-expanded={!hidden}
-        className="mono flex w-full items-center justify-between gap-2 rounded-2xl p-4 text-left text-[10px] uppercase tracking-wider transition hover:bg-muted"
+        className={`mono flex w-full items-center justify-between gap-2 p-4 text-left text-[10px] uppercase tracking-wider outline-none transition focus-visible:bg-muted ${hidden ? "hover:bg-muted" : "pb-3"}`}
       >
         <span>Chord sheet</span>
 
@@ -1611,7 +1611,7 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
         className={`grid transition-[grid-template-rows] duration-200 ease-out ${hidden ? "grid-rows-[0fr]" : "grid-rows-[1fr]"}`}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="-mt-1 max-h-72 space-y-3 overflow-y-auto px-4 pb-4 pr-5 text-sm">
+          <div className="max-h-72 space-y-3 overflow-y-auto px-4 pb-4 pr-5 text-sm">
             {groups.map((g, i) => (
               <div key={i}>
                 {g.label && (

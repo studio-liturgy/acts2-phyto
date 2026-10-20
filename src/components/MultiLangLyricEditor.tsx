@@ -126,7 +126,7 @@ export function MultiLangLyricEditor({
   // Re-focus after a row is inserted/removed. Set during the edit, consumed once.
   // By line number (the nth line row), not row index: re-dividing adds and
   // removes break rows, which shifts row indexes but never line numbers.
-  const pendingFocus = useRef<{ line: number; lang: LangCode } | null>(null);
+  const pendingFocus = useRef<{ line: number; lang: LangCode; caret?: number } | null>(null);
   const lineNo = (rs: MultiRow[], row: number) =>
     rs.slice(0, row).filter((r) => r.kind === "line").length;
   const cells = useRef(new Map<string, HTMLTextAreaElement>());
@@ -146,7 +146,8 @@ export function MultiLangLyricEditor({
     if (row < 0) return;
     const el = cells.current.get(key(row, want.lang));
     el?.focus();
-    el?.setSelectionRange(el.value.length, el.value.length);
+    const caret = want.caret ?? el?.value.length ?? 0;
+    el?.setSelectionRange(caret, caret);
   }, [rows]);
 
   // Lines per slide changed (or C was cleared): re-divide the whole grid.
@@ -495,8 +496,16 @@ export function MultiLangLyricEditor({
     });
   };
 
-  // Shift+Enter / Cmd+Backspace: move one language's lines down or up,
-  // leaving every other language where it is.
+  // Backspace at the start of a line just under a slide break: the break goes.
+  const removeBreakAbove = (row: number, lang: LangCode) => {
+    step();
+    markCustom();
+    pendingFocus.current = { line: lineNo(rows, row), lang, caret: 0 };
+    setRows((rs) => rs.filter((_, i) => i !== row - 1));
+  };
+
+  // Cmd+Backspace: pull one language's lines up, leaving every other
+  // language where it is (insertCell, its opposite, has no key).
   const insertCell = (row: number, lang: LangCode) => {
     step();
     setRows((rs) => insertColumnCell(rs, row, lang));
@@ -596,7 +605,12 @@ export function MultiLangLyricEditor({
         </span>
       ))}
       {available.length > 0 && (
-        <LangPicker available={available} onAdd={(c) => setLangs([...langs, c])} label="Language" />
+        <LangPicker
+          available={available}
+          onAdd={(c) => setLangs([...langs, c])}
+          label="Language"
+          align="right"
+        />
       )}
       <button
         type="button"
@@ -765,6 +779,8 @@ export function MultiLangLyricEditor({
                 insertLineAfter={insertLineAfter}
                 insertCell={insertCell}
                 breakAfter={breakAfter}
+                breakAbove={rows[i - 1]?.kind === "break"}
+                removeBreakAbove={removeBreakAbove}
                 removeCell={removeCell}
                 removeRow={removeRow}
                 pasteDown={pasteDown}
@@ -820,6 +836,8 @@ function Row({
   insertLineAfter,
   insertCell,
   breakAfter,
+  breakAbove,
+  removeBreakAbove,
   removeCell,
   removeRow,
   pasteDown,
@@ -851,6 +869,9 @@ function Row({
   insertLineAfter: (row: number, lang: LangCode) => void;
   insertCell: (row: number, lang: LangCode) => void;
   breakAfter: (row: number, lang: LangCode) => void;
+  /** The row above is a slide break. */
+  breakAbove: boolean;
+  removeBreakAbove: (row: number, lang: LangCode) => void;
   removeCell: (row: number, lang: LangCode) => void;
   removeRow: (row: number, lang?: LangCode) => void;
   pasteDown: (row: number, lang: LangCode, text: string) => boolean;
@@ -946,16 +967,21 @@ function Row({
                   // A new slide after this line (same as Call and Response).
                   e.preventDefault();
                   breakAfter(index, code);
-                } else if (e.key === "Enter" && e.shiftKey) {
-                  // This language's lines move down one; the others stay.
-                  e.preventDefault();
-                  insertCell(index, code);
                 } else if (e.key === "Backspace" && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault();
                   removeCell(index, code);
                 } else if (e.key === "Enter") {
                   e.preventDefault();
                   insertLineAfter(index, code);
+                } else if (
+                  e.key === "Backspace" &&
+                  el.selectionStart === 0 &&
+                  el.selectionEnd === 0 &&
+                  breakAbove
+                ) {
+                  // A slide break right above goes (same as Call and Response).
+                  e.preventDefault();
+                  removeBreakAbove(index, code);
                 } else if (
                   e.key === "Backspace" &&
                   el.selectionStart === 0 &&
@@ -996,6 +1022,7 @@ function LangPicker(props: {
   available: readonly LangDef[];
   onAdd: (code: LangCode) => void;
   label: string;
+  align?: "left" | "right";
 }) {
   return <LangPickerMenu {...props} />;
 }

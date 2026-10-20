@@ -85,8 +85,14 @@ describe("Call and Response grid rows", () => {
       "leader",
     ]);
     const strip = (l: string) => l.replace(/\([^)]*\)/g, "");
-    const m = mergeIntoPrevious(doc, 2, strip)!;
-    expect(fromDoc(m.doc).lyrics).toBe("(G)Amazing gracehow sweet\n---\n[Chorus]\nOnly");
+    // A break right above goes first; the line stays as it is.
+    const b = mergeIntoPrevious(doc, 2, strip)!;
+    expect(fromDoc(b.doc).lyrics).toBe("(G)Amazing grace\nhow sweet\n[Chorus]\nOnly");
+    expect(b).toMatchObject({ focus: 1, caret: 0, breakRemoved: true });
+    expect(b.doc.roles.slice(0, 2)).toEqual(["leader", "people"]);
+    // Then the next Backspace joins it onto the line above.
+    const m = mergeIntoPrevious(b.doc, 1, strip)!;
+    expect(fromDoc(m.doc).lyrics).toBe("(G)Amazing gracehow sweet\n[Chorus]\nOnly");
     expect(m.doc.roles[0]).toBe("leader");
     expect(m).toMatchObject({ focus: 0, caret: 13 });
     // Not across a section, nor at the top.
