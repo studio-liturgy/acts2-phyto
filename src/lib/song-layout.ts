@@ -6,6 +6,13 @@ import type { Set as PhytoSet } from "./types";
 
 export type SongLayout = "standard" | "multilang" | "response";
 
+/** The modes, in menu order, with their names. */
+export const SONG_LAYOUTS: readonly { value: SongLayout; label: string }[] = [
+  { value: "standard", label: "Standard" },
+  { value: "multilang", label: "Multilanguage" },
+  { value: "response", label: "Call and Response" },
+];
+
 /** A set's layout. Absent (every song before Song Settings) is Standard. */
 export function songLayoutOf(set: Pick<PhytoSet, "kind" | "songLayout">): SongLayout {
   if (set.kind !== "song") return "standard";

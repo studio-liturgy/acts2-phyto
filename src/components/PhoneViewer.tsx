@@ -230,7 +230,7 @@ export function PhoneViewer({
     const on = activeChosen.includes(code);
     if (on && activeChosen.length === 1) return;
     if (!on && activeChosen.length >= MAX_SHOWN_LANGS) return;
-    const next = activeLangs.filter((l) => (l === code ? !on : activeChosen.includes(l)));
+    const next = on ? activeChosen.filter((l) => l !== code) : [...activeChosen, code];
     setLangChoice((c) => ({ ...c, [activeSet.id]: next }));
   };
 
@@ -777,6 +777,10 @@ function SetContent({
             section={group.section}
             lines={group.lines}
             roles={group.roles}
+            roleStyle={{
+              hideNames: slides.some((sl) => sl.hideRoleNames),
+              sides: slides.some((sl) => sl.roleSides),
+            }}
             isDark={isDark}
             chordConfig={chordConfig}
             showChords={showChordsHere}
@@ -967,10 +971,22 @@ function MediaSlide({ slide }: { slide: PhoneSlide }) {
   return null;
 }
 
+/** Call and Response on the phone: a gap where the reader changes, and with
+ *  Align L/R the People's lines on the right. */
+function roleLineClass(roles: (Role | null)[] | undefined, j: number, sides?: boolean): string {
+  const role = roles?.[j];
+  if (!role) return "";
+  const prev = roles?.[j - 1];
+  const gap = j > 0 && prev && prev !== role ? "mt-3" : "";
+  const side = sides ? (role === "people" ? "text-right" : "text-left") : "";
+  return `${gap} ${side}`.trim();
+}
+
 function SlideBlock({
   section,
   lines,
   roles,
+  roleStyle,
   isDark,
   chordConfig,
   showChords,
@@ -978,6 +994,7 @@ function SlideBlock({
   section: string | undefined;
   lines: string[];
   roles?: (Role | null)[];
+  roleStyle?: { hideNames: boolean; sides: boolean };
   isDark: boolean;
   chordConfig: ChordViewConfig | null;
   showChords: boolean;
@@ -1000,7 +1017,8 @@ function SlideBlock({
           chords={chords}
           show={showChords}
           role={roles?.[j]}
-          className="leading-relaxed"
+          hideRoleName={roleStyle?.hideNames}
+          className={`leading-relaxed ${roleLineClass(roles, j, roleStyle?.sides)}`}
           chordClassName="text-[0.7em] font-semibold"
           chordStyle={{ fontFamily: "'Space Mono', monospace" }}
         />

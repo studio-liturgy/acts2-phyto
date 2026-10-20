@@ -62,9 +62,9 @@ describe("multilanguage rows and slides", () => {
     expect(back).toEqual(rows.filter((r) => r.kind !== "line" || Object.keys(r.byLang).length));
   });
 
-  it("caps the shown languages at four, in column order", () => {
+  it("caps the shown languages at four, in the language bar's order", () => {
     expect(shownLangs(["en", "ja", "ko", "es", "fr"])).toEqual(["en", "ja", "ko", "es"]);
-    expect(shownLangs(["en", "ja", "ko"], ["ko", "en"])).toEqual(["en", "ko"]);
+    expect(shownLangs(["en", "ja", "ko"], ["ko", "en"])).toEqual(["ko", "en"]);
     expect(shownLangs(["en", "ja"], ["fr"])).toEqual(["en", "ja"]);
   });
 
@@ -193,7 +193,7 @@ describe("one-column edits", () => {
 });
 
 describe("phone language choice", () => {
-  it("stacks the phone's own languages in column order", () => {
+  it("stacks the phone's own languages in the order it picked them", () => {
     const set = {
       id: "s",
       title: "Song",
@@ -207,7 +207,7 @@ describe("phone language choice", () => {
         },
       ],
     };
-    expect(phoneSetForLangs(set, ["es", "ja"]).slides[0].lines).toEqual(["おどろく", "Sublime"]);
+    expect(phoneSetForLangs(set, ["es", "ja"]).slides[0].lines).toEqual(["Sublime", "おどろく"]);
     expect(phoneSetForLangs(set, undefined)).toBe(set);
   });
 });

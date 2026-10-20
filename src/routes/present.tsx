@@ -88,7 +88,7 @@ import { Switch } from "@/components/ui/switch";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
 import { songPatternImage, songPatterns } from "@/lib/song-layout";
-import { LangShowChips } from "@/components/LangShowChips";
+import { SongLanguageBar } from "@/components/SongLanguageBar";
 import { editedLangLines, songLangs } from "@/lib/multiling";
 
 type LiveApi = ReturnType<typeof useLive.getState>;
@@ -868,9 +868,6 @@ function Presenter() {
                 >
                   <Pencil className="h-4 w-4" />
                 </Link>
-                <div className="pointer-events-auto">
-                  <LangShowChips set={activeSet} />
-                </div>
               </>
             ) : null}
           </div>
@@ -1513,7 +1510,6 @@ function Presenter() {
                             </button>
                           )}
                         </div>
-                        <LangShowChips set={d} />
                         {id === live.setId && (
                           <span
                             className="h-2 w-2 rounded-full"
@@ -1657,6 +1653,16 @@ function Presenter() {
 
             {activeSet?.kind === "media" && <MediaTemplateEditor setId={activeSet.id} />}
 
+            {/* Multilanguage: which languages the slides stack, and in what
+                order (as on watch). */}
+            {activeSet && songLangs(activeSet).length > 0 && (
+              <div className="rounded-2xl border border-foreground p-3">
+                <div className="mono mb-2 text-xs uppercase tracking-wider opacity-60">
+                  Languages
+                </div>
+                <SongLanguageBar set={activeSet} />
+              </div>
+            )}
             {activeSet?.kind === "song" && <SongTemplateEditor />}
             {(activeSet?.kind === "scripture" || activeSet?.kind === "message") && (
               <ScriptureTemplateEditor />

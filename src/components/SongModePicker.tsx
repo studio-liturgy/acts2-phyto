@@ -1,0 +1,77 @@
+import { ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  SONG_LAYOUTS,
+  songLayoutOf,
+  songPatternImage,
+  type SongLayout,
+  type SongPattern,
+} from "@/lib/song-layout";
+import { useSongModeRequest } from "@/lib/song-mode-request";
+import { useLibrary } from "@/lib/store";
+
+const LAYOUT_PATTERN: Record<SongLayout, SongPattern[]> = {
+  standard: [],
+  multilang: ["grid"],
+  response: ["hatch"],
+};
+
+/** The mode's pattern on the song blue, as the catalogue pill shows it. */
+function Swatch({ layout }: { layout: SongLayout }) {
+  return (
+    <span
+      aria-hidden
+      className="inline-block h-3.5 w-6 shrink-0 rounded-full"
+      style={{
+        backgroundColor: "var(--brand-blue)",
+        backgroundImage: songPatternImage(LAYOUT_PATTERN[layout], 4, 0.35),
+      }}
+    />
+  );
+}
+
+/**
+ * The song's mode, beside its SONG pill in the editor header: a dropdown as
+ * wide as its words, each mode shown with its catalogue pattern. The current
+ * mode isn't listed again. Picking one hands it to the lyrics editor, which
+ * asks its language question first when there is one.
+ */
+export function SongModePicker({ setId }: { setId: string }) {
+  const ask = useSongModeRequest((s) => s.ask);
+  const layout = useLibrary((s) => {
+    const set = s.sets[setId];
+    return set ? songLayoutOf(set) : "standard";
+  });
+  const current = SONG_LAYOUTS.find((l) => l.value === layout) ?? SONG_LAYOUTS[0];
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="pill mono inline-flex w-auto shrink-0 items-center gap-1.5 border border-foreground bg-background px-2.5 py-0.5 text-[10px] uppercase tracking-wider transition hover:bg-muted"
+        >
+          <Swatch layout={layout} />
+          {current.label}
+          <ChevronDown className="h-3 w-3 shrink-0" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-0">
+        {SONG_LAYOUTS.filter((l) => l.value !== layout).map((l) => (
+          <DropdownMenuItem
+            key={l.value}
+            onClick={() => ask(setId, l.value)}
+            className="mono gap-2 text-[10px] uppercase tracking-wider"
+          >
+            <Swatch layout={l.value} />
+            {l.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

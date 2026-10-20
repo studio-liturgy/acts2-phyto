@@ -36,7 +36,9 @@ export interface PhoneSlide {
   linesByLang?: Record<string, string>;
   lineLangs?: string[];
   /** Call and Response: who reads each line (see Slide.roles). */
-  roles?: ("leader" | "people" | "all" | null)[];
+  roles?: ("leader" | "people" | null)[];
+  hideRoleNames?: boolean;
+  roleSides?: boolean;
 }
 
 export interface PhoneSet {
@@ -63,7 +65,7 @@ export interface PhoneSet {
  */
 export function phoneSetForLangs(set: PhoneSet, chosen: string[] | undefined): PhoneSet {
   if (!chosen?.length || !set.langs?.length) return set;
-  const order = set.langs.filter((l) => chosen.includes(l));
+  const order = chosen.filter((l) => set.langs!.includes(l));
   if (!order.length) return set;
   return {
     ...set,

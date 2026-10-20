@@ -70,7 +70,7 @@ export function ChordStrip({
 
   return (
     <div
-      className="mono relative h-4 cursor-text text-[10px] leading-4 text-[var(--brand-blue)]"
+      className="mono relative h-4 cursor-text text-[10px] leading-4 text-muted-foreground"
       onMouseDown={(e) => {
         // Don't start the column drag or move the cell's caret.
         e.stopPropagation();
@@ -114,7 +114,7 @@ export function ChordStrip({
             }
           }}
           aria-label="Chord"
-          className="absolute top-0 h-4 w-14 rounded border border-[var(--brand-blue)] bg-background px-0.5 font-semibold outline-none"
+          className="absolute top-0 h-4 w-14 rounded border border-foreground/40 bg-background text-foreground px-0.5 font-semibold outline-none"
           style={{ left: xOf(editing.index) - 2 }}
         />
       )}

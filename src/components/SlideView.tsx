@@ -5,6 +5,26 @@ import { displayLinesForVersions } from "@/lib/versions";
 import { shownReference } from "@/lib/verse-ref";
 import { renderInline } from "@/lib/inline-format";
 import { renderRoleLine } from "@/lib/role-line";
+import type { Role } from "@/lib/song-roles";
+
+/**
+ * Call and Response spacing and sides on a slide: a gap wherever the reader
+ * changes (Leader to People and back), and with Align L/R the Leader's lines
+ * on the left and the People's on the right.
+ */
+function roleLineStyle(
+  slide: Slide | null | undefined,
+  meta: { role?: Role | null }[],
+  i: number,
+): React.CSSProperties {
+  const role = meta[i]?.role;
+  if (!slide?.roles || !role) return {};
+  const prev = meta[i - 1]?.role;
+  return {
+    ...(i > 0 && prev && prev !== role ? { marginTop: "0.6em" } : {}),
+    ...(slide.roleSides ? { width: "100%", textAlign: role === "leader" ? "left" : "right" } : {}),
+  };
+}
 import { scriptOfTranslation, versionLangTag } from "@/lib/bible";
 import { langDef, langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -492,6 +512,7 @@ export function SlideView({
                             fontSize: `${3.75 * fontScale}rem`,
                             textTransform: lyricCase,
                             whiteSpace: "pre-line",
+                            ...roleLineStyle(slide, lyricMeta, i),
                             ...(lang
                               ? {
                                   wordBreak: langWordBreak(lang),
@@ -502,7 +523,11 @@ export function SlideView({
                           }}
                         >
                           {slide?.kind === "lyric"
-                            ? renderRoleLine(lang ? typesetLine(lang, l) : l, lyricMeta[i]?.role)
+                            ? renderRoleLine(
+                                lang ? typesetLine(lang, l) : l,
+                                lyricMeta[i]?.role,
+                                slide.hideRoleNames,
+                              )
                             : renderInline(l)}
                         </div>
                       );

@@ -11,32 +11,39 @@
 import type { Slide } from "./types";
 import { isChordOnlyLine } from "./chords";
 
-export type Role = "leader" | "people" | "all";
+export type Role = "leader" | "people";
 
 /** One entry per stored line; null = no role (JSON keeps null, not undefined). */
 export type LineRoles = (Role | null)[];
 
-export const ROLES: readonly Role[] = ["leader", "people", "all"];
+export const ROLES: readonly Role[] = ["leader", "people"];
 
 export const ROLE_LABEL: Record<Role, string> = {
   leader: "Leader",
   people: "People",
-  all: "All",
 };
 
 /** One letter for the editor's gutter toggle. */
-export const ROLE_LETTER: Record<Role, string> = { leader: "L", people: "P", all: "A" };
+export const ROLE_LETTER: Record<Role, string> = { leader: "L", people: "P" };
 
-/** The gutter toggle's cycle: none, Leader, People, All, back to none. */
+/** The gutter toggle's cycle: none, Leader, People, back to none. */
 export function nextRole(role: Role | null | undefined): Role | null {
   if (!role) return "leader";
   const i = ROLES.indexOf(role);
   return i === ROLES.length - 1 ? null : ROLES[i + 1];
 }
 
-/** People and All read together, so their lines are set in bold. */
+/** The people's lines are set in bold. */
 export function isBoldRole(role: Role | null | undefined): boolean {
-  return role === "people" || role === "all";
+  return role === "people";
+}
+
+/** How a Call and Response song's roles show on its slides (and phones). */
+export interface RoleStyle {
+  /** Hide Role: no "Leader:" / "People:" name in front of the line. */
+  hideNames?: boolean;
+  /** Align L/R: Leader lines sit on the left, People lines on the right. */
+  sides?: boolean;
 }
 
 /** Does this stored lyrics line become a slide line? Not a blank, a `---`
@@ -99,6 +106,7 @@ export function attachRoles(
   text: string,
   roles: LineRoles,
   shown: boolean,
+  style: RoleStyle = {},
 ): Slide[] {
   const flat: (Role | null)[] = [];
   text.split("\n").forEach((line, i) => {
@@ -108,7 +116,13 @@ export function attachRoles(
   return slides.map((s) => {
     const mine = (s.lines ?? []).map(() => flat[k++] ?? null);
     if (!mine.some(Boolean)) return s;
-    return shown ? { ...s, roles: mine } : { ...s, hiddenRoles: mine };
+    if (!shown) return { ...s, hiddenRoles: mine };
+    return {
+      ...s,
+      roles: mine,
+      ...(style.hideNames ? { hideRoleNames: true } : {}),
+      ...(style.sides ? { roleSides: true } : {}),
+    };
   });
 }
 

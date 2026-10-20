@@ -57,12 +57,12 @@ export function langLinesPer(set: Pick<PhytoSet, "langLinesPer">): number {
 }
 
 /**
- * The languages a slide shows: `shown` (the presenter's choice) in column
- * order, else the first four columns. Never more than four, never one that
- * isn't a column.
+ * The languages a slide shows, in the order they stack: `shown` (the language
+ * bar's choice, in its own order), else the first four columns. Never more
+ * than four, never one that isn't a column.
  */
 export function shownLangs(langs: LangCode[], shown?: LangCode[]): LangCode[] {
-  const picked = shown?.length ? langs.filter((l) => shown.includes(l)) : langs;
+  const picked = shown?.length ? shown.filter((l) => langs.includes(l)) : langs;
   return (picked.length ? picked : langs).slice(0, MAX_SHOWN_LANGS);
 }
 

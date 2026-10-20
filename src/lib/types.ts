@@ -62,6 +62,10 @@ export interface Slide {
   /** The same, kept while the song is in another mode. Never shown; switching
    *  back to Call and Response makes it `roles` again. */
   hiddenRoles?: (Role | null)[];
+  /** Call and Response, Hide Role: the role names don't show. */
+  hideRoleNames?: boolean;
+  /** Call and Response, Align L/R: Leader lines left, People lines right. */
+  roleSides?: boolean;
   /** Scripture-only: which import (0-based) this verse came from, so two imports
    *  of the same reference stay separate groups in the editor and slide grid
    *  rather than merging under one shared `section`. */
@@ -141,9 +145,14 @@ export interface Set {
   songLayout?: "multilang" | "response";
   /** Multilanguage songs: the editor's language columns, in order. */
   langs?: LangCode[];
-  /** Multilanguage songs: the languages shown on the slides (the presenter's
-   *  choice, at most four, in column order). Absent = the first four columns. */
+  /** Multilanguage songs: the languages shown on the slides, in the order
+   *  they stack (the language bar's choice, at most four). Absent = the
+   *  first four columns. */
   langsShown?: LangCode[];
+  /** Call and Response: Hide Role (no role names on the slides). */
+  hideRoleNames?: boolean;
+  /** Call and Response: Align L/R (Leader left, People right). */
+  roleSides?: boolean;
   /** Multilanguage songs: lines of each language per slide (1 or 2). Absent = 1. */
   langLinesPer?: number;
   /** A song switched out of Multilanguage: its grid, kept hidden so switching

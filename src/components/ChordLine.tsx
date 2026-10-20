@@ -17,6 +17,8 @@ interface Props {
   chordStyle?: CSSProperties;
   /** Call and Response: who reads this line (labelled; People and All bold). */
   role?: Role | null;
+  /** Hide Role: the role still sets the weight, but its name doesn't show. */
+  hideRoleName?: boolean;
 }
 
 /**
@@ -36,13 +38,15 @@ export function ChordLine({
   chordClassName = "",
   chordStyle,
   role,
+  hideRoleName = false,
 }: Props) {
   // Call and Response: the role label stays in front of the words, outside
-  // the chord columns, and People and All lines are bold.
+  // the chord columns, and People lines are bold.
   const parsed = parseChordLine(line);
   const visible = show && !!chords && parsed.chords.length > 0;
   const lineClass = isBoldRole(role) ? `${className} font-bold` : className;
-  const label = role ? <span className="font-normal">{ROLE_LABEL[role]}: </span> : null;
+  const label =
+    role && !hideRoleName ? <span className="font-normal">{ROLE_LABEL[role]}: </span> : null;
 
   if (!visible) {
     if (!parsed.text) return null;

@@ -32,7 +32,10 @@ import { MessageBlockEditor } from "@/components/MessageBlockEditor";
 import { ScriptureVerseEditor } from "@/components/ScriptureVerseEditor";
 import { VersionPicker } from "@/components/VersionPicker";
 import { ScriptureSettingsDialog } from "@/components/ScriptureSettingsDialog";
-import { SongSettingsDialog } from "@/components/SongSettingsDialog";
+import { SongModeDialog, type ModeQuestion } from "@/components/SongModeDialog";
+import { SongModePicker } from "@/components/SongModePicker";
+import { useSongModeRequest } from "@/lib/song-mode-request";
+import { useGridChordBus } from "@/lib/grid-chord-bus";
 import { RoleGutter } from "@/components/RoleGutter";
 import {
   attachRoles,
@@ -44,7 +47,7 @@ import {
 } from "@/lib/song-roles";
 import { songLayoutOf, type SongLayout } from "@/lib/song-layout";
 import { MultiLangLyricEditor } from "@/components/MultiLangLyricEditor";
-import { LangShowChips } from "@/components/LangShowChips";
+import { SongLanguageBar } from "@/components/SongLanguageBar";
 import {
   MAX_LANG_LINES_PER,
   langLinesPer,
@@ -283,6 +286,7 @@ function SetHeader({
         >
           {phytoSet.kind}
         </span>
+        {phytoSet.kind === "song" && <SongModePicker setId={phytoSet.id} />}
         <VersionWarning set={phytoSet} hint="Re-import or duplicate to unfreeze." />
 
         {/* Who else sees it: the owner of a set shared with me, or, for my
@@ -521,15 +525,20 @@ function SetEditor() {
       <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
         <SetHeader {...headerProps} />
         <div className="flex min-h-0 flex-1 divide-x divide-foreground">
-          {/* Left: song editor */}
-          <div className="flex w-1/2 min-h-0 flex-col overflow-hidden">
+          {/* Left: song editor. Multilanguage takes 3/4, as on watch, so the
+              grid has room for its columns. */}
+          <div
+            className={`flex ${phytoSet.songLayout === "multilang" ? "w-3/4" : "w-1/2"} min-h-0 flex-col overflow-hidden`}
+          >
             {/* Keyed so navigating straight to another song remounts the editor.
                 Without it the box would keep the previous song's lyrics and the
                 live-sync effect would write them over the new song's slides. */}
             <Importers key={phytoSet.id} setId={phytoSet.id} kind={phytoSet.kind} />
           </div>
           {/* Right: template editor + live slide grid */}
-          <div className="w-1/2 overflow-y-auto p-6">
+          <div
+            className={`${phytoSet.songLayout === "multilang" ? "w-1/4" : "w-1/2"} overflow-y-auto p-6`}
+          >
             {phytoSet.chords && !phytoSet.chords.hidden && phytoSet.slides.length > 0 && (
               <ChordSheet slides={phytoSet.slides} chords={phytoSet.chords} />
             )}
@@ -537,7 +546,10 @@ function SetEditor() {
                 the presenter's). */}
             {phytoSet.songLayout === "multilang" && (phytoSet.langs?.length ?? 0) > 0 && (
               <div className="mb-4">
-                <LangShowChips set={phytoSet} />
+                <div className="mono mb-2 text-[10px] uppercase tracking-wider opacity-60">
+                  Languages on slide
+                </div>
+                <SongLanguageBar set={phytoSet} />
               </div>
             )}
             {phytoSet.slides.length > 0 && (
@@ -1436,10 +1448,10 @@ function ChordControls({
   // from the stored slides, so an effect would fire on mount and write to the
   // set just for opening the editor — the phantom-conflict bug fixed in 01dff4e.
 
-  // The Chords switch itself lives in Song Settings (SongSettingsDialog).
+  // The Chords switch sits beside Lines per slide (the caller's children).
   return (
     <div className="mt-3">
-      <div className="flex items-center gap-2">{children}</div>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
 
       {shown && chords && (
         <div className="mt-3 space-y-3 border-t border-foreground/15 pt-3">
@@ -1617,6 +1629,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   });
   // Call and Response: one role per line of `lyrics` (the box holds only the
   // words). Kept in every mode, so switching back brings the roles back.
+  // Call and Response styles (Hide Role, Align L/R), baked onto the slides.
+  const hideRoleNames = useLibrary((s) => !!s.sets[setId]?.hideRoleNames);
+  const roleSides = useLibrary((s) => !!s.sets[setId]?.roleSides);
   const [roles, setRoles] = useState<LineRoles>(() => {
     if (kind !== "song") return [];
     const slides = useLibrary.getState().sets[setId]?.slides ?? [];
@@ -1707,13 +1722,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
 
   const [pendingLinesPerConfirm, setPendingLinesPerConfirm] = useState<number | null>(null);
   const [versionOpen, setVersionOpen] = useState(false);
-  const [songSettingsOpen, setSongSettingsOpen] = useState(false);
+  const [modeQuestion, setModeQuestion] = useState<ModeQuestion | null>(null);
   const songLayout = useLibrary((s) => {
     const set = s.sets[setId];
     return set ? songLayoutOf(set) : "standard";
   });
-  const hiddenLangsKept = useLibrary((s) => !!s.sets[setId]?.hiddenLangs);
-  const songColumns = useLibrary((s) => s.sets[setId]?.langs) ?? [];
   const multiPer = useLibrary((s) => {
     const set = s.sets[setId];
     return set ? langLinesPer(set) : 1;
@@ -1793,6 +1806,59 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     }
     updateSet(setId, { songLayout: next === "standard" ? undefined : next });
   };
+
+  // Beside Lines per slide: Chords, and in Call and Response its two styles.
+  const toggle = (label: string, checked: boolean, onChange: (on: boolean) => void) => (
+    <>
+      <span className="mono ml-3 text-[10px] uppercase tracking-wider">{label}</span>
+      <PillSwitch label={label} checked={checked} onCheckedChange={onChange} />
+    </>
+  );
+  const songToggles = (
+    <>
+      {toggle("Chords", !chordsHidden, (on) =>
+        updateSet(setId, {
+          chords: {
+            ...(chordCfg ?? { key: guessKey(lyrics) ?? "G", display: "letters" as const }),
+            hidden: !on,
+          },
+        }),
+      )}
+      {songLayout === "response" && (
+        <>
+          {toggle("Hide Role", hideRoleNames, (on) =>
+            updateSet(setId, { hideRoleNames: on || undefined }),
+          )}
+          {toggle("Align L/R", roleSides, (on) => updateSet(setId, { roleSides: on || undefined }))}
+        </>
+      )}
+    </>
+  );
+
+  /** The header's Mode dropdown: ask the mode's question first, if it has one. */
+  const chooseMode = (next: SongLayout) => {
+    const set = useLibrary.getState().sets[setId];
+    if (!set) return;
+    const from = songLayoutOf(set);
+    if (next === from) return;
+    if (next === "multilang" && !set.hiddenLangs && lyrics.trim()) {
+      setModeQuestion({ kind: "current" });
+    } else if (from === "multilang" && (set.langs?.length ?? 0) > 1) {
+      setModeQuestion({ kind: "keep", next, langs: set.langs ?? [] });
+    } else {
+      switchLayout(next, from === "multilang" ? set.langs?.[0] : undefined);
+    }
+  };
+  const postGridChord = useGridChordBus((s) => s.post);
+  const modeRequest = useSongModeRequest((s) => s.request);
+  const clearModeRequest = useSongModeRequest((s) => s.clear);
+  useEffect(() => {
+    if (!modeRequest || modeRequest.setId !== setId) return;
+    clearModeRequest();
+    chooseMode(modeRequest.mode);
+    // chooseMode reads the latest store state itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeRequest, setId]);
 
   const [ref, setRef] = useState("");
   const [version2Open, setVersion2Open] = useState(false);
@@ -1879,12 +1945,15 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     if (songLayout === "multilang") return;
     // Roles go on as `roles` in Call and Response, kept as `hiddenRoles` else.
     const parsed = lyrics.trim()
-      ? attachRoles(lyricsToSlides(lyrics), lyrics, roles, songLayout === "response")
+      ? attachRoles(lyricsToSlides(lyrics), lyrics, roles, songLayout === "response", {
+          hideNames: hideRoleNames,
+          sides: roleSides,
+        })
       : [];
     const current = useLibrary.getState().sets[setId]?.slides ?? [];
     const { slides, changed } = reconcileSlideIds(parsed, current);
     if (changed) updateSet(setId, { slides });
-  }, [lyrics, roles, kind, setId, updateSet, songLayout]);
+  }, [lyrics, roles, kind, setId, updateSet, songLayout, hideRoleNames, roleSides]);
 
   const runSongSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -2144,30 +2213,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 <Search className="h-4 w-4" />
               )}
             </button>
-            <button
-              type="button"
-              onClick={() => setSongSettingsOpen(true)}
-              className="pill mono uppercase shrink-0 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-            >
-              Settings
-            </button>
           </form>
-          <SongSettingsDialog
-            open={songSettingsOpen}
-            onOpenChange={setSongSettingsOpen}
-            layout={songLayout}
-            setLayout={switchLayout}
-            askLang={songLayout !== "multilang" && lyrics.trim() !== "" && !hiddenLangsKept}
-            songLangs={songColumns}
-            chords={!chordsHidden}
-            setChords={(on) =>
-              updateSet(setId, {
-                chords: {
-                  ...(chordCfg ?? { key: guessKey(lyrics) ?? "G", display: "letters" as const }),
-                  hidden: !on,
-                },
-              })
-            }
+          <SongModeDialog
+            question={modeQuestion}
+            onCancel={() => setModeQuestion(null)}
+            onAnswer={(next, lang) => {
+              setModeQuestion(null);
+              switchLayout(next, lang);
+            }}
           />
           {songErr && resultsOpen && (
             <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
@@ -2292,6 +2345,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 decrementLabel="Fewer lines per slide"
                 incrementLabel="More lines per slide"
               />
+              {songToggles}
             </ChordControls>
           ) : (
             // Multilanguage: lines of each language per slide (1 or 2), and the
@@ -2300,9 +2354,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               setId={setId}
               lyrics={multiChordText}
               onLyricsChange={() => {}}
-              onInsertChord={() => {}}
-              onClearLine={() => {}}
-              noPalette
+              onInsertChord={(chord) => postGridChord({ kind: "insert", chord })}
+              onClearLine={() => postGridChord({ kind: "clear" })}
               onTranspose={(fromKey, toKey) => {
                 const set = useLibrary.getState().sets[setId];
                 const first = set?.langs?.[0];
@@ -2331,6 +2384,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 decrementLabel="Fewer lines per slide"
                 incrementLabel="More lines per slide"
               />
+              {songToggles}
             </ChordControls>
           )}
         </div>
@@ -2344,26 +2398,6 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         <div
           className={`relative min-h-0 flex-1 overflow-hidden ${songLayout === "multilang" ? "hidden" : ""}`}
         >
-          {songLayout === "response" && (
-            <RoleGutter
-              boxRef={lyricsRef}
-              boxText={boxText}
-              rows={roleGutterRows(
-                lyrics,
-                roles,
-                chordsHidden ? null : chordRowLayout(lyrics, chordLabel),
-              )}
-              onCycle={(storedLine) => {
-                pushHistory();
-                setRoles((r) => {
-                  const next = [...r];
-                  while (next.length <= storedLine) next.push(null);
-                  next[storedLine] = nextRole(next[storedLine]);
-                  return next;
-                });
-              }}
-            />
-          )}
           <Textarea
             ref={lyricsRef}
             value={boxText}
@@ -2439,9 +2473,30 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 : "")
             }
             className={`mono h-full w-full resize-none rounded-none border-0 bg-transparent py-4 pr-5 text-xs shadow-none focus-visible:ring-0 ${
-              songLayout === "response" ? "pl-11" : "pl-5"
+              songLayout === "response" ? "pl-11 leading-[26px]" : "pl-5"
             }`}
           />
+          {/* After the box, so its ref is set when the gutter first measures. */}
+          {songLayout === "response" && (
+            <RoleGutter
+              boxRef={lyricsRef}
+              boxText={boxText}
+              rows={roleGutterRows(
+                lyrics,
+                roles,
+                chordsHidden ? null : chordRowLayout(lyrics, chordLabel),
+              )}
+              onCycle={(storedLine) => {
+                pushHistory();
+                setRoles((r) => {
+                  const next = [...r];
+                  while (next.length <= storedLine) next.push(null);
+                  next[storedLine] = nextRole(next[storedLine]);
+                  return next;
+                });
+              }}
+            />
+          )}
         </div>
 
         {/* Hover preview — chorus (or top of song) following the cursor. */}

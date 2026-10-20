@@ -10,19 +10,31 @@ import {
   type LineRoles,
 } from "@/lib/song-roles";
 import { songPatternImage, songPatterns } from "@/lib/song-layout";
+import { wordStartAt } from "@/lib/grid-chord-bus";
 
 const text = "[Call]\nThe Lord be with you\nAnd also with you\n---\nLift up your hearts";
 const roles: LineRoles = [null, "leader", "people", null, "leader"];
 
 describe("song roles", () => {
-  it("cycles none, Leader, People, All, none", () => {
+  it("cycles none, Leader, People, none", () => {
     const seen: (string | null)[] = [];
     let r = nextRole(null);
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       seen.push(r);
       r = nextRole(r);
     }
-    expect(seen).toEqual(["leader", "people", "all", null]);
+    expect(seen).toEqual(["leader", "people", null]);
+  });
+
+  it("bakes Hide Role and Align L/R onto slides with roles", () => {
+    const slides = attachRoles(lyricsToSlides(text), text, roles, true, {
+      hideNames: true,
+      sides: true,
+    });
+    expect(slides[0].hideRoleNames).toBe(true);
+    expect(slides[0].roleSides).toBe(true);
+    const hidden = attachRoles(lyricsToSlides(text), text, roles, false, { hideNames: true });
+    expect(hidden[0].hideRoleNames).toBeUndefined();
   });
 
   it("puts roles beside the words, never in them", () => {
@@ -74,6 +86,13 @@ describe("chord strip edits", () => {
     expect(setChordAt("Amazing (G)grace", 8, "C")).toBe("Amazing (C)grace");
     expect(setChordAt("Amazing (G)grace", 8, null)).toBe("Amazing grace");
     expect(setChordAt("Amazing", 99, "D")).toBe("Amazing(D)");
+  });
+
+  it("a palette chord lands on the word the caret is in", () => {
+    expect(wordStartAt("Amazing grace", 10)).toBe(8);
+    expect(wordStartAt("Amazing grace", 8)).toBe(8);
+    expect(wordStartAt("Amazing grace", 13)).toBe(8);
+    expect(wordStartAt("Amazing grace", 0)).toBe(0);
   });
 });
 

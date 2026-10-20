@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { LangSearchList } from "@/components/LangSearch";
+import { LangPickerMenu } from "@/components/LangSearch";
 import { DotsGrip } from "@/components/DragBits";
 import { hideDragGhost } from "@/lib/drag-ghost";
 import { LANGS, type LangCode, type LangDef, langColor, langDef, langFontStack } from "@/lib/langs";
-import { reapplyChords, stripChordsRaw, type SongChords } from "@/lib/chords";
+import { reapplyChords, setChordAt, stripChordsRaw, type SongChords } from "@/lib/chords";
+import { useGridChordBus, wordStartAt } from "@/lib/grid-chord-bus";
 import { ChordStrip } from "@/components/ChordStrip";
 import {
   type MultiRow,
@@ -351,6 +351,31 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
           : r,
       ),
     );
+  // The chord palette (above the grid) drops its chord at the caret of the
+  // last focused cell, on that row's first-column words (where chords live).
+  const lastCaret = useRef<{ row: number; caret: number } | null>(null);
+  const chordAction = useGridChordBus((s) => s.action);
+  const seenAction = useRef(chordAction?.seq ?? 0);
+  useEffect(() => {
+    if (!chordAction || chordAction.seq === seenAction.current) return;
+    seenAction.current = chordAction.seq;
+    const at = lastCaret.current;
+    const lang = langs[0];
+    if (!at || !lang) return;
+    step();
+    setRows((rs) =>
+      rs.map((r, i) => {
+        if (i !== at.row || r.kind !== "line") return r;
+        const line = r.byLang[lang] ?? "";
+        const next =
+          chordAction.kind === "clear"
+            ? stripChordsRaw(line)
+            : setChordAt(line, wordStartAt(stripChordsRaw(line), at.caret), chordAction.chord);
+        return { ...r, byLang: { ...r.byLang, [lang]: next } };
+      }),
+    );
+  }, [chordAction, langs]);
+
   // The chord line above a first-column cell: set the whole stored line.
   const setCellLine = (row: number, lang: LangCode, line: string) => {
     step();
@@ -598,6 +623,10 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
                 autosize={autosize}
                 onDragOverRow={() => dragSecRow.current !== null && dragSectionOver(i)}
                 onFocusRow={() => (focusRowRef.current = i)}
+                onCaret={(row, lang, caret) => {
+                  // Only the first column's caret maps onto its words.
+                  lastCaret.current = { row, caret: lang === langs[0] ? caret : 0 };
+                }}
                 editCell={editCell}
                 chordLang={chordsOn ? langs[0] : undefined}
                 chords={chordCfg}
@@ -651,6 +680,7 @@ function Row({
   autosize,
   onDragOverRow,
   onFocusRow,
+  onCaret,
   editCell,
   chordLang,
   chords,
@@ -675,6 +705,7 @@ function Row({
   autosize: (el: HTMLTextAreaElement | null) => void;
   onDragOverRow: () => void;
   onFocusRow: () => void;
+  onCaret: (row: number, lang: LangCode, caret: number) => void;
   editCell: (row: number, lang: LangCode, value: string) => void;
   /** The column that shows a chord line (chords on), if any. */
   chordLang?: LangCode;
@@ -712,7 +743,9 @@ function Row({
             key={code}
             data-cell-lang={code}
             data-cell-row={index}
-            className="relative min-w-0 border-b"
+            // Words sit on the row's bottom edge, so a cell with a chord line
+            // above it lines up with its neighbours.
+            className="relative flex min-w-0 flex-col justify-end border-b"
             style={{
               // When part of a column drag-selection the cell takes the
               // language's own colour so the run reads as one highlighted block.
@@ -742,6 +775,7 @@ function Row({
               value={stripChordsRaw(row.byLang[code] ?? "")}
               onMouseDown={() => onCellMouseDown(code, index)}
               onFocus={onFocusRow}
+              onSelect={(e) => onCaret(index, code, e.currentTarget.selectionStart)}
               onDragOver={(e) => {
                 e.preventDefault();
                 onDragOverRow();
@@ -799,36 +833,10 @@ function Row({
   );
 }
 
-function LangPicker({
-  available,
-  onAdd,
-  label,
-}: {
+function LangPicker(props: {
   available: readonly LangDef[];
   onAdd: (code: LangCode) => void;
   label: string;
 }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="mono flex h-7 items-center justify-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
-        >
-          <Plus className="h-3 w-3" />
-          {label}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 rounded-3xl p-3 dark:border-white">
-        <LangSearchList
-          options={available}
-          onPick={(code) => {
-            onAdd(code);
-            setOpen(false);
-          }}
-        />
-      </PopoverContent>
-    </Popover>
-  );
+  return <LangPickerMenu {...props} />;
 }
