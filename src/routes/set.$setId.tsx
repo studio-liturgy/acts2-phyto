@@ -2472,12 +2472,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
         </div>
 
         {songLayout === "multilang" && (
-          <div className="min-h-0 flex-1 overflow-hidden p-4">
+          <div className="min-h-0 flex-1 overflow-hidden">
             <MultiLangLyricEditor key={gridKey} setId={setId} toolbarSlot={toolbarSlot} />
           </div>
         )}
         {songLayout === "response" && (
-          <div className="min-h-0 flex-1 overflow-hidden p-4">
+          <div className="min-h-0 flex-1 overflow-hidden">
             <ResponseLyricEditor
               lyrics={lyrics}
               roles={roles}
@@ -2902,7 +2902,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             onManualVerse={scripture.frozen ? undefined : scripture.addManualVerse}
           />
         ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             {(manualText.trim() || manualText2.trim()) &&
               (scripture.boxMode ? (
                 <ScriptureVerseEditor

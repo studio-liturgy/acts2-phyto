@@ -6,6 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EditorBar } from "@/components/EditorBar";
 import { PillSwitch } from "@/components/PillSwitch";
 import { prepareImageFile } from "@/lib/image-upload";
 import { useLibrary } from "@/lib/store";
@@ -19,8 +20,15 @@ const POINT_TYPES: { type: PointType; label: string }[] = [
   { type: "statement", label: "Statement" },
 ];
 
+/** What the verse and point cells respond to. */
+const HINTS = [
+  "Cmd/Ctrl B, I, U: bold, italic, underline",
+  "Cmd/Ctrl Enter: split a verse into a new slide",
+  "Cmd/Ctrl Z: undo",
+];
+
 /**
- * The centred "add a point / add an image / manual verse" controls. A point or
+ * The "add a point / add an image / manual verse" controls, in the bottom bar. A point or
  * an image turns the (scripture) set into a message, so a plain reading can
  * grow a quote, a list, or a picture without a separate kind; a manual verse
  * is scripture typed in by hand and leaves the kind alone. New elements land
@@ -78,66 +86,55 @@ export function AddElementBar({
     becomeMessage();
   };
 
+  // Pinned to the editor's bottom: the buttons left, the cell shortcuts right.
   return (
-    <div className="space-y-2">
-      {err && (
-        <p className="mono uppercase text-center text-[10px] tracking-wider text-[var(--brand-red)]">
-          {err}
-        </p>
-      )}
-      <div className="flex flex-wrap justify-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="mono rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background"
-            >
-              Add a point
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" className="dark:border-white">
-            {POINT_TYPES.map((pt) => (
-              <DropdownMenuItem
-                key={pt.type}
-                onSelect={() => addPoint(pt.type)}
-                className="mono text-xs uppercase tracking-wider"
-              >
-                {pt.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <label
-          className={`mono cursor-pointer rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background ${busy ? "opacity-50" : ""}`}
-        >
-          {busy ? "Adding…" : "Add an image"}
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            disabled={busy}
-            onChange={(e) => addImage(e.target.files?.[0])}
-          />
-        </label>
-        {onManualVerse && (
+    <EditorBar hints={showHints ? HINTS : undefined}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <button
             type="button"
-            onClick={onManualVerse}
             className="mono rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background"
           >
-            Manual verse
+            Add a point
           </button>
-        )}
-      </div>
-      {/* What the verse and point cells respond to, in the presenter's hint style. */}
-      {showHints && (
-        <div className="mono uppercase space-y-1 pt-8 text-center text-[10px] tracking-wider text-muted-foreground">
-          <div>Cmd/Ctrl B, I, U — bold, italic, underline</div>
-          <div>Cmd/Ctrl Enter — split a verse into a new slide</div>
-          <div>Cmd/Ctrl Z — undo</div>
-        </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="dark:border-white">
+          {POINT_TYPES.map((pt) => (
+            <DropdownMenuItem
+              key={pt.type}
+              onSelect={() => addPoint(pt.type)}
+              className="mono text-xs uppercase tracking-wider"
+            >
+              {pt.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <label
+        className={`mono cursor-pointer rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background ${busy ? "opacity-50" : ""}`}
+      >
+        {busy ? "Adding…" : "Add an image"}
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={busy}
+          onChange={(e) => addImage(e.target.files?.[0])}
+        />
+      </label>
+      {onManualVerse && (
+        <button
+          type="button"
+          onClick={onManualVerse}
+          className="mono rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background"
+        >
+          Manual verse
+        </button>
       )}
-    </div>
+      {err && (
+        <p className="mono text-[10px] uppercase tracking-wider text-[var(--brand-red)]">{err}</p>
+      )}
+    </EditorBar>
   );
 }
 
@@ -156,18 +153,14 @@ export function MessageElements({
   onManualVerse?: () => void;
 }) {
   return (
-    // The top border only separates the add-bar from verses ABOVE it. When the
-    // set is empty there are no verses, so it would sit directly against the
-    // importer's own bottom border — two lines reading as one thick rule. Drop it
-    // in that case so the empty state shows a single thin line like the song set.
-    <div className={`space-y-3 p-4 ${hasVerses ? "border-t border-foreground/20" : ""}`}>
+    <>
       {!hasVerses && (
-        <p className="mono text-center text-[10px] uppercase leading-relaxed tracking-wider opacity-50">
+        <p className="mono p-4 text-center text-[10px] uppercase leading-relaxed tracking-wider opacity-50">
           Import a passage above, or add an image or a point to build a message.
         </p>
       )}
       <AddElementBar setId={setId} onManualVerse={onManualVerse} showHints={hasVerses} />
-    </div>
+    </>
   );
 }
 

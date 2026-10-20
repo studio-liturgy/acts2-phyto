@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { EditorBar } from "@/components/EditorBar";
 import { Plus, Trash2, X } from "lucide-react";
 import { DotsGrip } from "@/components/DragBits";
 import { hideDragGhost } from "@/lib/drag-ghost";
@@ -195,10 +196,10 @@ export function ResponseLyricEditor({
   }
 
   return (
-    <div className="flex h-full flex-col gap-2">
+    <div className="flex h-full flex-col">
       {toolbarSlot ? createPortal(sectionButton, toolbarSlot) : sectionButton}
 
-      <div className="catalogue-scroll min-h-0 flex-1 overflow-auto rounded-lg border">
+      <div className="catalogue-scroll min-h-0 flex-1 overflow-auto border-t">
         <div className="grid" style={{ gridTemplateColumns: `${FIRST_COL} minmax(0, 1fr)` }}>
           {rows.map((row) => {
             if (row.kind === "section") {
@@ -422,9 +423,7 @@ export function ResponseLyricEditor({
         </div>
       </div>
 
-      <p className="mono text-[10px] uppercase tracking-wider opacity-40">
-        Click a role to change it · Cmd+Enter: new slide
-      </p>
+      <EditorBar hints={["Click a role to change it", "Cmd+Enter: new slide"]} />
     </div>
   );
 }

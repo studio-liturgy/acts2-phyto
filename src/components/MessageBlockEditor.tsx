@@ -619,7 +619,7 @@ export function MessageBlockEditor({
         tileDrag.current = null;
         commitOrder();
       }}
-      className="min-h-0 flex-1 overflow-y-auto"
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
     >
       {/* Frozen: nothing in a message can be edited, deleted or reordered
           (points and images included) until the versions are updated. */}
@@ -654,13 +654,7 @@ export function MessageBlockEditor({
         </AlertDialogContent>
       </AlertDialog>
       {!readOnly && (
-        <div className="p-4">
-          <AddElementBar
-            setId={setId}
-            onManualVerse={onManualVerse}
-            showHints={slides.length > 0}
-          />
-        </div>
+        <AddElementBar setId={setId} onManualVerse={onManualVerse} showHints={slides.length > 0} />
       )}
     </div>
   );

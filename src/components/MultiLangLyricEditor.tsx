@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { EditorBar } from "@/components/EditorBar";
 import { Plus, Trash2, X } from "lucide-react";
 import { LangPickerMenu } from "@/components/LangSearch";
 import { DotsGrip } from "@/components/DragBits";
@@ -645,10 +646,10 @@ export function MultiLangLyricEditor({
   );
 
   return (
-    <div ref={rootRef} className="flex h-full flex-col gap-2">
+    <div ref={rootRef} className="flex h-full flex-col">
       {toolbarSlot ? createPortal(toolbar, toolbarSlot) : toolbar}
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto rounded-lg border">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto border-t">
         <div className="grid" style={{ gridTemplateColumns: gridCols }}>
           <div className="sticky left-0 top-0 z-20 border-b border-r bg-background" />
           {langs.map((code) => (
@@ -825,7 +826,7 @@ export function MultiLangLyricEditor({
         </div>
       </div>
 
-      <p className="mono text-[10px] uppercase tracking-wider opacity-40">Cmd+Enter: new slide</p>
+      <EditorBar hints={["Cmd+Enter: new slide"]} />
     </div>
   );
 }
