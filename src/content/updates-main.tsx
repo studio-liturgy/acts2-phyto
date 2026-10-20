@@ -4,6 +4,7 @@ import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 import {
+  ArrangementsEntry,
   FeatureItem,
   LiveGatheringsEntry,
   ReleaseEntry,
@@ -23,6 +24,7 @@ export default function UpdatesMain() {
           <ArrowLeft className="h-3 w-3" /> BACK
         </Link>
         <ul className="mt-8 space-y-12">
+          <ArrangementsEntry />
           <LiveGatheringsEntry />
           <YouVersionEntry />
           <VersionsEntry />

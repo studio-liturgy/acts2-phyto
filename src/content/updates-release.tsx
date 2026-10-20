@@ -16,6 +16,61 @@ export function FeatureItem({ children }: { children: ReactNode }) {
   );
 }
 
+/** October 20, 2026: song arrangements, scripture settings. One `<li>`, above LiveGatheringsEntry. */
+export function ArrangementsEntry() {
+  return (
+    <li className="border-t border-[var(--brand-white)]/20 pt-8">
+      <div className="text-2xl">October 20, 2026</div>
+
+      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Song Arrangements</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Turn on Arrangements in Settings to set a song&rsquo;s section order for each gathering,
+          repeats included.
+        </FeatureItem>
+        <FeatureItem>Arrange it beside the phone preview or the presenter view</FeatureItem>
+        <FeatureItem>
+          Each gathering keeps its own arrangement and hidden sections, so one service&rsquo;s setup
+          never shows up in another
+        </FeatureItem>
+      </ul>
+
+      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Scripture</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          A new Scripture Settings dialog holds the import options for a set
+        </FeatureItem>
+        <FeatureItem>
+          New option - reference per slide: each verse slide shows its own verses (John 1:1, John
+          1:2)
+        </FeatureItem>
+        <FeatureItem>
+          Hide version reference (off by default) drops the version code from references
+        </FeatureItem>
+      </ul>
+
+      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Gatherings</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          In edit mode, a pencil beside each set opens it, and you come back to the gathering still
+          in edit mode
+        </FeatureItem>
+      </ul>
+
+      <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Bug Fixes</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Fixed edits to some sets not saving after switching accounts on the same browser, or after
+          importing a set from another account
+        </FeatureItem>
+        <FeatureItem>
+          A passage&rsquo;s first verse no longer joins the end of the passage before it
+        </FeatureItem>
+      </ul>
+    </li>
+  );
+}
+
 /** October 18, 2026: live gatherings and chord-line typing. One `<li>`, above YouVersionEntry. */
 export function LiveGatheringsEntry() {
   return (
