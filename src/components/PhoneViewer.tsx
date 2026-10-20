@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { ChordLine } from "@/components/ChordLine";
 import { guessKey, KEYS, transposeLyrics, type SongChords } from "@/lib/chords";
 import { groupSlides, hiddenSlideIndices } from "@/lib/sections";
@@ -16,6 +17,8 @@ import {
 import { ChevronDown, Pencil } from "lucide-react";
 import {
   loadPrefs,
+  phoneQrColors,
+  phoneQrUrl,
   phoneSetForLangs,
   phoneSetHasChords,
   savePrefs,
@@ -125,6 +128,7 @@ export function PhoneViewer({
   const [activeSetId, setActiveSetId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
   const [activeTabId, setActiveTabId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   // Prefs are internal by default, or driven from outside when controlled.
   const [internalPrefs, setInternalPrefs] = useState<ViewerPrefs>(loadPrefs);
   const prefs = controlledPrefs ?? internalPrefs;
@@ -210,6 +214,16 @@ export function PhoneViewer({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpen]);
+
+  // Esc closes the QR overlay (a tap anywhere closes it too).
+  useEffect(() => {
+    if (!qrOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setQrOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [qrOpen]);
 
   const activeIdx = sets.findIndex((s) => s.id === activeSetId);
   const activeSet = sets[activeIdx] ?? sets[0] ?? null;
@@ -315,6 +329,21 @@ export function PhoneViewer({
                   hasChords={sets.some((s) => setHasChords(s))}
                   dark={prefs.isDark}
                 />
+                {/* QR Code: phone menu only (not the presenter's settings panel). */}
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setQrOpen(true);
+                  }}
+                  style={{ fontFamily: FONT_FAMILY_CSS.mono }}
+                  className={`mt-4 w-full rounded-lg border px-3 py-1.5 text-center text-sm transition ${
+                    prefs.isDark
+                      ? "border-white/40 hover:border-white"
+                      : "border-black/40 hover:border-black"
+                  }`}
+                >
+                  QR Code
+                </button>
               </div>
             )}
           </div>
@@ -518,6 +547,24 @@ export function PhoneViewer({
           )}
         </div>
       </div>
+
+      {/* QR overlay: fills the screen in the phone theme; tap anywhere to close. */}
+      {qrOpen && (
+        <div
+          role="dialog"
+          aria-label="QR Code"
+          onClick={() => setQrOpen(false)}
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{ backgroundColor: phoneQrColors(prefs.isDark).bg }}
+        >
+          <QRCodeSVG
+            value={phoneQrUrl(window.location.href)}
+            fgColor={phoneQrColors(prefs.isDark).fg}
+            bgColor={phoneQrColors(prefs.isDark).bg}
+            style={{ width: "min(80vw, 80vh, 400px)", height: "min(80vw, 80vh, 400px)" }}
+          />
+        </div>
+      )}
     </div>
   );
 }

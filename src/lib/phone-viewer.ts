@@ -121,3 +121,20 @@ export function phoneSetHasChords(set: PhoneSet): boolean {
   if (set.type !== "song") return false;
   return (set.slides ?? []).some((s) => s.lines?.some((l) => parseChordLine(l).chords.length > 0));
 }
+
+/** The link the phone view's QR code carries: the page it's on, minus any
+ *  query or hash, so a scan lands on the same /g/<link> the viewer opened. */
+export function phoneQrUrl(href: string): string {
+  try {
+    const u = new URL(href);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return href.split(/[?#]/)[0];
+  }
+}
+
+/** QR colours for the phone view's theme: brand off-white dots on black when
+ *  dark, brand ink on white when light (the Share dialog's presets). */
+export function phoneQrColors(isDark: boolean): { fg: string; bg: string } {
+  return isDark ? { fg: "#F5EFEF", bg: "#000000" } : { fg: "#212121", bg: "#ffffff" };
+}
