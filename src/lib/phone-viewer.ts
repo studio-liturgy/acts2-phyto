@@ -138,3 +138,17 @@ export function phoneQrUrl(href: string): string {
 export function phoneQrColors(isDark: boolean): { fg: string; bg: string } {
   return isDark ? { fg: "#F5EFEF", bg: "#000000" } : { fg: "#212121", bg: "#ffffff" };
 }
+
+/** Tab bar scroll target that centres the active tab in the strip between the
+ *  hamburger and the right edge. Clamped to the scrollable range, so the first
+ *  and last few tabs stop at the ends instead of centring. */
+export function centeredTabScroll(
+  tabLeft: number,
+  tabWidth: number,
+  viewportWidth: number,
+  scrollWidth: number,
+): number {
+  const max = Math.max(0, scrollWidth - viewportWidth);
+  const target = tabLeft + tabWidth / 2 - viewportWidth / 2;
+  return Math.min(max, Math.max(0, target));
+}

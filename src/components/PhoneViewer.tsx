@@ -17,6 +17,7 @@ import {
 import { ChevronDown, Pencil, X } from "lucide-react";
 import {
   loadPrefs,
+  centeredTabScroll,
   phoneQrColors,
   phoneQrUrl,
   phoneSetForLangs,
@@ -30,6 +31,8 @@ import {
 
 /** QR overlay fade, in and out. */
 const QR_FADE_MS = 200;
+/** Settings menu open/close animation (matches the duration-150 class). */
+const MENU_ANIM_MS = 150;
 
 // The phone gathering view, as a self-contained presentational component. Two
 // surfaces render it identically:
@@ -131,6 +134,8 @@ export function PhoneViewer({
   const [activeSetId, setActiveSetId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
   const [activeTabId, setActiveTabId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuClosing, setMenuClosing] = useState(false);
+  const menuTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
   const [qrShown, setQrShown] = useState(false);
   const qrTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -188,10 +193,14 @@ export function PhoneViewer({
     const buttons = tabBarRef.current.querySelectorAll("button");
     const activeButton = buttons[idx] as HTMLElement | undefined;
     if (activeButton) {
+      const bar = tabBarRef.current;
       const buttonRect = activeButton.getBoundingClientRect();
-      const containerRect = tabBarRef.current.getBoundingClientRect();
-      const relativeLeft = buttonRect.left - containerRect.left + tabBarRef.current.scrollLeft;
-      tabBarRef.current.scrollTo({ left: Math.max(0, relativeLeft - 16), behavior: "smooth" });
+      const containerRect = bar.getBoundingClientRect();
+      const relativeLeft = buttonRect.left - containerRect.left + bar.scrollLeft;
+      bar.scrollTo({
+        left: centeredTabScroll(relativeLeft, buttonRect.width, bar.clientWidth, bar.scrollWidth),
+        behavior: "smooth",
+      });
     }
   }, [activeTabId, sets]);
 
@@ -208,12 +217,37 @@ export function PhoneViewer({
     };
   }, [prefs.isDark, embedded]);
 
+  // Menu close plays the exit animation, then unmounts.
+  const closeMenu = () => {
+    if (menuTimer.current) clearTimeout(menuTimer.current);
+    setMenuClosing(true);
+    menuTimer.current = setTimeout(() => {
+      setMenuOpen(false);
+      setMenuClosing(false);
+    }, MENU_ANIM_MS);
+  };
+  const toggleMenu = () => {
+    if (menuOpen && !menuClosing) {
+      closeMenu();
+      return;
+    }
+    if (menuTimer.current) clearTimeout(menuTimer.current);
+    setMenuClosing(false);
+    setMenuOpen(true);
+  };
+  useEffect(
+    () => () => {
+      if (menuTimer.current) clearTimeout(menuTimer.current);
+    },
+    [],
+  );
+
   // Close menu on outside click
   useEffect(() => {
     if (!menuOpen) return;
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
+        closeMenu();
       }
     };
     document.addEventListener("mousedown", handler);
@@ -326,7 +360,7 @@ export function PhoneViewer({
         {showSettings && (
           <div ref={menuRef} className="relative shrink-0">
             <button
-              onClick={() => setMenuOpen((v) => !v)}
+              onClick={toggleMenu}
               className={`flex h-full items-center px-4 ${mutedClass} hover:text-inherit`}
               aria-label="Settings"
             >
@@ -337,10 +371,15 @@ export function PhoneViewer({
               </span>
             </button>
 
-            {/* Settings overlay */}
+            {/* Settings overlay: opens and closes like the app's dropdown menus
+                (fade + slight zoom + slide from the hamburger). */}
             {menuOpen && (
               <div
-                className={`absolute left-0 top-full z-50 mt-1 w-[240px] rounded-2xl border p-4 shadow-xl ${
+                className={`absolute left-0 top-full z-50 mt-1 w-[240px] origin-top-left rounded-2xl border p-4 shadow-xl duration-150 ${
+                  menuClosing
+                    ? "animate-out fade-out-0 zoom-out-95 slide-out-to-top-2 fill-mode-forwards"
+                    : "animate-in fade-in-0 zoom-in-95 slide-in-from-top-2"
+                } ${
                   prefs.isDark
                     ? "dark border-white/10 bg-neutral-900 text-white"
                     : "border-black/10 bg-white text-black"
@@ -356,8 +395,10 @@ export function PhoneViewer({
                 {/* QR Code: phone menu only (not the presenter's settings panel). */}
                 <button
                   onClick={() => {
-                    setMenuOpen(false);
+                    // Menu stays put while the QR fades in over it, then goes.
                     openQr();
+                    if (menuTimer.current) clearTimeout(menuTimer.current);
+                    menuTimer.current = setTimeout(() => setMenuOpen(false), QR_FADE_MS);
                   }}
                   style={{ fontFamily: FONT_FAMILY_CSS.mono }}
                   className={`mt-4 w-full rounded-lg border px-3 py-1.5 text-center text-sm uppercase transition ${
