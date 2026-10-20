@@ -21,3 +21,23 @@ export function previewText(d: PhytoSet): string {
   if (d.slides.length > 10) lines.push("…");
   return lines.join("\n");
 }
+
+/** Where the hover preview card is, and for which set. */
+export interface SetPreviewAt {
+  set: PhytoSet;
+  x: number;
+  y: number;
+}
+
+/** Mouse handlers that drive a SetHoverPreview for `set`. */
+export function hoverPreviewHandlers(
+  set: PhytoSet,
+  setPreview: (u: (p: SetPreviewAt | null) => SetPreviewAt | null) => void,
+) {
+  return {
+    onMouseEnter: (e: React.MouseEvent) => setPreview(() => ({ set, x: e.clientX, y: e.clientY })),
+    onMouseMove: (e: React.MouseEvent) =>
+      setPreview((p) => (p ? { ...p, x: e.clientX, y: e.clientY } : p)),
+    onMouseLeave: () => setPreview(() => null),
+  };
+}

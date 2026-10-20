@@ -60,7 +60,8 @@ import {
   type InboxShare,
   type GroupInvite,
 } from "@/lib/sync";
-import { previewText } from "@/lib/set-preview";
+import { hoverPreviewHandlers, previewText, type SetPreviewAt } from "@/lib/set-preview";
+import { SetHoverPreview } from "@/components/SetHoverPreview";
 import { SharedInboxList } from "@/components/SharedInboxList";
 import { BulkShareSetsDialog } from "@/components/BulkShareSetsDialog";
 import { ScrollingName } from "@/components/ScrollingName";
@@ -1758,6 +1759,8 @@ function DuplicatesDialog({
 }) {
   // Per-group choice of which set to keep; the rest in the group get deleted.
   const [keep, setKeep] = useState<Record<string, string>>({});
+  // Hovering a set shows what's in it, like the shared-sets inbox.
+  const [preview, setPreview] = useState<SetPreviewAt | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -1817,7 +1820,7 @@ function DuplicatesDialog({
                         <button
                           key={d.id}
                           type="button"
-                          title={previewText(d)}
+                          {...hoverPreviewHandlers(d, setPreview)}
                           onClick={() => setKeep((p) => ({ ...p, [g.key]: d.id }))}
                           className={`flex w-full items-center gap-3 rounded-full border px-4 py-2 text-left transition ${
                             isKeep
@@ -1859,6 +1862,7 @@ function DuplicatesDialog({
             </div>
           </>
         )}
+        <SetHoverPreview preview={open ? preview : null} />
       </DialogContent>
     </Dialog>
   );

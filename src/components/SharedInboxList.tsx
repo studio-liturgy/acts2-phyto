@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import {
   AlertDialog,
   AlertDialogContent,
   AlertDialogTitle,
   AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
-import { previewText } from "@/lib/set-preview";
+import { SetHoverPreview } from "@/components/SetHoverPreview";
+import type { SetPreviewAt } from "@/lib/set-preview";
 import type { InboxShare } from "@/lib/sync";
 import type { Set as PhytoSet } from "@/lib/types";
 
@@ -16,11 +16,6 @@ function kindBg(kind: string): string {
   if (kind === "scripture") return "bg-[var(--brand-green)] text-[var(--brand-white)]";
   if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
   return "bg-muted text-foreground";
-}
-
-/** Slides worth previewing as images (media). */
-function imageSlides(set: PhytoSet) {
-  return set.slides.filter((s) => s.imageUrl).slice(0, 4);
 }
 
 /**
@@ -45,15 +40,12 @@ export function SharedInboxList({
   onRemoveAll: () => void;
   inGroupWorkspace?: boolean;
 }) {
-  const [preview, setPreview] = useState<{ set: PhytoSet; x: number; y: number } | null>(null);
+  const [preview, setPreview] = useState<SetPreviewAt | null>(null);
   const [confirm, setConfirm] = useState<InboxShare | null>(null);
   const [confirmRemoveAll, setConfirmRemoveAll] = useState(false);
   // Saving while viewing a group is confirmed first: shared sets always land in
   // the personal library (only their owner can add them to a group).
   const [confirmSave, setConfirmSave] = useState<InboxShare | "all" | null>(null);
-
-  const mediaThumbs = preview ? imageSlides(preview.set) : [];
-  const showImages = preview?.set.kind === "media" && mediaThumbs.length > 0;
 
   const requestSave = (share: InboxShare) =>
     inGroupWorkspace ? setConfirmSave(share) : onSave(share);
@@ -114,41 +106,7 @@ export function SharedInboxList({
         ))}
       </ul>
 
-      {preview &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            className="mono pointer-events-none fixed z-[100] rounded-2xl border border-foreground bg-background p-3 text-[11px] leading-relaxed shadow-lg"
-            style={(() => {
-              const W = 240;
-              const H = 220;
-              const GAP = 16;
-              const vw = window.innerWidth;
-              const vh = window.innerHeight;
-              const left =
-                preview.x + W + GAP > vw ? Math.max(8, preview.x - W - GAP) : preview.x + GAP;
-              const top =
-                preview.y + H + GAP > vh ? Math.max(8, preview.y - H - GAP) : preview.y + GAP;
-              return { left, top, width: W, maxHeight: H, overflow: "hidden" };
-            })()}
-          >
-            {showImages ? (
-              <div className="grid grid-cols-2 gap-1">
-                {mediaThumbs.map((s) => (
-                  <img
-                    key={s.id}
-                    src={s.imageUrl}
-                    alt=""
-                    className="aspect-video w-full rounded object-cover"
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="whitespace-pre-line">{previewText(preview.set)}</div>
-            )}
-          </div>,
-          document.body,
-        )}
+      <SetHoverPreview preview={preview} />
 
       <AlertDialog
         open={!!confirm}
