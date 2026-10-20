@@ -7,6 +7,9 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  // Workers Logs: keep console output (e.g. Stripe webhook ledger failures)
+  // so failures are visible after the fact in the Cloudflare dashboard.
+  "observability": { "enabled": true },
   // R2 bucket for uploaded media (video files). Only a short public URL is
   // stored in the slide JSON; the bytes live here. Bucket must exist:
   // `wrangler r2 bucket create acts2-phyto-media`.
