@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { rawChordAnchors, renderChord, setChordAt, type SongChords } from "@/lib/chords";
 
 /** The cell's text box: 14px text, 8px in from the left (pl-2). */
@@ -19,16 +19,39 @@ export function ChordStrip({
   chords,
   fontFamily,
   onChange,
+  onEditing,
+  closeSeq = 0,
 }: {
   /** The stored line, chords inline: `Amazing (G)grace`. */
   line: string;
   chords: SongChords;
   fontFamily?: string;
   onChange: (line: string) => void;
+  /** The chord box opened at a word (`index`), or closed (null): lets the
+   *  chord palette drop its chord into the open slot. */
+  onEditing?: (index: number | null) => void;
+  /** Bumped when the palette has filled the open slot: close without saving. */
+  closeSeq?: number;
 }) {
   const { text, chords: anchors } = rawChordAnchors(line);
   const canvas = useRef<HTMLCanvasElement | null>(null);
-  const [editing, setEditing] = useState<{ index: number; value: string } | null>(null);
+  const [editing, setEditingState] = useState<{
+    index: number;
+    value: string;
+    initial: string;
+  } | null>(null);
+  const setEditing = (e: { index: number; value: string } | null) => {
+    setEditingState((prev) =>
+      e ? { ...e, initial: prev?.index === e.index ? prev.initial : e.value } : null,
+    );
+    onEditing?.(e ? e.index : null);
+  };
+  const seq = useRef(closeSeq);
+  useEffect(() => {
+    if (closeSeq === seq.current) return;
+    seq.current = closeSeq;
+    setEditingState(null);
+  }, [closeSeq]);
   const input = useRef<HTMLInputElement>(null);
 
   const font = `${CELL_FONT_PX}px ${fontFamily || "system-ui, -apple-system, sans-serif"}`;
@@ -63,8 +86,11 @@ export function ChordStrip({
 
   const commit = () => {
     if (!editing) return;
-    const next = setChordAt(line, editing.index, editing.value.trim() || null);
+    const { index, value, initial } = editing;
     setEditing(null);
+    // Untouched: leave the line alone (the palette may have filled it).
+    if (value.trim() === initial.trim()) return;
+    const next = setChordAt(line, index, value.trim() || null);
     if (next !== line) onChange(next);
   };
 
@@ -102,7 +128,7 @@ export function ChordStrip({
         <input
           ref={input}
           value={editing.value}
-          onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+          onChange={(e) => setEditingState({ ...editing, value: e.target.value })}
           onBlur={commit}
           onKeyDown={(e) => {
             if (e.key === "Enter") {

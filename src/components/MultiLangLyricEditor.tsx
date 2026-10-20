@@ -354,14 +354,36 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
   // The chord palette (above the grid) drops its chord at the caret of the
   // last focused cell, on that row's first-column words (where chords live).
   const lastCaret = useRef<{ row: number; caret: number } | null>(null);
+  const stripEdit = useRef<{ row: number; index: number } | null>(null);
+  const [stripClose, setStripClose] = useState(0);
   const chordAction = useGridChordBus((s) => s.action);
   const seenAction = useRef(chordAction?.seq ?? 0);
   useEffect(() => {
     if (!chordAction || chordAction.seq === seenAction.current) return;
     seenAction.current = chordAction.seq;
-    const at = lastCaret.current;
     const lang = langs[0];
-    if (!at || !lang) return;
+    if (!lang) return;
+    // A chord box open above a word takes the palette's chord.
+    const strip = stripEdit.current;
+    if (strip) {
+      stripEdit.current = null;
+      setStripClose((n) => n + 1);
+      step();
+      setRows((rs) =>
+        rs.map((r, i) => {
+          if (i !== strip.row || r.kind !== "line") return r;
+          const line = r.byLang[lang] ?? "";
+          const next =
+            chordAction.kind === "clear"
+              ? stripChordsRaw(line)
+              : setChordAt(line, strip.index, chordAction.chord);
+          return { ...r, byLang: { ...r.byLang, [lang]: next } };
+        }),
+      );
+      return;
+    }
+    const at = lastCaret.current;
+    if (!at) return;
     step();
     setRows((rs) =>
       rs.map((r, i) => {
@@ -631,6 +653,12 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
                 chordLang={chordsOn ? langs[0] : undefined}
                 chords={chordCfg}
                 setCellLine={setCellLine}
+                stripClose={stripClose}
+                onStripEditing={(row, at) => {
+                  if (at === null) {
+                    if (stripEdit.current?.row === row) stripEdit.current = null;
+                  } else stripEdit.current = { row, index: at };
+                }}
                 insertLineAfter={insertLineAfter}
                 insertCell={insertCell}
                 removeCell={removeCell}
@@ -685,6 +713,8 @@ function Row({
   chordLang,
   chords,
   setCellLine,
+  stripClose,
+  onStripEditing,
   insertLineAfter,
   insertCell,
   removeCell,
@@ -711,6 +741,8 @@ function Row({
   chordLang?: LangCode;
   chords?: SongChords;
   setCellLine: (row: number, lang: LangCode, line: string) => void;
+  stripClose: number;
+  onStripEditing: (row: number, index: number | null) => void;
   insertLineAfter: (row: number, lang: LangCode) => void;
   insertCell: (row: number, lang: LangCode) => void;
   removeCell: (row: number, lang: LangCode) => void;
@@ -760,6 +792,8 @@ function Row({
                 chords={chords}
                 fontFamily={langFontStack(code) || undefined}
                 onChange={(line) => setCellLine(index, code, line)}
+                onEditing={(at) => onStripEditing(index, at)}
+                closeSeq={stripClose}
               />
             )}
             <textarea

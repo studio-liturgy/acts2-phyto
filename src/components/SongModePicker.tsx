@@ -26,7 +26,7 @@ function Swatch({ layout }: { layout: SongLayout }) {
   return (
     <span
       aria-hidden
-      className="inline-block h-3.5 w-6 shrink-0 rounded-full"
+      className="inline-block h-4 w-7 shrink-0 rounded-full"
       style={{
         backgroundColor: "var(--brand-blue)",
         backgroundImage: songPatternImage(LAYOUT_PATTERN[layout], 4, 0.35),
@@ -53,7 +53,8 @@ export function SongModePicker({ setId }: { setId: string }) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="pill mono inline-flex w-auto shrink-0 items-center gap-1.5 border border-foreground bg-background px-2.5 py-0.5 text-[10px] uppercase tracking-wider transition hover:bg-muted"
+          // Same height and type as the top bar's buttons on the right.
+          className="pill mono inline-flex w-auto shrink-0 items-center gap-2 border border-foreground bg-background px-4 py-2 text-xs uppercase tracking-wider transition hover:bg-muted"
         >
           <Swatch layout={layout} />
           {current.label}
@@ -65,7 +66,7 @@ export function SongModePicker({ setId }: { setId: string }) {
           <DropdownMenuItem
             key={l.value}
             onClick={() => ask(setId, l.value)}
-            className="mono gap-2 text-[10px] uppercase tracking-wider"
+            className="mono gap-2 py-2 text-xs uppercase tracking-wider"
           >
             <Swatch layout={l.value} />
             {l.label}

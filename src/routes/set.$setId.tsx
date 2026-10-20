@@ -588,9 +588,18 @@ function SetEditor() {
                             backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 45%, transparent)`,
                           }}
                         >
-                          <div className="grid grid-cols-2 gap-2">
+                          {/* Multilanguage (1/4 width, as on watch): one slide per
+                              row, numbered like the grid. */}
+                          <div
+                            className={`grid ${phytoSet.songLayout === "multilang" ? "grid-cols-1" : "grid-cols-2"} gap-2`}
+                          >
                             {g.slides.map((s) => (
-                              <div key={s.id} className="overflow-hidden rounded-md">
+                              <div key={s.id} className="relative overflow-hidden rounded-md">
+                                {phytoSet.songLayout === "multilang" && (
+                                  <span className="mono absolute left-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[10px] tabular-nums text-white">
+                                    {phytoSet.slides.findIndex((x) => x.id === s.id) + 1}
+                                  </span>
+                                )}
                                 <SlideView slide={s} variant="thumb" template={effectiveTemplate} />
                               </div>
                             ))}
@@ -1542,12 +1551,23 @@ function ChordControls({
   );
 }
 
+const CHORD_SHEET_KEY = "phyto_chord_sheet_hidden";
+
 /**
  * Mirrors what the phone view shows once someone turns chords on, so the leader
  * can check placement and the chosen key without leaving the editor. The slide
  * thumbnails below deliberately never show chords — the projector doesn't.
  */
 function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords }) {
+  // Hide folds the sheet down to its title bar; remembered on this device.
+  const [hidden, setHidden] = useState(
+    () => typeof localStorage !== "undefined" && localStorage.getItem(CHORD_SHEET_KEY) === "1",
+  );
+  const toggleHidden = () =>
+    setHidden((h) => {
+      localStorage.setItem(CHORD_SHEET_KEY, h ? "0" : "1");
+      return !h;
+    });
   const groups: { label: string | undefined; lines: string[] }[] = [];
   for (const s of slides) {
     const last = groups[groups.length - 1];
@@ -1560,8 +1580,17 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
 
   return (
     <div className="mb-4 rounded-2xl border border-foreground p-4">
-      <div className="mono mb-3 flex items-baseline justify-between gap-2 text-[10px] uppercase tracking-wider">
+      <div
+        className={`mono flex items-baseline justify-between gap-2 text-[10px] uppercase tracking-wider ${hidden ? "" : "mb-3"}`}
+      >
         <span>Chord sheet</span>
+        <button
+          type="button"
+          onClick={toggleHidden}
+          className="ml-auto text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        >
+          {hidden ? "Show" : "Hide"}
+        </button>
         {/* The key letter itself is excluded from the uppercase transform: it
             would render the lowercase b in Db/Eb/Ab/Bb as a capital B. */}
         <span className="text-muted-foreground">
@@ -1574,7 +1603,7 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
           )}
         </span>
       </div>
-      <div className="max-h-72 space-y-3 overflow-y-auto pr-1 text-sm">
+      <div className={`max-h-72 space-y-3 overflow-y-auto pr-1 text-sm ${hidden ? "hidden" : ""}`}>
         {groups.map((g, i) => (
           <div key={i}>
             {g.label && (
