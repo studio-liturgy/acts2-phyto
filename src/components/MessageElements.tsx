@@ -87,55 +87,59 @@ export function AddElementBar({
     becomeMessage();
   };
 
-  // Under the importer's Import button, left-aligned.
+  // Under the importer's Import button, as wide as it.
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+    <>
+      <div className="mt-3 flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="mono flex-1 rounded-full border border-foreground px-4 py-1.5 text-center text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background"
+            >
+              Add a point
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="dark:border-white">
+            {POINT_TYPES.map((pt) => (
+              <DropdownMenuItem
+                key={pt.type}
+                onSelect={() => addPoint(pt.type)}
+                className="mono text-xs uppercase tracking-wider"
+              >
+                {pt.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <label
+          className={`mono flex-1 cursor-pointer rounded-full border border-foreground px-4 py-1.5 text-center text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background ${busy ? "opacity-50" : ""}`}
+        >
+          {busy ? "Adding…" : "Add an image"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={busy}
+            onChange={(e) => addImage(e.target.files?.[0])}
+          />
+        </label>
+        {onManualVerse && (
           <button
             type="button"
-            className="mono rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background"
+            onClick={onManualVerse}
+            className="mono flex-1 rounded-full border border-foreground px-4 py-1.5 text-center text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background"
           >
-            Add a point
+            Manual verse
           </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="dark:border-white">
-          {POINT_TYPES.map((pt) => (
-            <DropdownMenuItem
-              key={pt.type}
-              onSelect={() => addPoint(pt.type)}
-              className="mono text-xs uppercase tracking-wider"
-            >
-              {pt.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <label
-        className={`mono cursor-pointer rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background ${busy ? "opacity-50" : ""}`}
-      >
-        {busy ? "Adding…" : "Add an image"}
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          disabled={busy}
-          onChange={(e) => addImage(e.target.files?.[0])}
-        />
-      </label>
-      {onManualVerse && (
-        <button
-          type="button"
-          onClick={onManualVerse}
-          className="mono rounded-full border border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition hover:bg-foreground hover:text-background"
-        >
-          Manual verse
-        </button>
-      )}
+        )}
+      </div>
       {err && (
-        <p className="mono text-[10px] uppercase tracking-wider text-[var(--brand-red)]">{err}</p>
+        <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+          {err}
+        </p>
       )}
-    </div>
+    </>
   );
 }
 

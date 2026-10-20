@@ -1312,7 +1312,7 @@ function Library() {
                         onClick={editMode ? () => toggleSelected(d.id) : undefined}
                         className={`pill group flex items-center gap-4 px-5 py-2 ${kindBg(d.kind)} ${editMode ? "cursor-pointer" : ""}`}
                         // Song Settings as a faint pattern across the pill.
-                        style={songPatternStyle(songPatterns(d), 6)}
+                        style={songPatternStyle(songPatterns(d), 9, 0.07)}
                       >
                         {editMode ? (
                           <span

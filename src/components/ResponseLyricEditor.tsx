@@ -423,7 +423,9 @@ export function ResponseLyricEditor({
         </div>
       </div>
 
-      <EditorBar hints={["Click a role to change it", "Cmd+Enter: new slide"]} />
+      <EditorBar
+        hints={["Click a role to change it", "Cmd/Ctrl Enter: new slide", "Cmd/Ctrl Z: undo"]}
+      />
     </div>
   );
 }

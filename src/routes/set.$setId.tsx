@@ -1465,8 +1465,10 @@ function ChordControls({
       <div className="flex flex-wrap items-center gap-2">{children}</div>
 
       {shown && chords && (
-        <div className="mt-3 space-y-3 border-t border-foreground/15 pt-3">
-          <div className="flex items-center gap-2">
+        // Key and the palette share a row when there's room; otherwise the
+        // palette drops to the next row as one group.
+        <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-foreground/15 pt-3">
+          <div className="flex shrink-0 items-center gap-2">
             {(["numbers", "letters"] as const).map((d) => (
               <button
                 key={d}
@@ -1517,7 +1519,7 @@ function ChordControls({
           {/* The seven chords of the key. Click to drop one in at the caret;
               mousedown is swallowed so the textarea keeps focus and the caret
               stays where the user left it. */}
-          <div className={`flex flex-wrap items-center gap-1.5 ${noPalette ? "hidden" : ""}`}>
+          <div className={`flex shrink-0 items-center gap-1.5 ${noPalette ? "hidden" : ""}`}>
             {diatonicChords(chords.key).map((c) => (
               <button
                 key={c}
@@ -1543,7 +1545,7 @@ function ChordControls({
           </div>
 
           {!detected && (
-            <p className="mono uppercase text-[10px] leading-relaxed text-muted-foreground">
+            <p className="mono basis-full uppercase text-[10px] leading-relaxed text-muted-foreground">
               No chords in the lyrics yet.
             </p>
           )}
@@ -1860,11 +1862,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   };
 
   // Beside Lines per slide: Chords, and in Call and Response its two styles.
+  // A label never wraps away from its control.
   const toggle = (label: string, checked: boolean, onChange: (on: boolean) => void) => (
-    <>
-      <span className="mono ml-3 text-[10px] uppercase tracking-wider">{label}</span>
+    <span className="ml-3 inline-flex shrink-0 items-center gap-2">
+      <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">{label}</span>
       <PillSwitch label={label} checked={checked} onCheckedChange={onChange} />
-    </>
+    </span>
   );
   const songToggles = (
     <>
@@ -1879,28 +1882,32 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       {songLayout === "response" && (
         <>
           {toggle("Show role", showRoles, (on) => updateSet(setId, { showRoles: on || undefined }))}
-          <span className="mono ml-3 text-[10px] uppercase tracking-wider">Align</span>
-          <div className="pill flex h-7 items-center border border-foreground p-0.5">
-            {(
-              [
-                ["left", "Left"],
-                [undefined, "Middle"],
-                ["split", "Right"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => updateSet(setId, { roleAlign: value })}
-                aria-pressed={roleAlign === value}
-                className={`pill mono h-full px-2.5 text-[10px] uppercase tracking-wider transition ${
-                  roleAlign === value ? "bg-foreground text-background" : "hover:bg-muted"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <span className="ml-3 inline-flex shrink-0 items-center gap-2">
+            <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
+              Align
+            </span>
+            <div className="pill flex h-7 items-center border border-foreground p-0.5">
+              {(
+                [
+                  ["left", "Left"],
+                  [undefined, "Middle"],
+                  ["split", "Right"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => updateSet(setId, { roleAlign: value })}
+                  aria-pressed={roleAlign === value}
+                  className={`pill mono h-full px-2.5 text-[10px] uppercase tracking-wider transition ${
+                    roleAlign === value ? "bg-foreground text-background" : "hover:bg-muted"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </span>
         </>
       )}
     </>
@@ -2423,16 +2430,20 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 songLayout === "response" ? () => postGridChord({ kind: "clear" }) : clearLineChords
               }
             >
-              <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
-              <NumberStepper
-                value={linesPer}
-                onChange={requestLinesPerChange}
-                format={(n) => (customBreaks ? "C" : String(n))}
-                min={1}
-                max={8}
-                decrementLabel="Fewer lines per slide"
-                incrementLabel="More lines per slide"
-              />
+              <span className="inline-flex shrink-0 items-center gap-2">
+                <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
+                  Lines per slide
+                </span>
+                <NumberStepper
+                  value={linesPer}
+                  onChange={requestLinesPerChange}
+                  format={(n) => (customBreaks ? "C" : String(n))}
+                  min={1}
+                  max={8}
+                  decrementLabel="Fewer lines per slide"
+                  incrementLabel="More lines per slide"
+                />
+              </span>
               {songToggles}
               {songLayout === "response" && <div ref={setToolbarSlot} className="contents" />}
             </ChordControls>
@@ -2460,21 +2471,25 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 setGridKey((k) => k + 1);
               }}
             >
-              <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
-              <NumberStepper
-                value={multiPer}
-                format={(n) => (customBreaks ? "C" : String(n))}
-                onChange={(n) => {
-                  const next = Math.min(MAX_LANG_LINES_PER, Math.max(1, Math.round(n)));
-                  // From C, re-dividing replaces the hand-placed breaks: ask.
-                  if (customBreaks) setPendingLinesPerConfirm(next);
-                  else updateSet(setId, { langLinesPer: next });
-                }}
-                min={1}
-                max={MAX_LANG_LINES_PER}
-                decrementLabel="Fewer lines per slide"
-                incrementLabel="More lines per slide"
-              />
+              <span className="inline-flex shrink-0 items-center gap-2">
+                <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
+                  Lines per slide
+                </span>
+                <NumberStepper
+                  value={multiPer}
+                  format={(n) => (customBreaks ? "C" : String(n))}
+                  onChange={(n) => {
+                    const next = Math.min(MAX_LANG_LINES_PER, Math.max(1, Math.round(n)));
+                    // From C, re-dividing replaces the hand-placed breaks: ask.
+                    if (customBreaks) setPendingLinesPerConfirm(next);
+                    else updateSet(setId, { langLinesPer: next });
+                  }}
+                  min={1}
+                  max={MAX_LANG_LINES_PER}
+                  decrementLabel="Fewer lines per slide"
+                  incrementLabel="More lines per slide"
+                />
+              </span>
               {songToggles}
               <div ref={setToolbarSlot} className="contents" />
             </ChordControls>

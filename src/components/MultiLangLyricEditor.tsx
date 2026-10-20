@@ -826,7 +826,7 @@ export function MultiLangLyricEditor({
         </div>
       </div>
 
-      <EditorBar hints={["Cmd+Enter: new slide"]} />
+      <EditorBar hints={["Cmd/Ctrl Enter: new slide", "Cmd/Ctrl Z: undo"]} />
     </div>
   );
 }
