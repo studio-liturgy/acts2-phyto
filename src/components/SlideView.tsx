@@ -21,12 +21,15 @@ function roleLineStyle(
   meta: { role?: Role | null }[],
   i: number,
 ): React.CSSProperties {
-  const role = meta[i]?.role;
-  if (!slide?.roles || !role) return {};
-  const prev = meta[i - 1]?.role;
+  if (!slide?.roles) return {};
+  const role = meta[i]?.role ?? null;
+  // A gap wherever the reader changes, a line with no reader included.
+  const changed = i > 0 && (meta[i - 1]?.role ?? null) !== role;
   const align = slide.roleAlign;
+  const gap = changed ? { marginTop: "0.6em" } : {};
+  if (!role) return align === "left" ? { ...gap, width: "100%", textAlign: "left" } : gap;
   return {
-    ...(i > 0 && prev && prev !== role ? { marginTop: "0.6em" } : {}),
+    ...gap,
     ...(align === "left"
       ? { width: "100%", textAlign: "left", paddingLeft: role === "people" ? "1.5em" : 0 }
       : align === "split"

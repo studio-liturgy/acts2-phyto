@@ -978,10 +978,10 @@ function roleLineClass(
   j: number,
   align?: "left" | "split",
 ): string {
-  const role = roles?.[j];
-  if (!role) return "";
-  const prev = roles?.[j - 1];
-  const gap = j > 0 && prev && prev !== role ? "mt-3" : "";
+  if (!roles?.some(Boolean)) return "";
+  const role = roles[j] ?? null;
+  // A gap wherever the reader changes, a line with no reader included.
+  const gap = j > 0 && (roles[j - 1] ?? null) !== role ? "mt-3" : "";
   let side = "";
   if (align === "left" && role === "people") side = "pl-6";
   if (align === "split") side = role === "people" ? "text-right" : "text-left";
