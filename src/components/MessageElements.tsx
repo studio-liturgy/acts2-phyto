@@ -20,7 +20,11 @@ const POINT_TYPES: { type: PointType; label: string }[] = [
   { type: "statement", label: "Statement" },
 ];
 
-/** What the verse and point cells respond to. */
+/** What the verse and point cells respond to (the editor's bottom bar). */
+export function ScriptureHints() {
+  return <EditorBar hints={HINTS} />;
+}
+
 const HINTS = [
   "Cmd/Ctrl B, I, U: bold, italic, underline",
   "Cmd/Ctrl Enter: split a verse into a new slide",
@@ -28,7 +32,7 @@ const HINTS = [
 ];
 
 /**
- * The "add a point / add an image / manual verse" controls, in the bottom bar. A point or
+ * The "add a point / add an image / manual verse" controls, under Import. A point or
  * an image turns the (scripture) set into a message, so a plain reading can
  * grow a quote, a list, or a picture without a separate kind; a manual verse
  * is scripture typed in by hand and leaves the kind alone. New elements land
@@ -37,13 +41,10 @@ const HINTS = [
 export function AddElementBar({
   setId,
   onManualVerse,
-  showHints = true,
 }: {
   setId: string;
   /** Adds a blank hand-typed verse (see useScriptureVersions.addManualVerse). */
   onManualVerse?: () => void;
-  /** The cell shortcuts only mean something once there is a cell to type in. */
-  showHints?: boolean;
 }) {
   const addSlide = useLibrary((s) => s.addSlide);
   const updateSet = useLibrary((s) => s.updateSet);
@@ -86,9 +87,9 @@ export function AddElementBar({
     becomeMessage();
   };
 
-  // Pinned to the editor's bottom: the buttons left, the cell shortcuts right.
+  // Under the importer's Import button, left-aligned.
   return (
-    <EditorBar hints={showHints ? HINTS : undefined}>
+    <div className="mt-3 flex flex-wrap items-center gap-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -134,33 +135,19 @@ export function AddElementBar({
       {err && (
         <p className="mono text-[10px] uppercase tracking-wider text-[var(--brand-red)]">{err}</p>
       )}
-    </EditorBar>
+    </div>
   );
 }
 
-/**
- * Shown below a plain scripture set's verse editor: a hint plus the add-bar. As
- * soon as an image or point is added the set becomes a message and the block
- * editor takes over, so this only ever shows the controls (never element cards).
- */
-export function MessageElements({
-  setId,
-  hasVerses,
-  onManualVerse,
-}: {
-  setId: string;
-  hasVerses: boolean;
-  onManualVerse?: () => void;
-}) {
-  return (
-    <>
-      {!hasVerses && (
-        <p className="mono p-4 text-center text-[10px] uppercase leading-relaxed tracking-wider opacity-50">
-          Import a passage above, or add an image or a point to build a message.
-        </p>
-      )}
-      <AddElementBar setId={setId} onManualVerse={onManualVerse} showHints={hasVerses} />
-    </>
+/** Below a plain scripture set's verses: the empty-state hint, or the bottom
+ *  bar of shortcuts once there are verses. */
+export function MessageElements({ hasVerses }: { hasVerses: boolean }) {
+  return hasVerses ? (
+    <ScriptureHints />
+  ) : (
+    <p className="mono p-4 text-center text-[10px] uppercase leading-relaxed tracking-wider opacity-50">
+      Import a passage above, or add an image or a point to build a message.
+    </p>
   );
 }
 

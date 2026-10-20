@@ -27,7 +27,7 @@ import {
   slidesToScriptureText,
 } from "@/lib/slide-text";
 import { SlideView } from "@/components/SlideView";
-import { MessageElements } from "@/components/MessageElements";
+import { AddElementBar, MessageElements } from "@/components/MessageElements";
 import { MessageBlockEditor } from "@/components/MessageBlockEditor";
 import { ScriptureVerseEditor } from "@/components/ScriptureVerseEditor";
 import { VersionPicker } from "@/components/VersionPicker";
@@ -55,6 +55,7 @@ import {
   returnToMultilang,
   rowsToSlides,
   divideRows,
+  slidesToRows,
   shownLangs,
   standardToRows,
   transposeLangColumn,
@@ -2321,12 +2322,21 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                         if (open?.customBreaks) updateSet(setId, { customBreaks: undefined });
                         if (open && songLayoutOf(open) === "multilang") {
                           // Into the grid's first column, one line per slide.
-                          const first = open.langs?.[0] ?? "en";
+                          // English if the song has an English column.
+                          const first = open.langs?.includes("en")
+                            ? "en"
+                            : (open.langs?.[0] ?? "en");
+                          // The other columns keep their words, line by line.
+                          const langs = open.langs?.length ? open.langs : [first];
                           updateSet(setId, {
-                            langs: open.langs?.length ? open.langs : [first],
-                            slides: rowsToSlides(standardToRows(lyricsToSlides(imported), first), [
-                              first,
-                            ]),
+                            langs,
+                            slides: rowsToSlides(
+                              returnToMultilang(
+                                { kept: first, langs, rows: slidesToRows(open.slides) },
+                                lyricsToSlides(imported),
+                              ),
+                              shownLangs(langs, open.langsShown),
+                            ),
                           });
                           setGridKey((k) => k + 1);
                         }
@@ -2888,6 +2898,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               {busy ? "Fetching…" : "Import"}
             </button>
           )}
+          {!scripture.frozen && (
+            <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} />
+          )}
         </div>
 
         {/* Body: a message owns its slides (draggable block editor); a plain
@@ -2924,11 +2937,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 />
               ))}
             {!scripture.frozen && (
-              <MessageElements
-                setId={setId}
-                hasVerses={!!(manualText.trim() || manualText2.trim())}
-                onManualVerse={scripture.addManualVerse}
-              />
+              <MessageElements hasVerses={!!(manualText.trim() || manualText2.trim())} />
             )}
           </div>
         )}

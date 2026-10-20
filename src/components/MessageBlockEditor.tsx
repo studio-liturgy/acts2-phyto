@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, Minimize2, Plus, Trash2 } from "lucide-react";
 import { DotsGrip } from "@/components/DragBits";
 import { hideDragGhost } from "@/lib/drag-ghost";
-import { BlockFrame, ElementCard, AddElementBar } from "@/components/MessageElements";
+import { BlockFrame, ElementCard, ScriptureHints } from "@/components/MessageElements";
 import { RichText } from "@/components/RichText";
 import { currentCaret, useUndo } from "@/hooks/use-undo";
 import { plainLength, splitMarkup } from "@/lib/inline-format";
@@ -653,9 +653,7 @@ export function MessageBlockEditor({
           </div>
         </AlertDialogContent>
       </AlertDialog>
-      {!readOnly && (
-        <AddElementBar setId={setId} onManualVerse={onManualVerse} showHints={slides.length > 0} />
-      )}
+      {!readOnly && slides.length > 0 && <ScriptureHints />}
     </div>
   );
 }

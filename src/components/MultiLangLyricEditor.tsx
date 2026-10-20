@@ -892,8 +892,28 @@ function Row({
   pasteDown: (row: number, lang: LangCode, text: string) => boolean;
   moveCaret: (row: number, lang: LangCode, dir: -1 | 1) => void;
 }) {
+  // The seam above a slide's later line, drawn in every cell of the row so the
+  // hover runs the grid's whole width (the row wrapper is `display: contents`,
+  // and hovering any piece lights them all). The label sits at the right.
+  const seam = (label: boolean) =>
+    onSplitAbove && (
+      <button
+        type="button"
+        onClick={onSplitAbove}
+        tabIndex={label ? 0 : -1}
+        className="seam absolute -top-1.5 left-0 right-0 z-10 flex h-3 items-center"
+        aria-label="Start a new slide here"
+      >
+        <span className="h-0 w-full border-t border-dashed border-transparent group-has-[.seam:hover]/row:border-foreground/60" />
+        {label && (
+          <span className="mono absolute right-2 flex items-center gap-0.5 rounded-full bg-background px-1.5 text-[9px] uppercase tracking-wider text-muted-foreground opacity-0 group-has-[.seam:hover]/row:opacity-100">
+            <Plus className="h-2.5 w-2.5" /> Slide break
+          </span>
+        )}
+      </button>
+    );
   return (
-    <>
+    <div className="group/row contents">
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -902,6 +922,7 @@ function Row({
         className="mono sticky left-0 z-[5] flex items-start justify-start border-b border-r px-2 py-1 text-[11px] tabular-nums text-muted-foreground"
         style={{ backgroundColor: `color-mix(in oklab, ${tint} 6%, var(--background))` }}
       >
+        {seam(false)}
         {n}
       </div>
       {langs.map((code, ci) => {
@@ -928,20 +949,7 @@ function Row({
                 : `color-mix(in oklab, ${tint} 6%, transparent)`,
             }}
           >
-            {ci === 0 && onSplitAbove && (
-              // Hover the seam above this line to start a new slide here.
-              <button
-                type="button"
-                onClick={onSplitAbove}
-                className="group absolute -top-1.5 left-0 right-0 z-10 flex h-3 items-center"
-                aria-label="Start a new slide here"
-              >
-                <span className="h-0 w-full border-t border-dashed border-transparent group-hover:border-foreground/60" />
-                <span className="mono absolute left-2 flex items-center gap-0.5 rounded-full bg-background px-1.5 text-[9px] uppercase tracking-wider text-muted-foreground opacity-0 group-hover:opacity-100">
-                  <Plus className="h-2.5 w-2.5" /> Slide break
-                </span>
-              </button>
-            )}
+            {seam(ci === langs.length - 1)}
             {code === chordLang && chords && (
               <ChordStrip
                 line={row.byLang[code] ?? ""}
@@ -1026,7 +1034,7 @@ function Row({
           </div>
         );
       })}
-    </>
+    </div>
   );
 }
 
