@@ -5,7 +5,7 @@ import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { moveSlideKeepingSections } from "@/lib/sections";
 import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
 import { parseYouTubeId } from "@/lib/parsers";
-import { applyDividers } from "@/lib/apply-dividers";
+import { applyDividers, breakCount } from "@/lib/apply-dividers";
 import { supabase } from "@/lib/supabase";
 import {
   IMAGE_MAX_DIM,
@@ -37,7 +37,14 @@ import { SongModePicker } from "@/components/SongModePicker";
 import { useSongModeRequest } from "@/lib/song-mode-request";
 import { useGridChordBus } from "@/lib/grid-chord-bus";
 import { ResponseLyricEditor } from "@/components/ResponseLyricEditor";
-import { attachRoles, remapRoles, rolesFromSlides, type LineRoles } from "@/lib/song-roles";
+import {
+  attachRoles,
+  lyricLineRoles,
+  remapRoles,
+  rolesForLyricLines,
+  rolesFromSlides,
+  type LineRoles,
+} from "@/lib/song-roles";
 import { songLayoutOf, type SongLayout } from "@/lib/song-layout";
 import { MultiLangLyricEditor } from "@/components/MultiLangLyricEditor";
 import { SongLanguageBar } from "@/components/SongLanguageBar";
@@ -47,6 +54,7 @@ import {
   leaveMultilang,
   returnToMultilang,
   rowsToSlides,
+  divideRows,
   shownLangs,
   standardToRows,
   transposeLangColumn,
@@ -1572,9 +1580,14 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
   }
 
   return (
-    <div className="mb-4 rounded-2xl border border-foreground p-4">
-      <div
-        className={`mono flex items-center justify-between gap-2 text-[10px] uppercase tracking-wider ${hidden ? "" : "mb-3"}`}
+    <div className="mb-4 rounded-2xl border border-foreground">
+      {/* The whole title bar folds and unfolds the sheet. */}
+      <button
+        type="button"
+        onClick={toggleHidden}
+        aria-label={hidden ? "Show the chord sheet" : "Hide the chord sheet"}
+        aria-expanded={!hidden}
+        className="mono flex w-full items-center justify-between gap-2 rounded-2xl p-4 text-left text-[10px] uppercase tracking-wider"
       >
         <span>Chord sheet</span>
 
@@ -1589,38 +1602,39 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
             </>
           )}
         </span>
-        <button
-          type="button"
-          onClick={toggleHidden}
-          aria-label={hidden ? "Show the chord sheet" : "Hide the chord sheet"}
-          aria-expanded={!hidden}
-          className="-my-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:text-foreground"
-        >
-          {hidden ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
-        </button>
-      </div>
-      <div className={`max-h-72 space-y-3 overflow-y-auto pr-1 text-sm ${hidden ? "hidden" : ""}`}>
-        {groups.map((g, i) => (
-          <div key={i}>
-            {g.label && (
-              <div className="mono mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                {g.label}
+        <ChevronDown
+          className={`relative top-px h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 ${hidden ? "" : "rotate-180"}`}
+        />
+      </button>
+      {/* Height animates through a grid row going 0fr to 1fr. */}
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${hidden ? "grid-rows-[0fr]" : "grid-rows-[1fr]"}`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="-mt-1 max-h-72 space-y-3 overflow-y-auto px-4 pb-4 pr-5 text-sm">
+            {groups.map((g, i) => (
+              <div key={i}>
+                {g.label && (
+                  <div className="mono mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {g.label}
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  {g.lines.map((line, j) => (
+                    <ChordLine
+                      key={j}
+                      line={line}
+                      chords={chords}
+                      show
+                      className="leading-relaxed"
+                      chordClassName="mono text-[0.8em]"
+                    />
+                  ))}
+                </div>
               </div>
-            )}
-            <div className="space-y-1.5">
-              {g.lines.map((line, j) => (
-                <ChordLine
-                  key={j}
-                  line={line}
-                  chords={chords}
-                  show
-                  className="leading-relaxed"
-                  chordClassName="mono text-[0.8em]"
-                />
-              ))}
-            </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );
@@ -1666,7 +1680,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   /** Shared by the stepper buttons and typing directly into the box. */
   const requestLinesPerChange = (raw: number) => {
     const next = Math.min(8, Math.max(1, raw || 1));
-    if (next === linesPer) return;
+    if (next === linesPer && !customBreaks) return;
     if (lyrics.trim()) {
       setPendingLinesPerConfirm(next);
     } else {
@@ -1752,6 +1766,13 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     const set = s.sets[setId];
     return set ? songLayoutOf(set) : "standard";
   });
+  // Slide breaks placed by hand (Lines per slide shows C).
+  const customBreaks = useLibrary((s) => !!s.sets[setId]?.customBreaks);
+  const markCustomBreaks = () => {
+    if (!useLibrary.getState().sets[setId]?.customBreaks) updateSet(setId, { customBreaks: true });
+  };
+  // The Lines per slide row: the grid editors put their toolbars here.
+  const [toolbarSlot, setToolbarSlot] = useState<HTMLDivElement | null>(null);
   const multiPer = useLibrary((s) => {
     const set = s.sets[setId];
     return set ? langLinesPer(set) : 1;
@@ -1792,16 +1813,20 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           : [];
       const langs = hidden ? hidden.langs : first ? [first] : [];
       const per = hidden?.langLinesPer;
+      // Roles have no place in the grid: kept by lyric line until it's left.
+      const lineRoles = lyricLineRoles(lyrics, roles);
       updateSet(setId, {
         songLayout: "multilang",
         langs,
         langsShown: hidden?.langsShown,
         langLinesPer: per,
         hiddenLangs: undefined,
+        lineRoles: lineRoles.some(Boolean) ? lineRoles : undefined,
+        // Custom breaks carry over as they are; otherwise the grid divides
+        // the song by its own Lines per slide.
         slides: rowsToSlides(
-          rows,
+          set.customBreaks ? rows : divideRows(rows, langLinesPer({ langLinesPer: per })),
           shownLangs(langs, hidden?.langsShown),
-          langLinesPer({ langLinesPer: per }),
         ),
       });
       setGridKey((k) => k + 1);
@@ -1812,15 +1837,16 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       const kept = lang ?? set.langs?.[0];
       if (kept) {
         const { text, hidden } = leaveMultilang(set, kept);
-        const divided = applyDividers(text, linesPer);
+        const divided = set.customBreaks ? text : applyDividers(text, linesPer);
         updateSet(setId, {
           songLayout: next === "standard" ? undefined : next,
           langs: undefined,
           langsShown: undefined,
           langLinesPer: undefined,
           hiddenLangs: hidden,
+          lineRoles: undefined,
         });
-        setRoles([]);
+        setRoles(rolesForLyricLines(divided, set.lineRoles ?? []));
         setLyrics(divided);
       } else {
         updateSet(setId, { songLayout: next === "standard" ? undefined : next, slides: [] });
@@ -2292,6 +2318,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                         setSongErr(null);
                         const imported = applyDividers(s.lyrics, linesPer);
                         const open = useLibrary.getState().sets[setId];
+                        if (open?.customBreaks) updateSet(setId, { customBreaks: undefined });
                         if (open && songLayoutOf(open) === "multilang") {
                           // Into the grid's first column, one line per slide.
                           const first = open.langs?.[0] ?? "en";
@@ -2390,12 +2417,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               <NumberStepper
                 value={linesPer}
                 onChange={requestLinesPerChange}
+                format={(n) => (customBreaks ? "C" : String(n))}
                 min={1}
                 max={8}
                 decrementLabel="Fewer lines per slide"
                 incrementLabel="More lines per slide"
               />
               {songToggles}
+              {songLayout === "response" && <div ref={setToolbarSlot} className="contents" />}
             </ChordControls>
           ) : (
             // Multilanguage: lines of each language per slide (1 or 2), and the
@@ -2424,24 +2453,27 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
               <NumberStepper
                 value={multiPer}
-                onChange={(n) =>
-                  updateSet(setId, {
-                    langLinesPer: Math.min(MAX_LANG_LINES_PER, Math.max(1, Math.round(n))),
-                  })
-                }
+                format={(n) => (customBreaks ? "C" : String(n))}
+                onChange={(n) => {
+                  const next = Math.min(MAX_LANG_LINES_PER, Math.max(1, Math.round(n)));
+                  // From C, re-dividing replaces the hand-placed breaks: ask.
+                  if (customBreaks) setPendingLinesPerConfirm(next);
+                  else updateSet(setId, { langLinesPer: next });
+                }}
                 min={1}
                 max={MAX_LANG_LINES_PER}
                 decrementLabel="Fewer lines per slide"
                 incrementLabel="More lines per slide"
               />
               {songToggles}
+              <div ref={setToolbarSlot} className="contents" />
             </ChordControls>
           )}
         </div>
 
         {songLayout === "multilang" && (
           <div className="min-h-0 flex-1 overflow-hidden p-4">
-            <MultiLangLyricEditor key={gridKey} setId={setId} />
+            <MultiLangLyricEditor key={gridKey} setId={setId} toolbarSlot={toolbarSlot} />
           </div>
         )}
         {songLayout === "response" && (
@@ -2450,7 +2482,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               lyrics={lyrics}
               roles={roles}
               chords={chordCfg && !chordCfg.hidden ? chordCfg : undefined}
-              onCommit={(text, nextRoles, typing) => {
+              toolbarSlot={toolbarSlot}
+              onCommit={(text, nextRoles, { typing, breaks } = {}) => {
+                if (breaks) markCustomBreaks();
                 if (typing) pushHistory();
                 else {
                   lastPush.current = 0;
@@ -2485,6 +2519,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                   : null;
               const { value: boxValue, selectionStart: boxCaret } = e.target;
               const next = commitFromBox(boxValue);
+              // A --- typed or deleted by hand: the breaks are now custom.
+              if (breakCount(next) !== breakCount(lyrics)) markCustomBreaks();
               if (before && before.kind !== "plain") {
                 // The caret goes back exactly where the keystroke left it, on
                 // whichever line that was. caretRef still holds the
@@ -2580,7 +2616,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           onOpenChange={(o) => {
             if (!o) {
               setPendingLinesPerConfirm(null);
-              setLinesPer(prevLinesPer.current);
+              if (songLayout !== "multilang") setLinesPer(prevLinesPer.current);
             }
           }}
         >
@@ -2596,6 +2632,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 type="button"
                 onClick={() => {
                   const next = pendingLinesPerConfirm!;
+                  if (songLayout === "multilang") {
+                    updateSet(setId, { langLinesPer: next, customBreaks: undefined });
+                    setPendingLinesPerConfirm(null);
+                    return;
+                  }
+                  updateSet(setId, { customBreaks: undefined });
                   prevLinesPer.current = next;
                   setLinesPer(next);
                   const divided = applyDividers(lyrics, next);
@@ -2611,7 +2653,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 type="button"
                 onClick={() => {
                   setPendingLinesPerConfirm(null);
-                  setLinesPer(prevLinesPer.current);
+                  if (songLayout !== "multilang") setLinesPer(prevLinesPer.current);
                 }}
                 className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
               >

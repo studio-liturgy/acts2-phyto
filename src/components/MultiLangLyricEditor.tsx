@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Plus, Trash2, X } from "lucide-react";
 import { LangPickerMenu } from "@/components/LangSearch";
 import { DotsGrip } from "@/components/DragBits";
 import { hideDragGhost } from "@/lib/drag-ghost";
@@ -11,6 +12,7 @@ import {
   type MultiRow,
   langLinesPer,
   slideStarts,
+  divideRows,
   clearColumnRange,
   columnRangeText,
   insertColumnCell,
@@ -39,22 +41,47 @@ const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"]
  * and the arrow keys move the caret between lines. Past four languages the
  * columns scroll horizontally; removing a column keeps its words.
  */
-export function MultiLangLyricEditor({ setId }: { setId: string }) {
+export function MultiLangLyricEditor({
+  setId,
+  toolbarSlot,
+}: {
+  setId: string;
+  /** Where the language pills and + Section go (the Lines per slide row). */
+  toolbarSlot?: HTMLElement | null;
+}) {
   const phytoSet = useLibrary((s) => s.sets[setId]);
   const updateSet = useLibrary((s) => s.updateSet);
 
   const langs = useMemo(() => phytoSet?.langs ?? [], [phytoSet?.langs]);
   const langsShown = phytoSet?.langsShown;
   const perSlide = phytoSet ? langLinesPer(phytoSet) : 1;
+  // Breaks placed by hand stay put; otherwise Lines per slide keeps the grid
+  // evenly divided as it's edited (see the effect below).
+  const customBreaks = !!phytoSet?.customBreaks;
+  // Every edit goes through `setRows`, which re-divides evenly unless the
+  // breaks are custom. Marking custom switches that off at once, so the break
+  // being placed in the same handler survives.
+  const normalize = useRef<(rs: MultiRow[]) => MultiRow[]>((rs) => rs);
+  normalize.current = customBreaks ? (rs) => rs : (rs) => divideRows(rs, perSlide);
+  const markCustom = () => {
+    normalize.current = (rs) => rs;
+    if (!useLibrary.getState().sets[setId]?.customBreaks) updateSet(setId, { customBreaks: true });
+  };
   // Chords live in the cells' words as (G), but a cell only ever shows the
   // words: with chords on, the first column gets a small chord line above
   // each cell; with chords off they're hidden entirely.
   const chordCfg = phytoSet?.chords;
   const chordsOn = !!chordCfg && !chordCfg.hidden;
-  const [rows, setRows] = useState<MultiRow[]>(() => {
+  const [rows, setRowsRaw] = useState<MultiRow[]>(() => {
     const initial = slidesToRows(phytoSet?.slides ?? []);
-    return initial.length ? initial : [{ kind: "line", byLang: {} }];
+    if (!initial.length) return [{ kind: "line", byLang: {} }];
+    return phytoSet?.customBreaks ? initial : divideRows(initial, perSlide);
   });
+  const setRows = useCallback(
+    (u: MultiRow[] | ((rs: MultiRow[]) => MultiRow[])) =>
+      setRowsRaw((prev) => normalize.current(typeof u === "function" ? u(prev) : u)),
+    [],
+  );
 
   // Undo / redo (Cmd+Z, Cmd+Shift+Z). The cells are controlled, so the browser's
   // own undo can't follow them; this keeps snapshots of the rows instead. Typing
@@ -93,11 +120,15 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
     (redo ? h.past : h.future).push(rowsRef.current);
     h.restoring = true;
     h.lastAt = 0;
-    setRows(target);
+    setRowsRaw(target);
   };
 
   // Re-focus after a row is inserted/removed. Set during the edit, consumed once.
-  const pendingFocus = useRef<{ row: number; lang: LangCode } | null>(null);
+  // By line number (the nth line row), not row index: re-dividing adds and
+  // removes break rows, which shifts row indexes but never line numbers.
+  const pendingFocus = useRef<{ line: number; lang: LangCode } | null>(null);
+  const lineNo = (rs: MultiRow[], row: number) =>
+    rs.slice(0, row).filter((r) => r.kind === "line").length;
   const cells = useRef(new Map<string, HTMLTextAreaElement>());
   const key = (row: number, lang: LangCode) => `${row}:${lang}`;
   const autosize = (el: HTMLTextAreaElement | null) => {
@@ -110,17 +141,30 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
     const want = pendingFocus.current;
     if (!want) return;
     pendingFocus.current = null;
-    const el = cells.current.get(key(want.row, want.lang));
+    let seen = -1;
+    const row = rows.findIndex((r) => r.kind === "line" && ++seen === want.line);
+    if (row < 0) return;
+    const el = cells.current.get(key(row, want.lang));
     el?.focus();
     el?.setSelectionRange(el.value.length, el.value.length);
   }, [rows]);
 
+  // Lines per slide changed (or C was cleared): re-divide the whole grid.
+  const lastDivision = useRef({ perSlide, customBreaks });
   useEffect(() => {
-    const parsed = rowsToSlides(rows, shownLangs(langs, langsShown), perSlide);
+    const was = lastDivision.current;
+    lastDivision.current = { perSlide, customBreaks };
+    if (customBreaks || (was.perSlide === perSlide && !was.customBreaks)) return;
+    history.current.discrete = true;
+    setRowsRaw((rs) => divideRows(rs, perSlide));
+  }, [perSlide, customBreaks]);
+
+  useEffect(() => {
+    const parsed = rowsToSlides(rows, shownLangs(langs, langsShown));
     const current = useLibrary.getState().sets[setId]?.slides ?? [];
     const { slides, changed } = reconcileSlideIds(parsed, current);
     if (changed) updateSet(setId, { slides });
-  }, [rows, langs, langsShown, perSlide, setId, updateSet]);
+  }, [rows, langs, langsShown, setId, updateSet]);
 
   // Column widths follow the text. At four languages or fewer the columns share
   // the container: each is weighted by the width of its longest line, so a
@@ -317,7 +361,7 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
       document.removeEventListener("paste", onPaste, true);
       document.removeEventListener("keydown", onKey, true);
     };
-  }, [colSel]);
+  }, [setRows, colSel]);
 
   // Cmd+Z / Cmd+Shift+Z (or Cmd+Y) anywhere in the editor.
   const rootRef = useRef<HTMLDivElement>(null);
@@ -396,7 +440,7 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
         return { ...r, byLang: { ...r.byLang, [lang]: next } };
       }),
     );
-  }, [chordAction, langs]);
+  }, [setRows, chordAction, langs]);
 
   // The chord line above a first-column cell: set the whole stored line.
   const setCellLine = (row: number, lang: LangCode, line: string) => {
@@ -410,12 +454,12 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
   const insertLineAfter = (row: number, lang: LangCode) => {
     step();
     setRows((rs) => [...rs.slice(0, row + 1), { kind: "line", byLang: {} }, ...rs.slice(row + 1)]);
-    pendingFocus.current = { row: row + 1, lang };
+    pendingFocus.current = { line: lineNo(rows, row) + 1, lang };
   };
   const removeRow = (row: number, lang?: LangCode) => {
     step();
     setRows((rs) => (rs.length <= 1 ? rs : rs.filter((_, i) => i !== row)));
-    if (lang) pendingFocus.current = { row: Math.max(0, row - 1), lang };
+    if (lang) pendingFocus.current = { line: Math.max(0, lineNo(rows, row) - 1), lang };
   };
   const editSection = (row: number, text: string) =>
     setRows((rs) => rs.map((r, i) => (i === row && r.kind === "section" ? { ...r, text } : r)));
@@ -441,19 +485,12 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
   const insertCell = (row: number, lang: LangCode) => {
     step();
     setRows((rs) => insertColumnCell(rs, row, lang));
-    const next = rows.findIndex((r, i) => i > row && r.kind === "line");
-    pendingFocus.current = { row: next === -1 ? rows.length : next, lang };
+    pendingFocus.current = { line: lineNo(rows, row) + 1, lang };
   };
   const removeCell = (row: number, lang: LangCode) => {
     step();
     setRows((rs) => removeColumnCell(rs, row, lang));
-    let prev = -1;
-    for (let i = row - 1; i >= 0; i--)
-      if (rows[i].kind === "line") {
-        prev = i;
-        break;
-      }
-    pendingFocus.current = { row: prev === -1 ? row : prev, lang };
+    pendingFocus.current = { line: Math.max(0, lineNo(rows, row) - 1), lang };
   };
 
   // Arrow keys move the caret between the same column's line cells.
@@ -493,68 +530,74 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
     );
   }
 
-  const starts = slideStarts(rows, perSlide);
+  const starts = slideStarts(rows);
+  // Split above a line: a slide break there (by hand, so the stepper reads C).
+  const splitAbove = (i: number) => {
+    step();
+    markCustom();
+    setRows((rs) => [...rs.slice(0, i), { kind: "break" }, ...rs.slice(i)]);
+  };
   let sectionNo = -1;
   let tint = "transparent";
 
+  const toolbar = (
+    // Column languages for THIS song, coloured and drag-reorderable.
+    <div className="ml-auto flex flex-wrap items-center gap-1.5">
+      {langs.map((code, i) => (
+        <span
+          key={code}
+          draggable
+          onDragStart={(e) => {
+            dragLang.current = i;
+            hideDragGhost(e);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            const from = dragLang.current;
+            if (from === null || from === i) return;
+            const next = [...langs];
+            const [moved] = next.splice(from, 1);
+            next.splice(i, 0, moved);
+            dragLang.current = i;
+            setLangs(next);
+          }}
+          className="mono flex h-7 cursor-grab items-center gap-1 rounded-full border px-2 text-xs uppercase tracking-wider"
+          style={{
+            borderColor: langColor(code),
+            backgroundColor: `color-mix(in oklab, ${langColor(code)} 14%, transparent)`,
+          }}
+          title={`${langDef(code).label}: drag to reorder`}
+        >
+          <DotsGrip className="opacity-40" size={10} />
+          {langDef(code).short}
+          <button
+            type="button"
+            aria-label={`Remove ${langDef(code).label} column (keeps its words)`}
+            className="ml-auto shrink-0 cursor-pointer opacity-40 hover:opacity-100"
+            onClick={() => setLangs(langs.filter((c) => c !== code))}
+          >
+            ×
+          </button>
+        </span>
+      ))}
+      {available.length > 0 && (
+        <LangPicker available={available} onAdd={(c) => setLangs([...langs, c])} label="Language" />
+      )}
+      <button
+        type="button"
+        onClick={addSection}
+        className="mono flex h-7 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        title="Add a section above the line your cursor is on"
+      >
+        <Plus className="h-3 w-3" />
+        Section
+      </button>
+    </div>
+  );
+
   return (
     <div ref={rootRef} className="flex h-full flex-col gap-2">
-      {/* Column languages for THIS song, coloured and drag-reorderable. */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {langs.map((code, i) => (
-          <span
-            key={code}
-            draggable
-            onDragStart={(e) => {
-              dragLang.current = i;
-              hideDragGhost(e);
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              const from = dragLang.current;
-              if (from === null || from === i) return;
-              const next = [...langs];
-              const [moved] = next.splice(from, 1);
-              next.splice(i, 0, moved);
-              dragLang.current = i;
-              setLangs(next);
-            }}
-            className="mono flex h-7 cursor-grab items-center gap-1 rounded-full border px-2 text-xs uppercase tracking-wider"
-            style={{
-              borderColor: langColor(code),
-              backgroundColor: `color-mix(in oklab, ${langColor(code)} 14%, transparent)`,
-            }}
-            title={`${langDef(code).label}: drag to reorder`}
-          >
-            <DotsGrip className="opacity-40" size={10} />
-            {langDef(code).short}
-            <button
-              type="button"
-              aria-label={`Remove ${langDef(code).label} column (keeps its words)`}
-              className="ml-auto shrink-0 cursor-pointer opacity-40 hover:opacity-100"
-              onClick={() => setLangs(langs.filter((c) => c !== code))}
-            >
-              ×
-            </button>
-          </span>
-        ))}
-        {available.length > 0 && (
-          <LangPicker
-            available={available}
-            onAdd={(c) => setLangs([...langs, c])}
-            label="Language"
-          />
-        )}
-        <button
-          type="button"
-          onClick={addSection}
-          className="mono ml-auto flex h-7 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
-          title="Add a section above the line your cursor is on"
-        >
-          <Plus className="h-3 w-3" />
-          Section
-        </button>
-      </div>
+      {toolbarSlot ? createPortal(toolbar, toolbarSlot) : toolbar}
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto rounded-lg border">
         <div className="grid" style={{ gridTemplateColumns: gridCols }}>
@@ -628,6 +671,46 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
               );
             }
 
+            if (row.kind === "break") {
+              return (
+                <div
+                  key={i}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    dragSectionOver(i);
+                  }}
+                  className="group relative flex h-4 items-center"
+                  style={{ gridColumn: "1 / -1" }}
+                  title="Slide break: drag to move"
+                >
+                  <span
+                    draggable
+                    onDragStart={(e) => {
+                      dragSecRow.current = i;
+                      markCustom();
+                      hideDragGhost(e);
+                    }}
+                    onDragEnd={() => (dragSecRow.current = null)}
+                    className="sticky left-0 z-[5] flex shrink-0 cursor-grab items-center px-2"
+                  >
+                    <DotsGrip className="opacity-50" size={10} />
+                  </span>
+                  <div className="h-0.5 w-full bg-foreground/50" />
+                  <button
+                    type="button"
+                    aria-label="Remove slide break"
+                    onClick={() => {
+                      markCustom();
+                      removeRow(i);
+                    }}
+                    className="sticky right-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-background text-foreground/60 opacity-0 transition group-hover:opacity-100 hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              );
+            }
+
             const n = starts[i];
             const rowTint = tint;
             return (
@@ -635,6 +718,11 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
                 key={i}
                 index={i}
                 n={n}
+                onSplitAbove={
+                  n === null && rows.slice(0, i).some((r) => r.kind === "line")
+                    ? () => splitAbove(i)
+                    : undefined
+                }
                 langs={langs}
                 row={row}
                 tint={rowTint}
@@ -674,9 +762,8 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
           <button
             type="button"
             onClick={() => {
-              const at = rows.length;
+              pendingFocus.current = { line: lineNo(rows, rows.length), lang: langs[0] };
               setRows((rs) => [...rs, { kind: "line", byLang: {} }]);
-              pendingFocus.current = { row: at, lang: langs[0] };
             }}
             style={{ gridColumn: "1 / -1" }}
             className="mono flex items-center justify-center gap-1 border-t py-2 text-xs uppercase tracking-wider opacity-50 hover:opacity-100"
@@ -698,6 +785,7 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
 function Row({
   index,
   n,
+  onSplitAbove,
   langs,
   row,
   tint,
@@ -725,6 +813,8 @@ function Row({
   index: number;
   /** The slide this row starts (null on a slide's later rows). */
   n: number | null;
+  /** A later line of its slide: hovering the seam above it offers Split. */
+  onSplitAbove?: () => void;
   langs: LangCode[];
   row: Extract<MultiRow, { kind: "line" }>;
   tint: string;
@@ -762,7 +852,7 @@ function Row({
       >
         {n}
       </div>
-      {langs.map((code) => {
+      {langs.map((code, ci) => {
         const def = langDef(code);
         const selected =
           !!colSel && colSel.lang === code && index >= colSel.from && index <= colSel.to;
@@ -786,6 +876,20 @@ function Row({
                 : `color-mix(in oklab, ${tint} 6%, transparent)`,
             }}
           >
+            {ci === 0 && onSplitAbove && (
+              // Hover the seam above this line to start a new slide here.
+              <button
+                type="button"
+                onClick={onSplitAbove}
+                className="group absolute -top-1.5 left-0 right-0 z-10 flex h-3 items-center"
+                aria-label="Start a new slide here"
+              >
+                <span className="h-0 w-full border-t border-dashed border-transparent group-hover:border-foreground/60" />
+                <span className="mono absolute left-2 rounded-full bg-background px-1.5 text-[9px] uppercase tracking-wider text-muted-foreground opacity-0 group-hover:opacity-100">
+                  Split
+                </span>
+              </button>
+            )}
             {code === chordLang && chords && (
               <ChordStrip
                 line={row.byLang[code] ?? ""}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Plus, Trash2, X } from "lucide-react";
 import { DotsGrip } from "@/components/DragBits";
 import { hideDragGhost } from "@/lib/drag-ghost";
@@ -15,6 +16,7 @@ import {
   breakAfter,
   breakBefore,
   fromDoc,
+  mergeIntoPrevious,
   moveLine,
   insertLines,
   neighbourLine,
@@ -54,6 +56,7 @@ export function ResponseLyricEditor({
   roles,
   chords,
   onCommit,
+  toolbarSlot,
   onUndo,
   onRedo,
 }: {
@@ -62,7 +65,13 @@ export function ResponseLyricEditor({
   /** Chords on: a small chord line above each lyric. */
   chords?: SongChords;
   /** A whole edit: the new text and roles together (one undo step each). */
-  onCommit: (lyrics: string, roles: LineRoles, typing?: boolean) => void;
+  onCommit: (
+    lyrics: string,
+    roles: LineRoles,
+    opts?: { typing?: boolean; breaks?: boolean },
+  ) => void;
+  /** Where + Section goes (the Lines per slide row, after Align). */
+  toolbarSlot?: HTMLElement | null;
   onUndo: () => void;
   onRedo: () => void;
 }) {
@@ -77,16 +86,23 @@ export function ResponseLyricEditor({
   const doc = () => toDoc(lyrics, roles);
   // Dragging a section or break row: its current stored index.
   const dragFrom = useRef<number | null>(null);
+  const dragIsBreak = useRef(false);
   const dragOver = (to: number) => {
     const from = dragFrom.current;
     if (from === null || from === to || from + 1 === to) return;
-    commit(moveLine(doc(), from, to), undefined, true);
+    commit(moveLine(doc(), from, to), undefined, true, dragIsBreak.current);
     dragFrom.current = to > from ? to - 1 : to;
   };
-  const commit = (d: Doc, focus?: { index: number; caret: number }, typing = false) => {
+  // `breaks`: a slide break placed, moved or removed by hand (stepper: C).
+  const commit = (
+    d: Doc,
+    focus?: { index: number; caret: number },
+    typing = false,
+    breaks = false,
+  ) => {
     if (focus) pendingFocus.current = focus;
     const { lyrics: text, roles: r } = fromDoc(d);
-    onCommit(text, r, typing);
+    onCommit(text, r, { typing, breaks });
   };
 
   useEffect(() => {
@@ -152,6 +168,18 @@ export function ResponseLyricEditor({
     commit(insertLines(d, last, [" "], [prevRole]), { index: last, caret: 0 });
   };
 
+  const sectionButton = (
+    <button
+      type="button"
+      onClick={addSection}
+      className="mono ml-3 flex h-7 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+      title="Add a section above the line your cursor is on"
+    >
+      <Plus className="h-3 w-3" />
+      Section
+    </button>
+  );
+
   if (rows.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
@@ -168,17 +196,7 @@ export function ResponseLyricEditor({
 
   return (
     <div className="flex h-full flex-col gap-2">
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={addSection}
-          className="mono ml-auto flex h-7 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
-          title="Add a section above the line your cursor is on"
-        >
-          <Plus className="h-3 w-3" />
-          Section
-        </button>
-      </div>
+      {toolbarSlot ? createPortal(sectionButton, toolbarSlot) : sectionButton}
 
       <div className="catalogue-scroll min-h-0 flex-1 overflow-auto rounded-lg border">
         <div className="grid" style={{ gridTemplateColumns: `${FIRST_COL} minmax(0, 1fr)` }}>
@@ -201,6 +219,7 @@ export function ResponseLyricEditor({
                     draggable
                     onDragStart={(e) => {
                       dragFrom.current = row.index;
+                      dragIsBreak.current = false;
                       hideDragGhost(e);
                     }}
                     onDragEnd={() => (dragFrom.current = null)}
@@ -249,6 +268,7 @@ export function ResponseLyricEditor({
                     draggable
                     onDragStart={(e) => {
                       dragFrom.current = row.index;
+                      dragIsBreak.current = true;
                       hideDragGhost(e);
                     }}
                     onDragEnd={() => (dragFrom.current = null)}
@@ -260,7 +280,7 @@ export function ResponseLyricEditor({
                   <button
                     type="button"
                     aria-label="Remove slide break"
-                    onClick={() => commit(removeLine(doc(), row.index))}
+                    onClick={() => commit(removeLine(doc(), row.index), undefined, false, true)}
                     className="absolute right-2 flex h-5 w-5 items-center justify-center rounded-full bg-background text-foreground/60 opacity-0 transition group-hover:opacity-100 hover:text-foreground"
                   >
                     <X className="h-3 w-3" />
@@ -292,7 +312,7 @@ export function ResponseLyricEditor({
                 }}
                 autosize={autosize}
                 onCycleRole={() => cycleRole(row.index)}
-                onSplitAbove={() => commit(breakBefore(doc(), row.index))}
+                onSplitAbove={() => commit(breakBefore(doc(), row.index), undefined, false, true)}
                 onFocus={() => (focusIndex.current = row.index)}
                 onCaret={(caret) => (lastCaret.current = { index: row.index, caret })}
                 onStripEditing={(at) => {
@@ -317,7 +337,7 @@ export function ResponseLyricEditor({
                     // A slide break after this line; the cursor goes past it.
                     e.preventDefault();
                     const { doc: next, focus } = breakAfter(d, row.index, role);
-                    commit(next, { index: focus, caret: 0 });
+                    commit(next, { index: focus, caret: 0 }, false, true);
                   } else if (e.shiftKey && e.key === "Enter") {
                     // A new empty line below, same reader.
                     e.preventDefault();
@@ -343,20 +363,11 @@ export function ResponseLyricEditor({
                     );
                     commit(next, { index: row.index + 1, caret: 0 });
                   } else if (e.key === "Backspace" && caret === 0 && el.selectionEnd === 0) {
-                    const prev = neighbourLine(lyrics, row.index, -1);
-                    if (!el.value.trim()) {
+                    // Joins this line onto the end of the line above.
+                    const merged = mergeIntoPrevious(d, row.index, stripChordsRaw);
+                    if (merged) {
                       e.preventDefault();
-                      const removed = removeLine(d, row.index);
-                      const focus = prev >= 0 ? prev : row.index;
-                      commit(removed, {
-                        index: focus,
-                        caret: stripChordsRaw(removed.lines[focus] ?? "").length,
-                      });
-                    } else if (row.index > 0 && d.lines[row.index - 1].trim() === "---") {
-                      // Backspace at the start of a slide's first line joins
-                      // it to the slide above (removes the break).
-                      e.preventDefault();
-                      commit(removeLine(d, row.index - 1), { index: row.index - 1, caret: 0 });
+                      commit(merged.doc, { index: merged.focus, caret: merged.caret });
                     }
                   } else if (e.key === "ArrowUp" && caret === 0) {
                     const prev = neighbourLine(lyrics, row.index, -1);
@@ -406,8 +417,7 @@ export function ResponseLyricEditor({
       </div>
 
       <p className="mono text-[10px] uppercase tracking-wider opacity-40">
-        Click a role to change it · hover between lines and click Split, or press Cmd+Enter, to
-        start a new slide · drag a section or a break by its grip to move it
+        Click a role to change it · Cmd+Enter: new slide
       </p>
     </div>
   );
@@ -470,14 +480,20 @@ function Line({
         data-row={index}
         title="Click to change who reads this line"
         aria-label={`Reader: ${role ? ROLE_LABEL[role] : "none"}`}
-        className={`mono flex items-end border-b border-r px-2 pb-1.5 text-[10px] uppercase tracking-wider transition ${
+        className={`flex items-end border-b border-r px-2 pb-1.5 text-left transition ${
           role
             ? "text-[var(--brand-white)] hover:opacity-90"
             : "text-muted-foreground hover:bg-muted"
         }`}
         style={role ? { backgroundColor: tint } : undefined}
       >
-        {role ? ROLE_LABEL[role] : "Role"}
+        {/* A line box the size of the lyric's (text-sm, leading-relaxed, same
+            padding), so the small label sits on the lyric's baseline. */}
+        <span className="text-sm leading-relaxed">
+          <span className="mono text-[10px] uppercase tracking-wider">
+            {role ? ROLE_LABEL[role] : "Role"}
+          </span>
+        </span>
       </button>
       <div
         className="relative flex min-w-0 flex-col justify-end border-b"

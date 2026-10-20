@@ -108,6 +108,7 @@ export interface HiddenLangs {
   langLinesPer?: number;
   rows: (
     | { kind: "section"; text: string }
+    | { kind: "break" }
     | { kind: "line"; byLang: Partial<Record<LangCode, string>> }
   )[];
 }
@@ -161,6 +162,14 @@ export interface Set {
    *  back restores every language. `kept` is the language the plain editor
    *  holds; on the way back its column is refilled from the plain words. */
   hiddenLangs?: HiddenLangs;
+  /** Songs: the slide breaks were placed by hand (Lines per slide shows C), so
+   *  they're kept as they are across edits and mode switches. Absent = the
+   *  song is divided evenly by Lines per slide. */
+  customBreaks?: boolean;
+  /** A Multilanguage song that came from Call and Response (or Standard with
+   *  roles kept): the plain side's roles, one per lyric line in order, given
+   *  back to those lines when the song leaves Multilanguage. */
+  lineRoles?: (Role | null)[];
   /** Media-only: auto-advance to next slide after N ms. 0 = off. */
   autoAdvanceMs?: number;
   /** Media-only: when auto-advancing, loop from end back to start. */

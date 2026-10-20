@@ -3,6 +3,7 @@ import {
   breakAfter,
   breakBefore,
   fromDoc,
+  mergeIntoPrevious,
   moveLine,
   neighbourLine,
   responseRows,
@@ -73,5 +74,23 @@ describe("Call and Response grid rows", () => {
     expect(fromDoc(moved).lyrics).toBe("A\nB\n---\nC");
     expect(moved.roles).toEqual(["leader", "people", null, "leader"]);
     expect(fromDoc(moveLine(doc, 1, 0)).lyrics).toBe("---\nA\nB\nC");
+  });
+
+  it("Backspace at a line's start joins it onto the line above", () => {
+    const doc = toDoc("(G)Amazing grace\n---\nhow sweet\n[Chorus]\nOnly", [
+      "leader",
+      null,
+      "people",
+      null,
+      "leader",
+    ]);
+    const strip = (l: string) => l.replace(/\([^)]*\)/g, "");
+    const m = mergeIntoPrevious(doc, 2, strip)!;
+    expect(fromDoc(m.doc).lyrics).toBe("(G)Amazing gracehow sweet\n---\n[Chorus]\nOnly");
+    expect(m.doc.roles[0]).toBe("leader");
+    expect(m).toMatchObject({ focus: 0, caret: 13 });
+    // Not across a section, nor at the top.
+    expect(mergeIntoPrevious(doc, 4, strip)).toBeNull();
+    expect(mergeIntoPrevious(doc, 0, strip)).toBeNull();
   });
 });

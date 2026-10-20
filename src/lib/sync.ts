@@ -66,6 +66,8 @@ type SetContentField =
   | "showRoles"
   | "roleAlign"
   | "hiddenLangs"
+  | "customBreaks"
+  | "lineRoles"
   | "autoAdvanceMs"
   | "loop"
   | "loopSection"
@@ -636,6 +638,8 @@ export function setFingerprint(s: PhytoSet): string {
     showRoles: s.showRoles ?? null,
     roleAlign: s.roleAlign ?? null,
     hiddenLangs: s.hiddenLangs ?? null,
+    customBreaks: s.customBreaks ?? null,
+    lineRoles: s.lineRoles ?? null,
     autoAdvanceMs: s.autoAdvanceMs ?? null,
     loop: s.loop ?? null,
     loopSection: s.loopSection ?? null,

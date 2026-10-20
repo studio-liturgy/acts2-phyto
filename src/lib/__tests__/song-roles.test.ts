@@ -6,6 +6,8 @@ import {
   nextRole,
   remapRoles,
   startsRoleRun,
+  lyricLineRoles,
+  rolesForLyricLines,
   rolesFromSlides,
   type LineRoles,
 } from "@/lib/song-roles";
@@ -35,6 +37,14 @@ describe("song roles", () => {
     expect(slides[0].roleAlign).toBe("split");
     const hidden = attachRoles(lyricsToSlides(text), text, roles, false, { marks: true });
     expect(hidden[0].roleMarks).toBeUndefined();
+  });
+
+  it("roles survive a trip through Multi-Language by lyric line", () => {
+    const before = "[Call]\nThe Lord be with you\nAnd also with you\n---\nLift up";
+    const kept = lyricLineRoles(before, [null, "leader", "people", null, "leader"]);
+    expect(kept).toEqual(["leader", "people", "leader"]);
+    const after = "[Call]\nThe Lord be with you\n---\nAnd also with you\nLift up";
+    expect(rolesForLyricLines(after, kept)).toEqual([null, "leader", null, "people", "leader"]);
   });
 
   it("marks only the first line of each reader's run", () => {
@@ -121,13 +131,18 @@ describe("song patterns", () => {
     expect(songPatterns({ ...song, kind: "scripture", songLayout: "response" })).toEqual([]);
   });
 
-  it("chords are dots (sized), modes are stripes, no layer twice", () => {
+  it("chord dots share the pattern's tiling, so they sit on its crossings", () => {
     const dots = songPatternStyle(["lines"], 6);
     expect(dots.backgroundImage).toContain("radial-gradient");
     expect(dots.backgroundSize).toBe("6px 6px");
+    expect(dots.backgroundPosition).toBe("-2.5px -2.5px");
     const grid = songPatternStyle(["lines", "grid"], 6);
-    expect(grid.backgroundImage!.match(/\(0deg/g)).toHaveLength(1);
-    expect(grid.backgroundSize).toBe("6px 6px, auto, auto");
+    expect(grid.backgroundSize).toBe("6px 6px, 6px 6px, 6px 6px");
+    expect(grid.backgroundPosition).toBe("-2.5px -2.5px, 0 0, 0 0");
+    const hatch = songPatternStyle(["lines", "hatch"], 6);
+    // Two dot layers (tile centres and corners) then the two diagonals.
+    expect(hatch.backgroundPosition).toBe("0 0, 4.24px 4.24px, 0 0, 0 0");
+    expect(hatch.backgroundSize!.split(", ")[0]).toBe("8.49px 8.49px");
     expect(songPatternStyle([], 6)).toEqual({});
   });
 });

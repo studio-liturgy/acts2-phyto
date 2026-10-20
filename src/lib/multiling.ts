@@ -7,9 +7,9 @@
 //     grid line N is line N in EVERY language
 //
 // Section labels ("[Chorus]") are their own full-width rows, so they never
-// consume a line number and never shift one language against another. A slide
-// takes `perSlide` consecutive lines (1 or 2) of a section and shows each
-// language's run in turn:
+// consume a line number and never shift one language against another. Slide
+// breaks are rows too (`break`): a slide is the lines between two breaks (or a
+// break and a section), and shows each language's run in turn:
 //
 //     Line 1 (Language A)
 //     Line 2 (Language A)
@@ -47,9 +47,51 @@ export interface LineRow {
   byLang: Partial<Record<LangCode, string>>;
 }
 
-export type MultiRow = SectionRow | LineRow;
+/** A slide break between two lines. Produces no slide and no line number. */
+export interface BreakRow {
+  kind: "break";
+}
+
+export type MultiRow = SectionRow | BreakRow | LineRow;
 
 const hasWords = (r: LineRow) => Object.values(r.byLang).some((v) => v?.trim());
+
+/**
+ * Lines per slide: the breaks taken out and put back every `perSlide` lines
+ * within each section. An empty row counts as a line (it's one being typed),
+ * so a new line lands on its slide straight away and typing into it never
+ * moves anything.
+ */
+export function divideRows(rows: MultiRow[], perSlide: number): MultiRow[] {
+  const per = Math.max(1, perSlide);
+  const out: MultiRow[] = [];
+  let count = 0;
+  for (const r of rows) {
+    if (r.kind === "break") continue;
+    if (r.kind === "section") {
+      count = 0;
+      out.push(r);
+      continue;
+    }
+    if (count > 0 && count % per === 0) out.push({ kind: "break" });
+    count += 1;
+    out.push(r);
+  }
+  return out;
+}
+
+/** Whether two grids divide into the same slides (same rows in each). */
+export function sameDivision(a: MultiRow[], b: MultiRow[]): boolean {
+  const shape = (rows: MultiRow[]) =>
+    JSON.stringify(rowsToSlides(rows, []).map((sl) => [sl.section ?? "", sl.linesByLang]));
+  return shape(a) === shape(b);
+}
+
+/** A break row between consecutive slides of one section. */
+function pushBreak(rows: MultiRow[]) {
+  const last = rows[rows.length - 1];
+  if (last && last.kind === "line") rows.push({ kind: "break" });
+}
 
 /** Lines of each language per slide, from the set (1 or 2). */
 export function langLinesPer(set: Pick<PhytoSet, "langLinesPer">): number {
@@ -90,13 +132,13 @@ function stack(
 
 /** Which grid rows start a slide, and its number (null for the rows after the
  *  first in a slide, and for section rows). Blank rows make no slide. */
-export function slideStarts(rows: MultiRow[], perSlide: number): (number | null)[] {
+export function slideStarts(rows: MultiRow[]): (number | null)[] {
   const out: (number | null)[] = [];
   let n = 0;
-  let inSlide = 0;
+  let open = false;
   for (const r of rows) {
-    if (r.kind === "section") {
-      inSlide = 0;
+    if (r.kind !== "line") {
+      open = false;
       out.push(null);
       continue;
     }
@@ -104,11 +146,11 @@ export function slideStarts(rows: MultiRow[], perSlide: number): (number | null)
       out.push(null);
       continue;
     }
-    if (inSlide === 0) {
+    if (!open) {
       n += 1;
+      open = true;
       out.push(n);
     } else out.push(null);
-    inSlide = (inSlide + 1) % perSlide;
   }
   return out;
 }
@@ -120,7 +162,7 @@ export function slideStarts(rows: MultiRow[], perSlide: number): (number | null)
  * A row blank in every language (the empty line being typed into) is skipped,
  * so the projector never gets a blank slide.
  */
-export function rowsToSlides(rows: MultiRow[], show: LangCode[], perSlide = 1): Slide[] {
+export function rowsToSlides(rows: MultiRow[], show: LangCode[]): Slide[] {
   const slides: Slide[] = [];
   let section: string | undefined;
   let chunk: LineRow[] = [];
@@ -150,9 +192,12 @@ export function rowsToSlides(rows: MultiRow[], show: LangCode[], perSlide = 1): 
       section = row.text.trim() || undefined;
       continue;
     }
+    if (row.kind === "break") {
+      flush();
+      continue;
+    }
     if (!hasWords(row)) continue;
     chunk.push(row);
-    if (chunk.length >= perSlide) flush();
   }
   flush();
   return slides;
@@ -169,7 +214,7 @@ export function slidesToRows(slides: Slide[]): MultiRow[] {
     if (s.section !== prevSection) {
       if (s.section) rows.push({ kind: "section", text: s.section });
       prevSection = s.section;
-    }
+    } else pushBreak(rows);
     const byLang = s.linesByLang ?? {};
     const count = Math.max(1, ...Object.values(byLang).map((t) => (t ?? "").split("\n").length));
     for (let i = 0; i < count; i++) {
@@ -222,8 +267,8 @@ export function editedLangLines(slide: Slide, lines: string[]): Partial<Slide> {
 
 /**
  * Switching a Standard song to Multilanguage: its existing words become the
- * first column, `lang`. Each lyric line becomes its own row, sections carry
- * over, and slide breaks (`---`) dissolve: the grid's lines per slide decides.
+ * first column, `lang`. Each lyric line becomes its own row, and sections and
+ * slide breaks carry over.
  */
 export function standardToRows(slides: Slide[], lang: LangCode): MultiRow[] {
   const rows: MultiRow[] = [];
@@ -232,7 +277,7 @@ export function standardToRows(slides: Slide[], lang: LangCode): MultiRow[] {
     if (s.section !== prevSection) {
       if (s.section) rows.push({ kind: "section", text: s.section });
       prevSection = s.section;
-    }
+    } else pushBreak(rows);
     for (const line of s.lines ?? []) {
       if (line.trim()) rows.push({ kind: "line", byLang: { [lang]: line.trim() } });
     }
@@ -242,8 +287,8 @@ export function standardToRows(slides: Slide[], lang: LangCode): MultiRow[] {
 
 /**
  * Leaving Multilanguage: the plain-editor text for the language kept (sections
- * as `[Label]`, one lyric line per line, no slide breaks: the plain editor's
- * Lines per slide divides it), and the whole grid to keep hidden.
+ * as `[Label]`, one lyric line per line, the grid's slide breaks as `---`),
+ * and the whole grid to keep hidden.
  */
 export function leaveMultilang(
   set: Pick<PhytoSet, "slides" | "langs" | "langsShown" | "langLinesPer">,
@@ -255,8 +300,13 @@ export function leaveMultilang(
     if (r.kind === "section") {
       if (out.length) out.push("");
       out.push(`[${r.text}]`);
+    } else if (r.kind === "break") {
+      const last = out[out.length - 1];
+      if (last !== undefined && last !== "---" && last !== "" && !/^\[.*\]$/.test(last))
+        out.push("---");
     } else if (r.byLang[kept]?.trim()) out.push(r.byLang[kept]!.trim());
   }
+  while (out[out.length - 1] === "---") out.pop();
   return {
     text: out.join("\n"),
     hidden: {
@@ -289,14 +339,14 @@ export function returnToMultilang(hidden: HiddenLangs, plain: Slide[]): MultiRow
     if (s.section !== prevSection) {
       if (s.section) rows.push({ kind: "section", text: s.section });
       prevSection = s.section;
-    }
+    } else pushBreak(rows);
     for (const line of s.lines ?? []) {
       if (!line.trim()) continue;
       rows.push({ kind: "line", byLang: { ...(others[k++] ?? {}), [hidden.kept]: line.trim() } });
     }
   }
   for (; k < others.length; k++) rows.push({ kind: "line", byLang: { ...others[k] } });
-  return rows.filter((r) => r.kind === "section" || hasWords(r));
+  return rows.filter((r) => r.kind !== "line" || hasWords(r));
 }
 
 /**

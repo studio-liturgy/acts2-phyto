@@ -6,6 +6,8 @@ import {
   leaveMultilang,
   returnToMultilang,
   slideStarts,
+  divideRows,
+  sameDivision,
   pasteDownColumn,
   removeColumnCell,
   restackSlides,
@@ -31,7 +33,7 @@ const strip = (slides: Slide[]) => slides.map(({ id: _id, ...rest }) => rest);
 
 describe("multilanguage rows and slides", () => {
   it("stacks the shown languages in column order and keeps every language", () => {
-    const slides = rowsToSlides(rows, ["ja", "en"]);
+    const slides = rowsToSlides(divideRows(rows, 1), ["ja", "en"]);
     expect(strip(slides)).toEqual([
       {
         kind: "lyric",
@@ -86,11 +88,12 @@ describe("switching layouts keeps every word", () => {
     { id: "c", kind: "lyric", lines: ["Hallelujah"], section: "Chorus" },
   ];
 
-  it("Standard into Multilanguage: one row per line, in the chosen language", () => {
+  it("Standard into Multilanguage: one row per line, breaks kept", () => {
     expect(standardToRows(standard, "en")).toEqual([
       { kind: "section", text: "Verse" },
       { kind: "line", byLang: { en: "Line one" } },
       { kind: "line", byLang: { en: "Line two" } },
+      { kind: "break" },
       { kind: "line", byLang: { en: "Line three" } },
       { kind: "section", text: "Chorus" },
       { kind: "line", byLang: { en: "Hallelujah" } },
@@ -144,7 +147,7 @@ describe("switching layouts keeps every word", () => {
   });
 });
 
-describe("two lines per slide", () => {
+describe("slide breaks", () => {
   const two: MultiRow[] = [
     { kind: "line", byLang: { en: "One", ja: "いち" } },
     { kind: "line", byLang: { ja: "に" } },
@@ -152,9 +155,22 @@ describe("two lines per slide", () => {
     { kind: "section", text: "Chorus" },
     { kind: "line", byLang: { en: "Four" } },
   ];
+  const divided = divideRows(two, 2);
 
-  it("shows each language's two lines in turn", () => {
-    const slides = rowsToSlides(two, ["en", "ja"], 2);
+  it("Lines per slide puts a break every N lines of a section", () => {
+    expect(divided.map((r) => r.kind)).toEqual([
+      "line",
+      "line",
+      "break",
+      "line",
+      "section",
+      "line",
+    ]);
+    expect(divideRows(divided, 1).filter((r) => r.kind === "break")).toHaveLength(2);
+  });
+
+  it("shows each language's lines in turn, slide by slide", () => {
+    const slides = rowsToSlides(divided, ["en", "ja"]);
     expect(slides.map((s) => s.lines)).toEqual([
       ["One", "いち", "に"],
       ["Three", "さん"],
@@ -164,13 +180,32 @@ describe("two lines per slide", () => {
     expect(slides[0].linesByLang).toEqual({ en: "One\n", ja: "いち\nに" });
   });
 
-  it("round-trips the rows exactly, empty cells included", () => {
-    expect(slidesToRows(rowsToSlides(two, ["en"], 2))).toEqual(two);
+  it("a hand-placed break makes its own slide and round-trips", () => {
+    const custom: MultiRow[] = [two[0], { kind: "break" }, two[1], two[2], two[3], two[4]];
+    expect(rowsToSlides(custom, ["en"]).map((s) => s.lines)).toEqual([
+      ["One"],
+      ["Three"],
+      ["Four"],
+    ]);
+    expect(slidesToRows(rowsToSlides(custom, ["en"]))).toEqual(custom);
+    expect(sameDivision(custom, divided)).toBe(false);
+    expect(sameDivision(divideRows(custom, 2), divided)).toBe(true);
   });
 
   it("numbers the slide on its first row", () => {
-    expect(slideStarts(two, 2)).toEqual([1, null, 2, null, 3]);
-    expect(slideStarts(two, 1)).toEqual([1, 2, 3, null, 4]);
+    expect(slideStarts(divided)).toEqual([1, null, null, 2, null, 3]);
+  });
+
+  it("breaks survive leaving and coming back", () => {
+    const slides = rowsToSlides(divided, ["en", "ja"]);
+    const { text, hidden } = leaveMultilang({ slides, langs: ["en", "ja"] }, "ja");
+    expect(text).toBe("いち\nに\n---\nさん\n\n[Chorus]");
+    const plain: Slide[] = [
+      { id: "a", kind: "lyric", lines: ["いち"] },
+      { id: "b", kind: "lyric", lines: ["に", "さん"] },
+    ];
+    const back = returnToMultilang(hidden, plain);
+    expect(back.map((r) => r.kind)).toEqual(["line", "break", "line", "line", "line"]);
   });
 });
 
@@ -232,7 +267,7 @@ describe("phone language choice", () => {
 
 describe("Fast Edit on a Multilanguage slide", () => {
   it("writes each edited line back into its language", () => {
-    const [slide] = rowsToSlides(rows, ["ja", "en"]);
+    const [slide] = rowsToSlides(divideRows(rows, 1), ["ja", "en"]);
     const patch = editedLangLines(slide, ["おどろく", "Amazing love"]);
     expect(patch.linesByLang).toEqual({ en: "Amazing love", ja: "おどろく", es: "Sublime gracia" });
     expect(editedLangLines({ id: "x", kind: "lyric", lines: ["a"] }, ["b"])).toEqual({

@@ -49,3 +49,9 @@ export function applyDividers(text: string, linesPer: number): string {
   while (out.length > 0 && out[out.length - 1] === "---") out.pop();
   return out.join("\n");
 }
+
+/** How many slide breaks (`---` lines) the text has: a change in this count
+ *  from an edit means the breaks were placed by hand (Lines per slide: C). */
+export function breakCount(text: string): number {
+  return text.split("\n").filter((l) => l.trim() === "---").length;
+}

@@ -161,3 +161,18 @@ export function attachRoles(
     };
   });
 }
+
+/** A lyric line of the plain text: words, not a `[Label]`, `---` or blank. */
+const isWordLine = (l: string) => !!l.trim() && !/^\s*\[.+\]\s*$/.test(l) && l.trim() !== "---";
+
+/** The roles of the text's lyric lines only, in order (kept while the song is
+ *  in Multi-Language, which has no roles). */
+export function lyricLineRoles(text: string, roles: LineRoles): (Role | null)[] {
+  return text.split("\n").flatMap((l, i) => (isWordLine(l) ? [roles[i] ?? null] : []));
+}
+
+/** The reverse: those roles given back to `text`'s lyric lines in order. */
+export function rolesForLyricLines(text: string, lineRoles: (Role | null)[]): LineRoles {
+  let k = 0;
+  return text.split("\n").map((l) => (isWordLine(l) ? (lineRoles[k++] ?? null) : null));
+}
