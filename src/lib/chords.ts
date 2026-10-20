@@ -762,16 +762,6 @@ function buildChordRowLayout(lyrics: string, render: (chord: string) => string):
   return out;
 }
 
-/** Which stored line each box line shows, and as what (chord row, lyric
- *  under it, or a plain line). Lets a gutter beside the box line up with the
- *  stored lines it acts on. */
-export function chordRowLayout(
-  lyrics: string,
-  render: (chord: string) => string = (c) => c,
-): { storedLine: number | null; kind: "row" | "lyric" | "plain" | "blank" }[] {
-  return buildChordRowLayout(lyrics, render).map(({ storedLine, kind }) => ({ storedLine, kind }));
-}
-
 export function inlineToChordRows(
   text: string,
   render: (chord: string) => string = (c) => c,
@@ -1552,4 +1542,35 @@ export function setChordAt(line: string, index: number, chord: string | null): s
     if (i < text.length) out += text[i];
   }
   return out;
+}
+
+/**
+ * Split one line at `at` (an index into its words, chords hidden): each chord
+ * goes with the half its word went to. Enter in the Call and Response grid.
+ */
+export function splitChordLine(line: string, at: number): [string, string] {
+  const { text, chords } = parseRawChordLine(line);
+  const cut = Math.max(0, Math.min(at, text.length));
+  const build = (part: string, from: number, anchors: ChordAnchor[]) => {
+    let out = "";
+    let k = 0;
+    const sorted = [...anchors].sort((a, b) => a.index - b.index);
+    for (let i = 0; i <= part.length; i++) {
+      while (k < sorted.length && sorted[k].index - from === i) out += `(${sorted[k++].chord})`;
+      if (i < part.length) out += part[i];
+    }
+    return out;
+  };
+  return [
+    build(
+      text.slice(0, cut),
+      0,
+      chords.filter((c) => c.index < cut),
+    ),
+    build(
+      text.slice(cut),
+      cut,
+      chords.filter((c) => c.index >= cut),
+    ),
+  ];
 }

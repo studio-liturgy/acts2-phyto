@@ -9,7 +9,7 @@ export type SongLayout = "standard" | "multilang" | "response";
 /** The modes, in menu order, with their names. */
 export const SONG_LAYOUTS: readonly { value: SongLayout; label: string }[] = [
   { value: "standard", label: "Standard" },
-  { value: "multilang", label: "Multilanguage" },
+  { value: "multilang", label: "Multi-Language" },
   { value: "response", label: "Call and Response" },
 ];
 

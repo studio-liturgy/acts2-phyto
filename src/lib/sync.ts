@@ -63,8 +63,8 @@ type SetContentField =
   | "langs"
   | "langsShown"
   | "langLinesPer"
-  | "hideRoleNames"
-  | "roleSides"
+  | "showRoles"
+  | "roleAlign"
   | "hiddenLangs"
   | "autoAdvanceMs"
   | "loop"
@@ -633,8 +633,8 @@ export function setFingerprint(s: PhytoSet): string {
     langs: s.langs ?? null,
     langsShown: s.langsShown ?? null,
     langLinesPer: s.langLinesPer ?? null,
-    hideRoleNames: s.hideRoleNames ?? null,
-    roleSides: s.roleSides ?? null,
+    showRoles: s.showRoles ?? null,
+    roleAlign: s.roleAlign ?? null,
     hiddenLangs: s.hiddenLangs ?? null,
     autoAdvanceMs: s.autoAdvanceMs ?? null,
     loop: s.loop ?? null,

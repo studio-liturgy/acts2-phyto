@@ -36,15 +36,8 @@ import { SongModeDialog, type ModeQuestion } from "@/components/SongModeDialog";
 import { SongModePicker } from "@/components/SongModePicker";
 import { useSongModeRequest } from "@/lib/song-mode-request";
 import { useGridChordBus } from "@/lib/grid-chord-bus";
-import { RoleGutter } from "@/components/RoleGutter";
-import {
-  attachRoles,
-  nextRole,
-  remapRoles,
-  roleGutterRows,
-  rolesFromSlides,
-  type LineRoles,
-} from "@/lib/song-roles";
+import { ResponseLyricEditor } from "@/components/ResponseLyricEditor";
+import { attachRoles, remapRoles, rolesFromSlides, type LineRoles } from "@/lib/song-roles";
 import { songLayoutOf, type SongLayout } from "@/lib/song-layout";
 import { MultiLangLyricEditor } from "@/components/MultiLangLyricEditor";
 import { SongLanguageBar } from "@/components/SongLanguageBar";
@@ -96,7 +89,6 @@ import {
   normaliseChordSheet,
   renderChord,
   transposeLyrics,
-  chordRowLayout,
   type SongChords,
 } from "@/lib/chords";
 import {
@@ -111,6 +103,7 @@ import {
   ChevronDown,
   ArrowLeftRight,
   X,
+  ChevronUp,
 } from "lucide-react";
 import { NumberStepper } from "@/components/NumberStepper";
 import { useIsSignedIn } from "@/lib/authStore";
@@ -1584,16 +1577,10 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
         className={`mono flex items-baseline justify-between gap-2 text-[10px] uppercase tracking-wider ${hidden ? "" : "mb-3"}`}
       >
         <span>Chord sheet</span>
-        <button
-          type="button"
-          onClick={toggleHidden}
-          className="ml-auto text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-        >
-          {hidden ? "Show" : "Hide"}
-        </button>
+
         {/* The key letter itself is excluded from the uppercase transform: it
             would render the lowercase b in Db/Eb/Ab/Bb as a capital B. */}
-        <span className="text-muted-foreground">
+        <span className="ml-auto text-muted-foreground">
           {chords.display === "numbers" ? (
             "Numbers"
           ) : (
@@ -1602,6 +1589,15 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
             </>
           )}
         </span>
+        <button
+          type="button"
+          onClick={toggleHidden}
+          aria-label={hidden ? "Show the chord sheet" : "Hide the chord sheet"}
+          aria-expanded={!hidden}
+          className="-my-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:text-foreground"
+        >
+          {hidden ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+        </button>
       </div>
       <div className={`max-h-72 space-y-3 overflow-y-auto pr-1 text-sm ${hidden ? "hidden" : ""}`}>
         {groups.map((g, i) => (
@@ -1658,9 +1654,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   });
   // Call and Response: one role per line of `lyrics` (the box holds only the
   // words). Kept in every mode, so switching back brings the roles back.
-  // Call and Response styles (Hide Role, Align L/R), baked onto the slides.
-  const hideRoleNames = useLibrary((s) => !!s.sets[setId]?.hideRoleNames);
-  const roleSides = useLibrary((s) => !!s.sets[setId]?.roleSides);
+  // Call and Response styles (Show role, Align), baked onto the slides.
+  const showRoles = useLibrary((s) => !!s.sets[setId]?.showRoles);
+  const roleAlign = useLibrary((s) => s.sets[setId]?.roleAlign);
   const [roles, setRoles] = useState<LineRoles>(() => {
     if (kind !== "song") return [];
     const slides = useLibrary.getState().sets[setId]?.slides ?? [];
@@ -1855,10 +1851,29 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       )}
       {songLayout === "response" && (
         <>
-          {toggle("Hide Role", hideRoleNames, (on) =>
-            updateSet(setId, { hideRoleNames: on || undefined }),
-          )}
-          {toggle("Align L/R", roleSides, (on) => updateSet(setId, { roleSides: on || undefined }))}
+          {toggle("Show role", showRoles, (on) => updateSet(setId, { showRoles: on || undefined }))}
+          <span className="mono ml-3 text-[10px] uppercase tracking-wider">Align</span>
+          <div className="pill flex h-7 items-center border border-foreground p-0.5">
+            {(
+              [
+                ["left", "Left"],
+                [undefined, "Middle"],
+                ["split", "Right"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => updateSet(setId, { roleAlign: value })}
+                aria-pressed={roleAlign === value}
+                className={`pill mono h-full px-2.5 text-[10px] uppercase tracking-wider transition ${
+                  roleAlign === value ? "bg-foreground text-background" : "hover:bg-muted"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </>
       )}
     </>
@@ -1975,14 +1990,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     // Roles go on as `roles` in Call and Response, kept as `hiddenRoles` else.
     const parsed = lyrics.trim()
       ? attachRoles(lyricsToSlides(lyrics), lyrics, roles, songLayout === "response", {
-          hideNames: hideRoleNames,
-          sides: roleSides,
+          marks: showRoles,
+          align: roleAlign,
         })
       : [];
     const current = useLibrary.getState().sets[setId]?.slides ?? [];
     const { slides, changed } = reconcileSlideIds(parsed, current);
     if (changed) updateSet(setId, { slides });
-  }, [lyrics, roles, kind, setId, updateSet, songLayout, hideRoleNames, roleSides]);
+  }, [lyrics, roles, kind, setId, updateSet, songLayout, showRoles, roleAlign]);
 
   const runSongSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -2362,8 +2377,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 pushHistory();
                 setLyrics(next);
               }}
-              onInsertChord={insertChord}
-              onClearLine={clearLineChords}
+              onInsertChord={
+                songLayout === "response"
+                  ? (chord) => postGridChord({ kind: "insert", chord })
+                  : insertChord
+              }
+              onClearLine={
+                songLayout === "response" ? () => postGridChord({ kind: "clear" }) : clearLineChords
+              }
             >
               <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
               <NumberStepper
@@ -2423,9 +2444,29 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             <MultiLangLyricEditor key={gridKey} setId={setId} />
           </div>
         )}
+        {songLayout === "response" && (
+          <div className="min-h-0 flex-1 overflow-hidden p-4">
+            <ResponseLyricEditor
+              lyrics={lyrics}
+              roles={roles}
+              chords={chordCfg && !chordCfg.hidden ? chordCfg : undefined}
+              onCommit={(text, nextRoles, typing) => {
+                if (typing) pushHistory();
+                else {
+                  lastPush.current = 0;
+                  pushHistory();
+                }
+                setRoles(nextRoles);
+                setLyrics(text);
+              }}
+              onUndo={undoLyrics}
+              onRedo={redoLyrics}
+            />
+          </div>
+        )}
         {/* Lyrics textarea — fills remaining height */}
         <div
-          className={`relative min-h-0 flex-1 overflow-hidden ${songLayout === "multilang" ? "hidden" : ""}`}
+          className={`relative min-h-0 flex-1 overflow-hidden ${songLayout === "standard" ? "" : "hidden"}`}
         >
           <Textarea
             ref={lyricsRef}
@@ -2501,31 +2542,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 ? `\nPaste a chord sheet, or type a chord on the row above the word it belongs to. They never show on the projector. Pasting doesn't always guess the right key, double-check it below.`
                 : "")
             }
-            className={`mono h-full w-full resize-none rounded-none border-0 bg-transparent py-4 pr-5 text-xs shadow-none focus-visible:ring-0 ${
-              songLayout === "response" ? "pl-11 leading-[26px]" : "pl-5"
-            }`}
+            className={`mono h-full w-full resize-none rounded-none border-0 bg-transparent py-4 pr-5 text-xs shadow-none focus-visible:ring-0 ${"pl-5"}`}
           />
-          {/* After the box, so its ref is set when the gutter first measures. */}
-          {songLayout === "response" && (
-            <RoleGutter
-              boxRef={lyricsRef}
-              boxText={boxText}
-              rows={roleGutterRows(
-                lyrics,
-                roles,
-                chordsHidden ? null : chordRowLayout(lyrics, chordLabel),
-              )}
-              onCycle={(storedLine) => {
-                pushHistory();
-                setRoles((r) => {
-                  const next = [...r];
-                  while (next.length <= storedLine) next.push(null);
-                  next[storedLine] = nextRole(next[storedLine]);
-                  return next;
-                });
-              }}
-            />
-          )}
         </div>
 
         {/* Hover preview — chorus (or top of song) following the cursor. */}

@@ -46,7 +46,7 @@ export function SongModeDialog({
             </DialogTitle>
             <p className="mt-4 text-base">
               The other languages aren&apos;t deleted. They stay hidden, and come back when you
-              switch to Multilanguage again.
+              switch to Multi-Language again.
             </p>
             <div className="mt-4">
               {question.langs.map((code) => (

@@ -37,8 +37,8 @@ export interface PhoneSlide {
   lineLangs?: string[];
   /** Call and Response: who reads each line (see Slide.roles). */
   roles?: ("leader" | "people" | null)[];
-  hideRoleNames?: boolean;
-  roleSides?: boolean;
+  roleMarks?: boolean;
+  roleAlign?: "left" | "split";
 }
 
 export interface PhoneSet {

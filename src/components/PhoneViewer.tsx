@@ -6,7 +6,7 @@ import { arrangedEntries } from "@/lib/arrangements";
 import { renderInline } from "@/lib/inline-format";
 import { MAX_SHOWN_LANGS, shownLangs } from "@/lib/multiling";
 import { isLangCode, langDef, type LangCode } from "@/lib/langs";
-import type { Role } from "@/lib/song-roles";
+import { startsRoleRun, type Role } from "@/lib/song-roles";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -778,8 +778,8 @@ function SetContent({
             lines={group.lines}
             roles={group.roles}
             roleStyle={{
-              hideNames: slides.some((sl) => sl.hideRoleNames),
-              sides: slides.some((sl) => sl.roleSides),
+              marks: slides.some((sl) => sl.roleMarks),
+              align: slides.find((sl) => sl.roleAlign)?.roleAlign,
             }}
             isDark={isDark}
             chordConfig={chordConfig}
@@ -971,14 +971,20 @@ function MediaSlide({ slide }: { slide: PhoneSlide }) {
   return null;
 }
 
-/** Call and Response on the phone: a gap where the reader changes, and with
- *  Align L/R the People's lines on the right. */
-function roleLineClass(roles: (Role | null)[] | undefined, j: number, sides?: boolean): string {
+/** Call and Response on the phone: a gap where the reader changes, and the
+ *  song's alignment (Left: People indented; split: People on the right). */
+function roleLineClass(
+  roles: (Role | null)[] | undefined,
+  j: number,
+  align?: "left" | "split",
+): string {
   const role = roles?.[j];
   if (!role) return "";
   const prev = roles?.[j - 1];
   const gap = j > 0 && prev && prev !== role ? "mt-3" : "";
-  const side = sides ? (role === "people" ? "text-right" : "text-left") : "";
+  let side = "";
+  if (align === "left" && role === "people") side = "pl-6";
+  if (align === "split") side = role === "people" ? "text-right" : "text-left";
   return `${gap} ${side}`.trim();
 }
 
@@ -994,7 +1000,7 @@ function SlideBlock({
   section: string | undefined;
   lines: string[];
   roles?: (Role | null)[];
-  roleStyle?: { hideNames: boolean; sides: boolean };
+  roleStyle?: { marks: boolean; align?: "left" | "split" };
   isDark: boolean;
   chordConfig: ChordViewConfig | null;
   showChords: boolean;
@@ -1017,8 +1023,8 @@ function SlideBlock({
           chords={chords}
           show={showChords}
           role={roles?.[j]}
-          hideRoleName={roleStyle?.hideNames}
-          className={`leading-relaxed ${roleLineClass(roles, j, roleStyle?.sides)}`}
+          roleMark={!!roleStyle?.marks && !!roles && startsRoleRun(roles, j)}
+          className={`leading-relaxed ${roleLineClass(roles, j, roleStyle?.align)}`}
           chordClassName="text-[0.7em] font-semibold"
           chordStyle={{ fontFamily: "'Space Mono', monospace" }}
         />

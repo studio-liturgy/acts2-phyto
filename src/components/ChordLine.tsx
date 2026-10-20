@@ -1,6 +1,7 @@
 import { Fragment, type CSSProperties } from "react";
 import { parseChordLine, renderChord, toChordSegments, type SongChords } from "@/lib/chords";
-import { ROLE_LABEL, isBoldRole, type Role } from "@/lib/song-roles";
+import { isBoldRole, type Role } from "@/lib/song-roles";
+import { RoleMark } from "@/components/RoleMark";
 
 interface Props {
   /** One raw lyric line, chords still inline: `Amazing (G)grace how (C)sweet`. */
@@ -17,8 +18,8 @@ interface Props {
   chordStyle?: CSSProperties;
   /** Call and Response: who reads this line (labelled; People and All bold). */
   role?: Role | null;
-  /** Hide Role: the role still sets the weight, but its name doesn't show. */
-  hideRoleName?: boolean;
+  /** Show role: this line starts a reader's run, so it gets the L / P mark. */
+  roleMark?: boolean;
 }
 
 /**
@@ -38,15 +39,14 @@ export function ChordLine({
   chordClassName = "",
   chordStyle,
   role,
-  hideRoleName = false,
+  roleMark = false,
 }: Props) {
   // Call and Response: the role label stays in front of the words, outside
   // the chord columns, and People lines are bold.
   const parsed = parseChordLine(line);
   const visible = show && !!chords && parsed.chords.length > 0;
   const lineClass = isBoldRole(role) ? `${className} font-bold` : className;
-  const label =
-    role && !hideRoleName ? <span className="font-normal">{ROLE_LABEL[role]}: </span> : null;
+  const label = role && roleMark ? <RoleMark role={role} /> : null;
 
   if (!visible) {
     if (!parsed.text) return null;

@@ -5,12 +5,16 @@ import { displayLinesForVersions } from "@/lib/versions";
 import { shownReference } from "@/lib/verse-ref";
 import { renderInline } from "@/lib/inline-format";
 import { renderRoleLine } from "@/lib/role-line";
-import type { Role } from "@/lib/song-roles";
+import { startsRoleRun, type Role } from "@/lib/song-roles";
+
+import { scriptOfTranslation, versionLangTag } from "@/lib/bible";
+import { langDef, langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 /**
- * Call and Response spacing and sides on a slide: a gap wherever the reader
- * changes (Leader to People and back), and with Align L/R the Leader's lines
- * on the left and the People's on the right.
+ * Call and Response on a slide: a gap wherever the reader changes, and the
+ * song's alignment. Left: every line left, the People's indented. Split: the
+ * Leader's lines left, the People's right. Otherwise centred as usual.
  */
 function roleLineStyle(
   slide: Slide | null | undefined,
@@ -20,14 +24,16 @@ function roleLineStyle(
   const role = meta[i]?.role;
   if (!slide?.roles || !role) return {};
   const prev = meta[i - 1]?.role;
+  const align = slide.roleAlign;
   return {
     ...(i > 0 && prev && prev !== role ? { marginTop: "0.6em" } : {}),
-    ...(slide.roleSides ? { width: "100%", textAlign: role === "leader" ? "left" : "right" } : {}),
+    ...(align === "left"
+      ? { width: "100%", textAlign: "left", paddingLeft: role === "people" ? "1.5em" : 0 }
+      : align === "split"
+        ? { width: "100%", textAlign: role === "leader" ? "left" : "right" }
+        : {}),
   };
 }
-import { scriptOfTranslation, versionLangTag } from "@/lib/bible";
-import { langDef, langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
   slide?: Slide | null;
@@ -526,7 +532,11 @@ export function SlideView({
                             ? renderRoleLine(
                                 lang ? typesetLine(lang, l) : l,
                                 lyricMeta[i]?.role,
-                                slide.hideRoleNames,
+                                !!slide.roleMarks &&
+                                  startsRoleRun(
+                                    lyricMeta.map((m) => m.role),
+                                    i,
+                                  ),
                               )
                             : renderInline(l)}
                         </div>

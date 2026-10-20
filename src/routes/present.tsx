@@ -87,7 +87,7 @@ import { loadPrefs, phoneSetHasChords, type PhoneSet, type ViewerPrefs } from "@
 import { Switch } from "@/components/ui/switch";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
-import { songPatternImage, songPatterns } from "@/lib/song-layout";
+import { SONG_LAYOUTS, songLayoutOf, songPatternImage, songPatterns } from "@/lib/song-layout";
 import { SongLanguageBar } from "@/components/SongLanguageBar";
 import { editedLangLines, songLangs } from "@/lib/multiling";
 
@@ -139,6 +139,25 @@ function KindBadge({ kind, abbrev = false }: { kind: SetKind; abbrev?: boolean }
       className={`pill mono px-2 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(kind)}`}
     >
       {abbrev ? KIND_ABBREV[kind] : kind === "mixed" ? "Mixed" : kind}
+    </span>
+  );
+}
+
+/**
+ * The set's type pill beside its name. A Multi-Language or Call and Response
+ * song shows that mode instead of SONG, in its patterned pill (the pattern
+ * kept faint under the white text so it stays legible).
+ */
+function SetTypeBadge({ set }: { set: PhytoSet }) {
+  const layout = songLayoutOf(set);
+  if (set.kind !== "song" || layout === "standard") return <KindBadge kind={set.kind} />;
+  const label = SONG_LAYOUTS.find((l) => l.value === layout)?.label ?? "Song";
+  return (
+    <span
+      className="pill mono shrink-0 whitespace-nowrap bg-[var(--brand-blue)] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[var(--brand-white)]"
+      style={{ backgroundImage: songPatternImage(songPatterns(set), 6, 0.14) }}
+    >
+      {label}
     </span>
   );
 }
@@ -856,7 +875,7 @@ function Presenter() {
                 >
                   {activeSet.name}
                 </span>
-                <KindBadge kind={activeSet.kind} />
+                <SetTypeBadge set={activeSet} />
                 <VersionWarning set={activeSet} className="pointer-events-auto" />
                 <Link
                   to="/set/$setId"
@@ -1450,7 +1469,7 @@ function Presenter() {
                           <span className="mono mr-2 text-sm text-muted-foreground">{i + 1}.</span>
                           {d.name}
                         </h3>
-                        <KindBadge kind={d.kind} />
+                        <SetTypeBadge set={d} />
                         <VersionWarning set={d} />
                         <div className="flex items-center gap-1.5">
                           <Link

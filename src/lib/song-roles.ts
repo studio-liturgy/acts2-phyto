@@ -38,12 +38,21 @@ export function isBoldRole(role: Role | null | undefined): boolean {
   return role === "people";
 }
 
+/** Call and Response alignment on the slides: Left (People indented),
+ *  centred (absent), or split (Leader left, People right). */
+export type RoleAlign = "left" | "split";
+
 /** How a Call and Response song's roles show on its slides (and phones). */
 export interface RoleStyle {
-  /** Hide Role: no "Leader:" / "People:" name in front of the line. */
-  hideNames?: boolean;
-  /** Align L/R: Leader lines sit on the left, People lines on the right. */
-  sides?: boolean;
+  /** Show role: a small grey L / P at the start of each reader's run. */
+  marks?: boolean;
+  align?: RoleAlign;
+}
+
+/** Does line `i` start a run of one reader's lines (where its mark goes)? */
+export function startsRoleRun(roles: readonly (Role | null | undefined)[], i: number): boolean {
+  const role = roles[i];
+  return !!role && (i === 0 || roles[i - 1] !== role);
 }
 
 /** Does this stored lyrics line become a slide line? Not a blank, a `---`
@@ -58,30 +67,57 @@ export function canTakeRole(line: string): boolean {
   return isSlideLine(line) && !isChordOnlyLine(line.trim());
 }
 
+/** For each element of `a`, the index in `b` it pairs with (-1 if none):
+ *  a longest-common-subsequence match on whole lines. */
+function lcsPairs(a: string[], b: string[]): number[] {
+  const n = a.length;
+  const m = b.length;
+  const dp: Uint16Array[] = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out = new Array<number>(n).fill(-1);
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      out[i] = j;
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+    else j++;
+  }
+  return out;
+}
+
 /**
- * Carry the roles across an edit of the lyrics. Lines unchanged at the start
- * and at the end keep theirs; the changed run in between pairs up by position,
- * and any extra new lines take the role of the last line in that run (Enter at
- * the end of a People line starts another People line).
+ * Carry the roles across an edit of the lyrics. Lines that survive unchanged
+ * keep theirs (matched as whole lines, so inserted slide breaks and moved
+ * lines don't shift anyone). Between those, the changed lines pair up by
+ * position, and any extra new line takes the role of the last changed line
+ * before it (Enter at the end of a People line starts another People line).
  */
 export function remapRoles(oldText: string, newText: string, roles: LineRoles): LineRoles {
   const a = oldText.split("\n");
   const b = newText.split("\n");
-  let pre = 0;
-  while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++;
-  let suf = 0;
-  while (
-    suf < a.length - pre &&
-    suf < b.length - pre &&
-    a[a.length - 1 - suf] === b[b.length - 1 - suf]
-  )
-    suf++;
-  const out: LineRoles = [];
-  for (let i = 0; i < pre; i++) out.push(roles[i] ?? null);
-  const oldMid = roles.slice(pre, a.length - suf);
-  const last = oldMid.length ? (oldMid[oldMid.length - 1] ?? null) : null;
-  for (let k = 0; k < b.length - suf - pre; k++) out.push(oldMid[k] ?? last);
-  for (let i = a.length - suf; i < a.length; i++) out.push(roles[i] ?? null);
+  const pairs = lcsPairs(a, b);
+  const out: LineRoles = new Array(b.length).fill(null);
+  let oi = 0;
+  let nj = 0;
+  const fillGap = (oEnd: number, nEnd: number) => {
+    const old = roles.slice(oi, oEnd);
+    const last = old.length ? (old[old.length - 1] ?? null) : null;
+    for (let k = 0; nj + k < nEnd; k++) out[nj + k] = old[k] ?? last;
+  };
+  for (let i = 0; i < a.length; i++) {
+    const j = pairs[i];
+    if (j < 0) continue;
+    fillGap(i, j);
+    out[j] = roles[i] ?? null;
+    oi = i + 1;
+    nj = j + 1;
+  }
+  fillGap(a.length, b.length);
   // Lines that can't take a role (blanks, ---, labels) never keep one.
   return out.map((r, i) => (r && canTakeRole(b[i] ?? "") ? r : null));
 }
@@ -120,45 +156,8 @@ export function attachRoles(
     return {
       ...s,
       roles: mine,
-      ...(style.hideNames ? { hideRoleNames: true } : {}),
-      ...(style.sides ? { roleSides: true } : {}),
+      ...(style.marks ? { roleMarks: true } : {}),
+      ...(style.align ? { roleAlign: style.align } : {}),
     };
   });
-}
-
-/** One toggle in the editor's role gutter: the box line it sits beside and the
- *  stored line it changes. */
-export interface RoleGutterRow {
-  boxLine: number;
-  storedLine: number;
-  role: Role | null;
-}
-
-/**
- * The gutter's toggles for the lyrics box. With chords hidden the box shows
- * the stored lines one for one; with chords shown (`layout`, from
- * chordRowLayout) each chorded line takes two box lines and the toggle sits on
- * the lyric, not its chord row. Instrumental (chord-only) lines, blanks,
- * `---` and `[Section]` labels get no toggle.
- */
-export function roleGutterRows(
-  lyrics: string,
-  roles: LineRoles,
-  layout: { storedLine: number | null; kind: string }[] | null,
-): RoleGutterRow[] {
-  const stored = lyrics.split("\n");
-  const rows: RoleGutterRow[] = [];
-  const add = (boxLine: number, storedLine: number) => {
-    const line = stored[storedLine];
-    if (line === undefined || !canTakeRole(line)) return;
-    rows.push({ boxLine, storedLine, role: roles[storedLine] ?? null });
-  };
-  if (!layout) {
-    stored.forEach((_, i) => add(i, i));
-    return rows;
-  }
-  layout.forEach((l, j) => {
-    if ((l.kind === "lyric" || l.kind === "plain") && l.storedLine !== null) add(j, l.storedLine);
-  });
-  return rows;
 }

@@ -32,8 +32,8 @@ export interface ShareSlide {
   linesByLang?: Record<string, string>;
   lineLangs?: string[];
   roles?: ("leader" | "people" | null)[];
-  hideRoleNames?: boolean;
-  roleSides?: boolean;
+  roleMarks?: boolean;
+  roleAlign?: "left" | "split";
 }
 
 export interface ShareSetRow {

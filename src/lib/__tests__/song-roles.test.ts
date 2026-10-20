@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { chordRowLayout, inlineToChordRows, setChordAt } from "@/lib/chords";
+import { setChordAt, splitChordLine } from "@/lib/chords";
 import { lyricsToSlides } from "@/lib/slide-text";
 import {
   attachRoles,
   nextRole,
   remapRoles,
-  roleGutterRows,
+  startsRoleRun,
   rolesFromSlides,
   type LineRoles,
 } from "@/lib/song-roles";
@@ -26,15 +26,27 @@ describe("song roles", () => {
     expect(seen).toEqual(["leader", "people", null]);
   });
 
-  it("bakes Hide Role and Align L/R onto slides with roles", () => {
+  it("bakes Show role and Align onto slides with roles", () => {
     const slides = attachRoles(lyricsToSlides(text), text, roles, true, {
-      hideNames: true,
-      sides: true,
+      marks: true,
+      align: "split",
     });
-    expect(slides[0].hideRoleNames).toBe(true);
-    expect(slides[0].roleSides).toBe(true);
-    const hidden = attachRoles(lyricsToSlides(text), text, roles, false, { hideNames: true });
-    expect(hidden[0].hideRoleNames).toBeUndefined();
+    expect(slides[0].roleMarks).toBe(true);
+    expect(slides[0].roleAlign).toBe("split");
+    const hidden = attachRoles(lyricsToSlides(text), text, roles, false, { marks: true });
+    expect(hidden[0].roleMarks).toBeUndefined();
+  });
+
+  it("marks only the first line of each reader's run", () => {
+    const r = ["leader", "leader", "people", "people", "leader"] as const;
+    expect(r.map((_, i) => startsRoleRun(r, i))).toEqual([true, false, true, false, true]);
+  });
+
+  it("a re-divide (slide breaks added) leaves every role on its line", () => {
+    const flat = "The Lord be with you\nAnd also with you\nLift up your hearts";
+    const r: LineRoles = ["leader", "people", "leader"];
+    const divided = "The Lord be with you\nAnd also with you\n---\nLift up your hearts";
+    expect(remapRoles(flat, divided, r)).toEqual(["leader", "people", null, "leader"]);
   });
 
   it("puts roles beside the words, never in them", () => {
@@ -69,15 +81,6 @@ describe("song roles", () => {
     const cut = text.replace("The Lord be with you\n", "");
     expect(remapRoles(text, cut, roles)).toEqual([null, "people", null, "leader"]);
   });
-
-  it("gutter rows: one per lyric line, on the lyric under a chord row", () => {
-    const withChord = text.replace("Lift up", "(G)Lift up");
-    expect(roleGutterRows(withChord, roles, null).map((r) => r.storedLine)).toEqual([1, 2, 4]);
-    const box = inlineToChordRows(withChord).split("\n");
-    const rows = roleGutterRows(withChord, roles, chordRowLayout(withChord));
-    expect(box[rows[2].boxLine]).toBe("Lift up your hearts");
-    expect(rows[2].role).toBe("leader");
-  });
 });
 
 describe("chord strip edits", () => {
@@ -86,6 +89,13 @@ describe("chord strip edits", () => {
     expect(setChordAt("Amazing (G)grace", 8, "C")).toBe("Amazing (C)grace");
     expect(setChordAt("Amazing (G)grace", 8, null)).toBe("Amazing grace");
     expect(setChordAt("Amazing", 99, "D")).toBe("Amazing(D)");
+  });
+
+  it("Enter splits a line, each chord going with its word", () => {
+    expect(splitChordLine("(G)Amazing (C)grace how (D)sweet", 14)).toEqual([
+      "(G)Amazing (C)grace ",
+      "how (D)sweet",
+    ]);
   });
 
   it("a palette chord lands on the word the caret is in", () => {
