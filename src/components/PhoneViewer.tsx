@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Pencil } from "lucide-react";
+import { ChevronDown, Pencil, X } from "lucide-react";
 import {
   loadPrefs,
   phoneQrColors,
@@ -27,6 +27,9 @@ import {
   type PhoneSlide,
   type ViewerPrefs,
 } from "@/lib/phone-viewer";
+
+/** QR overlay fade, in and out. */
+const QR_FADE_MS = 200;
 
 // The phone gathering view, as a self-contained presentational component. Two
 // surfaces render it identically:
@@ -129,6 +132,8 @@ export function PhoneViewer({
   const [activeTabId, setActiveTabId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [qrShown, setQrShown] = useState(false);
+  const qrTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Prefs are internal by default, or driven from outside when controlled.
   const [internalPrefs, setInternalPrefs] = useState<ViewerPrefs>(loadPrefs);
   const prefs = controlledPrefs ?? internalPrefs;
@@ -215,11 +220,30 @@ export function PhoneViewer({
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpen]);
 
+  // QR overlay fades in and out: mount first, then raise opacity on the next
+  // frame; on close, drop opacity and unmount once the fade has run.
+  const openQr = () => {
+    if (qrTimer.current) clearTimeout(qrTimer.current);
+    setQrOpen(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => setQrShown(true)));
+  };
+  const closeQr = () => {
+    setQrShown(false);
+    if (qrTimer.current) clearTimeout(qrTimer.current);
+    qrTimer.current = setTimeout(() => setQrOpen(false), QR_FADE_MS);
+  };
+  useEffect(
+    () => () => {
+      if (qrTimer.current) clearTimeout(qrTimer.current);
+    },
+    [],
+  );
+
   // Esc closes the QR overlay (a tap anywhere closes it too).
   useEffect(() => {
     if (!qrOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setQrOpen(false);
+      if (e.key === "Escape") closeQr();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -333,10 +357,10 @@ export function PhoneViewer({
                 <button
                   onClick={() => {
                     setMenuOpen(false);
-                    setQrOpen(true);
+                    openQr();
                   }}
                   style={{ fontFamily: FONT_FAMILY_CSS.mono }}
-                  className={`mt-4 w-full rounded-lg border px-3 py-1.5 text-center text-sm transition ${
+                  className={`mt-4 w-full rounded-lg border px-3 py-1.5 text-center text-sm uppercase transition ${
                     prefs.isDark
                       ? "border-white/40 hover:border-white"
                       : "border-black/40 hover:border-black"
@@ -553,10 +577,26 @@ export function PhoneViewer({
         <div
           role="dialog"
           aria-label="QR Code"
-          onClick={() => setQrOpen(false)}
-          className="fixed inset-0 z-[100] flex items-center justify-center"
-          style={{ backgroundColor: phoneQrColors(prefs.isDark).bg }}
+          onClick={closeQr}
+          className={`fixed inset-0 z-[100] flex items-center justify-center transition-opacity ease-out ${
+            qrShown ? "opacity-100" : "opacity-0"
+          }`}
+          style={{
+            backgroundColor: phoneQrColors(prefs.isDark).bg,
+            transitionDuration: `${QR_FADE_MS}ms`,
+          }}
         >
+          {/* The X is a cue only: the tap closes via the overlay like anywhere else. */}
+          <button
+            aria-label="Close"
+            className="absolute right-4 p-2"
+            style={{
+              top: "calc(env(safe-area-inset-top, 0px) + 1rem)",
+              color: phoneQrColors(prefs.isDark).fg,
+            }}
+          >
+            <X className="h-6 w-6" />
+          </button>
           <QRCodeSVG
             value={phoneQrUrl(window.location.href)}
             fgColor={phoneQrColors(prefs.isDark).fg}
