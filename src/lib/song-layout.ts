@@ -36,7 +36,7 @@ export function songPatterns(set: Pick<PhytoSet, "kind" | "songLayout" | "chords
 export function songPatternImage(
   patterns: SongPattern[],
   period: number,
-  alpha = 0.22,
+  alpha = 0.12,
 ): string | undefined {
   if (patterns.length === 0) return undefined;
   const ink = `rgba(255, 255, 255, ${alpha})`;

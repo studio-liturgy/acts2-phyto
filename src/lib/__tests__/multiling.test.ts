@@ -3,7 +3,9 @@ import {
   clearColumnRange,
   editedLangLines,
   insertColumnCell,
-  multilangToStandard,
+  leaveMultilang,
+  returnToMultilang,
+  slideStarts,
   pasteDownColumn,
   removeColumnCell,
   restackSlides,
@@ -95,12 +97,62 @@ describe("switching layouts keeps every word", () => {
     ]);
   });
 
-  it("Multilanguage back to Standard: every language stacked, hidden ones too", () => {
+  it("leaving Multilanguage keeps one language and hides the grid", () => {
     const slides = rowsToSlides(rows, ["en"]);
-    const plain = multilangToStandard(slides, ["en", "ja"]);
-    expect(plain[0].lines).toEqual(["Amazing grace", "おどろくばかりの", "Sublime gracia"]);
-    expect(plain[0].linesByLang).toBeUndefined();
-    expect(plain[2].lines).toEqual(["ただ"]);
+    const { text, hidden } = leaveMultilang({ slides, langs: ["en", "ja", "es"] }, "ja");
+    expect(text).toBe("[Verse 1]\nおどろくばかりの\nめぐみなりき\n\n[Chorus]\nただ");
+    expect(hidden.kept).toBe("ja");
+    expect(hidden.langs).toEqual(["en", "ja", "es"]);
+  });
+
+  it("coming back refills the kept column from the plain words", () => {
+    const slides = rowsToSlides(rows, ["en"]);
+    const { hidden } = leaveMultilang({ slides, langs: ["en", "ja"] }, "en");
+    const plain: Slide[] = [
+      { id: "p", kind: "lyric", lines: ["Amazing grace!", "How sweet"], section: "Verse 1" },
+      { id: "q", kind: "lyric", lines: ["Only"], section: "Chorus" },
+    ];
+    const back = returnToMultilang(hidden, plain);
+    expect(back).toEqual([
+      { kind: "section", text: "Verse 1" },
+      {
+        kind: "line",
+        byLang: { en: "Amazing grace!", ja: "おどろくばかりの", es: "Sublime gracia" },
+      },
+      { kind: "line", byLang: { en: "How sweet", ja: "めぐみなりき" } },
+      { kind: "section", text: "Chorus" },
+      { kind: "line", byLang: { ja: "ただ", en: "Only" } },
+    ]);
+  });
+});
+
+describe("two lines per slide", () => {
+  const two: MultiRow[] = [
+    { kind: "line", byLang: { en: "One", ja: "いち" } },
+    { kind: "line", byLang: { ja: "に" } },
+    { kind: "line", byLang: { en: "Three", ja: "さん" } },
+    { kind: "section", text: "Chorus" },
+    { kind: "line", byLang: { en: "Four" } },
+  ];
+
+  it("shows each language's two lines in turn", () => {
+    const slides = rowsToSlides(two, ["en", "ja"], 2);
+    expect(slides.map((s) => s.lines)).toEqual([
+      ["One", "いち", "に"],
+      ["Three", "さん"],
+      ["Four"],
+    ]);
+    expect(slides[0].lineLangs).toEqual(["en", "ja", "ja"]);
+    expect(slides[0].linesByLang).toEqual({ en: "One\n", ja: "いち\nに" });
+  });
+
+  it("round-trips the rows exactly, empty cells included", () => {
+    expect(slidesToRows(rowsToSlides(two, ["en"], 2))).toEqual(two);
+  });
+
+  it("numbers the slide on its first row", () => {
+    expect(slideStarts(two, 2)).toEqual([1, null, 2, null, 3]);
+    expect(slideStarts(two, 1)).toEqual([1, 2, 3, null, 4]);
   });
 });
 

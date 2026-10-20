@@ -62,6 +62,8 @@ type SetContentField =
   | "songLayout"
   | "langs"
   | "langsShown"
+  | "langLinesPer"
+  | "hiddenLangs"
   | "autoAdvanceMs"
   | "loop"
   | "loopSection"
@@ -628,6 +630,8 @@ export function setFingerprint(s: PhytoSet): string {
     songLayout: s.songLayout ?? null,
     langs: s.langs ?? null,
     langsShown: s.langsShown ?? null,
+    langLinesPer: s.langLinesPer ?? null,
+    hiddenLangs: s.hiddenLangs ?? null,
     autoAdvanceMs: s.autoAdvanceMs ?? null,
     loop: s.loop ?? null,
     loopSection: s.loopSection ?? null,

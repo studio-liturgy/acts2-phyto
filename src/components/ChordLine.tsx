@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties } from "react";
 import { parseChordLine, renderChord, toChordSegments, type SongChords } from "@/lib/chords";
-import { ROLE_LABEL, isBoldRole, splitRole } from "@/lib/song-roles";
+import { ROLE_LABEL, isBoldRole, type Role } from "@/lib/song-roles";
 
 interface Props {
   /** One raw lyric line, chords still inline: `Amazing (G)grace how (C)sweet`. */
@@ -15,6 +15,8 @@ interface Props {
   /** Inline chord-row style, for what a class can't override (e.g. a font-family
    *  set on an ancestor by the viewer's own font picker). */
   chordStyle?: CSSProperties;
+  /** Call and Response: who reads this line (labelled; People and All bold). */
+  role?: Role | null;
 }
 
 /**
@@ -33,11 +35,11 @@ export function ChordLine({
   className = "",
   chordClassName = "",
   chordStyle,
+  role,
 }: Props) {
   // Call and Response: the role label stays in front of the words, outside
   // the chord columns, and People and All lines are bold.
-  const { role, text: body } = splitRole(line);
-  const parsed = parseChordLine(body);
+  const parsed = parseChordLine(line);
   const visible = show && !!chords && parsed.chords.length > 0;
   const lineClass = isBoldRole(role) ? `${className} font-bold` : className;
   const label = role ? <span className="font-normal">{ROLE_LABEL[role]}: </span> : null;

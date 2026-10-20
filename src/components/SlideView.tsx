@@ -320,14 +320,14 @@ export function SlideView({
   // instrumental break) strips to nothing and drops out entirely.
   // A Multilanguage song names each line's language (`lineLangs`), so it gets
   // that language's fonts, direction and line breaking.
-  const lyricLangs = useMemo(() => {
+  // Call and Response lines carry their role the same way (`roles`).
+  const lyricMeta = useMemo(() => {
     const lines = slide?.lines ?? [];
     if (slide?.kind !== "lyric") return [];
     return lines
-      .map((l, i) => ({ text: stripChords(l), lang: slide.lineLangs?.[i] }))
-      .filter((l) => l.text.trim())
-      .map((l) => l.lang);
-  }, [slide?.lines, slide?.kind, slide?.lineLangs]);
+      .map((l, i) => ({ text: stripChords(l), lang: slide.lineLangs?.[i], role: slide.roles?.[i] }))
+      .filter((l) => l.text.trim());
+  }, [slide?.lines, slide?.kind, slide?.lineLangs, slide?.roles]);
   const displayLines = useMemo(() => {
     const lines = slide?.lines ?? [];
     if (slide?.kind !== "lyric") return lines;
@@ -479,7 +479,7 @@ export function SlideView({
                       );
                     })
                   : displayLines.map((l, i) => {
-                      const lang = lyricLangs[i];
+                      const lang = lyricMeta[i]?.lang;
                       return (
                         <div
                           key={i}
@@ -502,7 +502,7 @@ export function SlideView({
                           }}
                         >
                           {slide?.kind === "lyric"
-                            ? renderRoleLine(lang ? typesetLine(lang, l) : l)
+                            ? renderRoleLine(lang ? typesetLine(lang, l) : l, lyricMeta[i]?.role)
                             : renderInline(l)}
                         </div>
                       );

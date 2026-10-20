@@ -1,5 +1,6 @@
 import type { SongChords } from "./chords";
 import type { LangCode } from "./langs";
+import type { Role } from "./song-roles";
 
 export type SlideKind = "lyric" | "scripture" | "image" | "video" | "blank" | "point";
 
@@ -55,6 +56,12 @@ export interface Slide {
   linesByLang?: Partial<Record<LangCode, string>>;
   /** Multilanguage songs: the language of each entry in `lines`. */
   lineLangs?: LangCode[];
+  /** Call and Response songs: who reads each entry in `lines` (null = no
+   *  role). Shown as a "People:" label, People and All in bold. */
+  roles?: (Role | null)[];
+  /** The same, kept while the song is in another mode. Never shown; switching
+   *  back to Call and Response makes it `roles` again. */
+  hiddenRoles?: (Role | null)[];
   /** Scripture-only: which import (0-based) this verse came from, so two imports
    *  of the same reference stay separate groups in the editor and slide grid
    *  rather than merging under one shared `section`. */
@@ -85,6 +92,18 @@ export interface Slide {
   /** Message-only (pointType === "bullets"): numbered list instead of dots.
    *  Absent = bullet dots. */
   listStyle?: "bullets" | "numbers";
+}
+
+/** See Set.hiddenLangs. Rows are the Multilanguage grid's (lib/multiling.ts). */
+export interface HiddenLangs {
+  kept: LangCode;
+  langs: LangCode[];
+  langsShown?: LangCode[];
+  langLinesPer?: number;
+  rows: (
+    | { kind: "section"; text: string }
+    | { kind: "line"; byLang: Partial<Record<LangCode, string>> }
+  )[];
 }
 
 export type SetKind = "song" | "scripture" | "media" | "mixed" | "message";
@@ -125,6 +144,12 @@ export interface Set {
   /** Multilanguage songs: the languages shown on the slides (the presenter's
    *  choice, at most four, in column order). Absent = the first four columns. */
   langsShown?: LangCode[];
+  /** Multilanguage songs: lines of each language per slide (1 or 2). Absent = 1. */
+  langLinesPer?: number;
+  /** A song switched out of Multilanguage: its grid, kept hidden so switching
+   *  back restores every language. `kept` is the language the plain editor
+   *  holds; on the way back its column is refilled from the plain words. */
+  hiddenLangs?: HiddenLangs;
   /** Media-only: auto-advance to next slide after N ms. 0 = off. */
   autoAdvanceMs?: number;
   /** Media-only: when auto-advancing, loop from end back to start. */

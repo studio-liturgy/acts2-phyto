@@ -1,16 +1,16 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { LangSearchList } from "@/components/LangSearch";
 import { DotsGrip } from "@/components/DragBits";
 import { hideDragGhost } from "@/lib/drag-ghost";
-import { LANGS, type LangCode, langColor, langDef, langFontStack } from "@/lib/langs";
+import { LANGS, type LangCode, type LangDef, langColor, langDef, langFontStack } from "@/lib/langs";
+import { reapplyChords, stripChordsRaw, type SongChords } from "@/lib/chords";
+import { ChordStrip } from "@/components/ChordStrip";
 import {
   type MultiRow,
+  langLinesPer,
+  slideStarts,
   clearColumnRange,
   columnRangeText,
   insertColumnCell,
@@ -45,6 +45,12 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
 
   const langs = useMemo(() => phytoSet?.langs ?? [], [phytoSet?.langs]);
   const langsShown = phytoSet?.langsShown;
+  const perSlide = phytoSet ? langLinesPer(phytoSet) : 1;
+  // Chords live in the cells' words as (G), but a cell only ever shows the
+  // words: with chords on, the first column gets a small chord line above
+  // each cell; with chords off they're hidden entirely.
+  const chordCfg = phytoSet?.chords;
+  const chordsOn = !!chordCfg && !chordCfg.hidden;
   const [rows, setRows] = useState<MultiRow[]>(() => {
     const initial = slidesToRows(phytoSet?.slides ?? []);
     return initial.length ? initial : [{ kind: "line", byLang: {} }];
@@ -110,11 +116,11 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
   }, [rows]);
 
   useEffect(() => {
-    const parsed = rowsToSlides(rows, shownLangs(langs, langsShown));
+    const parsed = rowsToSlides(rows, shownLangs(langs, langsShown), perSlide);
     const current = useLibrary.getState().sets[setId]?.slides ?? [];
     const { slides, changed } = reconcileSlideIds(parsed, current);
     if (changed) updateSet(setId, { slides });
-  }, [rows, langs, langsShown, setId, updateSet]);
+  }, [rows, langs, langsShown, perSlide, setId, updateSet]);
 
   // Column widths follow the text. At four languages or fewer the columns share
   // the container: each is weighted by the width of its longest line, so a
@@ -143,7 +149,7 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
         for (const r of rows) {
           if (r.kind !== "line") continue;
           const t = r.byLang[code];
-          if (t) max = Math.max(max, ctx.measureText(t).width);
+          if (t) max = Math.max(max, ctx.measureText(stripChordsRaw(t)).width);
         }
         return Math.max(max + PAD, 24); // a floor so an empty column isn't 0-wide
       });
@@ -336,12 +342,24 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
       ...(langsShown ? { langsShown: langsShown.filter((l) => next.includes(l)) } : {}),
     });
 
+  // The cell shows the words only; its chords are put back around the edit.
   const editCell = (row: number, lang: LangCode, value: string) =>
     setRows((rs) =>
       rs.map((r, i) =>
-        i === row && r.kind === "line" ? { ...r, byLang: { ...r.byLang, [lang]: value } } : r,
+        i === row && r.kind === "line"
+          ? { ...r, byLang: { ...r.byLang, [lang]: reapplyChords(r.byLang[lang] ?? "", value) } }
+          : r,
       ),
     );
+  // The chord line above a first-column cell: set the whole stored line.
+  const setCellLine = (row: number, lang: LangCode, line: string) => {
+    step();
+    setRows((rs) =>
+      rs.map((r, i) =>
+        i === row && r.kind === "line" ? { ...r, byLang: { ...r.byLang, [lang]: line } } : r,
+      ),
+    );
+  };
   const insertLineAfter = (row: number, lang: LangCode) => {
     step();
     setRows((rs) => [...rs.slice(0, row + 1), { kind: "line", byLang: {} }, ...rs.slice(row + 1)]);
@@ -428,7 +446,7 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
     );
   }
 
-  let lineNo = 0;
+  const starts = slideStarts(rows, perSlide);
   let sectionNo = -1;
   let tint = "transparent";
 
@@ -563,8 +581,7 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
               );
             }
 
-            lineNo += 1;
-            const n = lineNo;
+            const n = starts[i];
             const rowTint = tint;
             return (
               <Row
@@ -582,6 +599,9 @@ export function MultiLangLyricEditor({ setId }: { setId: string }) {
                 onDragOverRow={() => dragSecRow.current !== null && dragSectionOver(i)}
                 onFocusRow={() => (focusRowRef.current = i)}
                 editCell={editCell}
+                chordLang={chordsOn ? langs[0] : undefined}
+                chords={chordCfg}
+                setCellLine={setCellLine}
                 insertLineAfter={insertLineAfter}
                 insertCell={insertCell}
                 removeCell={removeCell}
@@ -632,6 +652,9 @@ function Row({
   onDragOverRow,
   onFocusRow,
   editCell,
+  chordLang,
+  chords,
+  setCellLine,
   insertLineAfter,
   insertCell,
   removeCell,
@@ -640,7 +663,8 @@ function Row({
   moveCaret,
 }: {
   index: number;
-  n: number;
+  /** The slide this row starts (null on a slide's later rows). */
+  n: number | null;
   langs: LangCode[];
   row: Extract<MultiRow, { kind: "line" }>;
   tint: string;
@@ -652,6 +676,10 @@ function Row({
   onDragOverRow: () => void;
   onFocusRow: () => void;
   editCell: (row: number, lang: LangCode, value: string) => void;
+  /** The column that shows a chord line (chords on), if any. */
+  chordLang?: LangCode;
+  chords?: SongChords;
+  setCellLine: (row: number, lang: LangCode, line: string) => void;
   insertLineAfter: (row: number, lang: LangCode) => void;
   insertCell: (row: number, lang: LangCode) => void;
   removeCell: (row: number, lang: LangCode) => void;
@@ -693,6 +721,14 @@ function Row({
                 : `color-mix(in oklab, ${tint} 6%, transparent)`,
             }}
           >
+            {code === chordLang && chords && (
+              <ChordStrip
+                line={row.byLang[code] ?? ""}
+                chords={chords}
+                fontFamily={langFontStack(code) || undefined}
+                onChange={(line) => setCellLine(index, code, line)}
+              />
+            )}
             <textarea
               ref={(el) => {
                 if (el) {
@@ -703,7 +739,7 @@ function Row({
               rows={1}
               wrap="off"
               dir={def.dir}
-              value={row.byLang[code] ?? ""}
+              value={stripChordsRaw(row.byLang[code] ?? "")}
               onMouseDown={() => onCellMouseDown(code, index)}
               onFocus={onFocusRow}
               onDragOver={(e) => {
@@ -768,13 +804,14 @@ function LangPicker({
   onAdd,
   label,
 }: {
-  available: readonly { code: LangCode; short: string; label: string }[];
+  available: readonly LangDef[];
   onAdd: (code: LangCode) => void;
   label: string;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <button
           type="button"
           className="mono flex h-7 items-center justify-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
@@ -782,33 +819,16 @@ function LangPicker({
           <Plus className="h-3 w-3" />
           {label}
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="max-h-80 min-w-[14rem] overflow-y-auto dark:border-white"
-      >
-        {available.map((l) => (
-          <DropdownMenuItem
-            key={l.code}
-            onSelect={() => onAdd(l.code)}
-            className="gap-3 focus:!bg-[var(--lang-tint)] data-[highlighted]:!bg-[var(--lang-tint)]"
-            style={
-              {
-                "--lang-tint": `color-mix(in oklab, ${langColor(l.code)} 22%, transparent)`,
-              } as React.CSSProperties
-            }
-          >
-            <span
-              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: langColor(l.code) }}
-            />
-            <span className="mono shrink-0 uppercase">{l.short}</span>
-            <span className="mono ml-auto text-right text-[10px] uppercase tracking-wider text-muted-foreground">
-              {l.label}
-            </span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 rounded-3xl p-3 dark:border-white">
+        <LangSearchList
+          options={available}
+          onPick={(code) => {
+            onAdd(code);
+            setOpen(false);
+          }}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }

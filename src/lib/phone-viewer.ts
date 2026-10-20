@@ -35,6 +35,8 @@ export interface PhoneSlide {
    *  entry in `lines` (the leader's shown languages). */
   linesByLang?: Record<string, string>;
   lineLangs?: string[];
+  /** Call and Response: who reads each line (see Slide.roles). */
+  roles?: ("leader" | "people" | "all" | null)[];
 }
 
 export interface PhoneSet {

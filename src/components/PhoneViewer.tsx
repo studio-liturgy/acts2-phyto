@@ -6,6 +6,7 @@ import { arrangedEntries } from "@/lib/arrangements";
 import { renderInline } from "@/lib/inline-format";
 import { MAX_SHOWN_LANGS, shownLangs } from "@/lib/multiling";
 import { isLangCode, langDef, type LangCode } from "@/lib/langs";
+import type { Role } from "@/lib/song-roles";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -739,12 +740,16 @@ function SetContent({
   if (set.type === "song") {
     // Group consecutive slides that share a section into one flowing block;
     // an arranged song takes one block per arrangement entry instead.
-    const groups: { section: string | undefined; lines: string[] }[] = [];
+    // Call and Response roles ride along, one per line.
+    const rolesOf = (slide: PhoneSlide) =>
+      (slide.lines ?? []).map((_, i) => slide.roles?.[i] ?? null);
+    const groups: { section: string | undefined; lines: string[]; roles: (Role | null)[] }[] = [];
     if (arranged.length > 0) {
       for (const e of arranged) {
         groups.push({
           section: e.group.section ?? undefined,
           lines: e.group.items.flatMap(({ slide }) => slide.lines ?? []),
+          roles: e.group.items.flatMap(({ slide }) => rolesOf(slide)),
         });
       }
     }
@@ -752,8 +757,13 @@ function SetContent({
       const last = groups[groups.length - 1];
       if (last && last.section === slide.section) {
         last.lines.push(...(slide.lines ?? []));
+        last.roles.push(...rolesOf(slide));
       } else {
-        groups.push({ section: slide.section, lines: [...(slide.lines ?? [])] });
+        groups.push({
+          section: slide.section,
+          lines: [...(slide.lines ?? [])],
+          roles: rolesOf(slide),
+        });
       }
     }
     // A song with no chords shouldn't get the wider chord-row spacing just
@@ -766,6 +776,7 @@ function SetContent({
             key={i}
             section={group.section}
             lines={group.lines}
+            roles={group.roles}
             isDark={isDark}
             chordConfig={chordConfig}
             showChords={showChordsHere}
@@ -959,12 +970,14 @@ function MediaSlide({ slide }: { slide: PhoneSlide }) {
 function SlideBlock({
   section,
   lines,
+  roles,
   isDark,
   chordConfig,
   showChords,
 }: {
   section: string | undefined;
   lines: string[];
+  roles?: (Role | null)[];
   isDark: boolean;
   chordConfig: ChordViewConfig | null;
   showChords: boolean;
@@ -986,6 +999,7 @@ function SlideBlock({
           }
           chords={chords}
           show={showChords}
+          role={roles?.[j]}
           className="leading-relaxed"
           chordClassName="text-[0.7em] font-semibold"
           chordStyle={{ fontFamily: "'Space Mono', monospace" }}

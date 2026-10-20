@@ -1,65 +1,85 @@
 import { describe, expect, it } from "vitest";
-import { chordRowLayout, hideChords, inlineToChordRows } from "@/lib/chords";
+import { chordRowLayout, inlineToChordRows, setChordAt } from "@/lib/chords";
+import { lyricsToSlides } from "@/lib/slide-text";
 import {
-  canTakeRole,
-  roleGutterRows,
-  cycleLineRole,
+  attachRoles,
   nextRole,
-  splitRole,
-  withRole,
+  remapRoles,
+  roleGutterRows,
+  rolesFromSlides,
+  type LineRoles,
 } from "@/lib/song-roles";
 import { songPatternImage, songPatterns } from "@/lib/song-layout";
 
+const text = "[Call]\nThe Lord be with you\nAnd also with you\n---\nLift up your hearts";
+const roles: LineRoles = [null, "leader", "people", null, "leader"];
+
 describe("song roles", () => {
-  it("reads a role label off the start of a line", () => {
-    expect(splitRole("People: Thanks be to God")).toEqual({
-      role: "people",
-      text: "Thanks be to God",
-    });
-    expect(splitRole("Leader:The Lord be with you")).toEqual({
-      role: "leader",
-      text: "The Lord be with you",
-    });
-    expect(splitRole("All of my days")).toEqual({ text: "All of my days" });
-    expect(splitRole("people: lower case is lyric text")).toEqual({
-      text: "people: lower case is lyric text",
-    });
-  });
-
-  it("replaces or removes a role", () => {
-    expect(withRole("Leader: Lift up your hearts", "people")).toBe("People: Lift up your hearts");
-    expect(withRole("All: Amen", undefined)).toBe("Amen");
-    expect(withRole("Amen", "all")).toBe("All: Amen");
-  });
-
   it("cycles none, Leader, People, All, none", () => {
-    const seen: (string | undefined)[] = [];
-    let r = nextRole(undefined);
+    const seen: (string | null)[] = [];
+    let r = nextRole(null);
     for (let i = 0; i < 4; i++) {
       seen.push(r);
       r = nextRole(r);
     }
-    expect(seen).toEqual(["leader", "people", "all", undefined]);
+    expect(seen).toEqual(["leader", "people", "all", null]);
   });
 
-  it("only cycles lyric lines, leaving breaks and labels alone", () => {
-    const lyrics = "[Call]\nThe Lord be with you\n---\n\nAnd also with you";
-    expect(canTakeRole("[Call]")).toBe(false);
-    expect(canTakeRole("---")).toBe(false);
-    expect(canTakeRole("  ")).toBe(false);
-    expect(cycleLineRole(lyrics, 0)).toBe(lyrics);
-    expect(cycleLineRole(lyrics, 2)).toBe(lyrics);
-    const once = cycleLineRole(lyrics, 1);
-    expect(once.split("\n")[1]).toBe("Leader: The Lord be with you");
-    expect(cycleLineRole(cycleLineRole(once, 1), 1).split("\n")[1]).toBe(
-      "All: The Lord be with you",
-    );
+  it("puts roles beside the words, never in them", () => {
+    const slides = attachRoles(lyricsToSlides(text), text, roles, true);
+    expect(slides[0].lines).toEqual(["The Lord be with you", "And also with you"]);
+    expect(slides[0].roles).toEqual(["leader", "people"]);
+    expect(slides[1].roles).toEqual(["leader"]);
+  });
+
+  it("out of Call and Response the roles are kept hidden, and come back", () => {
+    const hidden = attachRoles(lyricsToSlides(text), text, roles, false);
+    expect(hidden[0].roles).toBeUndefined();
+    expect(hidden[0].hiddenRoles).toEqual(["leader", "people"]);
+    expect(rolesFromSlides(text, hidden)).toEqual(roles);
+  });
+
+  it("carries roles through an edit", () => {
+    // Typing in a line keeps its role.
+    const typed = text.replace("hearts", "hearts!");
+    expect(remapRoles(text, typed, roles)).toEqual(roles);
+    // Enter at the end of the People line: the new line is People too.
+    const split = text.replace("And also with you", "And also\nwith you");
+    expect(remapRoles(text, split, roles)).toEqual([
+      null,
+      "leader",
+      "people",
+      "people",
+      null,
+      "leader",
+    ]);
+    // Deleting the Leader line keeps the rest where they are.
+    const cut = text.replace("The Lord be with you\n", "");
+    expect(remapRoles(text, cut, roles)).toEqual([null, "people", null, "leader"]);
+  });
+
+  it("gutter rows: one per lyric line, on the lyric under a chord row", () => {
+    const withChord = text.replace("Lift up", "(G)Lift up");
+    expect(roleGutterRows(withChord, roles, null).map((r) => r.storedLine)).toEqual([1, 2, 4]);
+    const box = inlineToChordRows(withChord).split("\n");
+    const rows = roleGutterRows(withChord, roles, chordRowLayout(withChord));
+    expect(box[rows[2].boxLine]).toBe("Lift up your hearts");
+    expect(rows[2].role).toBe("leader");
+  });
+});
+
+describe("chord strip edits", () => {
+  it("sets, replaces and removes a chord over a word", () => {
+    expect(setChordAt("Amazing grace", 8, "G")).toBe("Amazing (G)grace");
+    expect(setChordAt("Amazing (G)grace", 8, "C")).toBe("Amazing (C)grace");
+    expect(setChordAt("Amazing (G)grace", 8, null)).toBe("Amazing grace");
+    expect(setChordAt("Amazing", 99, "D")).toBe("Amazing(D)");
   });
 });
 
 describe("song patterns", () => {
-  const song = { kind: "song" as const };
-  it("maps layouts and chords to patterns", () => {
+  const song = { kind: "song" as const, songLayout: undefined, chords: undefined };
+  it("maps modes and chords to patterns", () => {
     expect(songPatterns(song)).toEqual([]);
     expect(songPatterns({ ...song, chords: { key: "G", display: "letters" } })).toEqual(["lines"]);
     expect(
@@ -67,13 +87,9 @@ describe("song patterns", () => {
     ).toEqual([]);
     expect(songPatterns({ ...song, songLayout: "multilang" })).toEqual(["grid"]);
     expect(
-      songPatterns({
-        ...song,
-        songLayout: "response",
-        chords: { key: "G", display: "letters" },
-      }),
+      songPatterns({ ...song, songLayout: "response", chords: { key: "G", display: "letters" } }),
     ).toEqual(["lines", "hatch"]);
-    expect(songPatterns({ kind: "scripture", songLayout: "response" })).toEqual([]);
+    expect(songPatterns({ ...song, kind: "scripture", songLayout: "response" })).toEqual([]);
   });
 
   it("never repeats a layer (lines under a grid)", () => {
@@ -81,28 +97,5 @@ describe("song patterns", () => {
     expect(img.match(/\(0deg/g)).toHaveLength(1);
     expect(img).toContain("90deg");
     expect(songPatternImage([], 6)).toBeUndefined();
-  });
-});
-
-describe("role gutter rows", () => {
-  const lyrics =
-    "[Call]\nLeader: The (G)Lord be with you\nPeople: And also with you\n---\n(G) (C)\nAmen";
-
-  it("chords hidden: one toggle per lyric line, box lines match stored lines", () => {
-    const box = hideChords(lyrics);
-    expect(roleGutterRows(lyrics, box, null)).toEqual([
-      { boxLine: 1, storedLine: 1, role: "leader" },
-      { boxLine: 2, storedLine: 2, role: "people" },
-      { boxLine: 5, storedLine: 5, role: undefined },
-    ]);
-  });
-
-  it("chords shown: the toggle sits on the lyric under its chord row", () => {
-    const box = inlineToChordRows(lyrics);
-    const rows = roleGutterRows(lyrics, box, chordRowLayout(lyrics));
-    const boxLines = box.split("\n");
-    expect(rows.map((r) => r.storedLine)).toEqual([1, 2, 5]);
-    expect(boxLines[rows[0].boxLine]).toContain("Leader: The");
-    expect(boxLines[rows[2].boxLine]).toBe("Amen");
   });
 });

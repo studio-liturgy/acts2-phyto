@@ -37,7 +37,10 @@ export type LangCode =
   | "id"
   | "es"
   | "pt"
-  | "fr";
+  | "fr"
+  | "de"
+  | "hi"
+  | "vi";
 
 export interface LangDef {
   code: LangCode;
@@ -63,6 +66,7 @@ const SC = "'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei'";
 const TC = "'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei'";
 const KR = "'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic'";
 const AR = "'Noto Sans Arabic', 'Geeza Pro', 'Segoe UI'";
+const DEV = "'Noto Sans Devanagari', 'Kohinoor Devanagari', 'Devanagari Sangam MN', 'Nirmala UI'";
 
 export const LANGS: readonly LangDef[] = [
   { code: "en", label: "English", short: "EN", dir: "ltr", fontFallback: "" },
@@ -118,7 +122,35 @@ export const LANGS: readonly LangDef[] = [
   { code: "es", label: "Spanish", short: "ES", dir: "ltr", fontFallback: "" },
   { code: "pt", label: "Portuguese", short: "PT", dir: "ltr", fontFallback: "" },
   { code: "fr", label: "French", short: "FR", dir: "ltr", fontFallback: "" },
+  { code: "de", label: "German", short: "DE", dir: "ltr", fontFallback: "" },
+  { code: "hi", label: "Hindi", short: "HI", dir: "ltr", fontFallback: DEV },
+  { code: "vi", label: "Vietnamese", short: "VI", dir: "ltr", fontFallback: "" },
 ];
+
+/** Reading aids for another entry (how it sounds), as opposed to a language or
+ *  a script of one. They sit at the bottom of every language picker. Traditional
+ *  Chinese is derived too, but it's a script people read, so it isn't one. */
+const PRONUNCIATIONS: ReadonlySet<LangCode> = new Set(["ja-Hira", "ja-Latn", "zh-Latn", "ko-Latn"]);
+
+export function isPronunciation(code: LangCode): boolean {
+  return PRONUNCIATIONS.has(code);
+}
+
+/** A picker's order: languages first, pronunciations last, each in canonical order. */
+export function pickerOrder<T extends { code: LangCode }>(list: readonly T[]): T[] {
+  return [
+    ...list.filter((l) => !isPronunciation(l.code)),
+    ...list.filter((l) => isPronunciation(l.code)),
+  ];
+}
+
+/** Does a language match what's typed into a picker's search box? Matches the
+ *  name ("jap", "pinyin") or the chip text ("CN", "かな"). */
+export function langMatches(def: LangDef, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return def.label.toLowerCase().includes(q) || def.short.toLowerCase().includes(q);
+}
 
 /** The languages a WORKSPACE can be set to: every real language, but not the
  *  transliterations, which only exist as a second line under their source.
@@ -180,6 +212,10 @@ const LANG_HSL: Record<LangCode, string> = {
   es: "hsl(50 85% 47%)", // Romance trio, clustered in the golds/greens
   pt: "hsl(42 82% 45%)",
   fr: "hsl(95 45% 44%)",
+
+  de: "hsl(0 0% 45%)", // German, slate grey
+  hi: "hsl(330 60% 52%)", // Hindi, magenta
+  vi: "hsl(170 50% 38%)", // Vietnamese, deep teal
 };
 
 export function langColor(code: LangCode): string {

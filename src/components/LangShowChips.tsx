@@ -12,7 +12,7 @@ import type { Set as PhytoSet } from "@/lib/types";
 export function LangShowChips({ set }: { set: PhytoSet }) {
   const updateSet = useLibrary((s) => s.updateSet);
   const langs = songLangs(set);
-  if (langs.length < 2) return null;
+  if (langs.length === 0) return null;
   const shown = shownLangs(langs, set.langsShown);
   const toggle = (code: LangCode) => {
     const on = shown.includes(code);

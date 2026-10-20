@@ -21,6 +21,9 @@ it("offers one Chinese (both scripts) and no transliterations", () => {
     "es",
     "pt",
     "fr",
+    "de",
+    "hi",
+    "vi",
   ]);
   expect(workspaceLang("zh-Hant-TW")).toBe("zh");
   expect(workspaceLangLabel("zh")).toBe("Chinese");

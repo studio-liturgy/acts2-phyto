@@ -34,10 +34,27 @@ import { VersionPicker } from "@/components/VersionPicker";
 import { ScriptureSettingsDialog } from "@/components/ScriptureSettingsDialog";
 import { SongSettingsDialog } from "@/components/SongSettingsDialog";
 import { RoleGutter } from "@/components/RoleGutter";
-import { cycleLineRole, roleGutterRows } from "@/lib/song-roles";
+import {
+  attachRoles,
+  nextRole,
+  remapRoles,
+  roleGutterRows,
+  rolesFromSlides,
+  type LineRoles,
+} from "@/lib/song-roles";
 import { songLayoutOf, type SongLayout } from "@/lib/song-layout";
 import { MultiLangLyricEditor } from "@/components/MultiLangLyricEditor";
-import { multilangToStandard, rowsToSlides, standardToRows } from "@/lib/multiling";
+import { LangShowChips } from "@/components/LangShowChips";
+import {
+  MAX_LANG_LINES_PER,
+  langLinesPer,
+  leaveMultilang,
+  returnToMultilang,
+  rowsToSlides,
+  shownLangs,
+  standardToRows,
+  transposeLangColumn,
+} from "@/lib/multiling";
 import type { LangCode } from "@/lib/langs";
 import { VersionWarning } from "@/components/VersionWarning";
 import { Input } from "@/components/ui/input";
@@ -515,6 +532,13 @@ function SetEditor() {
           <div className="w-1/2 overflow-y-auto p-6">
             {phytoSet.chords && !phytoSet.chords.hidden && phytoSet.slides.length > 0 && (
               <ChordSheet slides={phytoSet.slides} chords={phytoSet.chords} />
+            )}
+            {/* Multilanguage: which languages the slides show (same chips as
+                the presenter's). */}
+            {phytoSet.songLayout === "multilang" && (phytoSet.langs?.length ?? 0) > 0 && (
+              <div className="mb-4">
+                <LangShowChips set={phytoSet} />
+              </div>
             )}
             {phytoSet.slides.length > 0 && (
               <div className="mb-4">
@@ -1372,10 +1396,17 @@ function ChordControls({
   onLyricsChange,
   onInsertChord,
   onClearLine,
+  onTranspose,
+  noPalette = false,
   children,
 }: {
   setId: string;
   lyrics: string;
+  /** Multilanguage: transposing rewrites the grid's chords instead of
+   *  `lyrics` (which is then only read to tell whether there are chords). */
+  onTranspose?: (from: string, to: string) => void;
+  /** Multilanguage: chords are typed in the grid, so no palette. */
+  noPalette?: boolean;
   /** Used to rewrite every chord in the lyrics when the key changes. */
   onLyricsChange: (next: string) => void;
   /** Drop a chord in at the caret, from the palette below. */
@@ -1395,7 +1426,8 @@ function ChordControls({
   // That is what lets numbers be derived without a separate "written in" key.
   const changeKey = (next: string) => {
     if (!chords || next === chords.key) return;
-    onLyricsChange(transposeLyrics(lyrics, chords.key, next));
+    if (onTranspose) onTranspose(chords.key, next);
+    else onLyricsChange(transposeLyrics(lyrics, chords.key, next));
     updateSet(setId, { chords: { ...chords, key: next } });
   };
 
@@ -1462,7 +1494,7 @@ function ChordControls({
           {/* The seven chords of the key. Click to drop one in at the caret;
               mousedown is swallowed so the textarea keeps focus and the caret
               stays where the user left it. */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className={`flex flex-wrap items-center gap-1.5 ${noPalette ? "hidden" : ""}`}>
             {diatonicChords(chords.key).map((c) => (
               <button
                 key={c}
@@ -1583,6 +1615,13 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     if (kind !== "song") return "";
     return slidesToLyricsText(useLibrary.getState().sets[setId]?.slides ?? []);
   });
+  // Call and Response: one role per line of `lyrics` (the box holds only the
+  // words). Kept in every mode, so switching back brings the roles back.
+  const [roles, setRoles] = useState<LineRoles>(() => {
+    if (kind !== "song") return [];
+    const slides = useLibrary.getState().sets[setId]?.slides ?? [];
+    return rolesFromSlides(slidesToLyricsText(slides), slides);
+  });
   const prevLinesPer = useRef(linesPer);
   /** Shared by the stepper buttons and typing directly into the box. */
   const requestLinesPerChange = (raw: number) => {
@@ -1632,7 +1671,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   // chords hidden), so its value doesn't track the native edit history. Each
   // entry carries the chord config too, so undoing a transpose puts the key
   // back with the text rather than leaving the two disagreeing.
-  const undoStack = useRef<{ lyrics: string; chords?: SongChords; caret: number | null }[]>([]);
+  const undoStack = useRef<
+    { lyrics: string; roles: LineRoles; chords?: SongChords; caret: number | null }[]
+  >([]);
   const redoStack = useRef<typeof undoStack.current>([]);
   const lastPush = useRef(0);
   // `lyrics` is always stored as letter chords. The box may show something else
@@ -1671,6 +1712,19 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     const set = s.sets[setId];
     return set ? songLayoutOf(set) : "standard";
   });
+  const hiddenLangsKept = useLibrary((s) => !!s.sets[setId]?.hiddenLangs);
+  const songColumns = useLibrary((s) => s.sets[setId]?.langs) ?? [];
+  const multiPer = useLibrary((s) => {
+    const set = s.sets[setId];
+    return set ? langLinesPer(set) : 1;
+  });
+  // Multilanguage: the first column's words, to tell whether there are chords.
+  const multiChordText = useLibrary((s) => {
+    const set = s.sets[setId];
+    const first = set?.langs?.[0];
+    if (!set || set.songLayout !== "multilang" || !first) return "";
+    return set.slides.map((sl) => sl.linesByLang?.[first] ?? "").join("\n");
+  });
   // Remounts the Multilanguage grid when its rows are replaced from outside it
   // (a search result picked while it's open).
   const [gridKey, setGridKey] = useState(0);
@@ -1689,25 +1743,52 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     const from = songLayoutOf(set);
     if (next === from) return;
     if (next === "multilang") {
-      const slides = lang ? rowsToSlides(standardToRows(set.slides, lang), [lang]) : [];
+      // Back from hidden: the kept grid, its kept column refilled from the
+      // plain words. Otherwise the plain words become the `lang` column.
+      const hidden = set.hiddenLangs;
+      const first = hidden ? hidden.kept : lang;
+      const rows = hidden
+        ? returnToMultilang(hidden, set.slides)
+        : first
+          ? standardToRows(set.slides, first)
+          : [];
+      const langs = hidden ? hidden.langs : first ? [first] : [];
+      const per = hidden?.langLinesPer;
       updateSet(setId, {
         songLayout: "multilang",
-        langs: lang ? [lang] : [],
-        langsShown: undefined,
-        slides,
+        langs,
+        langsShown: hidden?.langsShown,
+        langLinesPer: per,
+        hiddenLangs: undefined,
+        slides: rowsToSlides(
+          rows,
+          shownLangs(langs, hidden?.langsShown),
+          langLinesPer({ langLinesPer: per }),
+        ),
       });
       setGridKey((k) => k + 1);
       return;
     }
     if (from === "multilang") {
-      const slides = multilangToStandard(set.slides, set.langs ?? []);
-      updateSet(setId, {
-        songLayout: next === "standard" ? undefined : next,
-        langs: undefined,
-        langsShown: undefined,
-        slides,
-      });
-      setLyrics(slidesToLyricsText(slides));
+      // Keep one language in the plain editor; the grid stays hidden on the set.
+      const kept = lang ?? set.langs?.[0];
+      if (kept) {
+        const { text, hidden } = leaveMultilang(set, kept);
+        const divided = applyDividers(text, linesPer);
+        updateSet(setId, {
+          songLayout: next === "standard" ? undefined : next,
+          langs: undefined,
+          langsShown: undefined,
+          langLinesPer: undefined,
+          hiddenLangs: hidden,
+        });
+        setRoles([]);
+        setLyrics(divided);
+      } else {
+        updateSet(setId, { songLayout: next === "standard" ? undefined : next, slides: [] });
+        setRoles([]);
+        setLyrics("");
+      }
       return;
     }
     updateSet(setId, { songLayout: next === "standard" ? undefined : next });
@@ -1770,7 +1851,11 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     if (hydrated.current || kind !== "song") return;
     if (!storeSlides || storeSlides.length === 0) return;
     hydrated.current = true;
-    if (lyrics === "") setLyrics(slidesToLyricsText(storeSlides));
+    if (lyrics === "") {
+      const text = slidesToLyricsText(storeSlides);
+      setLyrics(text);
+      setRoles(rolesFromSlides(text, storeSlides));
+    }
   }, [storeSlides, kind, lyrics]);
 
   // Persist linesPer across navigations.
@@ -1792,11 +1877,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     if (kind !== "song") return;
     // A Multilanguage song is written by its grid, never from this box.
     if (songLayout === "multilang") return;
-    const parsed = lyrics.trim() ? lyricsToSlides(lyrics) : [];
+    // Roles go on as `roles` in Call and Response, kept as `hiddenRoles` else.
+    const parsed = lyrics.trim()
+      ? attachRoles(lyricsToSlides(lyrics), lyrics, roles, songLayout === "response")
+      : [];
     const current = useLibrary.getState().sets[setId]?.slides ?? [];
     const { slides, changed } = reconcileSlideIds(parsed, current);
     if (changed) updateSet(setId, { slides });
-  }, [lyrics, kind, setId, updateSet, songLayout]);
+  }, [lyrics, roles, kind, setId, updateSet, songLayout]);
 
   const runSongSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -1827,6 +1915,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   // Don't override a name the user set or one taken from a selected result.
   const snapshot = () => ({
     lyrics,
+    roles,
     chords: useLibrary.getState().sets[setId]?.chords,
     caret: caretRef.current,
   });
@@ -1842,8 +1931,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     redoStack.current = [];
   };
 
-  const restore = (entry: { lyrics: string; chords?: SongChords; caret: number | null }) => {
+  const restore = (entry: {
+    lyrics: string;
+    roles: LineRoles;
+    chords?: SongChords;
+    caret: number | null;
+  }) => {
     setLyrics(entry.lyrics);
+    setRoles(entry.roles);
     const now = useLibrary.getState().sets[setId]?.chords;
     if (JSON.stringify(now) !== JSON.stringify(entry.chords)) {
       updateSet(setId, { chords: entry.chords });
@@ -1890,6 +1985,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     pushHistory();
     const wasEmpty = !lyrics.trim();
     const hadChords = hasChords(lyrics);
+    setRoles((r) => remapRoles(lyrics, val, r));
     setLyrics(val);
     // Turn chords on the first time the leader actually types or pastes some.
     // Driven from here rather than an effect so opening the editor never writes.
@@ -2061,7 +2157,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             onOpenChange={setSongSettingsOpen}
             layout={songLayout}
             setLayout={switchLayout}
-            askLang={songLayout !== "multilang" && lyrics.trim() !== ""}
+            askLang={songLayout !== "multilang" && lyrics.trim() !== "" && !hiddenLangsKept}
+            songLangs={songColumns}
             chords={!chordsHidden}
             setChords={(on) =>
               updateSet(setId, {
@@ -2109,6 +2206,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                           });
                           setGridKey((k) => k + 1);
                         }
+                        setRoles([]);
                         setLyrics(imported);
                         setSongResults([]);
                         setPreview(null);
@@ -2174,7 +2272,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           {/* Lines per slide, with the chord key and palette below while chords
               are on. A Multilanguage song is one line per slide, typed in its
               grid, so it has neither. */}
-          {songLayout !== "multilang" && (
+          {songLayout !== "multilang" ? (
             <ChordControls
               setId={setId}
               lyrics={lyrics}
@@ -2191,6 +2289,45 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 onChange={requestLinesPerChange}
                 min={1}
                 max={8}
+                decrementLabel="Fewer lines per slide"
+                incrementLabel="More lines per slide"
+              />
+            </ChordControls>
+          ) : (
+            // Multilanguage: lines of each language per slide (1 or 2), and the
+            // chord key, with chords typed in the grid's first column.
+            <ChordControls
+              setId={setId}
+              lyrics={multiChordText}
+              onLyricsChange={() => {}}
+              onInsertChord={() => {}}
+              onClearLine={() => {}}
+              noPalette
+              onTranspose={(fromKey, toKey) => {
+                const set = useLibrary.getState().sets[setId];
+                const first = set?.langs?.[0];
+                if (!set || !first) return;
+                updateSet(setId, {
+                  slides: transposeLangColumn(
+                    set.slides,
+                    first,
+                    (line) => transposeLyrics(line, fromKey, toKey),
+                    shownLangs(set.langs ?? [], set.langsShown),
+                  ),
+                });
+                setGridKey((k) => k + 1);
+              }}
+            >
+              <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
+              <NumberStepper
+                value={multiPer}
+                onChange={(n) =>
+                  updateSet(setId, {
+                    langLinesPer: Math.min(MAX_LANG_LINES_PER, Math.max(1, Math.round(n))),
+                  })
+                }
+                min={1}
+                max={MAX_LANG_LINES_PER}
                 decrementLabel="Fewer lines per slide"
                 incrementLabel="More lines per slide"
               />
@@ -2213,10 +2350,18 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
               boxText={boxText}
               rows={roleGutterRows(
                 lyrics,
-                boxText,
+                roles,
                 chordsHidden ? null : chordRowLayout(lyrics, chordLabel),
               )}
-              onCycle={(storedLine) => handleLyricsChange(cycleLineRole(lyrics, storedLine))}
+              onCycle={(storedLine) => {
+                pushHistory();
+                setRoles((r) => {
+                  const next = [...r];
+                  while (next.length <= storedLine) next.push(null);
+                  next[storedLine] = nextRole(next[storedLine]);
+                  return next;
+                });
+              }}
             />
           )}
           <Textarea
@@ -2351,7 +2496,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                   const next = pendingLinesPerConfirm!;
                   prevLinesPer.current = next;
                   setLinesPer(next);
-                  setLyrics(applyDividers(lyrics, next));
+                  const divided = applyDividers(lyrics, next);
+                  setRoles((r) => remapRoles(lyrics, divided, r));
+                  setLyrics(divided);
                   setPendingLinesPerConfirm(null);
                 }}
                 className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"

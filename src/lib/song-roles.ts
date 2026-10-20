@@ -1,14 +1,20 @@
 // Call and Response: who reads each line of a liturgy.
 //
-// A role is stored as a plain label at the start of the lyric line itself,
-// "People: Thanks be to God", the same way chords and **bold** live inline. So
-// it survives sync, export, sharing and older builds with no extra field, and an
-// older build that knows nothing about roles still shows the label as text.
-// Renderers that do know (slides, phones) style the label and set the People
-// and All lines in bold.
+// Roles live beside the words, never in them: a slide carries `roles`, one
+// entry per line of `lines` (null = no role). The words stay exactly as typed,
+// so switching the song out of Call and Response leaves no labels behind. Out
+// of that mode the same array is kept as `hiddenRoles`, which no renderer
+// reads, so switching back brings every role back.
+//
+// In the editor the lyrics box holds only words; a parallel array holds one
+// role per stored lyrics line, and edits carry it along.
+import type { Slide } from "./types";
 import { isChordOnlyLine } from "./chords";
 
 export type Role = "leader" | "people" | "all";
+
+/** One entry per stored line; null = no role (JSON keeps null, not undefined). */
+export type LineRoles = (Role | null)[];
 
 export const ROLES: readonly Role[] = ["leader", "people", "all"];
 
@@ -21,49 +27,89 @@ export const ROLE_LABEL: Record<Role, string> = {
 /** One letter for the editor's gutter toggle. */
 export const ROLE_LETTER: Record<Role, string> = { leader: "L", people: "P", all: "A" };
 
-const ROLE_RE = /^(Leader|People|All):[ \t]*/;
-
-const BY_LABEL: Record<string, Role> = { Leader: "leader", People: "people", All: "all" };
-
-/** A line's role (if it opens with a role label) and the words after it. */
-export function splitRole(line: string): { role?: Role; text: string } {
-  const m = ROLE_RE.exec(line);
-  if (!m) return { text: line };
-  return { role: BY_LABEL[m[1]], text: line.slice(m[0].length) };
-}
-
-/** The line carrying `role` (or none), whatever role it had before. */
-export function withRole(line: string, role: Role | undefined): string {
-  const { text } = splitRole(line);
-  return role ? `${ROLE_LABEL[role]}: ${text}` : text;
-}
-
 /** The gutter toggle's cycle: none, Leader, People, All, back to none. */
-export function nextRole(role: Role | undefined): Role | undefined {
+export function nextRole(role: Role | null | undefined): Role | null {
   if (!role) return "leader";
   const i = ROLES.indexOf(role);
-  return i === ROLES.length - 1 ? undefined : ROLES[i + 1];
+  return i === ROLES.length - 1 ? null : ROLES[i + 1];
 }
 
 /** People and All read together, so their lines are set in bold. */
-export function isBoldRole(role: Role | undefined): boolean {
+export function isBoldRole(role: Role | null | undefined): boolean {
   return role === "people" || role === "all";
 }
 
-/** Can a stored lyric line take a role? Not a blank, a `---` slide break or a
- *  `[Section]` label. */
-export function canTakeRole(line: string): boolean {
+/** Does this stored lyrics line become a slide line? Not a blank, a `---`
+ *  slide break or a `[Section]` label (mirrors parseLyricsFromText). */
+function isSlideLine(line: string): boolean {
   const t = line.trim();
-  return t !== "" && t !== "---" && !/^\[.+\]$/.test(t);
+  return t !== "" && !/^---\s*$/.test(t) && !/^\[.+\]$/.test(t);
 }
 
-/** Stored lyrics with line `index` cycled to its next role. */
-export function cycleLineRole(lyrics: string, index: number): string {
-  const lines = lyrics.split("\n");
-  const line = lines[index];
-  if (line === undefined || !canTakeRole(line)) return lyrics;
-  lines[index] = withRole(line, nextRole(splitRole(line).role));
-  return lines.join("\n");
+/** Can a stored line take a role? A slide line that isn't instrumental. */
+export function canTakeRole(line: string): boolean {
+  return isSlideLine(line) && !isChordOnlyLine(line.trim());
+}
+
+/**
+ * Carry the roles across an edit of the lyrics. Lines unchanged at the start
+ * and at the end keep theirs; the changed run in between pairs up by position,
+ * and any extra new lines take the role of the last line in that run (Enter at
+ * the end of a People line starts another People line).
+ */
+export function remapRoles(oldText: string, newText: string, roles: LineRoles): LineRoles {
+  const a = oldText.split("\n");
+  const b = newText.split("\n");
+  let pre = 0;
+  while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++;
+  let suf = 0;
+  while (
+    suf < a.length - pre &&
+    suf < b.length - pre &&
+    a[a.length - 1 - suf] === b[b.length - 1 - suf]
+  )
+    suf++;
+  const out: LineRoles = [];
+  for (let i = 0; i < pre; i++) out.push(roles[i] ?? null);
+  const oldMid = roles.slice(pre, a.length - suf);
+  const last = oldMid.length ? (oldMid[oldMid.length - 1] ?? null) : null;
+  for (let k = 0; k < b.length - suf - pre; k++) out.push(oldMid[k] ?? last);
+  for (let i = a.length - suf; i < a.length; i++) out.push(roles[i] ?? null);
+  // Lines that can't take a role (blanks, ---, labels) never keep one.
+  return out.map((r, i) => (r && canTakeRole(b[i] ?? "") ? r : null));
+}
+
+/** The stored lyrics' line roles from the slides they made (inverse of
+ *  attachRoles), from `roles` or, out of the mode, `hiddenRoles`. */
+export function rolesFromSlides(text: string, slides: Slide[]): LineRoles {
+  const flat: (Role | null)[] = slides.flatMap((s) =>
+    (s.lines ?? []).map((_, i) => (s.roles ?? s.hiddenRoles)?.[i] ?? null),
+  );
+  let k = 0;
+  return text.split("\n").map((line) => (isSlideLine(line) ? (flat[k++] ?? null) : null));
+}
+
+/**
+ * Put the editor's line roles onto the slides parsed from the same lyrics:
+ * as `roles` in Call and Response, `hiddenRoles` otherwise (kept, not shown).
+ * A slide with no roles at all gets neither field.
+ */
+export function attachRoles(
+  slides: Slide[],
+  text: string,
+  roles: LineRoles,
+  shown: boolean,
+): Slide[] {
+  const flat: (Role | null)[] = [];
+  text.split("\n").forEach((line, i) => {
+    if (isSlideLine(line)) flat.push(roles[i] ?? null);
+  });
+  let k = 0;
+  return slides.map((s) => {
+    const mine = (s.lines ?? []).map(() => flat[k++] ?? null);
+    if (!mine.some(Boolean)) return s;
+    return shown ? { ...s, roles: mine } : { ...s, hiddenRoles: mine };
+  });
 }
 
 /** One toggle in the editor's role gutter: the box line it sits beside and the
@@ -71,7 +117,7 @@ export function cycleLineRole(lyrics: string, index: number): string {
 export interface RoleGutterRow {
   boxLine: number;
   storedLine: number;
-  role?: Role;
+  role: Role | null;
 }
 
 /**
@@ -83,20 +129,18 @@ export interface RoleGutterRow {
  */
 export function roleGutterRows(
   lyrics: string,
-  boxText: string,
+  roles: LineRoles,
   layout: { storedLine: number | null; kind: string }[] | null,
 ): RoleGutterRow[] {
   const stored = lyrics.split("\n");
-  const box = boxText.split("\n");
   const rows: RoleGutterRow[] = [];
   const add = (boxLine: number, storedLine: number) => {
     const line = stored[storedLine];
-    if (line === undefined || !canTakeRole(box[boxLine] ?? "")) return;
-    if (isChordOnlyLine(line.trim())) return;
-    rows.push({ boxLine, storedLine, role: splitRole(line).role });
+    if (line === undefined || !canTakeRole(line)) return;
+    rows.push({ boxLine, storedLine, role: roles[storedLine] ?? null });
   };
   if (!layout) {
-    for (let i = 0; i < box.length; i++) add(i, i);
+    stored.forEach((_, i) => add(i, i));
     return rows;
   }
   layout.forEach((l, j) => {

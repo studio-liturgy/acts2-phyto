@@ -31,6 +31,7 @@ export interface ShareSlide {
   /** Multilanguage songs (see Slide). */
   linesByLang?: Record<string, string>;
   lineLangs?: string[];
+  roles?: ("leader" | "people" | "all" | null)[];
 }
 
 export interface ShareSetRow {

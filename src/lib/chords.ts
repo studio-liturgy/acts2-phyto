@@ -1525,3 +1525,31 @@ export function toChordSegments(
   }
   return segs;
 }
+
+/**
+ * One line's chords against its words exactly as typed (nothing trimmed):
+ * what the Multilanguage grid's chord strip draws above a cell's words.
+ */
+export function rawChordAnchors(line: string): ParsedChordLine {
+  return parseRawChordLine(line);
+}
+
+/**
+ * The line with `chord` set over the character at `index` of its words
+ * (replacing any chord already there), or removed when `chord` is null. An
+ * index past the end anchors the chord after the last word.
+ */
+export function setChordAt(line: string, index: number, chord: string | null): string {
+  const { text, chords } = parseRawChordLine(line);
+  const at = Math.max(0, Math.min(index, text.length));
+  const kept = chords.filter((c) => c.index !== at);
+  if (chord && chord.trim()) kept.push({ chord: chord.trim(), index: at });
+  kept.sort((a, b) => a.index - b.index);
+  let out = "";
+  let k = 0;
+  for (let i = 0; i <= text.length; i++) {
+    while (k < kept.length && kept[k].index === i) out += `(${kept[k++].chord})`;
+    if (i < text.length) out += text[i];
+  }
+  return out;
+}

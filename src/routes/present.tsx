@@ -148,7 +148,7 @@ function KindBadge({ kind, abbrev = false }: { kind: SetKind; abbrev?: boolean }
 function KindDot({ kind, set }: { kind: SetKind; set?: PhytoSet }) {
   // Songs carry their Song Settings as a faint pattern (chords: lines,
   // Multilanguage: grid, Call and Response: cross hatching), 3 stripes across.
-  const pattern = set ? songPatternImage(songPatterns(set), 4, 0.4) : undefined;
+  const pattern = set ? songPatternImage(songPatterns(set), 4, 0.22) : undefined;
   return (
     <span
       className="h-3 w-3 shrink-0 rounded-full"
@@ -868,6 +868,9 @@ function Presenter() {
                 >
                   <Pencil className="h-4 w-4" />
                 </Link>
+                <div className="pointer-events-auto">
+                  <LangShowChips set={activeSet} />
+                </div>
               </>
             ) : null}
           </div>
