@@ -191,7 +191,7 @@ function TransparencyPage() {
           <section>
             <Total>Total expenses: {entries ? formatMoney(totalExpenses) : "—"}</Total>
             <div className="mono mt-1 text-base uppercase tracking-wider opacity-80 sm:text-lg">
-              Estimated hours: 280+
+              Estimated hours: 350+
             </div>
             <h2 className="mono mt-10 text-xs uppercase tracking-wider opacity-70">Expenses</h2>
             <div className="mono mt-4 uppercase">
