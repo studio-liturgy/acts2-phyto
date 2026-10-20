@@ -482,23 +482,36 @@ export async function fetchRemote(
     ),
   ];
   if (unresolved.length) {
-    console.error(
-      "[sync] fetchRemote: gathering_sets reference set ids missing from the sets fetch — " +
-        "aborting sync pass (likely an unauthenticated/partial sets read)",
-      unresolved,
-    );
     // Self-heal: a missing set I hold locally as my own is usually one whose
     // row belongs to ANOTHER account (imported, or a second account used this
-    // browser), and it blocks every pass forever. Pushing it takes the 42501
-    // path, which proves the session first, keeps it as my own copy and
-    // repoints my gatherings at it, so the next pass resolves. Not awaited:
-    // this pass may hold the sync lock, and the push queues behind it.
+    // browser). Pushing it takes the 42501 path, which proves the session
+    // first, keeps it as my own copy and repoints my gatherings at it. Not
+    // awaited: this pass may hold the sync lock, and the push queues behind it.
     const healable = unresolved.filter((id) => {
       const local = localById.get(id);
       return !!local && !local.shared;
     });
     if (healable.length) void pushToSupabase({ setIds: healable, gatheringIds: [] });
-    return null;
+
+    // The guard exists for the signed-out read (owner-only sets RLS returns
+    // zero rows to anon). If the server confirms this is still the signed-in
+    // user, the read was real: the missing ids are sets of another account
+    // that my gathering lists and I can't see. Blocking every pass on them
+    // stranded the whole device (Oct 19), so carry on; those slots show as
+    // missing and nothing is deleted.
+    const { data: who } = await supabase.auth.getUser();
+    if (who?.user?.id !== userId) {
+      console.error(
+        "[sync] fetchRemote: gathering_sets reference set ids missing from the sets fetch — " +
+          "aborting sync pass (session could not be confirmed)",
+        unresolved,
+      );
+      return null;
+    }
+    console.warn(
+      "[sync] fetchRemote: my gatherings list sets this account can't see; continuing",
+      unresolved,
+    );
   }
 
   const gatherings = gatheringRows.map((r) =>

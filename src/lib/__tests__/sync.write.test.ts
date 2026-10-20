@@ -233,8 +233,8 @@ describe("42501 re-ID guard (regression 54618ca)", () => {
       errors: [{ table: "sets", op: "upsert", error: { code: "42501", message: "RLS" }, times: 2 }],
     });
 
-    // This pass still aborts (its snapshot can't be trusted) but queues the heal.
-    expect(await fetchRemote(fakeSession.user.id)).toBeNull();
+    // Signed in and confirmed: the pass goes through, and queues the heal.
+    expect(await fetchRemote(fakeSession.user.id)).not.toBeNull();
     await vi.waitFor(async () => {
       expect((await db.gatherings.get(g.id))?.setIds).not.toEqual([theirs.id]);
     });
@@ -245,6 +245,27 @@ describe("42501 re-ID guard (regression 54618ca)", () => {
     await vi.waitFor(async () => {
       expect(await fetchRemote(fakeSession.user.id)).not.toBeNull();
     });
+  });
+
+  it("a set from another account that this browser never had doesn't block sync when signed in", async () => {
+    // Replays the second Oct 19 console: two ids still aborted every pass after
+    // the heal, because their gathering (never pulled here, since every pass
+    // aborted) lists another account's sets with no local copy to keep.
+    const mine = makeSet();
+    const g = makeGathering({ setIds: [mine.id, "their-set"] });
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        sets: [setRow(mine)],
+        gatherings: [gatheringRow(g)],
+        gathering_sets: gatheringSetRows(g),
+      },
+    });
+
+    const remote = await fetchRemote(fakeSession.user.id);
+    expect(remote).not.toBeNull();
+    // The gathering comes through with the slot intact; nothing is deleted.
+    expect(remote!.gatherings.find((x) => x.id === g.id)?.setIds).toEqual([mine.id, "their-set"]);
   });
 
   it("pushToSupabase drops a stranded duplicate on 23505 instead of retrying forever", async () => {
