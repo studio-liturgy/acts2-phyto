@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { donationEntry, ledgerDate } from "../donation-entry";
+import {
+  donationEntry,
+  donationSource,
+  ledgerDate,
+  paidInvoicePaymentIntent,
+  type WebhookEventLike,
+} from "../donation-entry";
 
 const unix = (iso: string) => Date.parse(iso) / 1000;
 
@@ -35,5 +41,71 @@ describe("donationEntry", () => {
     expect(Object.keys(row).sort()).toEqual(
       ["amount", "currency", "entry_date", "fees", "stripe_payment_id", "type"].sort(),
     );
+  });
+});
+
+const ev = (
+  type: string,
+  object: WebhookEventLike["data"]["object"],
+  livemode = true,
+): WebhookEventLike => ({ type, livemode, data: { object } });
+
+describe("donationSource", () => {
+  it("logs a paid one-time checkout from its PaymentIntent", () => {
+    expect(
+      donationSource(
+        ev("checkout.session.completed", {
+          mode: "payment",
+          payment_status: "paid",
+          payment_intent: "pi_1",
+        }),
+      ),
+    ).toEqual({ kind: "payment_intent", id: "pi_1" });
+  });
+
+  it("skips a subscription checkout: its payment is logged from invoice.paid", () => {
+    // The real failure: a subscription checkout carries no payment_intent.
+    expect(
+      donationSource(
+        ev("checkout.session.completed", {
+          mode: "subscription",
+          payment_status: "paid",
+          payment_intent: null,
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it("logs every paid subscription invoice, first month and renewals", () => {
+    expect(donationSource(ev("invoice.paid", { id: "in_1", amount_paid: 1000 }))).toEqual({
+      kind: "invoice",
+      id: "in_1",
+    });
+  });
+
+  it("skips $0 invoices, unpaid async checkouts and test mode", () => {
+    expect(donationSource(ev("invoice.paid", { id: "in_0", amount_paid: 0 }))).toBeNull();
+    expect(
+      donationSource(
+        ev("checkout.session.completed", {
+          mode: "payment",
+          payment_status: "unpaid",
+          payment_intent: "pi_2",
+        }),
+      ),
+    ).toBeNull();
+    expect(donationSource(ev("invoice.paid", { id: "in_1", amount_paid: 1000 }, false))).toBeNull();
+  });
+});
+
+describe("paidInvoicePaymentIntent", () => {
+  it("picks the paid PaymentIntent and ignores open or canceled attempts", () => {
+    expect(
+      paidInvoicePaymentIntent([
+        { status: "canceled", payment: { type: "payment_intent", payment_intent: "pi_old" } },
+        { status: "paid", payment: { type: "payment_intent", payment_intent: { id: "pi_ok" } } },
+      ]),
+    ).toBe("pi_ok");
+    expect(paidInvoicePaymentIntent([])).toBeNull();
   });
 });
