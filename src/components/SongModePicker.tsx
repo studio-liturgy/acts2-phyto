@@ -62,7 +62,7 @@ export function SongModePicker({ setId }: { setId: string }) {
           <ChevronDown className="relative top-px h-3 w-3 shrink-0" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-0">
+      <DropdownMenuContent align="start" className="min-w-0 dark:border-white">
         {SONG_LAYOUTS.filter((l) => l.value !== layout).map((l) => (
           <DropdownMenuItem
             key={l.value}

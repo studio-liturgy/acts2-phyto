@@ -1462,7 +1462,9 @@ function ChordControls({
   // The Chords switch sits beside Lines per slide (the caller's children).
   return (
     <div className="mt-3">
-      <div className="flex flex-wrap items-center gap-2">{children}</div>
+      {/* Column gap between groups, no margins: a wrapped group starts flush
+          left under Lines per slide. */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">{children}</div>
 
       {shown && chords && (
         // Key and the palette share a row when there's room; otherwise the
@@ -1684,11 +1686,19 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const requestLinesPerChange = (raw: number) => {
     const next = Math.min(8, Math.max(1, raw || 1));
     if (next === linesPer && !customBreaks) return;
-    if (lyrics.trim()) {
+    // Only hand-placed breaks (C) are worth a question; an even division
+    // re-divides at once.
+    if (customBreaks && lyrics.trim()) {
       setPendingLinesPerConfirm(next);
-    } else {
-      prevLinesPer.current = next;
-      setLinesPer(next);
+      return;
+    }
+    prevLinesPer.current = next;
+    setLinesPer(next);
+    if (customBreaks) updateSet(setId, { customBreaks: undefined });
+    if (lyrics.trim()) {
+      const divided = applyDividers(lyrics, next);
+      setRoles((r) => remapRoles(lyrics, divided, r));
+      setLyrics(divided);
     }
   };
 
@@ -1864,7 +1874,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   // Beside Lines per slide: Chords, and in Call and Response its two styles.
   // A label never wraps away from its control.
   const toggle = (label: string, checked: boolean, onChange: (on: boolean) => void) => (
-    <span className="ml-3 inline-flex shrink-0 items-center gap-2">
+    <span className="inline-flex shrink-0 items-center gap-2">
       <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">{label}</span>
       <PillSwitch label={label} checked={checked} onCheckedChange={onChange} />
     </span>
@@ -1882,7 +1892,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       {songLayout === "response" && (
         <>
           {toggle("Show role", showRoles, (on) => updateSet(setId, { showRoles: on || undefined }))}
-          <span className="ml-3 inline-flex shrink-0 items-center gap-2">
+          <span className="inline-flex shrink-0 items-center gap-2">
             <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
               Align
             </span>
