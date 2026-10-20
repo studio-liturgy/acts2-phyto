@@ -247,6 +247,26 @@ describe("tombstone writes", () => {
     ]);
   });
 
+  it("records my tombstone even when another account already tombstoned the same id", async () => {
+    // Replays the Oct 20 console: two accounts in one browser shared gathering
+    // ids. The other account's tombstone owned the id, so my upsert's
+    // conflict-update hit their row and RLS refused it (42501, USING).
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        deletions: [
+          { id: "g-1", user_id: "other-account", kind: "gathering", deleted_at: "2026-10-01" },
+        ],
+      },
+    });
+    await recordDeletions("gathering", ["g-1"]);
+
+    const rows = supabaseMock.tables["deletions"];
+    expect(rows).toHaveLength(2);
+    expect(rows).toContainEqual(expect.objectContaining({ id: "g-1", user_id: "other-account" }));
+    expect(rows).toContainEqual(expect.objectContaining({ id: "g-1", user_id: USER_ID }));
+  });
+
   it("pushMirrorToSupabase tombstones the remote-only rows it deletes", async () => {
     const remoteOnlySet = makeSet();
     const remoteOnlyGathering = makeGathering();

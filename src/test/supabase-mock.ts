@@ -75,6 +75,7 @@ type MockConfig = {
 };
 
 class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | null }> {
+  private conflictKeys: string[] = ["id"];
   private op: Op = "select";
   private rows: Row[] | undefined;
   private patch: Row | undefined;
@@ -98,9 +99,10 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
     this.call.columns = columns;
     return this;
   }
-  upsert(rows: Row[], _opts?: { onConflict?: string }) {
+  upsert(rows: Row[], opts?: { onConflict?: string }) {
     this.op = "upsert";
     this.rows = rows;
+    this.conflictKeys = (opts?.onConflict ?? "id").split(",").map((k) => k.trim());
     return this;
   }
   insert(rows: Row | Row[]) {
@@ -217,7 +219,8 @@ class QueryBuilder implements PromiseLike<{ data: Row[] | null; error: Row | nul
 
     if (this.op === "upsert") {
       for (const row of this.rows ?? []) {
-        const i = table.findIndex((r) => r.id === row.id);
+        // Conflict on the onConflict columns, like ON CONFLICT (...) DO UPDATE.
+        const i = table.findIndex((r) => this.conflictKeys.every((k) => r[k] === row[k]));
         if (i >= 0) table[i] = { ...table[i], ...row };
         else table.push({ ...row });
       }

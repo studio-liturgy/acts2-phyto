@@ -1711,7 +1711,9 @@ export async function recordDeletions(kind: "set" | "gathering", ids: string[]):
       kind,
       deleted_at: new Date().toISOString(),
     })),
-    { onConflict: "id" },
+    // Per account: two accounts that used one browser can share an item id,
+    // and keying on id alone made the other account's tombstone block mine.
+    { onConflict: "user_id,id" },
   );
   if (error) console.error("[sync] recordDeletions error", kind, error);
 }
