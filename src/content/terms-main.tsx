@@ -169,6 +169,12 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
                 Versions fetched from bolls.life (such as the ESV, KJV, Chinese Union and Korean
                 Revised) are likewise the copyright of their publishers.
               </p>
+              <p className="mt-3">
+                Metrical psalms in the song search come from the Seedbed Psalter
+                (psalms.seedbed.com), written by Tim and Julie Tennent and offered for public
+                worship with acknowledgement of the source. They may not be used commercially or for
+                a fee.
+              </p>
             </section>
 
             <section>

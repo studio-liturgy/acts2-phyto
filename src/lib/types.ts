@@ -1,4 +1,5 @@
 import type { SongChords } from "./chords";
+import type { LangCode } from "./langs";
 
 export type SlideKind = "lyric" | "scripture" | "image" | "video" | "blank" | "point";
 
@@ -48,6 +49,12 @@ export interface Slide {
   /** Video-only: start playing automatically when the slide goes live.
    *  Default falsey = click-to-start (operator presses Play). */
   autoplay?: boolean;
+  /** Multilanguage songs: one line per language (line N is slide N in every
+   *  language). `lines` holds the shown languages stacked, so every surface
+   *  that reads `lines` shows the stack (see lib/multiling.ts). */
+  linesByLang?: Partial<Record<LangCode, string>>;
+  /** Multilanguage songs: the language of each entry in `lines`. */
+  lineLangs?: LangCode[];
   /** Scripture-only: which import (0-based) this verse came from, so two imports
    *  of the same reference stay separate groups in the editor and slide grid
    *  rather than merging under one shared `section`. */
@@ -110,6 +117,14 @@ export interface Set {
    *  Absent = the song has no chords configured. Chords are never projected;
    *  this only governs the phone view. */
   chords?: SongChords;
+  /** Song-only (Song Settings): Standard, Multilanguage or Call and Response.
+   *  Absent = Standard. Chords are separate (`chords`) and work with any. */
+  songLayout?: "multilang" | "response";
+  /** Multilanguage songs: the editor's language columns, in order. */
+  langs?: LangCode[];
+  /** Multilanguage songs: the languages shown on the slides (the presenter's
+   *  choice, at most four, in column order). Absent = the first four columns. */
+  langsShown?: LangCode[];
   /** Media-only: auto-advance to next slide after N ms. 0 = off. */
   autoAdvanceMs?: number;
   /** Media-only: when auto-advancing, loop from end back to start. */

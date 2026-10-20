@@ -59,6 +59,9 @@ type SetContentField =
   | "slides"
   | "template"
   | "chords"
+  | "songLayout"
+  | "langs"
+  | "langsShown"
   | "autoAdvanceMs"
   | "loop"
   | "loopSection"
@@ -622,6 +625,9 @@ export function setFingerprint(s: PhytoSet): string {
     slides: s.slides,
     template: s.template ?? null,
     chords: s.chords ?? null,
+    songLayout: s.songLayout ?? null,
+    langs: s.langs ?? null,
+    langsShown: s.langsShown ?? null,
     autoAdvanceMs: s.autoAdvanceMs ?? null,
     loop: s.loop ?? null,
     loopSection: s.loopSection ?? null,

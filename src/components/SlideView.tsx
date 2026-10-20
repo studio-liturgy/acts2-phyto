@@ -4,8 +4,9 @@ import { STAGE_H, STAGE_W, fitOrigin, fitScale } from "@/lib/slide-fit";
 import { displayLinesForVersions } from "@/lib/versions";
 import { shownReference } from "@/lib/verse-ref";
 import { renderInline } from "@/lib/inline-format";
+import { renderRoleLine } from "@/lib/role-line";
 import { scriptOfTranslation, versionLangTag } from "@/lib/bible";
-import { langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
+import { langDef, langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
@@ -317,6 +318,16 @@ export function SlideView({
   // Chords are typed inline in the lyrics as `(G)` so the phone view can show
   // them. Nothing projected ever renders one, and a chord-only line (an
   // instrumental break) strips to nothing and drops out entirely.
+  // A Multilanguage song names each line's language (`lineLangs`), so it gets
+  // that language's fonts, direction and line breaking.
+  const lyricLangs = useMemo(() => {
+    const lines = slide?.lines ?? [];
+    if (slide?.kind !== "lyric") return [];
+    return lines
+      .map((l, i) => ({ text: stripChords(l), lang: slide.lineLangs?.[i] }))
+      .filter((l) => l.text.trim())
+      .map((l) => l.lang);
+  }, [slide?.lines, slide?.kind, slide?.lineLangs]);
   const displayLines = useMemo(() => {
     const lines = slide?.lines ?? [];
     if (slide?.kind !== "lyric") return lines;
@@ -467,21 +478,35 @@ export function SlideView({
                         </div>
                       );
                     })
-                  : displayLines.map((l, i) => (
-                      <div
-                        key={i}
-                        className="font-medium leading-snug"
-                        // A verse kept with its line breaks arrives as one
-                        // line holding newlines; honour them.
-                        style={{
-                          fontSize: `${3.75 * fontScale}rem`,
-                          textTransform: lyricCase,
-                          whiteSpace: "pre-line",
-                        }}
-                      >
-                        {renderInline(l)}
-                      </div>
-                    ))}
+                  : displayLines.map((l, i) => {
+                      const lang = lyricLangs[i];
+                      return (
+                        <div
+                          key={i}
+                          className="font-medium leading-snug"
+                          lang={lang}
+                          dir={lang ? langDef(lang).dir : undefined}
+                          // A verse kept with its line breaks arrives as one
+                          // line holding newlines; honour them.
+                          style={{
+                            fontSize: `${3.75 * fontScale}rem`,
+                            textTransform: lyricCase,
+                            whiteSpace: "pre-line",
+                            ...(lang
+                              ? {
+                                  wordBreak: langWordBreak(lang),
+                                  lineBreak: "strict" as const,
+                                  fontFamily: langFontStack(lang, template?.fontFamily),
+                                }
+                              : {}),
+                          }}
+                        >
+                          {slide?.kind === "lyric"
+                            ? renderRoleLine(lang ? typesetLine(lang, l) : l)
+                            : renderInline(l)}
+                        </div>
+                      );
+                    })}
                 {reference && !refAbove && !stacked && (
                   <div className="mt-12 opacity-80" style={{ fontSize: `${1.875 * fontScale}rem` }}>
                     {reference}

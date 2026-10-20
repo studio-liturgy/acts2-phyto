@@ -4,6 +4,8 @@ import { guessKey, KEYS, transposeLyrics, type SongChords } from "@/lib/chords";
 import { groupSlides, hiddenSlideIndices } from "@/lib/sections";
 import { arrangedEntries } from "@/lib/arrangements";
 import { renderInline } from "@/lib/inline-format";
+import { MAX_SHOWN_LANGS, shownLangs } from "@/lib/multiling";
+import { isLangCode, langDef, type LangCode } from "@/lib/langs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +15,7 @@ import {
 import { ChevronDown, Pencil } from "lucide-react";
 import {
   loadPrefs,
+  phoneSetForLangs,
   phoneSetHasChords,
   savePrefs,
   type FontFamily,
@@ -210,6 +213,26 @@ export function PhoneViewer({
   const activeIdx = sets.findIndex((s) => s.id === activeSetId);
   const activeSet = sets[activeIdx] ?? sets[0] ?? null;
 
+  // Multilanguage songs: this phone's own choice of languages, per song, for
+  // this visit. Until it picks, it reads what the leader shows.
+  const [langChoice, setLangChoice] = useState<Record<string, string[]>>({});
+  const activeLangs = activeSet?.langs ?? [];
+  const activeChosen = activeSet
+    ? (langChoice[activeSet.id] ??
+      (shownLangs(
+        activeLangs as LangCode[],
+        activeSet.langsShown as LangCode[] | undefined,
+      ) as string[]))
+    : [];
+  const toggleLang = (code: string) => {
+    if (!activeSet) return;
+    const on = activeChosen.includes(code);
+    if (on && activeChosen.length === 1) return;
+    if (!on && activeChosen.length >= MAX_SHOWN_LANGS) return;
+    const next = activeLangs.filter((l) => (l === code ? !on : activeChosen.includes(l)));
+    setLangChoice((c) => ({ ...c, [activeSet.id]: next }));
+  };
+
   // When chord changes write back to the set (presenter preview), the set is the
   // single source of truth — ignore the per-viewer overrides so the controls
   // always show what the set actually stores.
@@ -328,6 +351,38 @@ export function PhoneViewer({
           ))}
         </div>
       </div>
+
+      {/* Languages: which of a Multilanguage song's languages this phone reads. */}
+      {activeLangs.length > 1 && (
+        <div
+          className={`flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2 ${borderClass}`}
+        >
+          {activeLangs.map((code) => {
+            const on = activeChosen.includes(code);
+            const def = isLangCode(code) ? langDef(code) : null;
+            return (
+              <button
+                key={code}
+                onClick={() => toggleLang(code)}
+                aria-pressed={on}
+                title={def?.label ?? code}
+                style={{ fontFamily: "'Space Mono', monospace" }}
+                className={`pill h-7 border px-3 text-xs uppercase tracking-wider transition ${
+                  on
+                    ? prefs.isDark
+                      ? "border-white bg-white text-black"
+                      : "border-black bg-black text-white"
+                    : prefs.isDark
+                      ? "border-white text-white hover:bg-white/10"
+                      : "border-black text-black hover:bg-black/10"
+                }`}
+              >
+                {def?.short ?? code}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Chord controls — transpose and letters/numbers. */}
       {showChords && activeChordConfig && (
@@ -452,7 +507,7 @@ export function PhoneViewer({
         >
           {activeSet && (
             <SetContent
-              set={activeSet}
+              set={phoneSetForLangs(activeSet, langChoice[activeSet.id])}
               hiddenKeys={hiddenBySet[activeSet.id] ?? []}
               arrangement={arrangementsBySet[activeSet.id]}
               isDark={prefs.isDark}

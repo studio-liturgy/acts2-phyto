@@ -244,15 +244,25 @@ interface LocalSong {
   aka?: string;
   lyrics: string;
   key?: string;
+  /** Seedbed Psalter: the setting's meter and first tune ("C.M. · Crimond"). */
+  album?: string;
 }
 
 let localDb: LocalSong[] | null = null;
 
 async function getLocalDb(): Promise<LocalSong[]> {
   if (localDb) return localDb;
-  const res = await fetch("/songs-en.json");
+  // The Seedbed Psalter (psalms.seedbed.com, metrical psalms free for public
+  // worship) is searched alongside the songs, so "Psalm 23" finds its settings.
+  // It's optional: a failed load leaves the song search working.
+  const [res, psalms] = await Promise.all([
+    fetch("/songs-en.json"),
+    fetch("/psalms-seedbed.json")
+      .then((r) => (r.ok ? (r.json() as Promise<LocalSong[]>) : []))
+      .catch(() => [] as LocalSong[]),
+  ]);
   if (!res.ok) throw new Error("Failed to load local song database");
-  localDb = (await res.json()) as LocalSong[];
+  localDb = [...psalms, ...((await res.json()) as LocalSong[])];
   return localDb;
 }
 
@@ -322,7 +332,8 @@ function searchLocal(db: LocalSong[], parse: ParsedQuery): ScoredLocal[] {
     out.push({
       title: song.title,
       artist: song.artist,
-      lyrics: segmentAndDedupe(song.lyrics),
+      ...(song.album ? { album: song.album } : {}),
+      lyrics: song.album ? song.lyrics : segmentAndDedupe(song.lyrics),
       key: song.key,
       source: "local",
       _strong: score >= 1,

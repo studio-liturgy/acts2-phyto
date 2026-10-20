@@ -31,6 +31,10 @@ export interface PhoneSlide {
   /** Media: section dividers (see Slide). */
   sectionAfter?: string;
   sectionBefore?: string;
+  /** Multilanguage songs: every language's line, and the language of each
+   *  entry in `lines` (the leader's shown languages). */
+  linesByLang?: Record<string, string>;
+  lineLangs?: string[];
 }
 
 export interface PhoneSet {
@@ -44,6 +48,29 @@ export interface PhoneSet {
   /** Scripture: the bible versions to show for each passage, in order (what the
    *  gathering's workspace shows). Absent = render the plain `lines`. */
   versions?: string[];
+  /** Multilanguage songs: the language columns, in order, and the ones the
+   *  leader shows. Lets a phone pick its own languages. */
+  langs?: string[];
+  langsShown?: string[];
+}
+
+/**
+ * A Multilanguage song with the viewer's own choice of languages stacked in
+ * `lines` (in column order) instead of the leader's. Anything else, or no
+ * choice, comes back as it is.
+ */
+export function phoneSetForLangs(set: PhoneSet, chosen: string[] | undefined): PhoneSet {
+  if (!chosen?.length || !set.langs?.length) return set;
+  const order = set.langs.filter((l) => chosen.includes(l));
+  if (!order.length) return set;
+  return {
+    ...set,
+    slides: set.slides.map((s) => {
+      if (!s.linesByLang) return s;
+      const lineLangs = order.filter((l) => s.linesByLang?.[l]?.trim());
+      return { ...s, lines: lineLangs.map((l) => s.linesByLang![l].trim()), lineLangs };
+    }),
+  };
 }
 
 export type FontFamily = "sans" | "serif" | "mono";

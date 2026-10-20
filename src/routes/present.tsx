@@ -87,6 +87,9 @@ import { loadPrefs, phoneSetHasChords, type PhoneSet, type ViewerPrefs } from "@
 import { Switch } from "@/components/ui/switch";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
+import { songPatternImage, songPatterns } from "@/lib/song-layout";
+import { LangShowChips } from "@/components/LangShowChips";
+import { editedLangLines, songLangs } from "@/lib/multiling";
 
 type LiveApi = ReturnType<typeof useLive.getState>;
 
@@ -142,11 +145,14 @@ function KindBadge({ kind, abbrev = false }: { kind: SetKind; abbrev?: boolean }
 
 /** A small colour-coded dot standing in for the set category (used in the
  *  presenter lists instead of the abbreviated text badge). */
-function KindDot({ kind }: { kind: SetKind }) {
+function KindDot({ kind, set }: { kind: SetKind; set?: PhytoSet }) {
+  // Songs carry their Song Settings as a faint pattern (chords: lines,
+  // Multilanguage: grid, Call and Response: cross hatching), 3 stripes across.
+  const pattern = set ? songPatternImage(songPatterns(set), 4, 0.4) : undefined;
   return (
     <span
       className="h-3 w-3 shrink-0 rounded-full"
-      style={{ backgroundColor: kindLiveColor(kind) }}
+      style={{ backgroundColor: kindLiveColor(kind), backgroundImage: pattern }}
       title={kind === "mixed" ? "Mixed" : kind}
       aria-label={kind}
     />
@@ -177,7 +183,7 @@ function KindDotOrWarning({ set }: { set: PhytoSet }) {
   if (hasVerses && versionsMismatchWorkspace(inferredVersions(set), settings)) {
     return <VersionWarning set={set} silent />;
   }
-  return <KindDot kind={set.kind} />;
+  return <KindDot kind={set.kind} set={set} />;
 }
 
 export const Route = createFileRoute("/present")({
@@ -471,6 +477,7 @@ function Presenter() {
         slides: d.slides,
         chords: d.chords,
         versions: visibleVersions(d),
+        ...(songLangs(d).length ? { langs: songLangs(d), langsShown: d.langsShown } : {}),
       }));
   }, [activeGathering, activeSetId, sets]);
 
@@ -1503,6 +1510,7 @@ function Presenter() {
                             </button>
                           )}
                         </div>
+                        <LangShowChips set={d} />
                         {id === live.setId && (
                           <span
                             className="h-2 w-2 rounded-full"
@@ -1921,7 +1929,9 @@ function PresenterThumb({
     openEdit(slide.id, (slide.lines ?? []).map(stripChordsRaw).join("\n"), occ ?? null);
   const confirmEdit = () => {
     const merged = reapplyChords((slide.lines ?? []).join("\n"), draft);
-    updateSlide(phytoSet.id, slide.id, { lines: merged.split("\n") });
+    // A Multilanguage slide's lines are its shown languages: the edit goes
+    // back into each language's own line too, or the grid would undo it.
+    updateSlide(phytoSet.id, slide.id, editedLangLines(slide, merged.split("\n")));
     closeEdit();
   };
 

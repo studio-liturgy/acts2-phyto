@@ -762,6 +762,16 @@ function buildChordRowLayout(lyrics: string, render: (chord: string) => string):
   return out;
 }
 
+/** Which stored line each box line shows, and as what (chord row, lyric
+ *  under it, or a plain line). Lets a gutter beside the box line up with the
+ *  stored lines it acts on. */
+export function chordRowLayout(
+  lyrics: string,
+  render: (chord: string) => string = (c) => c,
+): { storedLine: number | null; kind: "row" | "lyric" | "plain" | "blank" }[] {
+  return buildChordRowLayout(lyrics, render).map(({ storedLine, kind }) => ({ storedLine, kind }));
+}
+
 export function inlineToChordRows(
   text: string,
   render: (chord: string) => string = (c) => c,

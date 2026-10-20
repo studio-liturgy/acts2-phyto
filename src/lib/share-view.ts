@@ -28,13 +28,24 @@ export interface ShareSlide {
   videoSource?: "youtube" | "file" | "url";
   videoUrl?: string;
   youtubeId?: string;
+  /** Multilanguage songs (see Slide). */
+  linesByLang?: Record<string, string>;
+  lineLangs?: string[];
 }
 
 export interface ShareSetRow {
   id: string;
   title: string;
   type: string;
-  content: { slides: ShareSlide[]; chords?: SongChords; versions?: string[] };
+  content: {
+    slides: ShareSlide[];
+    chords?: SongChords;
+    versions?: string[];
+    /** Multilanguage songs: layout, columns and the leader's shown languages. */
+    songLayout?: string;
+    langs?: string[];
+    langsShown?: string[];
+  };
 }
 
 export interface ShareGathering {

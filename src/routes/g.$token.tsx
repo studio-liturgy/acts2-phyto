@@ -62,6 +62,9 @@ function toPhoneSet(set: ShareSetRow): PhoneSet {
     type: set.type,
     slides,
     chords: set.content?.chords,
+    ...(set.content?.songLayout === "multilang" && set.content.langs?.length
+      ? { langs: set.content.langs, langsShown: set.content.langsShown }
+      : {}),
     // A stacked scripture shows every version it carries, exactly as the
     // leader's screen does.
     versions: visibleVersions({ versions: set.content?.versions, slides }),

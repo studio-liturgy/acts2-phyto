@@ -32,6 +32,13 @@ import { MessageBlockEditor } from "@/components/MessageBlockEditor";
 import { ScriptureVerseEditor } from "@/components/ScriptureVerseEditor";
 import { VersionPicker } from "@/components/VersionPicker";
 import { ScriptureSettingsDialog } from "@/components/ScriptureSettingsDialog";
+import { SongSettingsDialog } from "@/components/SongSettingsDialog";
+import { RoleGutter } from "@/components/RoleGutter";
+import { cycleLineRole, roleGutterRows } from "@/lib/song-roles";
+import { songLayoutOf, type SongLayout } from "@/lib/song-layout";
+import { MultiLangLyricEditor } from "@/components/MultiLangLyricEditor";
+import { multilangToStandard, rowsToSlides, standardToRows } from "@/lib/multiling";
+import type { LangCode } from "@/lib/langs";
 import { VersionWarning } from "@/components/VersionWarning";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,6 +76,7 @@ import {
   normaliseChordSheet,
   renderChord,
   transposeLyrics,
+  chordRowLayout,
   type SongChords,
 } from "@/lib/chords";
 import {
@@ -1396,25 +1404,10 @@ function ChordControls({
   // from the stored slides, so an effect would fire on mount and write to the
   // set just for opening the editor — the phantom-conflict bug fixed in 01dff4e.
 
+  // The Chords switch itself lives in Song Settings (SongSettingsDialog).
   return (
     <div className="mt-3">
-      <div className="flex items-center gap-2">
-        {children}
-        <span className="mono text-[10px] uppercase tracking-wider">Chords</span>
-        <PillSwitch
-          label="Chords"
-          checked={shown}
-          onCheckedChange={(on) =>
-            updateSet(setId, {
-              chords: {
-                ...(chords ?? { key: guessKey(lyrics) ?? "G", display: "letters" as const }),
-                hidden: !on,
-              },
-            })
-          }
-          aria-label="Show chords"
-        />
-      </div>
+      <div className="flex items-center gap-2">{children}</div>
 
       {shown && chords && (
         <div className="mt-3 space-y-3 border-t border-foreground/15 pt-3">
@@ -1673,6 +1666,52 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
 
   const [pendingLinesPerConfirm, setPendingLinesPerConfirm] = useState<number | null>(null);
   const [versionOpen, setVersionOpen] = useState(false);
+  const [songSettingsOpen, setSongSettingsOpen] = useState(false);
+  const songLayout = useLibrary((s) => {
+    const set = s.sets[setId];
+    return set ? songLayoutOf(set) : "standard";
+  });
+  // Remounts the Multilanguage grid when its rows are replaced from outside it
+  // (a search result picked while it's open).
+  const [gridKey, setGridKey] = useState(0);
+
+  /**
+   * Song Settings: change the song's layout without losing any words.
+   * Into Multilanguage, the existing words become the first column (`lang`,
+   * asked for when there are any), one line per slide. Out of it, each slide
+   * keeps every language stacked as plain lines. Standard and Call and
+   * Response share the plain editor, so switching between them changes nothing
+   * but the role gutter.
+   */
+  const switchLayout = (next: SongLayout, lang?: LangCode) => {
+    const set = useLibrary.getState().sets[setId];
+    if (!set) return;
+    const from = songLayoutOf(set);
+    if (next === from) return;
+    if (next === "multilang") {
+      const slides = lang ? rowsToSlides(standardToRows(set.slides, lang), [lang]) : [];
+      updateSet(setId, {
+        songLayout: "multilang",
+        langs: lang ? [lang] : [],
+        langsShown: undefined,
+        slides,
+      });
+      setGridKey((k) => k + 1);
+      return;
+    }
+    if (from === "multilang") {
+      const slides = multilangToStandard(set.slides, set.langs ?? []);
+      updateSet(setId, {
+        songLayout: next === "standard" ? undefined : next,
+        langs: undefined,
+        langsShown: undefined,
+        slides,
+      });
+      setLyrics(slidesToLyricsText(slides));
+      return;
+    }
+    updateSet(setId, { songLayout: next === "standard" ? undefined : next });
+  };
 
   const [ref, setRef] = useState("");
   const [version2Open, setVersion2Open] = useState(false);
@@ -1751,11 +1790,13 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   // a real content conflict (`modified`, not `touched`) on other devices.
   useEffect(() => {
     if (kind !== "song") return;
+    // A Multilanguage song is written by its grid, never from this box.
+    if (songLayout === "multilang") return;
     const parsed = lyrics.trim() ? lyricsToSlides(lyrics) : [];
     const current = useLibrary.getState().sets[setId]?.slides ?? [];
     const { slides, changed } = reconcileSlideIds(parsed, current);
     if (changed) updateSet(setId, { slides });
-  }, [lyrics, kind, setId, updateSet]);
+  }, [lyrics, kind, setId, updateSet, songLayout]);
 
   const runSongSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -2007,7 +2048,30 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 <Search className="h-4 w-4" />
               )}
             </button>
+            <button
+              type="button"
+              onClick={() => setSongSettingsOpen(true)}
+              className="pill mono uppercase shrink-0 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+            >
+              Settings
+            </button>
           </form>
+          <SongSettingsDialog
+            open={songSettingsOpen}
+            onOpenChange={setSongSettingsOpen}
+            layout={songLayout}
+            setLayout={switchLayout}
+            askLang={songLayout !== "multilang" && lyrics.trim() !== ""}
+            chords={!chordsHidden}
+            setChords={(on) =>
+              updateSet(setId, {
+                chords: {
+                  ...(chordCfg ?? { key: guessKey(lyrics) ?? "G", display: "letters" as const }),
+                  hidden: !on,
+                },
+              })
+            }
+          />
           {songErr && resultsOpen && (
             <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
               {songErr}
@@ -2033,6 +2097,18 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                         setSongSearching(false);
                         setSongErr(null);
                         const imported = applyDividers(s.lyrics, linesPer);
+                        const open = useLibrary.getState().sets[setId];
+                        if (open && songLayoutOf(open) === "multilang") {
+                          // Into the grid's first column, one line per slide.
+                          const first = open.langs?.[0] ?? "en";
+                          updateSet(setId, {
+                            langs: open.langs?.length ? open.langs : [first],
+                            slides: rowsToSlides(standardToRows(lyricsToSlides(imported), first), [
+                              first,
+                            ]),
+                          });
+                          setGridKey((k) => k + 1);
+                        }
                         setLyrics(imported);
                         setSongResults([]);
                         setPreview(null);
@@ -2095,31 +2171,54 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
             </div>
           )}
 
-          {/* Lines per slide, sharing a row with the chords switch */}
-          <ChordControls
-            setId={setId}
-            lyrics={lyrics}
-            onLyricsChange={(next) => {
-              pushHistory();
-              setLyrics(next);
-            }}
-            onInsertChord={insertChord}
-            onClearLine={clearLineChords}
-          >
-            <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
-            <NumberStepper
-              value={linesPer}
-              onChange={requestLinesPerChange}
-              min={1}
-              max={8}
-              decrementLabel="Fewer lines per slide"
-              incrementLabel="More lines per slide"
-            />
-          </ChordControls>
+          {/* Lines per slide, with the chord key and palette below while chords
+              are on. A Multilanguage song is one line per slide, typed in its
+              grid, so it has neither. */}
+          {songLayout !== "multilang" && (
+            <ChordControls
+              setId={setId}
+              lyrics={lyrics}
+              onLyricsChange={(next) => {
+                pushHistory();
+                setLyrics(next);
+              }}
+              onInsertChord={insertChord}
+              onClearLine={clearLineChords}
+            >
+              <span className="mono text-[10px] uppercase tracking-wider">Lines per slide</span>
+              <NumberStepper
+                value={linesPer}
+                onChange={requestLinesPerChange}
+                min={1}
+                max={8}
+                decrementLabel="Fewer lines per slide"
+                incrementLabel="More lines per slide"
+              />
+            </ChordControls>
+          )}
         </div>
 
+        {songLayout === "multilang" && (
+          <div className="min-h-0 flex-1 overflow-hidden p-4">
+            <MultiLangLyricEditor key={gridKey} setId={setId} />
+          </div>
+        )}
         {/* Lyrics textarea — fills remaining height */}
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div
+          className={`relative min-h-0 flex-1 overflow-hidden ${songLayout === "multilang" ? "hidden" : ""}`}
+        >
+          {songLayout === "response" && (
+            <RoleGutter
+              boxRef={lyricsRef}
+              boxText={boxText}
+              rows={roleGutterRows(
+                lyrics,
+                boxText,
+                chordsHidden ? null : chordRowLayout(lyrics, chordLabel),
+              )}
+              onCycle={(storedLine) => handleLyricsChange(cycleLineRole(lyrics, storedLine))}
+            />
+          )}
           <Textarea
             ref={lyricsRef}
             value={boxText}
@@ -2194,7 +2293,9 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
                 ? `\nPaste a chord sheet, or type a chord on the row above the word it belongs to. They never show on the projector. Pasting doesn't always guess the right key, double-check it below.`
                 : "")
             }
-            className="mono h-full w-full resize-none rounded-none border-0 bg-transparent px-5 py-4 text-xs shadow-none focus-visible:ring-0"
+            className={`mono h-full w-full resize-none rounded-none border-0 bg-transparent py-4 pr-5 text-xs shadow-none focus-visible:ring-0 ${
+              songLayout === "response" ? "pl-11" : "pl-5"
+            }`}
           />
         </div>
 

@@ -1,5 +1,6 @@
 import { Fragment, type CSSProperties } from "react";
 import { parseChordLine, renderChord, toChordSegments, type SongChords } from "@/lib/chords";
+import { ROLE_LABEL, isBoldRole, splitRole } from "@/lib/song-roles";
 
 interface Props {
   /** One raw lyric line, chords still inline: `Amazing (G)grace how (C)sweet`. */
@@ -33,12 +34,22 @@ export function ChordLine({
   chordClassName = "",
   chordStyle,
 }: Props) {
-  const parsed = parseChordLine(line);
+  // Call and Response: the role label stays in front of the words, outside
+  // the chord columns, and People and All lines are bold.
+  const { role, text: body } = splitRole(line);
+  const parsed = parseChordLine(body);
   const visible = show && !!chords && parsed.chords.length > 0;
+  const lineClass = isBoldRole(role) ? `${className} font-bold` : className;
+  const label = role ? <span className="font-normal">{ROLE_LABEL[role]}: </span> : null;
 
   if (!visible) {
     if (!parsed.text) return null;
-    return <p className={className}>{parsed.text}</p>;
+    return (
+      <p className={lineClass}>
+        {label}
+        {parsed.text}
+      </p>
+    );
   }
 
   const render = (c: string) => renderChord(c, chords);
@@ -55,7 +66,15 @@ export function ChordLine({
   }
 
   return (
-    <p className={className}>
+    <p className={lineClass}>
+      {label && (
+        <span className="inline-block align-bottom">
+          <span className={`block leading-tight ${chordClassName}`} style={chordStyle}>
+            {"\u00A0"}
+          </span>
+          <span className="block">{label}</span>
+        </span>
+      )}
       {toChordSegments(parsed, render).map((seg, i) => (
         <Fragment key={i}>
           <span className="inline-block align-bottom">
