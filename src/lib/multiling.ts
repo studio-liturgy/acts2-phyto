@@ -25,6 +25,7 @@
 // exactly and hiding a language never loses its words.
 import type { HiddenLangs, Slide, Set as PhytoSet } from "./types";
 import { LANGS, type LangCode } from "./langs";
+import { stripChordsRaw } from "./chords";
 
 /** At most this many languages are stacked on a slide at once. */
 export const MAX_SHOWN_LANGS = 4;
@@ -499,10 +500,18 @@ export function clearColumnRange(
   return next.some((r) => r.kind === "line") ? next : [...next, { kind: "line", byLang: {} }];
 }
 
-/** The text of a column run, one line per row, for copy and cut. */
-export function columnRangeText(rows: MultiRow[], lang: LangCode, from: number, to: number) {
+/** The text of a column run, one line per row, for copy and cut. With
+ *  `keepChords` off (Chords switched off) the (G) chords are left out. */
+export function columnRangeText(
+  rows: MultiRow[],
+  lang: LangCode,
+  from: number,
+  to: number,
+  keepChords = true,
+) {
   return rows
     .flatMap((r, i) => (r.kind === "line" && i >= from && i <= to ? [r.byLang[lang] ?? ""] : []))
+    .map((t) => (keepChords ? t : stripChordsRaw(t)))
     .join("\n");
 }
 

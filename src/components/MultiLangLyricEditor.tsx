@@ -79,6 +79,8 @@ export function MultiLangLyricEditor({
   // each cell; with chords off they're hidden entirely.
   const chordCfg = phytoSet?.chords;
   const chordsOn = !!chordCfg && !chordCfg.hidden;
+  const chordsOnRef = useRef(chordsOn);
+  chordsOnRef.current = chordsOn;
   const [rows, setRowsRaw] = useState<MultiRow[]>(() => {
     const initial = slidesToRows(phytoSet?.slides ?? []);
     if (!initial.length) return [{ kind: "line", byLang: {} }];
@@ -287,17 +289,14 @@ export function MultiLangLyricEditor({
   useEffect(() => {
     if (!colSel) return;
     const onCopy = (e: ClipboardEvent) => {
-      const text = rows
-        .map((r, i) => ({ r, i }))
-        .filter(({ r, i }) => r.kind === "line" && i >= colSel.from && i <= colSel.to)
-        .map(({ r }) => (r.kind === "line" ? (r.byLang[colSel.lang] ?? "") : ""))
-        .join("\n");
+      // Chords off: the (G) chords stay out of the copy.
+      const text = columnRangeText(rows, colSel.lang, colSel.from, colSel.to, chordsOn);
       e.clipboardData?.setData("text/plain", text);
       e.preventDefault();
     };
     document.addEventListener("copy", onCopy);
     return () => document.removeEventListener("copy", onCopy);
-  }, [colSel, rows]);
+  }, [colSel, rows, chordsOn]);
 
   // Cut / delete / paste on a column selection. Deleting empties the cells of
   // rows that still have words in another language and removes rows left with
@@ -306,7 +305,10 @@ export function MultiLangLyricEditor({
     if (!colSel) return;
     const { lang, from, to } = colSel;
     const onCut = (e: ClipboardEvent) => {
-      e.clipboardData?.setData("text/plain", columnRangeText(rowsRef.current, lang, from, to));
+      e.clipboardData?.setData(
+        "text/plain",
+        columnRangeText(rowsRef.current, lang, from, to, chordsOnRef.current),
+      );
       e.preventDefault();
       step();
       setRows((rs) => clearColumnRange(rs, lang, from, to));

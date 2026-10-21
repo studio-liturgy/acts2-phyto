@@ -15,6 +15,9 @@ import {
 import { useGridChordBus, wordStartAt } from "@/lib/grid-chord-bus";
 import {
   addSection,
+  lineSelectionText,
+  pasteOverLines,
+  removeLyricLines,
   breakAtCaret,
   breakBefore,
   fromDoc,
@@ -153,6 +156,91 @@ export function ResponseLyricEditor({
     // commit reads the current props; the palette fires between renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chordAction]);
+
+  // Drag down the lyric column to select a run of lines as if it were one
+  // text box (as in Multi-Language): sections and breaks inside the run stay
+  // put. A plain click (no cross-cell move) leaves in-cell editing untouched.
+  // Cmd/Ctrl+C copies the run's lines (chords left out when Chords is off),
+  // Cmd/Ctrl+X or Delete removes them, Cmd/Ctrl+V pastes over them.
+  const [lineSel, setLineSel] = useState<{ from: number; to: number } | null>(null);
+  const dragAnchor = useRef<number | null>(null);
+  const onCellMouseDown = (index: number) => {
+    setLineSel(null);
+    dragAnchor.current = index;
+    const onMove = (e: MouseEvent) => {
+      const anchor = dragAnchor.current;
+      if (anchor === null) return;
+      const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      const cell = under?.closest?.("[data-lyric-row]") as HTMLElement | null;
+      if (!cell) return;
+      const r = Number(cell.getAttribute("data-lyric-row"));
+      if (Number.isNaN(r) || r === anchor) {
+        setLineSel(null);
+        return;
+      }
+      window.getSelection()?.removeAllRanges();
+      setLineSel({ from: Math.min(anchor, r), to: Math.max(anchor, r) });
+    };
+    const onUp = () => {
+      dragAnchor.current = null;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+  useEffect(() => {
+    if (!lineSel) return;
+    const { from, to } = lineSel;
+    const d = toDoc(lyrics, roles);
+    const onCopy = (e: ClipboardEvent) => {
+      e.clipboardData?.setData("text/plain", lineSelectionText(d, from, to, !!chords));
+      e.preventDefault();
+    };
+    const onCut = (e: ClipboardEvent) => {
+      e.clipboardData?.setData("text/plain", lineSelectionText(d, from, to, !!chords));
+      e.preventDefault();
+      setLineSel(null);
+      commit(removeLyricLines(d, from, to));
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      const pasted = (e.clipboardData?.getData("text") ?? "")
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      e.preventDefault();
+      e.stopPropagation();
+      setLineSel(null);
+      if (!pasted.length) return;
+      const { doc: next, focus } = pasteOverLines(d, from, to, pasted);
+      commit(next, { index: focus, caret: stripChordsRaw(next.lines[focus] ?? "").length });
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        e.stopPropagation();
+        setLineSel(null);
+        commit(removeLyricLines(d, from, to));
+      } else if (e.key === "Escape") {
+        setLineSel(null);
+      } else if (!e.metaKey && !e.ctrlKey && e.key.length === 1) {
+        // Typing goes back to the line under the caret.
+        setLineSel(null);
+      }
+    };
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCut);
+    document.addEventListener("paste", onPaste, true);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("cut", onCut);
+      document.removeEventListener("paste", onPaste, true);
+      document.removeEventListener("keydown", onKey, true);
+    };
+    // commit reads the current props; it's recreated each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineSel, lyrics, roles, chords]);
 
   const cycleRole = (index: number) => {
     const d = doc();
@@ -309,6 +397,8 @@ export function ResponseLyricEditor({
                 text={text}
                 chords={chords}
                 rawLine={row.text}
+                selected={!!lineSel && row.index >= lineSel.from && row.index <= lineSel.to}
+                onCellMouseDown={() => onCellMouseDown(row.index)}
                 stripClose={stripClose}
                 cellRef={(el) => {
                   if (el) {
@@ -443,6 +533,8 @@ function Line({
   tint,
   text,
   rawLine,
+  selected,
+  onCellMouseDown,
   chords,
   stripClose,
   cellRef,
@@ -464,6 +556,9 @@ function Line({
   tint: string;
   text: string;
   rawLine: string;
+  /** Part of a drag selection: the lyric cell shows highlighted. */
+  selected: boolean;
+  onCellMouseDown: () => void;
   chords?: SongChords;
   stripClose: number;
   cellRef: (el: HTMLTextAreaElement | null) => void;
@@ -508,8 +603,13 @@ function Line({
         </span>
       </button>
       <div
+        data-lyric-row={index}
         className="relative flex min-w-0 flex-col justify-end border-b"
-        style={{ backgroundColor: bg }}
+        style={{
+          backgroundColor: selected
+            ? "color-mix(in oklab, var(--brand-blue) 30%, transparent)"
+            : bg,
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           onDragOverRow();
@@ -542,6 +642,7 @@ function Line({
           ref={cellRef}
           rows={1}
           value={text.trim() ? text : ""}
+          onMouseDown={onCellMouseDown}
           onFocus={onFocus}
           onSelect={(e) => onCaret(e.currentTarget.selectionStart)}
           onInput={(e) => autosize(e.currentTarget)}

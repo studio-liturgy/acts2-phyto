@@ -211,3 +211,84 @@ export function addSection(
 export function sectionNames(lyrics: string): string[] {
   return responseRows(lyrics).flatMap((r) => (r.kind === "section" ? [r.text] : []));
 }
+
+// Drag selection (a run of lyric lines, picked by stored line index from..to,
+// both ends included). Sections and breaks inside the run are never part of
+// it: copy skips them and cut / delete / paste leave them in place.
+
+/** The run's lyric lines as text, one per line; `keepChords` off (Chords
+ *  switched off) leaves the (G) chords out. */
+export function lineSelectionText(doc: Doc, from: number, to: number, keepChords: boolean): string {
+  return doc.lines
+    .flatMap((l, i) => (i >= from && i <= to && isLyricLine(l) ? [l.trim() ? l : ""] : []))
+    .map((l) => (keepChords ? l : stripChordsRaw(l)))
+    .join("\n");
+}
+
+type Entry = { line: string; role: Role | null; mark?: boolean };
+
+/** Drop breaks that no longer sit between two lyric lines of a section. */
+function tidy(entries: Entry[]): Entry[] {
+  const out: Entry[] = [];
+  for (const e of entries) {
+    if (BREAK_RE.test(e.line)) {
+      const prev = out[out.length - 1];
+      if (!prev || SECTION_RE.test(prev.line) || BREAK_RE.test(prev.line)) continue;
+    } else if (SECTION_RE.test(e.line)) {
+      while (out.length && BREAK_RE.test(out[out.length - 1].line)) out.pop();
+    }
+    out.push(e);
+  }
+  while (out.length && BREAK_RE.test(out[out.length - 1].line)) out.pop();
+  return out;
+}
+
+function toEntries(doc: Doc): Entry[] {
+  return doc.lines.map((line, i) => ({ line, role: doc.roles[i] ?? null }));
+}
+
+function fromEntries(entries: Entry[]): Doc {
+  return { lines: entries.map((e) => e.line), roles: entries.map((e) => e.role) };
+}
+
+/** Cut / delete: the run's lyric lines go with their roles. The song always
+ *  keeps one line (empty, for the first removed line's reader). */
+export function removeLyricLines(doc: Doc, from: number, to: number): Doc {
+  const inRun = (i: number) => i >= from && i <= to && isLyricLine(doc.lines[i]);
+  const firstRole = doc.roles[doc.lines.findIndex((_, i) => inRun(i))] ?? null;
+  let out = tidy(toEntries(doc).filter((_, i) => !inRun(i)));
+  if (!out.some((e) => isLyricLine(e.line))) out = [...out, { line: " ", role: firstRole }];
+  return fromEntries(out);
+}
+
+/** Paste over the run: pasted lines replace its lyric lines in order, each
+ *  keeping that line's reader; extra lines go after the run's last line with
+ *  its reader; lines of the run the paste doesn't reach are removed. `focus`
+ *  is the last pasted line. */
+export function pasteOverLines(
+  doc: Doc,
+  from: number,
+  to: number,
+  pasted: string[],
+): { doc: Doc; focus: number } {
+  const run = doc.lines.flatMap((l, i) => (i >= from && i <= to && isLyricLine(l) ? [i] : []));
+  if (run.length === 0 || pasted.length === 0) return { doc, focus: from };
+  const last = run[run.length - 1];
+  const lastRole = doc.roles[last] ?? null;
+  const entries: Entry[] = [];
+  toEntries(doc).forEach((e, i) => {
+    const k = run.indexOf(i);
+    if (k < 0) entries.push(e);
+    else if (k < pasted.length) entries.push({ line: pasted[k], role: e.role, mark: true });
+    if (i === last) {
+      for (const line of pasted.slice(run.length))
+        entries.push({ line, role: lastRole, mark: true });
+    }
+  });
+  const out = tidy(entries);
+  let focus = from;
+  out.forEach((e, i) => {
+    if (e.mark) focus = i;
+  });
+  return { doc: fromEntries(out.map(({ line, role }) => ({ line, role }))), focus };
+}
