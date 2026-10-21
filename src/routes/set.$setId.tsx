@@ -128,6 +128,7 @@ import type { Slide, SetKind } from "@/lib/types";
 import { z } from "zod";
 import { APP_NAME } from "@/lib/appConfig";
 import { resolveSetRekey } from "@/lib/set-rekey";
+import { setRemoveMode } from "@/lib/group-catalogue";
 
 const searchSchema = z.object({
   redirectTo: z
@@ -214,15 +215,15 @@ function SetHeader({
   const audience = useSetAudience(phytoSet, showShareDialog);
   const unshareSetFromGroup = useLibrary((s) => s.unshareSetFromGroup);
   // What the destructive action means here:
-  //   "remove-shared" — a set shared WITH me: drop my access.
-  //   "remove-group"  — my own set, viewed in a group: retract it from the group
-  //                     (it stays in my personal library). Never a real delete.
-  //   "delete"        — my own set in my personal library: gone for good.
-  const inActiveGroup =
-    !phytoSet.shared &&
-    activeWorkspace !== "personal" &&
-    (phytoSet.groupIds?.includes(activeWorkspace) ?? false);
-  const removeMode = phytoSet.shared ? "remove-shared" : inActiveGroup ? "remove-group" : "delete";
+  // (see setRemoveMode). The group admin can also retract someone else's set
+  // from the group; other members can't remove sets they don't own.
+  const isActiveGroupAdmin = groups.find((g) => g.id === activeWorkspace)?.role === "admin";
+  const removeMode = setRemoveMode({
+    shared: !!phytoSet.shared,
+    groupIds: phytoSet.groupIds ?? [],
+    activeWorkspace,
+    isActiveGroupAdmin,
+  });
   const removeLabel = removeMode === "delete" ? "Delete" : "Remove";
   const nameBeforeEditRef = useRef(phytoSet.name);
   // A new set's placeholder name ("New Song") isn't something to edit around:
@@ -321,8 +322,9 @@ function SetHeader({
       <div className="flex-1" />
 
       {/* Right actions. A set shared into a group belongs to its owner: other
-          members can edit it but can't remove it (only the owner retracts it). */}
-      {!(phytoSet.shared && (phytoSet.groupIds?.length ?? 0) > 0) && (
+          members can edit it but can't remove it (the owner or the group admin
+          retracts it). */}
+      {removeMode && (
         <button
           onClick={() => setShowDeleteSetDialog(true)}
           className="mono uppercase pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-xs text-[var(--brand-white)] transition hover:opacity-90"
@@ -335,7 +337,7 @@ function SetHeader({
           <AlertDialogTitle className="text-2xl font-normal leading-tight">
             {removeMode === "remove-shared"
               ? "Remove this shared set?"
-              : removeMode === "remove-group"
+              : removeMode === "remove-group" || removeMode === "remove-group-admin"
                 ? "Remove this set from the group?"
                 : "Delete this set?"}
           </AlertDialogTitle>
@@ -344,13 +346,15 @@ function SetHeader({
               ? `This removes you from “${phytoSet.name}” completely. You'll lose access, and it won't come back unless the owner shares it with you again.`
               : removeMode === "remove-group"
                 ? "Remove the set out of the group and its gatherings. It stays in your personal catalogue."
-                : "This cannot be undone."}
+                : removeMode === "remove-group-admin"
+                  ? "This takes the set out of the group and its gatherings. It stays in its owner's personal catalogue."
+                  : "This cannot be undone."}
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
               type="button"
               onClick={() => {
-                if (removeMode === "remove-group") {
+                if (removeMode === "remove-group" || removeMode === "remove-group-admin") {
                   unshareSetFromGroup(phytoSet.id, activeWorkspace);
                 } else {
                   deleteSet(phytoSet.id);

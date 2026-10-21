@@ -71,6 +71,7 @@ import { VersionWarning } from "@/components/VersionWarning";
 import { DotsGrip } from "@/components/DragBits";
 import { songPatternStyle, songPatterns } from "@/lib/song-layout";
 import { hideDragGhost, setCircleDragGhost } from "@/lib/drag-ghost";
+import { nextOwnershipFilter, type OwnershipFilter } from "@/lib/group-catalogue";
 
 const KIND_COLOR: Record<string, string> = {
   song: "#2E7299",
@@ -144,7 +145,7 @@ export const Route = createFileRoute("/")({
 const SET_DRAG_TYPE = "application/x-stage-set-id";
 
 type SortMode = "az" | "newest";
-type KindFilter = "all" | "shared" | "personal" | SetKind;
+type KindFilter = "all" | "shared" | OwnershipFilter | SetKind;
 
 // A user can belong to at most this many groups.
 const MAX_GROUPS = 3;
@@ -191,7 +192,7 @@ function kindChip(kind: KindFilter, active: boolean): string {
       ? "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]"
       : "border-[var(--brand-orange)] text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20";
   }
-  if (kind === "shared" || kind === "personal") {
+  if (kind === "shared" || kind === "personal" || kind === "others") {
     return active
       ? "border-[#6b7280] bg-[#6b7280] text-[var(--brand-white)]"
       : "border-[#6b7280] text-[#6b7280] hover:bg-[#6b7280]/20";
@@ -610,14 +611,16 @@ function Library() {
           ? true
           : kindFilter === "shared"
             ? !!d.shared || sharedOutIds.has(d.id) || (d.groupIds?.length ?? 0) > 0
-            : // In a group, "Personal" narrows to your own contributions (foreign
-              // group sets carry `shared`).
+            : // In a group, "Personal" narrows to your own contributions and
+              // "Others" to everyone else's (foreign group sets carry `shared`).
               kindFilter === "personal"
               ? !d.shared
-              : // A message is a scripture variant, so it shows under Scripture too.
-                kindFilter === "scripture"
-                ? d.kind === "scripture" || d.kind === "message"
-                : d.kind === kindFilter,
+              : kindFilter === "others"
+                ? !!d.shared
+                : // A message is a scripture variant, so it shows under Scripture too.
+                  kindFilter === "scripture"
+                  ? d.kind === "scripture" || d.kind === "message"
+                  : d.kind === kindFilter,
       )
       .filter(
         (d) =>
@@ -655,6 +658,7 @@ function Library() {
     media: "No Media yet!",
     shared: "No shared sets yet!",
     personal: "You haven't shared any of your own sets into this group yet",
+    others: "No one else has shared sets into this group yet",
   };
 
   // While the post-login account pull runs on a device with an empty library,
@@ -1178,13 +1182,23 @@ function Library() {
                       "media",
                       ...(activeWorkspace === "personal"
                         ? (["shared"] as const)
-                        : (["personal"] as const)),
+                        : // One ownership chip that cycles Personal, Others, off.
+                          ([kindFilter === "others" ? "others" : "personal"] as const)),
                     ] as KindFilter[]
                   ).map((k) => (
                     <button
-                      key={k}
+                      key={k === "others" ? "personal" : k}
                       // Toggle: clicking the active chip clears back to "all".
-                      onClick={() => setKindFilter(kindFilter === k ? "all" : k)}
+                      // The ownership chip steps through its three states.
+                      onClick={() =>
+                        setKindFilter(
+                          k === "personal" || k === "others"
+                            ? nextOwnershipFilter(kindFilter)
+                            : kindFilter === k
+                              ? "all"
+                              : k,
+                        )
+                      }
                       className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, kindFilter === k)}`}
                     >
                       {k === "song"
@@ -1195,7 +1209,9 @@ function Library() {
                             ? "Media"
                             : k === "personal"
                               ? "Personal"
-                              : "Shared"}
+                              : k === "others"
+                                ? "Others"
+                                : "Shared"}
                     </button>
                   ))}
                   <button
