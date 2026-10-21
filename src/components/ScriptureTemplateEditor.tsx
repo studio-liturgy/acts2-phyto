@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useLibrary, useScriptureTemplateDraft } from "@/lib/store";
+import { useLibrary } from "@/lib/store";
+import { FoldCard } from "@/components/FoldCard";
 
 const FONT_OPTIONS: { label: string; value: string }[] = [
   { label: "Sans", value: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" },
@@ -7,88 +7,35 @@ const FONT_OPTIONS: { label: string; value: string }[] = [
   { label: "Mono", value: "'Courier New', Courier, monospace" },
 ];
 
+/** Changes apply as they're made: no Apply step. */
 export function ScriptureTemplateEditor() {
   const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
   const setScriptureTemplate = useLibrary((s) => s.setScriptureTemplate);
-  const setPreviewDraft = useScriptureTemplateDraft((s) => s.setDraft);
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState({
+  const t = {
     fontScale: scriptureTemplate.fontScale ?? 1,
     fontFamily: scriptureTemplate.fontFamily ?? FONT_OPTIONS[0].value,
     bg: (scriptureTemplate.bg ?? "black") as "black" | "white",
     align: (scriptureTemplate.align ?? "left") as "center" | "left",
     referencePosition: (scriptureTemplate.referencePosition ?? "below") as "above" | "below",
-  });
-
-  useEffect(() => {
-    if (!open) {
-      setDraft({
-        fontScale: scriptureTemplate.fontScale ?? 1,
-        fontFamily: scriptureTemplate.fontFamily ?? FONT_OPTIONS[0].value,
-        bg: (scriptureTemplate.bg ?? "black") as "black" | "white",
-        align: (scriptureTemplate.align ?? "left") as "center" | "left",
-        referencePosition: (scriptureTemplate.referencePosition ?? "below") as "above" | "below",
-      });
-    }
-  }, [scriptureTemplate, open]);
-
-  useEffect(() => {
-    if (open) setPreviewDraft(draft);
-    else setPreviewDraft(null);
-  }, [open, draft, setPreviewDraft]);
-
-  useEffect(() => () => setPreviewDraft(null), [setPreviewDraft]);
-
-  const label = "Edit Scripture Template";
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="mono uppercase pill flex w-full items-center justify-center border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-      >
-        {label}
-      </button>
-    );
-  }
-
-  const apply = () => {
-    setScriptureTemplate({ ...draft });
-    setPreviewDraft(null);
-    setOpen(false);
   };
-
-  const cancel = () => {
-    setPreviewDraft(null);
-    setOpen(false);
-  };
+  const update = (patch: Partial<typeof t>) => setScriptureTemplate(patch);
 
   return (
-    <div className="rounded-2xl border border-foreground p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="mono text-[10px] uppercase tracking-wider">Scripture Template</div>
-        <button
-          onClick={cancel}
-          className="mono text-[10px] uppercase text-muted-foreground hover:text-foreground"
-        >
-          Cancel
-        </button>
-      </div>
-
+    <FoldCard title="Scripture Template" ariaLabel="the scripture template">
       <div className="space-y-4 text-sm">
         {/* Font size */}
         <div>
           <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>Font size</span>
-            <span className="text-muted-foreground">{draft.fontScale.toFixed(2)}×</span>
+            <span className="text-muted-foreground">{t.fontScale.toFixed(2)}×</span>
           </div>
           <input
             type="range"
             min={1}
             max={2}
             step={0.05}
-            value={draft.fontScale}
-            onChange={(e) => setDraft((d) => ({ ...d, fontScale: Number(e.target.value) }))}
+            value={t.fontScale}
+            onChange={(e) => update({ fontScale: Number(e.target.value) })}
             className="w-full"
           />
         </div>
@@ -100,11 +47,11 @@ export function ScriptureTemplateEditor() {
           </div>
           <div className="grid grid-cols-1 gap-1">
             {FONT_OPTIONS.map((f) => {
-              const active = draft.fontFamily === f.value;
+              const active = t.fontFamily === f.value;
               return (
                 <button
                   key={f.label}
-                  onClick={() => setDraft((d) => ({ ...d, fontFamily: f.value }))}
+                  onClick={() => update({ fontFamily: f.value })}
                   style={{ fontFamily: f.value }}
                   className={`rounded-lg border px-3 py-1.5 text-left text-sm transition ${
                     active
@@ -126,9 +73,9 @@ export function ScriptureTemplateEditor() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => setDraft((d) => ({ ...d, bg: "black" }))}
+              onClick={() => update({ bg: "black" })}
               className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                draft.bg === "black"
+                t.bg === "black"
                   ? "border-foreground bg-black text-white"
                   : "border-foreground/20 bg-black text-white/60 hover:border-foreground"
               }`}
@@ -136,9 +83,9 @@ export function ScriptureTemplateEditor() {
               Black
             </button>
             <button
-              onClick={() => setDraft((d) => ({ ...d, bg: "white" }))}
+              onClick={() => update({ bg: "white" })}
               className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                draft.bg === "white"
+                t.bg === "white"
                   ? "border-foreground bg-white text-black"
                   : "border-foreground/20 bg-white text-black/60 hover:border-foreground"
               }`}
@@ -157,9 +104,9 @@ export function ScriptureTemplateEditor() {
             {(["left", "center"] as const).map((a) => (
               <button
                 key={a}
-                onClick={() => setDraft((d) => ({ ...d, align: a }))}
+                onClick={() => update({ align: a })}
                 className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                  draft.align === a
+                  t.align === a
                     ? "border-foreground bg-foreground text-background"
                     : "border-foreground/20 hover:border-foreground"
                 }`}
@@ -179,9 +126,9 @@ export function ScriptureTemplateEditor() {
             {(["above", "below"] as const).map((pos) => (
               <button
                 key={pos}
-                onClick={() => setDraft((d) => ({ ...d, referencePosition: pos }))}
+                onClick={() => update({ referencePosition: pos })}
                 className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                  draft.referencePosition === pos
+                  t.referencePosition === pos
                     ? "border-foreground bg-foreground text-background"
                     : "border-foreground/20 hover:border-foreground"
                 }`}
@@ -191,14 +138,7 @@ export function ScriptureTemplateEditor() {
             ))}
           </div>
         </div>
-
-        <button
-          onClick={apply}
-          className="pill mono uppercase flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-        >
-          Apply to all scripture
-        </button>
       </div>
-    </div>
+    </FoldCard>
   );
 }

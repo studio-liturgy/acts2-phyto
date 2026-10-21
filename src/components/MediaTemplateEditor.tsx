@@ -1,3 +1,4 @@
+import { FoldCard } from "@/components/FoldCard";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { NumberStepper } from "@/components/NumberStepper";
@@ -106,42 +107,14 @@ export function MediaPlaybackControls({ setId }: { setId: string }) {
 }
 
 /**
- * The "Edit Media Functions" toggle, mirroring SongTemplateEditor /
- * ScriptureTemplateEditor: a full-width button that opens a panel with the
- * playback controls. Used in both the presenter and the media set editor.
+ * The Media Functions card, folding like the song and scripture templates
+ * (FoldCard): the playback controls, which apply as they're changed. Used in
+ * both the presenter and the media set editor.
  */
 export function MediaTemplateEditor({ setId }: { setId: string }) {
-  const [open, setOpen] = useState(false);
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="mono uppercase pill flex w-full items-center justify-center border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-      >
-        Edit Media Functions
-      </button>
-    );
-  }
-
   return (
-    <div className="rounded-2xl border border-foreground p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="mono text-[10px] uppercase tracking-wider">Media Functions</div>
-        <button
-          onClick={() => setOpen(false)}
-          className="mono text-[10px] uppercase text-muted-foreground hover:text-foreground"
-        >
-          Cancel
-        </button>
-      </div>
+    <FoldCard title="Media Functions" ariaLabel="the media functions">
       <MediaPlaybackControls setId={setId} />
-      <button
-        onClick={() => setOpen(false)}
-        className="pill mono uppercase mt-3 flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-      >
-        Apply to this media set
-      </button>
-    </div>
+    </FoldCard>
   );
 }
