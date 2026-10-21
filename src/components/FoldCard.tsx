@@ -24,7 +24,7 @@ export function FoldCard({
         onClick={() => setOpen((o) => !o)}
         aria-label={`${open ? "Hide" : "Show"} ${ariaLabel}`}
         aria-expanded={open}
-        className={`mono flex w-full items-center justify-between gap-2 p-4 text-left text-[10px] uppercase tracking-wider outline-none transition focus-visible:bg-muted ${open ? "pb-3" : "hover:bg-muted"}`}
+        className={`mono flex w-full items-center justify-between gap-2 px-4 text-left text-[10px] uppercase tracking-wider outline-none transition-[padding,background-color] duration-200 ease-out focus-visible:bg-muted ${open ? "pb-3 pt-4" : "py-2 hover:bg-muted"}`}
       >
         <span>{title}</span>
         <ChevronDown
