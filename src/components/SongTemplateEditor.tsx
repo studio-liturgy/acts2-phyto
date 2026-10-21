@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { useLibrary, useSongTemplateDraft } from "@/lib/store";
 
 const FONT_OPTIONS: { label: string; value: string }[] = [
@@ -39,168 +40,169 @@ export function SongTemplateEditor() {
 
   useEffect(() => () => setPreviewDraft(null), [setPreviewDraft]);
 
-  const label = "Edit Song Template";
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="mono uppercase pill flex w-full items-center justify-center border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-      >
-        {label}
-      </button>
-    );
-  }
-
   const apply = () => {
     setSongTemplate({ ...draft });
     setPreviewDraft(null);
     setOpen(false);
   };
 
-  const cancel = () => {
-    setPreviewDraft(null);
-    setOpen(false);
+  // Folding without Apply cancels: the draft resets to the saved template.
+  const toggle = () => {
+    if (open) setPreviewDraft(null);
+    setOpen((o) => !o);
   };
 
   return (
-    <div className="rounded-2xl border border-foreground p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="mono text-[10px] uppercase tracking-wider">Song Template</div>
-        <button
-          onClick={cancel}
-          className="mono text-[10px] uppercase text-muted-foreground hover:text-foreground"
-        >
-          Cancel
-        </button>
-      </div>
+    <div className="overflow-hidden rounded-2xl border border-foreground">
+      {/* The whole title bar unfolds and folds the template, as the Chord
+          Sheet does. */}
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={open ? "Close the song template" : "Edit the song template"}
+        aria-expanded={open}
+        className={`mono flex w-full items-center justify-between gap-2 p-4 text-left text-[10px] uppercase tracking-wider outline-none transition focus-visible:bg-muted ${open ? "pb-3" : "hover:bg-muted"}`}
+      >
+        <span>Song Template</span>
+        <ChevronDown
+          className={`relative top-px h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {/* Height animates through a grid row going 0fr to 1fr. */}
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="px-4 pb-4">
+            <div className="space-y-4 text-sm">
+              <div>
+                <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                  <span>Font size</span>
+                  <span className="text-muted-foreground">{draft.fontScale.toFixed(2)}×</span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={2}
+                  step={0.05}
+                  value={draft.fontScale}
+                  onChange={(e) => setDraft((d) => ({ ...d, fontScale: Number(e.target.value) }))}
+                  className="w-full"
+                />
+              </div>
 
-      <div className="space-y-4 text-sm">
-        <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span>Font size</span>
-            <span className="text-muted-foreground">{draft.fontScale.toFixed(2)}×</span>
+              <div>
+                <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Font type
+                </div>
+                <div className="grid grid-cols-1 gap-1">
+                  {FONT_OPTIONS.map((f) => {
+                    const active = draft.fontFamily === f.value;
+                    return (
+                      <button
+                        key={f.label}
+                        onClick={() => setDraft((d) => ({ ...d, fontFamily: f.value }))}
+                        style={{ fontFamily: f.value }}
+                        className={`rounded-lg border px-3 py-1.5 text-left text-sm transition ${
+                          active
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-foreground/20 hover:border-foreground"
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setDraft((d) => ({ ...d, textCase: "upper" }))}
+                    className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                      draft.textCase === "upper"
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-foreground/20 hover:border-foreground"
+                    }`}
+                  >
+                    All Caps
+                  </button>
+                  <button
+                    onClick={() => setDraft((d) => ({ ...d, textCase: "mixed" }))}
+                    className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                      draft.textCase === "mixed"
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-foreground/20 hover:border-foreground"
+                    }`}
+                  >
+                    Mixed Case
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Background
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setDraft((d) => ({ ...d, bg: "black" }))}
+                    className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                      draft.bg === "black"
+                        ? "border-foreground bg-black text-white"
+                        : "border-foreground/20 bg-black text-white/60 hover:border-foreground"
+                    }`}
+                  >
+                    Black
+                  </button>
+                  <button
+                    onClick={() => setDraft((d) => ({ ...d, bg: "white" }))}
+                    className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                      draft.bg === "white"
+                        ? "border-foreground bg-white text-black"
+                        : "border-foreground/20 bg-white text-black/60 hover:border-foreground"
+                    }`}
+                  >
+                    White
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Position
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setDraft((d) => ({ ...d, position: "top" }))}
+                    className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                      draft.position === "top"
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-foreground/20 hover:border-foreground"
+                    }`}
+                  >
+                    Top
+                  </button>
+                  <button
+                    onClick={() => setDraft((d) => ({ ...d, position: "centre" }))}
+                    className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                      draft.position === "centre"
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-foreground/20 hover:border-foreground"
+                    }`}
+                  >
+                    Centre
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={apply}
+                className="pill mono uppercase flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
+              >
+                Apply to all songs
+              </button>
+            </div>
           </div>
-          <input
-            type="range"
-            min={1}
-            max={2}
-            step={0.05}
-            value={draft.fontScale}
-            onChange={(e) => setDraft((d) => ({ ...d, fontScale: Number(e.target.value) }))}
-            className="w-full"
-          />
         </div>
-
-        <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            Font type
-          </div>
-          <div className="grid grid-cols-1 gap-1">
-            {FONT_OPTIONS.map((f) => {
-              const active = draft.fontFamily === f.value;
-              return (
-                <button
-                  key={f.label}
-                  onClick={() => setDraft((d) => ({ ...d, fontFamily: f.value }))}
-                  style={{ fontFamily: f.value }}
-                  className={`rounded-lg border px-3 py-1.5 text-left text-sm transition ${
-                    active
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 hover:border-foreground"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setDraft((d) => ({ ...d, textCase: "upper" }))}
-              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                draft.textCase === "upper"
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-foreground/20 hover:border-foreground"
-              }`}
-            >
-              All Caps
-            </button>
-            <button
-              onClick={() => setDraft((d) => ({ ...d, textCase: "mixed" }))}
-              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                draft.textCase === "mixed"
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-foreground/20 hover:border-foreground"
-              }`}
-            >
-              Mixed Case
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            Background
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setDraft((d) => ({ ...d, bg: "black" }))}
-              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                draft.bg === "black"
-                  ? "border-foreground bg-black text-white"
-                  : "border-foreground/20 bg-black text-white/60 hover:border-foreground"
-              }`}
-            >
-              Black
-            </button>
-            <button
-              onClick={() => setDraft((d) => ({ ...d, bg: "white" }))}
-              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                draft.bg === "white"
-                  ? "border-foreground bg-white text-black"
-                  : "border-foreground/20 bg-white text-black/60 hover:border-foreground"
-              }`}
-            >
-              White
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            Position
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setDraft((d) => ({ ...d, position: "top" }))}
-              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                draft.position === "top"
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-foreground/20 hover:border-foreground"
-              }`}
-            >
-              Top
-            </button>
-            <button
-              onClick={() => setDraft((d) => ({ ...d, position: "centre" }))}
-              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                draft.position === "centre"
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-foreground/20 hover:border-foreground"
-              }`}
-            >
-              Centre
-            </button>
-          </div>
-        </div>
-
-        <button
-          onClick={apply}
-          className="pill mono uppercase flex w-full items-center justify-center border border-foreground bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition hover:opacity-90"
-        >
-          Apply to all songs
-        </button>
       </div>
     </div>
   );
