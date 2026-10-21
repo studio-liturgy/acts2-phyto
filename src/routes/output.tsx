@@ -90,6 +90,7 @@ function Output() {
           durationMs={globalFadeMs}
           template={template}
           videoCmd={live.videoCmd}
+          refreshKey={live.refresh}
           onVideoEnded={() => live.videoFinished()}
           playbackEnabled={armed}
           className="h-full w-full"

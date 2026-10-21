@@ -576,7 +576,14 @@ export function DissolveSlide({
   videoCmd,
   onVideoEnded,
   playbackEnabled = true,
-}: Props & { durationMs?: number }) {
+  refreshKey,
+}: Props & {
+  durationMs?: number;
+  /** Changes when the live slide is clicked again: the visible layer takes
+   *  the current template in place (a template edit otherwise waits for the
+   *  next slide). */
+  refreshKey?: number;
+}) {
   const [a, setA] = useState<Slide | null | undefined>(slide);
   const [b, setB] = useState<Slide | null | undefined>(null);
   const [templateA, setTemplateA] = useState<Props["template"]>(template);
@@ -586,6 +593,13 @@ export function DissolveSlide({
   const lastSig = useRef<string>(slide ? JSON.stringify(slide) : "none");
   const templateRef = useRef(template);
   templateRef.current = template;
+  const lastRefresh = useRef(refreshKey);
+  useEffect(() => {
+    if (refreshKey === lastRefresh.current) return;
+    lastRefresh.current = refreshKey;
+    if (front === "a") setTemplateA(templateRef.current);
+    else setTemplateB(templateRef.current);
+  }, [refreshKey, front]);
 
   useEffect(() => {
     const key = slide?.id ?? "none";

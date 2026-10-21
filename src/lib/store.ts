@@ -1,3 +1,4 @@
+import { refreshAfterGo } from "./live-refresh";
 import { create } from "zustand";
 import { nanoid } from "nanoid";
 import type { Set as PhytoSet, Slide, LiveState, Gathering, SetTemplate } from "./types";
@@ -1479,9 +1480,18 @@ export const useLive = create<LiveStore>((set, get) => ({
   go: (setId, slideId, occ = 0) => {
     const videoCmd = videoCmdForSlide(setId, slideId, get().videoCmd?.nonce ?? 0);
     const slideOcc = occ;
+    const refresh = refreshAfterGo(get(), setId, slideId, occ);
     if (get().blackout) {
       // Swap the slide silently under the blackout, then reveal with a fade.
-      get().setLive({ setId, slideId, slideOcc, clear: false, videoCmd, videoEnded: false });
+      get().setLive({
+        setId,
+        slideId,
+        slideOcc,
+        clear: false,
+        videoCmd,
+        videoEnded: false,
+        refresh,
+      });
       if (typeof window !== "undefined") {
         setTimeout(() => get().setLive({ blackout: false, blackoutFadeMs: 500 }), 80);
       }
@@ -1495,6 +1505,7 @@ export const useLive = create<LiveStore>((set, get) => ({
         blackoutFadeMs: 0,
         videoCmd,
         videoEnded: false,
+        refresh,
       });
     }
   },
@@ -1553,6 +1564,7 @@ function liveSnapshot(s: LiveState): LiveState {
     blackoutFadeMs: s.blackoutFadeMs,
     videoCmd: s.videoCmd,
     videoEnded: s.videoEnded,
+    refresh: s.refresh,
   };
 }
 

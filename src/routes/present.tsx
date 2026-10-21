@@ -1595,6 +1595,7 @@ function Presenter() {
                   variant="preview"
                   durationMs={fadeMs}
                   videoCmd={live.videoCmd}
+                  refreshKey={live.refresh}
                   template={
                     liveSet?.kind === "song"
                       ? effectiveSongTemplate

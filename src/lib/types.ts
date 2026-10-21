@@ -258,4 +258,7 @@ export interface LiveState {
   /** Set by the output window when the current video reaches its end, so the
    *  presenter knows the next →/Space should advance the slide. */
   videoEnded?: boolean;
+  /** Bumped when the live slide is clicked again: the output re-applies the
+   *  current song / scripture template to it (see live-refresh.ts). */
+  refresh?: number;
 }
