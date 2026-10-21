@@ -589,42 +589,40 @@ export function DissolveSlide({
   const [templateA, setTemplateA] = useState<Props["template"]>(template);
   const [templateB, setTemplateB] = useState<Props["template"]>(undefined);
   const [front, setFront] = useState<"a" | "b">("a");
+  const frontRef = useRef<"a" | "b">("a");
+  // The layer holding the current slide: the front one, or the one fading in.
+  const current = useRef<"a" | "b">("a");
   const lastKey = useRef<string>(slide?.id ?? "none");
   const lastSig = useRef<string>(slide ? JSON.stringify(slide) : "none");
   const templateRef = useRef(template);
   templateRef.current = template;
-  const lastRefresh = useRef(refreshKey);
-  useEffect(() => {
-    if (refreshKey === lastRefresh.current) return;
-    lastRefresh.current = refreshKey;
-    if (front === "a") setTemplateA(templateRef.current);
-    else setTemplateB(templateRef.current);
-  }, [refreshKey, front]);
+  // The template the current slide is drawn with.
+  const shownTemplate = useRef(template);
+  const durationRef = useRef(durationMs);
+  durationRef.current = durationMs;
+  // Cancels a dissolve that hasn't swapped yet. Only a newer dissolve (or
+  // unmounting) cancels it: a re-render handing over the same slide as a new
+  // object must not, or the swap never happens and the preview stays on the
+  // old layer (after a reload: "No slide selected" with a slide live).
+  const cancelPending = useRef<() => void>(() => {});
+  useEffect(() => () => cancelPending.current(), []);
 
-  useEffect(() => {
-    const key = slide?.id ?? "none";
-    if (key === lastKey.current) {
-      // Same slide id, but its content may have changed — e.g. a live fast-edit
-      // of the currently-live slide. Refresh the visible layer in place (no
-      // dissolve), but only when the content actually changed, so an unrelated
-      // store write handing us a new-but-identical object doesn't needlessly
-      // re-render or restart a playing video.
-      const sig = slide ? JSON.stringify(slide) : "none";
-      if (sig !== lastSig.current) {
-        lastSig.current = sig;
-        if (front === "a") {
-          setA(slide);
-          setTemplateA(templateRef.current);
-        } else {
-          setB(slide);
-          setTemplateB(templateRef.current);
-        }
-      }
-      return;
+  const put = (layer: "a" | "b", s: Slide | null | undefined, t: Props["template"]) => {
+    if (layer === "a") {
+      setA(s);
+      setTemplateA(t);
+    } else {
+      setB(s);
+      setTemplateB(t);
     }
-    lastKey.current = key;
-    lastSig.current = slide ? JSON.stringify(slide) : "none";
+  };
 
+  // Show `s` with the current template, dissolving from what's on screen.
+  const stage = (s: Slide | null | undefined) => {
+    const t = templateRef.current;
+    shownTemplate.current = t;
+    cancelPending.current();
+    cancelPending.current = () => {};
     // A dissolve is only worth staging for when there are frames to draw it
     // with. A hidden tab gets no animation frames at all, and Chrome throttles
     // then freezes one that has been backgrounded for a few minutes — which is
@@ -635,27 +633,17 @@ export function DissolveSlide({
     // window and the queued frames finally flushed. Cutting straight to the new
     // slide is the right trade there — an instant change beats a dissolve the
     // audience is watching arrive thirty seconds late.
-    const staged = durationMs > 0 && typeof document !== "undefined" && !document.hidden;
+    const staged = durationRef.current > 0 && typeof document !== "undefined" && !document.hidden;
 
     if (!staged) {
-      if (front === "a") {
-        setA(slide);
-        setTemplateA(templateRef.current);
-      } else {
-        setB(slide);
-        setTemplateB(templateRef.current);
-      }
+      current.current = frontRef.current;
+      put(frontRef.current, s, t);
       return;
     }
 
-    const next = front === "a" ? "b" : "a";
-    if (front === "a") {
-      setB(slide);
-      setTemplateB(templateRef.current);
-    } else {
-      setA(slide);
-      setTemplateA(templateRef.current);
-    }
+    const next = frontRef.current === "a" ? "b" : "a";
+    current.current = next;
+    put(next, s, t);
 
     // Two frames so the incoming layer is committed at opacity 0 before the
     // outgoing one starts fading off it. The timer is a backstop for the case
@@ -666,6 +654,7 @@ export function DissolveSlide({
     const swap = () => {
       if (swapped) return;
       swapped = true;
+      frontRef.current = next;
       setFront(next);
     };
     let inner = 0;
@@ -673,12 +662,45 @@ export function DissolveSlide({
       inner = requestAnimationFrame(swap);
     });
     const fallback = setTimeout(swap, 200);
-    return () => {
+    cancelPending.current = () => {
       cancelAnimationFrame(outer);
       if (inner) cancelAnimationFrame(inner);
       clearTimeout(fallback);
     };
-  }, [slide, durationMs, front]);
+  };
+
+  useEffect(() => {
+    const key = slide?.id ?? "none";
+    const sig = slide ? JSON.stringify(slide) : "none";
+    if (key === lastKey.current) {
+      // Same slide id, but its content may have changed (a live fast-edit of
+      // the live slide). Refresh it in place (no dissolve), but only when the
+      // content actually changed, so an unrelated store write handing us a
+      // new-but-identical object doesn't re-render or restart a playing video.
+      if (sig !== lastSig.current) {
+        lastSig.current = sig;
+        shownTemplate.current = templateRef.current;
+        put(current.current, slide, templateRef.current);
+      }
+      return;
+    }
+    lastKey.current = key;
+    lastSig.current = sig;
+    stage(slide);
+    // stage/put only touch refs and state setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slide]);
+
+  // The live slide clicked again: dissolve to the current template, if it
+  // changed since the slide was drawn.
+  const lastRefresh = useRef(refreshKey);
+  useEffect(() => {
+    if (refreshKey === lastRefresh.current) return;
+    lastRefresh.current = refreshKey;
+    if (JSON.stringify(templateRef.current) === JSON.stringify(shownTemplate.current)) return;
+    stage(slide);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   // Outgoing layer fades out on top (zIndex 2); incoming layer snaps to full
   // opacity below (zIndex 1). Total opacity is always 1 — no dip-to-black on
