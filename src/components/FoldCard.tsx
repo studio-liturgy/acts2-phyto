@@ -18,13 +18,17 @@ export function FoldCard({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="overflow-hidden rounded-2xl border border-foreground">
+    // Folded, it's a pill the size of the importer's search bar (40px tall,
+    // text 16px in); open, it rounds like the Chord Sheet.
+    <div
+      className={`overflow-hidden border border-foreground transition-[border-radius] duration-200 ease-out ${open ? "rounded-2xl" : "rounded-[20px]"}`}
+    >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={`${open ? "Hide" : "Show"} ${ariaLabel}`}
         aria-expanded={open}
-        className={`mono flex w-full items-center justify-between gap-2 px-4 text-left text-[10px] uppercase tracking-wider outline-none transition-[padding,background-color] duration-200 ease-out focus-visible:bg-muted ${open ? "pb-3 pt-4" : "py-2 hover:bg-muted"}`}
+        className={`mono flex w-full items-center justify-between gap-2 px-4 text-left text-[10px] uppercase leading-5 tracking-wider outline-none transition-[padding,background-color] duration-200 ease-out focus-visible:bg-muted ${open ? "pb-3 pt-4" : "py-[9px] hover:bg-muted"}`}
       >
         <span>{title}</span>
         <ChevronDown

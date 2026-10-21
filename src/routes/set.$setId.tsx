@@ -543,7 +543,7 @@ function SetEditor() {
           </div>
           {/* Right: template editor + live slide grid */}
           <div
-            className={`${phytoSet.songLayout === "multilang" ? "w-1/4" : "w-1/2"} overflow-y-auto p-6`}
+            className={`${phytoSet.songLayout === "multilang" ? "w-1/4" : "w-1/2"} overflow-y-auto px-6 pb-6 pt-4`}
           >
             {phytoSet.chords && !phytoSet.chords.hidden && phytoSet.slides.length > 0 && (
               <ChordSheet slides={phytoSet.slides} chords={phytoSet.chords} />
@@ -638,7 +638,7 @@ function SetEditor() {
             <Importers key={phytoSet.id} setId={phytoSet.id} kind={phytoSet.kind} />
           </div>
           {/* Right: template editor + live slide grid */}
-          <div className="w-1/2 overflow-y-auto p-6">
+          <div className="w-1/2 overflow-y-auto px-6 pb-6 pt-4">
             {phytoSet.slides.length > 0 && (
               <div className="mb-4">
                 <ScriptureTemplateEditor />
