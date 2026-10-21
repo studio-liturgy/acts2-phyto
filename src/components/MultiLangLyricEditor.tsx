@@ -17,6 +17,7 @@ import { useGridChordBus, wordStartAt } from "@/lib/grid-chord-bus";
 import { ChordStrip } from "@/components/ChordStrip";
 import {
   type MultiRow,
+  addSectionRow,
   langLinesPer,
   slideStarts,
   divideRows,
@@ -29,6 +30,7 @@ import {
   splitPasteBlock,
 } from "@/lib/multiling";
 import { reconcileSlideIds } from "@/lib/slide-text";
+import { newSectionName } from "@/lib/sections";
 import { useLibrary } from "@/lib/store";
 
 const GUTTER = "2.75rem";
@@ -472,11 +474,18 @@ export function MultiLangLyricEditor({
 
   // A section drops in above the line the cursor is on.
   const focusRowRef = useRef<number | null>(null);
-  const addSection = () =>
-    setRows((rs) => {
-      const at = focusRowRef.current ?? rs.length;
-      return [...rs.slice(0, at), { kind: "section", text: "Chorus" }, ...rs.slice(at)];
-    });
+  const focusLangRef = useRef<LangCode | null>(null);
+  const addSection = () => {
+    const name = newSectionName(rows.flatMap((r) => (r.kind === "section" ? [r.text] : [])));
+    const { rows: next, line } = addSectionRow(rows, focusRowRef.current, name);
+    step();
+    const lang =
+      focusLangRef.current && langs.includes(focusLangRef.current)
+        ? focusLangRef.current
+        : langs[0];
+    if (lang) pendingFocus.current = { line, lang, caret: 0 };
+    setRows(next);
+  };
 
   const pasteDown = (row: number, lang: LangCode, text: string) => {
     const incoming = splitPasteBlock(text);
@@ -784,6 +793,7 @@ export function MultiLangLyricEditor({
                 onDragOverRow={() => dragSecRow.current !== null && dragSectionOver(i)}
                 onFocusRow={() => (focusRowRef.current = i)}
                 onCaret={(row, lang, caret) => {
+                  focusLangRef.current = lang;
                   // Only the first column's caret maps onto its words.
                   lastCaret.current = { row, caret: lang === langs[0] ? caret : 0 };
                 }}

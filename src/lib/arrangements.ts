@@ -37,17 +37,51 @@ export function defaultArrangement(slides: SectionSlide[], hiddenKeys: string[] 
   return kept.length > 0 ? kept : all;
 }
 
+// A stored arrangement also lists every section the song had when it was
+// saved, each prefixed with SEEN, so a section added to the song later can be
+// told apart from one the leader removed. Older builds skip these entries: no
+// section key starts with the prefix, so they never match one.
+const SEEN = "§seen:";
+
+/** The arrangement as stored: the play order, then a SEEN entry for each of
+ *  the song's current sections. */
+export function storedArrangement(arrangement: Arrangement, slides: SectionSlide[]): string[] {
+  return [...arrangement, ...groupSlides(slides).map((g) => SEEN + g.key)];
+}
+
 /** The arrangement to use: the stored one with keys that no longer match a
- *  section dropped (the song was edited), or the default when nothing stored
- *  survives. */
+ *  section dropped (the song was edited) and sections added since it was
+ *  saved put in, or the default when nothing stored survives. A new section
+ *  plays right after the first appearance of the nearest section written
+ *  before it, or first when none of those plays. Arrangements saved without
+ *  SEEN entries can't tell new from removed, so they gain nothing. */
 export function effectiveArrangement(
   slides: SectionSlide[],
   stored: Arrangement | undefined,
   hiddenKeys: string[] = [],
 ): Arrangement {
-  const keys = new Set(groupSlides(slides).map((g) => g.key));
-  const valid = (stored ?? []).filter((k) => keys.has(k));
-  return valid.length > 0 ? valid : defaultArrangement(slides, hiddenKeys);
+  const written = groupSlides(slides).map((g) => g.key);
+  const keys = new Set(written);
+  const entries = stored ?? [];
+  const seen = new Set(entries.filter((k) => k.startsWith(SEEN)).map((k) => k.slice(SEEN.length)));
+  const out = entries.filter((k) => keys.has(k));
+  if (out.length === 0) return defaultArrangement(slides, hiddenKeys);
+  if (seen.size === 0) return out;
+  const playing = new Set(out);
+  written.forEach((key, w) => {
+    if (seen.has(key) || playing.has(key)) return;
+    let at = 0;
+    for (let p = w - 1; p >= 0; p--) {
+      const i = out.indexOf(written[p]);
+      if (i >= 0) {
+        at = i + 1;
+        break;
+      }
+    }
+    out.splice(at, 0, key);
+    playing.add(key);
+  });
+  return out;
 }
 
 /** The arrangement's sections in play order, repeats included. Keys that no

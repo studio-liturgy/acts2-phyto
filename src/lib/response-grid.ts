@@ -190,3 +190,24 @@ export function breakAtCaret(
     focus: at + 2,
   };
 }
+
+/** + Section: a section row above line `at` (the line the cursor is on), the
+ *  caret back on that line; with no cursor line, at the end with an empty line
+ *  under it for `role`, the caret there. */
+export function addSection(
+  doc: Doc,
+  at: number | null,
+  name: string,
+  role: Role | null,
+): { doc: Doc; focus: number } {
+  if (at === null || at > doc.lines.length) {
+    const end = doc.lines.length;
+    return { doc: insertLines(doc, end, [`[${name}]`, " "], [null, role]), focus: end + 1 };
+  }
+  return { doc: insertLines(doc, at, [`[${name}]`], [null]), focus: at + 1 };
+}
+
+/** Names of the sections in the lyrics, in order. */
+export function sectionNames(lyrics: string): string[] {
+  return responseRows(lyrics).flatMap((r) => (r.kind === "section" ? [r.text] : []));
+}

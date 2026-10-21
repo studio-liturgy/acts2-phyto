@@ -205,3 +205,14 @@ export function moveSlideKeepingSections<T extends SectionSlide>(
     return o;
   });
 }
+
+/** The name + Section gives a new section in the song grids: "Section", or
+ *  "Section 2", "Section 3"... when taken. A fixed name merged with a
+ *  neighbouring section of the same name, so the slides didn't change. */
+export function newSectionName(taken: string[]): string {
+  const used = new Set(taken.map((t) => t.trim().toLowerCase()));
+  if (!used.has("section")) return "Section";
+  let n = 2;
+  while (used.has(`section ${n}`)) n += 1;
+  return `Section ${n}`;
+}

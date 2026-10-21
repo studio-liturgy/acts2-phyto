@@ -3,7 +3,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { ChordLine } from "@/components/ChordLine";
 import { guessKey, KEYS, transposeLyrics, type SongChords } from "@/lib/chords";
 import { groupSlides, hiddenSlideIndices } from "@/lib/sections";
-import { arrangedEntries } from "@/lib/arrangements";
+import { arrangedEntries, effectiveArrangement } from "@/lib/arrangements";
 import { renderInline } from "@/lib/inline-format";
 import { MAX_SHOWN_LANGS, shownLangs } from "@/lib/multiling";
 import { isLangCode, langDef, type LangCode } from "@/lib/langs";
@@ -804,11 +804,14 @@ function SetContent({
   const hidden = hiddenSlideIndices(set.slides ?? [], hiddenKeys);
   const slides = (set.slides ?? []).filter((_, i) => !hidden.has(i));
   // An arranged song plays its sections in the leader's order, repeats
-  // included. Keys left over from an edit are skipped; if none survive, the
-  // hiding above applies, the same fallback as the presenter.
+  // included, with sections added to the song since then put in (the same
+  // resolution as the presenter). Keys left over from an edit are skipped; if
+  // none survive, the hiding above applies, the same fallback as the presenter.
   const arranged =
-    set.type === "song" && arrangement?.length
-      ? arrangedEntries(set.slides ?? [], arrangement)
+    set.type === "song" &&
+    arrangement?.length &&
+    arrangedEntries(set.slides ?? [], arrangement).length
+      ? arrangedEntries(set.slides ?? [], effectiveArrangement(set.slides ?? [], arrangement))
       : [];
 
   if (set.type === "scripture") {

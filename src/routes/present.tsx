@@ -77,6 +77,7 @@ import {
   arrangedEntries,
   arrangedSequence,
   effectiveArrangement,
+  storedArrangement,
   sectionOptions,
   stepArranged,
 } from "@/lib/arrangements";
@@ -388,8 +389,10 @@ function Presenter() {
       : null;
   const changeArrangement = (setId: string, next: string[]) => {
     if (activeGathering) {
-      setArrangementFor(activeGathering.id, setId, next);
-      pushArrangements(activeGathering.id, { ...arrangeBySet, [setId]: next });
+      // Stored with the song's current sections, so ones added later show up.
+      const stored = storedArrangement(next, sets[setId]?.slides ?? []);
+      setArrangementFor(activeGathering.id, setId, stored);
+      pushArrangements(activeGathering.id, { ...arrangeBySet, [setId]: stored });
     }
   };
   const blockRemove = (clientX: number, clientY: number) => {

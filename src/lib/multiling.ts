@@ -519,3 +519,22 @@ export function songLangs(set: Pick<PhytoSet, "kind" | "songLayout" | "langs">):
   if (set.kind !== "song" || set.songLayout !== "multilang") return [];
   return set.langs ?? [];
 }
+
+/** + Section: a section row above row `at` (the row the cursor is on); with no
+ *  cursor row, at the end with an empty line under it. `line` is the line
+ *  number (nth line row) the caret goes to. */
+export function addSectionRow(
+  rows: MultiRow[],
+  at: number | null,
+  name: string,
+): { rows: MultiRow[]; line: number } {
+  const section: SectionRow = { kind: "section", text: name };
+  const linesBefore = (n: number) => rows.slice(0, n).filter((r) => r.kind === "line").length;
+  if (at === null || at > rows.length) {
+    return {
+      rows: [...rows, section, { kind: "line", byLang: {} }],
+      line: linesBefore(rows.length),
+    };
+  }
+  return { rows: [...rows.slice(0, at), section, ...rows.slice(at)], line: linesBefore(at) };
+}

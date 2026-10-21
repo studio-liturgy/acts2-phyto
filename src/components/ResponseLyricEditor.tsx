@@ -14,6 +14,7 @@ import {
 } from "@/lib/chords";
 import { useGridChordBus, wordStartAt } from "@/lib/grid-chord-bus";
 import {
+  addSection,
   breakAtCaret,
   breakBefore,
   fromDoc,
@@ -23,10 +24,12 @@ import {
   neighbourLine,
   removeLine,
   responseRows,
+  sectionNames,
   setLine,
   toDoc,
   type Doc,
 } from "@/lib/response-grid";
+import { newSectionName } from "@/lib/sections";
 import { ROLE_LABEL, nextRole, type LineRoles, type Role } from "@/lib/song-roles";
 
 const ROLE_COLOR: Record<Role, string> = {
@@ -156,10 +159,12 @@ export function ResponseLyricEditor({
     commit(setLine(d, index, d.lines[index], nextRole(d.roles[index])));
   };
 
-  const addSection = () => {
-    const at = focusIndex.current ?? lyrics.split("\n").length;
+  const onAddSection = () => {
     const d = doc();
-    commit(insertLines(d, at, ["[Chorus]"], [null]));
+    const prevRole = [...d.roles].reverse().find((r) => r) ?? null;
+    const name = newSectionName(sectionNames(lyrics));
+    const { doc: next, focus } = addSection(d, focusIndex.current, name, prevRole);
+    commit(next, { index: focus, caret: 0 });
   };
 
   const addLineAtEnd = () => {
@@ -172,7 +177,7 @@ export function ResponseLyricEditor({
   const sectionButton = (
     <button
       type="button"
-      onClick={addSection}
+      onClick={onAddSection}
       className="mono flex h-7 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
       title="Add a section above the line your cursor is on"
     >
