@@ -393,13 +393,17 @@ export function ShareGatheringDialog({
         >
           {/* Laid out like the set editor: a header bar, then (with the
               preview) two columns split by a full-height line. */}
-          <header className="shrink-0 border-b border-foreground py-5 pl-8 pr-14">
+          <header
+            className={`shrink-0 py-5 pl-8 pr-14 ${showPreview ? "border-b border-foreground" : "pb-0"}`}
+          >
             <DialogTitle className="truncate text-2xl font-normal leading-tight">
               Share {gatheringName} to your friends!
             </DialogTitle>
           </header>
           <div
-            className={`grid h-[min(51rem,78vh)] min-h-0 divide-x divide-foreground ${showPreview ? "grid-cols-2" : "grid-cols-1"}`}
+            className={`grid min-h-0 divide-x divide-foreground ${
+              showPreview ? "h-[min(51rem,78vh)] grid-cols-2" : "h-[33rem] grid-cols-1"
+            }`}
           >
             {/* Left: what phones get. */}
             {showPreview && (
@@ -409,10 +413,14 @@ export function ShareGatheringDialog({
             )}
 
             {/* Right: the Go Live circle, or the QR code, link and End Session. */}
-            <div className="flex min-h-0 flex-col overflow-y-auto px-8 py-8">
+            <div
+              className={`flex min-h-0 flex-col overflow-y-auto px-8 ${showPreview ? "py-8" : "pb-8 pt-6"}`}
+            >
               {step === "confirm" ? (
                 <>
-                  <div className="flex flex-1 items-start justify-center pt-12">
+                  <div
+                    className={`flex flex-1 justify-center ${showPreview ? "items-start pt-12" : "items-center pb-8"}`}
+                  >
                     <button
                       type="button"
                       onClick={async () => {
@@ -428,7 +436,7 @@ export function ShareGatheringDialog({
                         }
                       }}
                       disabled={goingLive}
-                      className={`mono flex aspect-square w-full max-w-[24.5rem] items-center justify-center rounded-full border border-[var(--brand-red)] text-sm uppercase tracking-wider transition-colors hover:animate-pulse hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] ${
+                      className={`mono flex aspect-square w-full ${showPreview ? "max-w-[24.5rem]" : "max-w-[15rem]"} items-center justify-center rounded-full border border-[var(--brand-red)] text-sm uppercase tracking-wider transition-colors hover:animate-pulse hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] ${
                         goingLive
                           ? "animate-pulse bg-[var(--brand-red)] text-[var(--brand-white)]"
                           : "text-[var(--brand-red)]"
@@ -440,9 +448,11 @@ export function ShareGatheringDialog({
                 </>
               ) : (
                 // The QR code and link sit midway down, between the top and the note.
-                <div className={`flex flex-1 flex-col justify-center pb-12 ${reveal}`}>
+                <div
+                  className={`flex flex-1 flex-col justify-center ${showPreview ? "pb-12" : "pb-8"} ${reveal}`}
+                >
                   {qrBlock}
-                  <div className="mt-12">{linkBlock}</div>
+                  <div className={showPreview ? "mt-12" : "mt-8"}>{linkBlock}</div>
                 </div>
               )}
               {/* The note and the End Session row hold the same place before
@@ -456,12 +466,15 @@ export function ShareGatheringDialog({
                     onEndSession();
                     onOpenChange(false);
                   }}
-                  className={`mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] ${reveal}`}
+                  className={`mono ${showPreview ? "mt-12" : "mt-6"} w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] ${reveal}`}
                 >
                   End Session
                 </button>
               ) : (
-                <div aria-hidden className="mt-12 h-[50px] shrink-0" />
+                <div
+                  aria-hidden
+                  className={`${showPreview ? "mt-12" : "mt-6"} h-[50px] shrink-0`}
+                />
               )}
             </div>
           </div>
