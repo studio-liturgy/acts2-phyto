@@ -143,21 +143,27 @@ export function ShareGatheringDialog({
       }}
     >
       <DialogContent
-        className="flex max-w-4xl flex-col gap-0 rounded-3xl p-8"
+        className="flex max-w-4xl flex-col gap-0 overflow-hidden rounded-3xl p-0"
         aria-describedby={undefined}
       >
-        <div className="flex h-[70vh] min-h-0 gap-8">
+        {/* Laid out like the set editor: a header bar, then columns split by
+            full-height lines. */}
+        <header className="shrink-0 border-b border-foreground py-4 pl-6 pr-14">
+          <DialogTitle className="text-2xl font-normal leading-tight">
+            {step === "confirm" ? "Go live!" : "Share your link!"}
+          </DialogTitle>
+        </header>
+        <div className="flex h-[70vh] min-h-0 divide-x divide-foreground">
           {/* Left: what phones get. */}
-          <div className="min-h-0 shrink-0">
+          <div className="min-h-0 shrink-0 p-6">
             {gatheringId && <GatheringPhonePreview gatheringId={gatheringId} />}
           </div>
 
           {/* Right: the confirmation, then the link and QR code. */}
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">
             {step === "confirm" ? (
               <>
-                <DialogTitle className="text-2xl font-normal leading-tight">Go live!</DialogTitle>
-                <p className="mt-4 text-base">
+                <p className="text-base">
                   This gathering will stay live until you end it or go live on another one. If it's
                   left running, it ends on its own after 14 days.
                 </p>
@@ -183,11 +189,7 @@ export function ShareGatheringDialog({
               </>
             ) : (
               <>
-                <DialogTitle className="text-2xl font-normal leading-tight">
-                  Share your link!
-                </DialogTitle>
-
-                <div className="mt-6 flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
                     {editingSlug ? (
                       <>

@@ -123,19 +123,20 @@ export function ExportGatheringButton({
 
       <Dialog open={open} onOpenChange={(o) => !busy && setOpen(o)}>
         <DialogContent
-          className="flex max-w-5xl flex-col gap-0 rounded-3xl p-8"
+          className="flex max-w-5xl flex-col gap-0 overflow-hidden rounded-3xl p-0"
           aria-describedby={undefined}
         >
-          <div className="flex h-[60vh] min-h-0 gap-6">
-            {/* Left: the title, background, format, and Export at the bottom. */}
-            <div className="flex w-72 shrink-0 flex-col">
-              <DialogTitle className="mb-6 break-words text-2xl font-normal leading-tight">
-                Export {gatheringName}
-              </DialogTitle>
-              <fieldset
-                disabled={busy}
-                className="min-h-0 space-y-4 overflow-y-auto disabled:opacity-60"
-              >
+          {/* Laid out like the set editor: a header bar, then columns split by
+              full-height lines. */}
+          <header className="shrink-0 border-b border-foreground py-4 pl-6 pr-14">
+            <DialogTitle className="truncate text-2xl font-normal leading-tight">
+              Export {gatheringName}
+            </DialogTitle>
+          </header>
+          <div className="flex h-[60vh] min-h-0 divide-x divide-foreground">
+            {/* Left: background, format, and Export under them. */}
+            <div className="flex w-80 shrink-0 flex-col overflow-y-auto p-6">
+              <fieldset disabled={busy} className="space-y-4 disabled:opacity-60">
                 <BackgroundControls />
                 <div>
                   <div className={LABEL}>Format</div>
@@ -169,7 +170,7 @@ export function ExportGatheringButton({
             </div>
 
             {/* Right: every slide in play order, as the file will show it. */}
-            <div className="min-h-0 flex-1 overflow-y-auto pl-1">
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
               {slides === null ? (
                 <div className="flex h-full items-center justify-center">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
