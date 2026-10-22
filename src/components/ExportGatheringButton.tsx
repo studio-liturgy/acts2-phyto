@@ -21,7 +21,7 @@ const LABEL = "mono mb-2 text-[10px] uppercase tracking-wider text-muted-foregro
 
 const FORMATS: { value: ExportFormat; label: string }[] = [
   { value: "pdf", label: "PDF" },
-  { value: "pptx", label: "PowerPoint" },
+  { value: "pptx", label: "PPTX" },
 ];
 
 /** The gathering's slides in play order, as the export draws them. */
