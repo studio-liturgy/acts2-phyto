@@ -1742,12 +1742,16 @@ function Presenter() {
       {/* Go live / Share: the phone preview beside the confirmation, then the
           link and QR code once live (same dialog as the home page). */}
       <ShareGatheringDialog
-        open={showShareDialog || showGoLiveDialog}
+        open={showShareDialog || showGoLiveDialog || showEndSessionDialog}
         onOpenChange={(open) => {
           if (!open) {
             setShowShareDialog(false);
             setShowGoLiveDialog(false);
+            setShowEndSessionDialog(false);
           }
+        }}
+        onEndSession={() => {
+          if (activeGathering) endSession(activeGathering.id);
         }}
         step={showGoLiveDialog ? "confirm" : "share"}
         onGoLive={async () => {
@@ -1771,37 +1775,6 @@ function Presenter() {
           activeGathering && !activeGathering.shared && share.canCustomize ? share.save : undefined
         }
       />
-
-      {/* End Session confirmation */}
-      <AlertDialog open={showEndSessionDialog} onOpenChange={setShowEndSessionDialog}>
-        <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-2xl font-normal leading-tight">
-            End this session?
-          </AlertDialogTitle>
-          <AlertDialogDescription className="mt-4 text-base text-foreground">
-            Ending the session will take this gathering offline. You can go live again at any time.
-          </AlertDialogDescription>
-          <div className="mt-8 flex gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                if (activeGathering) endSession(activeGathering.id);
-                setShowEndSessionDialog(false);
-              }}
-              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
-            >
-              End Session
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowEndSessionDialog(false)}
-              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
-            >
-              Cancel
-            </button>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Delete gathering confirmation — mirrors the home page. */}
       <AlertDialog open={showDeleteGatheringDialog} onOpenChange={setShowDeleteGatheringDialog}>

@@ -8,10 +8,11 @@ import { normalizeSlug, slugErrorMessage, validateSlug, type SlugError } from "@
 type SlugSaveResult = { ok: true } | { ok: false; reason: SlugError | "taken" | "offline" };
 
 /**
- * Go live / Share dialog: the gathering's phone view on the left; on the right
- * either the Go live confirmation (`step="confirm"`) or, once live or opened
- * from Share, the copyable link with the custom-link editor and the QR code
- * (dot/background colours, transparent background, padded PNG download).
+ * Go live / Share dialog, to his mock-ups. Going live or live: a header bar
+ * ("Share <name> to your friends!"), the gathering's phone view on the left
+ * and on the right either the big Go Live circle (`step="confirm"`) or the QR
+ * code (colours, PNG download), the link (copy, Customize link) and End
+ * Session. Nothing live: just "Share your link!" with the QR code and link.
  * Shared by the home catalogue (`GatheringCard`) and the presenter top bar so
  * the two stay in lockstep.
  */
@@ -26,6 +27,7 @@ export function ShareGatheringDialog({
   gatheringId,
   step: startStep = "share",
   onGoLive,
+  onEndSession,
 }: {
   /** The gathering shown in the phone preview. */
   gatheringId: string | null;
@@ -33,6 +35,8 @@ export function ShareGatheringDialog({
   step?: "confirm" | "share";
   /** Go live (the confirmation's button); the link view follows. */
   onGoLive?: () => Promise<void>;
+  /** End the live session (the End Session button, shown while live). */
+  onEndSession?: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   shareUrl: string;
@@ -46,8 +50,10 @@ export function ShareGatheringDialog({
 }) {
   const [step, setStep] = useState(startStep);
   const [goingLive, setGoingLive] = useState(false);
+  const [wentLive, setWentLive] = useState(false);
   useEffect(() => {
     if (open) setStep(startStep);
+    else setWentLive(false);
   }, [open, startStep]);
   const [copiedShare, setCopiedShare] = useState(false);
   const editable = !!onSlugSave && slug !== undefined;
@@ -134,6 +140,200 @@ export function ShareGatheringDialog({
     a.click();
   };
 
+  // Just went live here: keep the two panels while the live flag catches up.
+  const twoPanel = step === "confirm" || !!isLive || wentLive;
+  const NOTE = "mono text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
+  const STAYS_LIVE =
+    "This gathering will stay live until you end it or go live on another one. If it's left running, it ends on its own after 14 days.";
+  const swatch = (selected: boolean): React.CSSProperties => ({
+    borderColor: selected
+      ? "var(--foreground)"
+      : "color-mix(in srgb, var(--foreground) 20%, transparent)",
+  });
+
+  // The QR code with its colours and download, side by side.
+  const qrBlock = shareUrl ? (
+    <div className="flex items-center gap-8">
+      <div
+        className="shrink-0 rounded-2xl p-3"
+        style={
+          qrTransparent
+            ? {
+                backgroundImage:
+                  "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)",
+                backgroundSize: "10px 10px",
+                backgroundPosition: "0 0, 0 5px, 5px -5px, -5px 0px",
+              }
+            : { backgroundColor: qrBg }
+        }
+      >
+        <QRCodeCanvas
+          ref={shareQrRef}
+          value={shareUrl}
+          size={150}
+          fgColor={qrFg}
+          bgColor={qrTransparent ? "transparent" : qrBg}
+        />
+      </div>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start gap-4">
+          <span className="mono w-24 pt-1 text-[10px] uppercase tracking-wider">Dots</span>
+          <div className="grid grid-cols-3 gap-2">
+            {QR_FG_PRESETS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setQrFg(c)}
+                className="h-6 w-6 rounded-full border-2 transition"
+                style={{ backgroundColor: c, ...swatch(qrFg === c) }}
+                aria-label={`Dots ${c}`}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => qrFgCustomRef.current?.click()}
+              className="flex h-6 w-6 items-center justify-center rounded-full border-2 transition"
+              style={{
+                ...swatch(false),
+                backgroundColor: QR_FG_PRESETS.includes(qrFg) ? "transparent" : qrFg,
+                color: "var(--foreground)",
+              }}
+              aria-label="Custom dot colour"
+            >
+              {QR_FG_PRESETS.includes(qrFg) && <span className="text-xs leading-none">+</span>}
+            </button>
+            <input
+              ref={qrFgCustomRef}
+              type="color"
+              value={qrFg}
+              onChange={(e) => setQrFg(e.target.value)}
+              className="sr-only"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="mono w-24 text-[10px] uppercase tracking-wider">Background</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setQrBackground("#000000")}
+              className="h-6 w-6 rounded-full border-2 transition"
+              style={{
+                backgroundColor: "#000000",
+                ...swatch(!qrTransparent && qrBg === "#000000"),
+              }}
+              aria-label="Black background"
+            />
+            <button
+              type="button"
+              onClick={() => setQrBackground("#ffffff")}
+              className="h-6 w-6 rounded-full border-2 transition"
+              style={{
+                backgroundColor: "#ffffff",
+                ...swatch(!qrTransparent && qrBg === "#ffffff"),
+              }}
+              aria-label="White background"
+            />
+            <button
+              type="button"
+              onClick={() => setQrBackground(null)}
+              className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 p-0 transition"
+              style={swatch(qrTransparent)}
+              aria-label="Transparent background"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" style={{ display: "block" }}>
+                <path d="M12 2 A10 10 0 0 1 12 22 Z" fill="#212121" />
+                <path d="M12 22 A10 10 0 0 1 12 2 Z" fill="#F5EFEF" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => downloadQr(`${gatheringName}-qr.png`)}
+          className="mono uppercase self-start rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+        >
+          Download PNG
+        </button>
+      </div>
+    </div>
+  ) : null;
+
+  // The link bar with copy, then Customize link under it.
+  const linkBlock = (
+    <div>
+      <div className="flex items-center overflow-hidden rounded-full border border-foreground">
+        {editingSlug ? (
+          <>
+            <span className="pl-4 font-mono text-sm uppercase text-muted-foreground">/g/</span>
+            <input
+              autoFocus
+              value={draftSlug}
+              onChange={(e) => {
+                setDraftSlug(e.target.value);
+                setSlugError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveSlug();
+                if (e.key === "Escape") cancelEdit();
+              }}
+              disabled={savingSlug}
+              className="flex-1 bg-transparent py-2 pr-3 font-mono text-sm uppercase text-foreground outline-none"
+              placeholder="my-gathering"
+            />
+            <button
+              type="button"
+              onClick={saveSlug}
+              disabled={savingSlug}
+              className="mono uppercase flex h-10 items-center rounded-full bg-foreground px-5 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-50"
+            >
+              {savingSlug ? "Saving" : "Save"}
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Empty while the account slug resolves (no seed flash): a quiet
+                placeholder, and copy waits until it lands. */}
+            <span
+              className={`flex-1 truncate px-4 font-mono text-sm uppercase ${shareUrl ? "text-foreground" : "text-muted-foreground"}`}
+            >
+              {shareUrl || "Loading link"}
+            </span>
+            <button
+              type="button"
+              disabled={!shareUrl}
+              onClick={() => {
+                navigator.clipboard.writeText(shareUrl);
+                setCopiedShare(true);
+                setTimeout(() => setCopiedShare(false), 2000);
+              }}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90 disabled:opacity-40"
+              aria-label="Copy URL"
+            >
+              {copiedShare ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </button>
+          </>
+        )}
+      </div>
+      {editable && editingSlug && slugError && (
+        <p className="mono mt-2 px-4 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+          {slugError}
+        </p>
+      )}
+      {editable && !editingSlug && (
+        <div className="mt-2 text-center">
+          <button
+            type="button"
+            onClick={() => setEditingSlug(true)}
+            className="mono text-[10px] uppercase tracking-wider text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
+          >
+            Customize link
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Dialog
       open={open}
@@ -142,277 +342,88 @@ export function ShareGatheringDialog({
         onOpenChange(o);
       }}
     >
-      <DialogContent
-        className="flex max-w-4xl flex-col gap-0 overflow-hidden rounded-3xl p-0"
-        aria-describedby={undefined}
-      >
-        {/* Laid out like the set editor: a header bar, then columns split by
-            full-height lines. */}
-        <header className="shrink-0 border-b border-foreground py-4 pl-6 pr-14">
-          <DialogTitle className="text-2xl font-normal leading-tight">
-            {step === "confirm" ? "Go live!" : "Share your link!"}
-          </DialogTitle>
-        </header>
-        <div className="flex h-[70vh] min-h-0 divide-x divide-foreground">
-          {/* Left: what phones get. */}
-          <div className="min-h-0 shrink-0 p-6">
-            {gatheringId && <GatheringPhonePreview gatheringId={gatheringId} />}
-          </div>
+      {twoPanel ? (
+        <DialogContent
+          className="flex max-w-[58rem] flex-col gap-0 overflow-hidden rounded-3xl p-0"
+          aria-describedby={undefined}
+        >
+          {/* Laid out like the set editor: a header bar, then two columns
+              split by a full-height line. */}
+          <header className="shrink-0 border-b border-foreground py-5 pl-8 pr-14">
+            <DialogTitle className="truncate text-2xl font-normal leading-tight">
+              Share {gatheringName} to your friends!
+            </DialogTitle>
+          </header>
+          <div className="grid h-[min(51rem,78vh)] min-h-0 grid-cols-2 divide-x divide-foreground">
+            {/* Left: what phones get. */}
+            <div className="min-h-0 px-8 py-8">
+              {gatheringId && <GatheringPhonePreview gatheringId={gatheringId} />}
+            </div>
 
-          {/* Right: the confirmation, then the link and QR code. */}
-          <div className="min-h-0 flex-1 overflow-y-auto p-6">
-            {step === "confirm" ? (
-              <>
-                <p className="text-base">
-                  This gathering will stay live until you end it or go live on another one. If it's
-                  left running, it ends on its own after 14 days.
-                </p>
-                <div className="mt-8">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!onGoLive) return;
-                      setGoingLive(true);
-                      try {
-                        await onGoLive();
-                        setStep("share");
-                      } finally {
-                        setGoingLive(false);
-                      }
-                    }}
-                    disabled={goingLive}
-                    className="mono uppercase w-full rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-70"
-                  >
-                    {goingLive ? "Going Live..." : "Go Live"}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2">
-                  <div className="flex flex-1 items-center overflow-hidden rounded-full border border-foreground">
-                    {editingSlug ? (
-                      <>
-                        <span className="pl-4 font-mono uppercase text-sm text-muted-foreground">
-                          /g/
-                        </span>
-                        <input
-                          autoFocus
-                          value={draftSlug}
-                          onChange={(e) => {
-                            setDraftSlug(e.target.value);
-                            setSlugError(null);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") saveSlug();
-                            if (e.key === "Escape") cancelEdit();
-                          }}
-                          disabled={savingSlug}
-                          className="flex-1 bg-transparent py-2 pr-3 font-mono text-sm uppercase text-foreground outline-none"
-                          placeholder="my-gathering"
-                        />
-                        <button
-                          type="button"
-                          onClick={saveSlug}
-                          disabled={savingSlug}
-                          className="mono uppercase flex h-10 items-center rounded-full bg-foreground px-5 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-50"
-                        >
-                          {savingSlug ? "Saving" : "Save"}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {/* Empty while the account slug resolves (no seed flash): show a
-                    quiet placeholder and hold the copy/QR actions until it lands. */}
-                        <span className="flex-1 truncate px-4 font-mono uppercase text-sm text-muted-foreground">
-                          {shareUrl || "Loading link"}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={!shareUrl}
-                          onClick={() => {
-                            navigator.clipboard.writeText(shareUrl);
-                            setCopiedShare(true);
-                            setTimeout(() => setCopiedShare(false), 2000);
-                          }}
-                          className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90 disabled:opacity-40"
-                          aria-label="Copy URL"
-                        >
-                          <span className="transition-all duration-300">
-                            {copiedShare ? (
-                              <Check className="h-4 w-4" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {editable && editingSlug && slugError && (
-                  <p className="mono mt-2 px-4 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
-                    {slugError}
-                  </p>
-                )}
-
-                {editable && !editingSlug && (
-                  <button
-                    type="button"
-                    onClick={() => setEditingSlug(true)}
-                    className="mono mt-2 px-4 text-[10px] uppercase tracking-wider text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
-                  >
-                    Customize link
-                  </button>
-                )}
-
-                {shareUrl && (
-                  <div className="mt-6 flex flex-col items-center gap-3">
-                    <div
-                      className="rounded-xl p-4"
-                      style={
-                        qrTransparent
-                          ? {
-                              backgroundImage:
-                                "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)",
-                              backgroundSize: "10px 10px",
-                              backgroundPosition: "0 0, 0 5px, 5px -5px, -5px 0px",
-                            }
-                          : { backgroundColor: qrBg }
-                      }
-                    >
-                      <QRCodeCanvas
-                        ref={shareQrRef}
-                        value={shareUrl}
-                        size={180}
-                        fgColor={qrFg}
-                        bgColor={qrTransparent ? "transparent" : qrBg}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2 self-stretch">
-                      <div className="flex items-center gap-3">
-                        <span className="w-28 font-mono text-xs uppercase text-foreground">
-                          Dots
-                        </span>
-                        <div className="flex gap-1.5">
-                          {QR_FG_PRESETS.map((c) => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => setQrFg(c)}
-                              className="h-7 w-7 rounded-full border-2 transition"
-                              style={{
-                                backgroundColor: c,
-                                borderColor:
-                                  qrFg === c
-                                    ? "var(--foreground)"
-                                    : "color-mix(in srgb, var(--foreground) 20%, transparent)",
-                              }}
-                            />
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => qrFgCustomRef.current?.click()}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition"
-                            style={{
-                              borderColor: "color-mix(in srgb, var(--foreground) 20%, transparent)",
-                              backgroundColor: QR_FG_PRESETS.includes(qrFg) ? "transparent" : qrFg,
-                              color: "var(--foreground)",
-                            }}
-                          >
-                            {QR_FG_PRESETS.includes(qrFg) && (
-                              <span className="text-sm leading-none">+</span>
-                            )}
-                          </button>
-                          <input
-                            ref={qrFgCustomRef}
-                            type="color"
-                            value={qrFg}
-                            onChange={(e) => setQrFg(e.target.value)}
-                            className="sr-only"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="w-28 font-mono text-xs uppercase text-foreground">
-                          Background
-                        </span>
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setQrBackground("#000000")}
-                            className="h-7 w-7 rounded-full border-2 transition"
-                            style={{
-                              backgroundColor: "#000000",
-                              borderColor:
-                                !qrTransparent && qrBg === "#000000"
-                                  ? "var(--foreground)"
-                                  : "color-mix(in srgb, var(--foreground) 20%, transparent)",
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setQrBackground("#ffffff")}
-                            className="h-7 w-7 rounded-full border-2 transition"
-                            style={{
-                              backgroundColor: "#ffffff",
-                              borderColor:
-                                !qrTransparent && qrBg === "#ffffff"
-                                  ? "var(--foreground)"
-                                  : "color-mix(in srgb, var(--foreground) 20%, transparent)",
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setQrBackground(null)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition overflow-hidden"
-                            style={{
-                              borderColor: qrTransparent
-                                ? "var(--foreground)"
-                                : "color-mix(in srgb, var(--foreground) 20%, transparent)",
-                              padding: 0,
-                            }}
-                          >
-                            <svg
-                              width="24"
-                              height="24"
-                              viewBox="0 0 24 24"
-                              style={{ display: "block" }}
-                            >
-                              <path d="M12 2 A10 10 0 0 1 12 22 Z" fill="#212121" />
-                              <path d="M12 22 A10 10 0 0 1 12 2 Z" fill="#F5EFEF" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+            {/* Right: the Go Live circle, or the QR code, link and End Session. */}
+            <div className="flex min-h-0 flex-col overflow-y-auto px-8 py-8">
+              {step === "confirm" ? (
+                <>
+                  <div className="flex flex-1 items-start justify-center pt-12">
                     <button
                       type="button"
-                      onClick={() => downloadQr(`${gatheringName}-qr.png`)}
-                      className="mono uppercase rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                      onClick={async () => {
+                        if (!onGoLive) return;
+                        setGoingLive(true);
+                        try {
+                          await onGoLive();
+                          setWentLive(true);
+                          setStep("share");
+                        } finally {
+                          setGoingLive(false);
+                        }
+                      }}
+                      disabled={goingLive}
+                      className={`mono flex aspect-square w-full max-w-[24.5rem] items-center justify-center rounded-full border border-[var(--brand-red)] text-sm uppercase tracking-wider transition-colors hover:animate-pulse hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] ${
+                        goingLive
+                          ? "animate-pulse bg-[var(--brand-red)] text-[var(--brand-white)]"
+                          : "text-[var(--brand-red)]"
+                      }`}
                     >
-                      Download
+                      {goingLive ? "Going Live..." : "Go Live"}
                     </button>
                   </div>
-                )}
-
-                <div className="mt-6 flex flex-col items-start gap-2">
-                  {isLive ? (
-                    <p className="mono uppercase text-[10px] tracking-wider text-muted-foreground">
-                      Sharing <span className="text-foreground">{gatheringName}</span>, live now.
-                    </p>
-                  ) : (
-                    <p className="mono uppercase text-[10px] tracking-wider text-muted-foreground">
-                      Whatever gathering goes live will be accessible at this link.
-                    </p>
+                  <p className={NOTE}>{STAYS_LIVE}</p>
+                </>
+              ) : (
+                <>
+                  <div className="pt-8">{qrBlock}</div>
+                  <div className="mt-24">{linkBlock}</div>
+                  <div className="flex-1" />
+                  <p className={NOTE}>{STAYS_LIVE}</p>
+                  {onEndSession && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onEndSession();
+                        onOpenChange(false);
+                      }}
+                      className="mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                    >
+                      End Session
+                    </button>
                   )}
-                </div>
-              </>
-            )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </DialogContent>
+        </DialogContent>
+      ) : (
+        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+          {/* Nothing live: the link and its QR code only. */}
+          <DialogTitle className="text-2xl font-normal leading-tight">Share your link!</DialogTitle>
+          <div className="mt-8">{qrBlock}</div>
+          <div className="mt-14">{linkBlock}</div>
+          <p className={`${NOTE} mt-20`}>
+            Whatever gathering goes live will be accessible at this link.
+          </p>
+        </DialogContent>
+      )}
     </Dialog>
   );
 }

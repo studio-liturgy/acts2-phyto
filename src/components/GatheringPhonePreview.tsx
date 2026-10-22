@@ -15,7 +15,7 @@ const NONE: Record<string, string[]> = {};
 /**
  * The phone view of a gathering in the presenter's phone frame, for the Go
  * live / Share dialog: tabs and scrolling work, chords switch on and off
- * (the switch under the phone), nothing edits the sets.
+ * (the switch above the phone), nothing edits the sets.
  */
 export function GatheringPhonePreview({ gatheringId }: { gatheringId: string }) {
   const phoneSets = useGatheringPhoneSets(gatheringId);
@@ -37,23 +37,7 @@ export function GatheringPhonePreview({ gatheringId }: { gatheringId: string }) 
   }, [gatheringId]);
 
   return (
-    <div className="flex h-full flex-col items-center gap-3">
-      <div
-        className="min-h-0 flex-1 overflow-hidden rounded-[2rem] border border-foreground/25 bg-black"
-        style={{ width: 340 }}
-      >
-        <PhoneViewer
-          sets={phoneSets}
-          hiddenBySet={hidden}
-          arrangementsBySet={arrangementsOn ? arranged : undefined}
-          embedded
-          showSettings={false}
-          prefs={prefs}
-          onPrefsChange={setPrefs}
-          activeId={activeId}
-          onActiveChange={setActiveId}
-        />
-      </div>
+    <div className="flex h-full flex-col items-center gap-5">
       {hasChords && (
         <label className="flex items-center gap-3">
           <span className="mono text-[10px] uppercase tracking-wider">Chords</span>
@@ -75,6 +59,22 @@ export function GatheringPhonePreview({ gatheringId }: { gatheringId: string }) 
           </button>
         </label>
       )}
+      <div
+        className="min-h-0 flex-1 overflow-hidden rounded-[2rem] border border-foreground/25 bg-black"
+        style={{ width: 340 }}
+      >
+        <PhoneViewer
+          sets={phoneSets}
+          hiddenBySet={hidden}
+          arrangementsBySet={arrangementsOn ? arranged : undefined}
+          embedded
+          showSettings={false}
+          prefs={prefs}
+          onPrefsChange={setPrefs}
+          activeId={activeId}
+          onActiveChange={setActiveId}
+        />
+      </div>
     </div>
   );
 }
