@@ -179,16 +179,20 @@ export function ExportGatheringButton({
                   No slides to export
                 </p>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Framed like the set editor's slide grid. */}
                   {slides.map((item, i) => (
-                    <SlideView
+                    <div
                       key={`${i}-${item.slide.id}`}
-                      slide={item.slide}
-                      versions={item.versions}
-                      template={item.template}
-                      variant="thumb"
-                      className="rounded-lg border border-foreground/10"
-                    />
+                      className="relative overflow-hidden rounded-md"
+                    >
+                      <SlideView
+                        slide={item.slide}
+                        versions={item.versions}
+                        template={item.template}
+                        variant="thumb"
+                      />
+                    </div>
                   ))}
                 </div>
               )}

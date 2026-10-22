@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { PhoneViewer } from "@/components/PhoneViewer";
+import { useTheme } from "@/hooks/use-theme";
 import {
   gatheringSectionsReady,
   loadGatheringSections,
@@ -24,6 +25,9 @@ export function GatheringPhonePreview({ gatheringId }: { gatheringId: string }) 
   const [prefs, setPrefs] = useState<ViewerPrefs>(() => loadPrefs());
   const [activeId, setActiveId] = useState<string | null>(phoneSets[0]?.id ?? null);
   const hasChords = phoneSets.some(phoneSetHasChords);
+  // The switch is the presenter's (ViewerSettings): themed to the app, never
+  // faded when off.
+  const dark = useTheme().mode === "dark";
   // Hidden sections and arrangements, as phones get them (the home page may
   // not have read them yet).
   useEffect(() => {
@@ -60,13 +64,13 @@ export function GatheringPhonePreview({ gatheringId }: { gatheringId: string }) 
             aria-label="Show chords"
             onClick={() => setPrefs((p) => ({ ...p, showChords: !p.showChords }))}
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
-              prefs.showChords ? "bg-foreground" : "bg-foreground/25"
+              dark ? "bg-white" : "bg-black"
             }`}
           >
             <span
-              className={`inline-block h-4 w-4 rounded-full bg-background transition-transform ${
-                prefs.showChords ? "translate-x-[18px]" : "translate-x-0.5"
-              }`}
+              className={`inline-block h-4 w-4 rounded-full transition-transform ${
+                dark ? "bg-black" : "bg-white"
+              } ${prefs.showChords ? "translate-x-[18px]" : "translate-x-0.5"}`}
             />
           </button>
         </label>
