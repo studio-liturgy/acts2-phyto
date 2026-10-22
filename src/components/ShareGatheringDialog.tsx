@@ -29,7 +29,12 @@ export function ShareGatheringDialog({
   step: startStep = "share",
   onGoLive,
   onEndSession,
+  showPreview = true,
 }: {
+  /** Show the phone preview (and the live two-panel view). The presenter
+   *  turns it off: it has its own preview, so Share there is just the QR code
+   *  and link. Going live keeps the two panels either way. */
+  showPreview?: boolean;
   /** The gathering shown in the phone preview. */
   gatheringId: string | null;
   /** What the right side opens on: the Go live confirmation, or the link. */
@@ -164,7 +169,7 @@ export function ShareGatheringDialog({
   };
 
   // Just went live here: keep the two panels while the live flag catches up.
-  const twoPanel = step === "confirm" || !!isLive || wentLive;
+  const twoPanel = step === "confirm" || wentLive || (!!isLive && showPreview);
   const NOTE = "mono text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
   const STAYS_LIVE =
     "This gathering will stay live until you end it or go live on another one. If it's left running, it ends on its own after 14 days.";
@@ -457,14 +462,15 @@ export function ShareGatheringDialog({
         </DialogContent>
       ) : (
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-          {/* Nothing live: the link and its QR code only. */}
+          {/* Nothing live (or the presenter's Share): the link and its QR code
+              only. */}
           <DialogTitle className="text-2xl font-normal leading-tight">Share your link!</DialogTitle>
           <div className={reveal}>
             <div className="mt-8">{qrBlock}</div>
             <div className="mt-14">{linkBlock}</div>
           </div>
           <p className={`${NOTE} mt-8`}>
-            Whatever gathering goes live will be accessible at this link.
+            {isLive ? STAYS_LIVE : "Whatever gathering goes live will be accessible at this link."}
           </p>
         </DialogContent>
       )}
