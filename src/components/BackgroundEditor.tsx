@@ -13,6 +13,16 @@ const LABEL = "mono mb-2 text-[10px] uppercase tracking-wider text-muted-foregro
  * Changes apply as they're made: no Apply step.
  */
 export function BackgroundEditor() {
+  return (
+    <FoldCard title="Background" ariaLabel="the background">
+      <BackgroundControls />
+    </FoldCard>
+  );
+}
+
+/** The Background card's controls, also in the export dialog. They edit the
+ *  same setting wherever they're shown. */
+export function BackgroundControls() {
   const background = useLibrary((s) => s.background);
   const setBackground = useLibrary((s) => s.setBackground);
   // With an image behind the slide the solid colour is hidden, so the same
@@ -37,55 +47,53 @@ export function BackgroundEditor() {
   };
 
   return (
-    <FoldCard title="Background" ariaLabel="the background">
-      <div className="space-y-4 text-sm">
-        <div>
-          <div className={LABEL}>{hasImage ? "Font colour" : "Background"}</div>
-          <div className="grid grid-cols-2 gap-2">
-            {hasImage ? (
-              <>
-                {colourButton("white", "Black", "white")}
-                {colourButton("black", "White", "black")}
-              </>
-            ) : (
-              <>
-                {colourButton("black", "Black", "black")}
-                {colourButton("white", "White", "white")}
-              </>
-            )}
-          </div>
-          <BackgroundImagePicker
-            url={background.bgImage}
-            dim={background.bgDim}
-            onChange={(patch) => setBackground(patch)}
-          />
+    <div className="space-y-4 text-sm">
+      <div>
+        <div className={LABEL}>{hasImage ? "Font colour" : "Background"}</div>
+        <div className="grid grid-cols-2 gap-2">
+          {hasImage ? (
+            <>
+              {colourButton("white", "Black", "white")}
+              {colourButton("black", "White", "black")}
+            </>
+          ) : (
+            <>
+              {colourButton("black", "Black", "black")}
+              {colourButton("white", "White", "white")}
+            </>
+          )}
         </div>
+        <BackgroundImagePicker
+          url={background.bgImage}
+          dim={background.bgDim}
+          onChange={(patch) => setBackground(patch)}
+        />
+      </div>
 
-        {/* The projected screen's shape. Every slide, thumbnail, the output
+      {/* The projected screen's shape. Every slide, thumbnail, the output
             window and exports follow it. */}
-        <div>
-          <div className={LABEL}>Aspect ratio</div>
-          <div className="grid grid-cols-4 gap-2">
-            {SLIDE_ASPECTS.map((a) => {
-              const active = (background.aspect ?? "16:9") === a;
-              return (
-                <button
-                  key={a}
-                  onClick={() => setBackground({ aspect: a })}
-                  className={`mono rounded-lg border px-2 py-2 text-[10px] tabular-nums transition ${
-                    active
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/20 hover:border-foreground"
-                  }`}
-                >
-                  {a}
-                </button>
-              );
-            })}
-          </div>
+      <div>
+        <div className={LABEL}>Aspect ratio</div>
+        <div className="grid grid-cols-4 gap-2">
+          {SLIDE_ASPECTS.map((a) => {
+            const active = (background.aspect ?? "16:9") === a;
+            return (
+              <button
+                key={a}
+                onClick={() => setBackground({ aspect: a })}
+                className={`mono rounded-lg border px-2 py-2 text-[10px] tabular-nums transition ${
+                  active
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-foreground/20 hover:border-foreground"
+                }`}
+              >
+                {a}
+              </button>
+            );
+          })}
         </div>
       </div>
-    </FoldCard>
+    </div>
   );
 }
 
