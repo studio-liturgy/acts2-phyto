@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -117,7 +117,7 @@ export function ExportGatheringButton({
         title="Export gathering"
         aria-label="Export gathering"
       >
-        <Download className="h-4 w-4" />
+        <Upload className="h-4 w-4" />
       </button>
 
       <Dialog open={open} onOpenChange={(o) => !busy && setOpen(o)}>
@@ -154,7 +154,7 @@ export function ExportGatheringButton({
             </div>
 
             {/* Right: the background, the format, and Export at the bottom. */}
-            <div className="flex w-72 shrink-0 flex-col">
+            <div className="flex w-72 shrink-0 flex-col justify-center">
               <fieldset
                 disabled={busy}
                 className="min-h-0 space-y-4 overflow-y-auto disabled:opacity-60"
