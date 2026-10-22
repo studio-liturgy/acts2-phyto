@@ -15,6 +15,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { APP_NAME } from "@/lib/appConfig";
 import { isLiveNow } from "@/lib/live-session";
 import { SlideView, DissolveSlide } from "@/components/SlideView";
+import { ExportGatheringButton } from "@/components/ExportGatheringButton";
 import { ScrollingName } from "@/components/ScrollingName";
 import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
@@ -912,6 +913,13 @@ function Presenter() {
                 className="mr-3"
                 title="Slide size"
                 aria-label="Slide size"
+              />
+            )}
+            {/* Export the gathering as PDF or PowerPoint, both modes. */}
+            {activeGathering && (
+              <ExportGatheringButton
+                gatheringId={activeGathering.id}
+                className="border border-foreground"
               />
             )}
             {/* Share — mobile mode only. */}

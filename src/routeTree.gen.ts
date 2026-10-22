@@ -34,6 +34,7 @@ import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedb
 import { Route as ApiPublicContributeRouteImport } from './routes/api/public/contribute'
 import { Route as ApiMediaUsageRouteImport } from './routes/api/media/usage'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
+import { Route as ApiMediaRawRouteImport } from './routes/api/media/raw'
 import { Route as ApiGroupsInviteRouteImport } from './routes/api/groups/invite'
 import { Route as ApiAuthWelcomeRouteImport } from './routes/api/auth/welcome'
 import { Route as ApiAccountDeleteRouteImport } from './routes/api/account/delete'
@@ -163,6 +164,11 @@ const ApiMediaUploadRoute = ApiMediaUploadRouteImport.update({
   path: '/api/media/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaRawRoute = ApiMediaRawRouteImport.update({
+  id: '/api/media/raw',
+  path: '/api/media/raw',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGroupsInviteRoute = ApiGroupsInviteRouteImport.update({
   id: '/api/groups/invite',
   path: '/api/groups/invite',
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
+  '/api/media/raw': typeof ApiMediaRawRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/media/usage': typeof ApiMediaUsageRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
@@ -231,6 +238,7 @@ export interface FileRoutesByTo {
   '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
+  '/api/media/raw': typeof ApiMediaRawRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/media/usage': typeof ApiMediaUsageRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
+  '/api/media/raw': typeof ApiMediaRawRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/media/usage': typeof ApiMediaUsageRoute
   '/api/public/contribute': typeof ApiPublicContributeRoute
@@ -294,6 +303,7 @@ export interface FileRouteTypes {
     | '/api/account/delete'
     | '/api/auth/welcome'
     | '/api/groups/invite'
+    | '/api/media/raw'
     | '/api/media/upload'
     | '/api/media/usage'
     | '/api/public/contribute'
@@ -324,6 +334,7 @@ export interface FileRouteTypes {
     | '/api/account/delete'
     | '/api/auth/welcome'
     | '/api/groups/invite'
+    | '/api/media/raw'
     | '/api/media/upload'
     | '/api/media/usage'
     | '/api/public/contribute'
@@ -354,6 +365,7 @@ export interface FileRouteTypes {
     | '/api/account/delete'
     | '/api/auth/welcome'
     | '/api/groups/invite'
+    | '/api/media/raw'
     | '/api/media/upload'
     | '/api/media/usage'
     | '/api/public/contribute'
@@ -385,6 +397,7 @@ export interface RootRouteChildren {
   ApiAccountDeleteRoute: typeof ApiAccountDeleteRoute
   ApiAuthWelcomeRoute: typeof ApiAuthWelcomeRoute
   ApiGroupsInviteRoute: typeof ApiGroupsInviteRoute
+  ApiMediaRawRoute: typeof ApiMediaRawRoute
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
   ApiMediaUsageRoute: typeof ApiMediaUsageRoute
   ApiPublicContributeRoute: typeof ApiPublicContributeRoute
@@ -571,6 +584,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMediaUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media/raw': {
+      id: '/api/media/raw'
+      path: '/api/media/raw'
+      fullPath: '/api/media/raw'
+      preLoaderRoute: typeof ApiMediaRawRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/groups/invite': {
       id: '/api/groups/invite'
       path: '/api/groups/invite'
@@ -617,6 +637,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAccountDeleteRoute: ApiAccountDeleteRoute,
   ApiAuthWelcomeRoute: ApiAuthWelcomeRoute,
   ApiGroupsInviteRoute: ApiGroupsInviteRoute,
+  ApiMediaRawRoute: ApiMediaRawRoute,
   ApiMediaUploadRoute: ApiMediaUploadRoute,
   ApiMediaUsageRoute: ApiMediaUsageRoute,
   ApiPublicContributeRoute: ApiPublicContributeRoute,

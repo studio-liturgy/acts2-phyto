@@ -46,6 +46,7 @@ import type { Set as PhytoSet, SetKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
 import { FirstTimeLanding } from "@/components/FirstTimeLanding";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
+import { ExportGatheringButton } from "@/components/ExportGatheringButton";
 import { ShareSetDialog } from "@/components/ShareSetDialog";
 import {
   claimShares,
@@ -2050,6 +2051,7 @@ function GatheringCard({
             >
               <ArrowUpRight className="h-4 w-4" />
             </Link>
+            <ExportGatheringButton gatheringId={gatheringId} />
             {isSignedIn &&
               (isLive ? (
                 <button
