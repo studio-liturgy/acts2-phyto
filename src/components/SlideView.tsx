@@ -422,7 +422,10 @@ export function SlideView({
 
   const fontScale = template?.fontScale ?? 1;
   const bgMode = back.bg;
-  const surfaceBg = bgMode === "white" ? "bg-white" : "bg-black";
+  // Under a backdrop image the surface colour only sets the text colour. A
+  // white fill there showed through a translucent card border (and the image's
+  // anti-aliased rounded edge) as a white outline, so it's always black.
+  const surfaceBg = bgMode === "white" && !backdrop ? "bg-white" : "bg-black";
   const surfaceText = bgMode === "white" ? "text-black" : "text-white";
   const placeholderText = bgMode === "white" ? "text-black/40" : "text-white/40";
   const alignClass =
