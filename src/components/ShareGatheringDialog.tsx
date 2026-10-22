@@ -390,8 +390,8 @@ export function ShareGatheringDialog({
                   </div>
                 </>
               ) : (
-                // The QR code and link sit low, just above the note.
-                <div className="flex flex-1 flex-col justify-end pb-12">
+                // The QR code and link sit midway down, between the top and the note.
+                <div className="flex flex-1 flex-col justify-center pb-12">
                   {qrBlock}
                   <div className="mt-12">{linkBlock}</div>
                 </div>

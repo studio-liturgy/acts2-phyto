@@ -47,8 +47,8 @@ async function exportSlidesFor(gatheringId: string): Promise<ExportSlide[]> {
  * Export a whole gathering as one PDF or PowerPoint file: every set in run
  * order, each slide drawn as the output screen shows it. The button sits
  * beside the gathering's other header buttons (home card, presenter header)
- * and opens a dialog: the title, Background controls (the same setting as the
- * presenter's card) and format on the left, the slides on the right.
+ * and opens a dialog: the slides on the left, the Background controls (the same
+ * setting as the presenter's card), format and Export on the right.
  */
 export function ExportGatheringButton({
   gatheringId,
@@ -137,7 +137,37 @@ export function ExportGatheringButton({
           <div
             className={`flex h-[60vh] min-h-0 divide-x divide-foreground ${busy ? "pointer-events-none" : ""}`}
           >
-            {/* Left: background, format, and Export under them. */}
+            {/* Left: every slide in play order, as the file will show it. */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              {slides === null ? (
+                <div className="flex h-full items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : slides.length === 0 ? (
+                <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
+                  No slides to export
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Framed like the set editor's slide grid. */}
+                  {slides.map((item, i) => (
+                    <div
+                      key={`${i}-${item.slide.id}`}
+                      className="relative overflow-hidden rounded-md"
+                    >
+                      <SlideView
+                        slide={item.slide}
+                        versions={item.versions}
+                        template={item.template}
+                        variant="thumb"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right: background, format, and Export under them. */}
             <div className="flex w-80 shrink-0 flex-col overflow-y-auto p-6">
               <fieldset disabled={busy} className="space-y-4 disabled:opacity-60">
                 <BackgroundControls />
@@ -196,36 +226,6 @@ export function ExportGatheringButton({
                   {busy ? `${progress.done}/${progress.total}` : "Export"}
                 </span>
               </button>
-            </div>
-
-            {/* Right: every slide in play order, as the file will show it. */}
-            <div className="min-h-0 flex-1 overflow-y-auto p-6">
-              {slides === null ? (
-                <div className="flex h-full items-center justify-center">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : slides.length === 0 ? (
-                <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
-                  No slides to export
-                </p>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {/* Framed like the set editor's slide grid. */}
-                  {slides.map((item, i) => (
-                    <div
-                      key={`${i}-${item.slide.id}`}
-                      className="relative overflow-hidden rounded-md"
-                    >
-                      <SlideView
-                        slide={item.slide}
-                        versions={item.versions}
-                        template={item.template}
-                        variant="thumb"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </DialogContent>
