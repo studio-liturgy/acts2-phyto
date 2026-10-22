@@ -202,27 +202,24 @@ export function ExportGatheringButton({
                     : "hover:bg-foreground hover:text-background disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-foreground"
                 }`}
               >
-                {/* Exporting: a ring fills round the circle, slides done of
-                    total in the middle. */}
+                {/* Exporting: the circle fills clockwise from 12 o'clock like a
+                    clock hand, slides done of total in the middle. */}
                 {busy && (
-                  <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 100 100">
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="48.5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      pathLength={1}
-                      strokeDasharray="1"
-                      strokeDashoffset={
-                        1 - (progress.total > 0 ? progress.done / progress.total : 0)
-                      }
-                      className="transition-[stroke-dashoffset] duration-300 ease-out"
-                    />
-                  </svg>
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      background: `conic-gradient(var(--foreground) ${
+                        progress.total > 0 ? (progress.done / progress.total) * 360 : 0
+                      }deg, transparent 0deg)`,
+                    }}
+                  />
                 )}
-                <span className="tabular-nums">
+                {/* Difference blending keeps the count readable over both the
+                    filled and the empty part, in either theme. */}
+                <span
+                  className={`relative tabular-nums ${busy ? "text-white mix-blend-difference" : ""}`}
+                >
                   {busy ? `${progress.done}/${progress.total}` : "Export"}
                 </span>
               </button>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Copy, Check } from "lucide-react";
 import { GatheringPhonePreview } from "@/components/GatheringPhonePreview";
+import { ColorPicker } from "@/components/ColorPicker";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { normalizeSlug, slugErrorMessage, validateSlug, type SlugError } from "@/lib/slug";
 
@@ -100,8 +101,9 @@ export function ShareGatheringDialog({
   const [qrFg, setQrFg] = useState("#212121");
   const [qrBg, setQrBg] = useState("#ffffff");
   const [qrTransparent, setQrTransparent] = useState(false);
+  // The download draws from a separate, large canvas (not the 150px one on
+  // screen) so the PNG is sharp: 1200px plus a 160px quiet margin.
   const shareQrRef = useRef<HTMLCanvasElement>(null);
-  const qrFgCustomRef = useRef<HTMLInputElement>(null);
 
   const QR_FG_PRESETS = qrTransparent
     ? ["#212121", "#F5EFEF", "#2E7299", "#538844", "#E07D31", "#C01E21"]
@@ -123,7 +125,7 @@ export function ShareGatheringDialog({
   const downloadQr = (filename: string) => {
     const canvas = shareQrRef.current;
     if (!canvas) return;
-    const padding = 20;
+    const padding = 160;
     const out = document.createElement("canvas");
     out.width = canvas.width + padding * 2;
     out.height = canvas.height + padding * 2;
@@ -168,11 +170,20 @@ export function ShareGatheringDialog({
         }
       >
         <QRCodeCanvas
-          ref={shareQrRef}
           value={shareUrl}
           size={150}
           fgColor={qrFg}
           bgColor={qrTransparent ? "transparent" : qrBg}
+        />
+        {/* The download's source, never shown. */}
+        <QRCodeCanvas
+          ref={shareQrRef}
+          value={shareUrl}
+          size={1200}
+          fgColor={qrFg}
+          bgColor={qrTransparent ? "transparent" : qrBg}
+          className="hidden"
+          aria-hidden
         />
       </div>
       <div className="flex flex-col gap-4">
@@ -189,25 +200,23 @@ export function ShareGatheringDialog({
                 aria-label={`Dots ${c}`}
               />
             ))}
-            <button
-              type="button"
-              onClick={() => qrFgCustomRef.current?.click()}
-              className="flex h-6 w-6 items-center justify-center rounded-full border-2 transition"
-              style={{
-                ...swatch(false),
-                backgroundColor: QR_FG_PRESETS.includes(qrFg) ? "transparent" : qrFg,
-                color: "var(--foreground)",
-              }}
-              aria-label="Custom dot colour"
-            >
-              {QR_FG_PRESETS.includes(qrFg) && <span className="text-xs leading-none">+</span>}
-            </button>
-            <input
-              ref={qrFgCustomRef}
-              type="color"
+            <ColorPicker
               value={qrFg}
-              onChange={(e) => setQrFg(e.target.value)}
-              className="sr-only"
+              onChange={setQrFg}
+              trigger={
+                <button
+                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-full border-2 transition"
+                  style={{
+                    ...swatch(!QR_FG_PRESETS.includes(qrFg)),
+                    backgroundColor: QR_FG_PRESETS.includes(qrFg) ? "transparent" : qrFg,
+                    color: "var(--foreground)",
+                  }}
+                  aria-label="Custom dot colour"
+                >
+                  {QR_FG_PRESETS.includes(qrFg) && <span className="text-xs leading-none">+</span>}
+                </button>
+              }
             />
           </div>
         </div>
