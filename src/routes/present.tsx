@@ -1739,10 +1739,26 @@ function Presenter() {
           );
         })()}
 
-      {/* Share dialog */}
+      {/* Go live / Share: the phone preview beside the confirmation, then the
+          link and QR code once live (same dialog as the home page). */}
       <ShareGatheringDialog
-        open={showShareDialog}
-        onOpenChange={setShowShareDialog}
+        open={showShareDialog || showGoLiveDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowShareDialog(false);
+            setShowGoLiveDialog(false);
+          }
+        }}
+        step={showGoLiveDialog ? "confirm" : "share"}
+        onGoLive={async () => {
+          if (!activeGathering) return;
+          setIsGoingLive(true);
+          await goLive(activeGathering.id);
+          setIsGoingLive(false);
+          setShowGoLiveDialog(false);
+          setShowShareDialog(true);
+        }}
+        gatheringId={activeGathering?.id ?? null}
         shareUrl={shareUrl}
         gatheringName={activeGathering?.name ?? "gathering"}
         isLive={
@@ -1755,40 +1771,6 @@ function Presenter() {
           activeGathering && !activeGathering.shared && share.canCustomize ? share.save : undefined
         }
       />
-
-      {/* Go Live confirmation — mirrors the home page: opens the share dialog
-          once live so the leader can hand out the link. */}
-      <Dialog
-        open={showGoLiveDialog}
-        onOpenChange={(open) => {
-          if (isGoingLive) return;
-          setShowGoLiveDialog(open);
-        }}
-      >
-        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-          <DialogTitle className="text-2xl font-normal leading-tight">Go live!</DialogTitle>
-          <p className="mt-4 text-base">
-            This gathering will stay live until you end it or go live on another one. If it's left
-            running, it ends on its own after 14 days.
-          </p>
-          <div className="mt-8">
-            <button
-              onClick={async () => {
-                if (!activeGathering) return;
-                setIsGoingLive(true);
-                await goLive(activeGathering.id);
-                setIsGoingLive(false);
-                setShowGoLiveDialog(false);
-                setShowShareDialog(true);
-              }}
-              disabled={isGoingLive}
-              className="mono uppercase w-full rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-70"
-            >
-              {isGoingLive ? "Going Live..." : "Go Live"}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* End Session confirmation */}
       <AlertDialog open={showEndSessionDialog} onOpenChange={setShowEndSessionDialog}>

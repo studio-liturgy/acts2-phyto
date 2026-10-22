@@ -1001,6 +1001,7 @@ function Library() {
             <ShareGatheringDialog
               open={showGatheringShare}
               onOpenChange={setShowGatheringShare}
+              gatheringId={primaryGathering.id}
               shareUrl={
                 primaryShare.slug
                   ? `${typeof window !== "undefined" ? window.location.origin : ""}/g/${primaryShare.slug}`
@@ -2241,50 +2242,31 @@ function GatheringCard({
         </div>
       )}
 
-      {/* Share dialog (opened by go-live to hand out the link). */}
+      {/* Go live / Share: the phone preview beside the confirmation, then the
+          link and QR code once live. */}
       <ShareGatheringDialog
-        open={showShareDialog}
-        onOpenChange={setShowShareDialog}
+        open={showShareDialog || showGoLiveDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowShareDialog(false);
+            setShowGoLiveDialog(false);
+          }
+        }}
+        step={showGoLiveDialog ? "confirm" : "share"}
+        onGoLive={async () => {
+          setIsGoingLive(true);
+          await onGoLive();
+          setIsGoingLive(false);
+          setShowGoLiveDialog(false);
+          setShowShareDialog(true);
+        }}
+        gatheringId={gatheringId}
         shareUrl={shareUrl}
         gatheringName={name}
         isLive={isLive}
         slug={cardShare.slug}
         onSlugSave={canDelete && cardShare.canCustomize ? cardShare.save : undefined}
       />
-
-      {/* Go Live confirmation dialog */}
-      <Dialog
-        open={showGoLiveDialog}
-        onOpenChange={(open) => {
-          if (isGoingLive) return;
-          setShowGoLiveDialog(open);
-        }}
-      >
-        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-          <DialogTitle className="text-2xl font-normal leading-tight">Go live!</DialogTitle>
-
-          <p className="mt-4 text-base">
-            This gathering will stay live until you end it or go live on another one. If it's left
-            running, it ends on its own after 14 days.
-          </p>
-
-          <div className="mt-8">
-            <button
-              onClick={async () => {
-                setIsGoingLive(true);
-                await onGoLive();
-                setIsGoingLive(false);
-                setShowGoLiveDialog(false);
-                setShowShareDialog(true);
-              }}
-              disabled={isGoingLive}
-              className="mono uppercase w-full rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-70"
-            >
-              {isGoingLive ? "Going Live..." : "Go Live"}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* End Session confirmation dialog */}
       <AlertDialog open={showEndSessionDialog} onOpenChange={setShowEndSessionDialog}>
