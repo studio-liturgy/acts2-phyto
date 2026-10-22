@@ -8,6 +8,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { BackgroundControls } from "@/components/BackgroundEditor";
+import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import { SlideView } from "@/components/SlideView";
 import {
   gatheringSectionsReady,
@@ -103,6 +104,9 @@ export function ExportGatheringButton({
     }
   };
 
+  // The pie sweeps smoothly between slides rather than a step at a time.
+  const sweep = useSmoothProgress(progress?.done ?? 0, progress?.total ?? 0, busy);
+
   if (!hasSets) return null;
 
   const exportLabel = busy
@@ -133,10 +137,7 @@ export function ExportGatheringButton({
               Export {gatheringName}
             </DialogTitle>
           </header>
-          {/* While exporting nothing in here responds, hover included. */}
-          <div
-            className={`flex h-[60vh] min-h-0 divide-x divide-foreground ${busy ? "pointer-events-none" : ""}`}
-          >
+          <div className={`flex h-[60vh] min-h-0 divide-x divide-foreground`}>
             {/* Left: every slide in play order, as the file will show it. */}
             <div className="min-h-0 flex-1 overflow-y-auto p-6">
               {slides === null ? (
@@ -167,8 +168,12 @@ export function ExportGatheringButton({
               )}
             </div>
 
-            {/* Right: background, format, and Export under them. */}
-            <div className="flex w-80 shrink-0 flex-col overflow-y-auto p-6">
+            {/* Right: background, format, and Export under them. While
+                exporting nothing here responds, hover included (the slides
+                still scroll). */}
+            <div
+              className={`flex w-80 shrink-0 flex-col overflow-y-auto p-6 ${busy ? "pointer-events-none" : ""}`}
+            >
               <fieldset disabled={busy} className="space-y-4 disabled:opacity-60">
                 <BackgroundControls />
                 <div>
@@ -207,11 +212,13 @@ export function ExportGatheringButton({
                 {busy && (
                   <span
                     aria-hidden
-                    className="absolute inset-0 rounded-full"
+                    // Every slide drawn, the file still being packed: pulse
+                    // like Go Live so it reads as still working.
+                    className={`absolute inset-0 rounded-full ${
+                      progress.total > 0 && progress.done >= progress.total ? "animate-pulse" : ""
+                    }`}
                     style={{
-                      background: `conic-gradient(var(--foreground) ${
-                        progress.total > 0 ? (progress.done / progress.total) * 360 : 0
-                      }deg, transparent 0deg)`,
+                      background: `conic-gradient(var(--foreground) ${sweep * 360}deg, transparent 0deg)`,
                     }}
                   />
                 )}
