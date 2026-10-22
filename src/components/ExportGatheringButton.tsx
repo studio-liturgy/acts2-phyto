@@ -47,8 +47,8 @@ async function exportSlidesFor(gatheringId: string): Promise<ExportSlide[]> {
  * Export a whole gathering as one PDF or PowerPoint file: every set in run
  * order, each slide drawn as the output screen shows it. The button sits
  * beside the gathering's other header buttons (home card, presenter header)
- * and opens a dialog: the slides on the left, the Background controls (the
- * same setting as the presenter's card) and the format on the right.
+ * and opens a dialog: the title, Background controls (the same setting as the
+ * presenter's card) and format on the left, the slides on the right.
  */
 export function ExportGatheringButton({
   gatheringId,
@@ -127,34 +127,8 @@ export function ExportGatheringButton({
           aria-describedby={undefined}
         >
           <div className="flex h-[60vh] min-h-0 gap-6">
-            {/* Left: every slide in play order, as the file will show it. */}
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-              {slides === null ? (
-                <div className="flex h-full items-center justify-center">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : slides.length === 0 ? (
-                <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
-                  No slides to export
-                </p>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {slides.map((item, i) => (
-                    <SlideView
-                      key={`${i}-${item.slide.id}`}
-                      slide={item.slide}
-                      versions={item.versions}
-                      template={item.template}
-                      variant="thumb"
-                      className="rounded-lg border border-foreground/10"
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Right: the background, the format, and Export at the bottom. */}
-            <div className="flex w-72 shrink-0 flex-col justify-center">
+            {/* Left: the title, background, format, and Export at the bottom. */}
+            <div className="flex w-72 shrink-0 flex-col">
               <DialogTitle className="mb-6 break-words text-2xl font-normal leading-tight">
                 Export {gatheringName}
               </DialogTitle>
@@ -192,6 +166,32 @@ export function ExportGatheringButton({
                 {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                 {exportLabel}
               </button>
+            </div>
+
+            {/* Right: every slide in play order, as the file will show it. */}
+            <div className="min-h-0 flex-1 overflow-y-auto pl-1">
+              {slides === null ? (
+                <div className="flex h-full items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : slides.length === 0 ? (
+                <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
+                  No slides to export
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {slides.map((item, i) => (
+                    <SlideView
+                      key={`${i}-${item.slide.id}`}
+                      slide={item.slide}
+                      versions={item.versions}
+                      template={item.template}
+                      variant="thumb"
+                      className="rounded-lg border border-foreground/10"
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </DialogContent>
