@@ -122,11 +122,11 @@ export function ExportGatheringButton({
 
       <Dialog open={open} onOpenChange={(o) => !busy && setOpen(o)}>
         <DialogContent
-          className="flex h-[85vh] max-w-5xl flex-col gap-0 rounded-3xl p-8"
+          className="flex max-w-5xl flex-col gap-0 rounded-3xl p-8"
           aria-describedby={undefined}
         >
           <DialogTitle className="text-2xl font-normal leading-tight">Export gathering</DialogTitle>
-          <div className="mt-6 flex min-h-0 flex-1 gap-6">
+          <div className="mt-6 flex h-[60vh] min-h-0 gap-6">
             {/* Left: every slide in play order, as the file will show it. */}
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               {slides === null ? (
@@ -157,7 +157,7 @@ export function ExportGatheringButton({
             <div className="flex w-72 shrink-0 flex-col">
               <fieldset
                 disabled={busy}
-                className="min-h-0 flex-1 space-y-4 overflow-y-auto disabled:opacity-60"
+                className="min-h-0 space-y-4 overflow-y-auto disabled:opacity-60"
               >
                 <BackgroundControls />
                 <div>
