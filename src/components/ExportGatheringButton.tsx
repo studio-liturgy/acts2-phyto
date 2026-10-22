@@ -165,10 +165,36 @@ export function ExportGatheringButton({
                 type="button"
                 onClick={run}
                 disabled={busy || !slides || slides.length === 0}
-                className="mono uppercase mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90 disabled:cursor-default disabled:opacity-60"
+                aria-label={exportLabel}
+                className={`mono relative mt-6 flex aspect-square w-full items-center justify-center rounded-full border border-foreground text-sm uppercase tracking-wider transition-colors disabled:cursor-default ${
+                  busy
+                    ? ""
+                    : "hover:bg-foreground hover:text-background disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-foreground"
+                }`}
               >
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                {exportLabel}
+                {/* Exporting: a ring fills round the circle, slides done of
+                    total in the middle. */}
+                {busy && (
+                  <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="48.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      pathLength={1}
+                      strokeDasharray="1"
+                      strokeDashoffset={
+                        1 - (progress.total > 0 ? progress.done / progress.total : 0)
+                      }
+                      className="transition-[stroke-dashoffset] duration-300 ease-out"
+                    />
+                  </svg>
+                )}
+                <span className="tabular-nums">
+                  {busy ? `${progress.done}/${progress.total}` : "Export"}
+                </span>
               </button>
             </div>
 
