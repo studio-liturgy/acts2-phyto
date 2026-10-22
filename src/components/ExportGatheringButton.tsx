@@ -118,6 +118,11 @@ export function ExportGatheringButton({
   // very slight grow and shrink) so it reads as still working.
   const packing =
     busy && !finished && !!progress && progress.total > 0 && progress.done >= progress.total;
+  // Once it stops, the breath runs to the end of its cycle (back at rest)
+  // rather than snapping to size.
+  const [breathing, setBreathing] = useState(false);
+  if (packing && !breathing) setBreathing(true);
+  if (!open && breathing) setBreathing(false);
 
   if (!hasSets) return null;
 
@@ -211,9 +216,12 @@ export function ExportGatheringButton({
               <button
                 type="button"
                 onClick={run}
+                onAnimationIteration={() => {
+                  if (!packing) setBreathing(false);
+                }}
                 disabled={busy || !slides || slides.length === 0}
                 aria-label={exportLabel}
-                className={`mono relative mt-6 flex aspect-square w-full items-center justify-center rounded-full border border-foreground text-sm uppercase tracking-wider transition-colors disabled:cursor-default ${packing ? "animate-breathe" : ""} ${
+                className={`mono relative mt-6 flex aspect-square w-full items-center justify-center rounded-full border border-foreground text-sm uppercase tracking-wider transition-colors disabled:cursor-default ${breathing ? "animate-breathe" : ""} ${
                   busy
                     ? ""
                     : "hover:bg-foreground hover:text-background disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-foreground"
