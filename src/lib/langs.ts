@@ -31,6 +31,8 @@ export type LangCode =
   | "zh"
   | "zh-Hant-TW"
   | "zh-Latn"
+  | "zh-Bopo"
+  | "yue-Latn"
   | "ko"
   | "ko-Latn"
   | "ar"
@@ -40,7 +42,21 @@ export type LangCode =
   | "fr"
   | "de"
   | "hi"
-  | "vi";
+  | "hi-Latn"
+  | "vi"
+  | "fil"
+  | "th"
+  | "ta"
+  | "ml"
+  | "ru"
+  | "uk"
+  | "pl"
+  | "nl"
+  | "it"
+  | "fa"
+  | "he"
+  | "sw"
+  | "am";
 
 export interface LangDef {
   code: LangCode;
@@ -48,7 +64,7 @@ export interface LangDef {
   label: string;
   /** Chip text. Short enough to sit in a row of fourteen. */
   short: string;
-  /** Writing direction. Only Arabic is rtl. */
+  /** Writing direction. Arabic, Farsi and Hebrew are rtl. */
   dir: "ltr" | "rtl";
   /**
    * Font families appended AFTER the template's own font stack, so a slide
@@ -67,6 +83,12 @@ const TC = "'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei'";
 const KR = "'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic'";
 const AR = "'Noto Sans Arabic', 'Geeza Pro', 'Segoe UI'";
 const DEV = "'Noto Sans Devanagari', 'Kohinoor Devanagari', 'Devanagari Sangam MN', 'Nirmala UI'";
+const TH = "'Noto Sans Thai', Thonburi, 'Leelawadee UI', Tahoma";
+const TA = "'Noto Sans Tamil', 'Tamil Sangam MN', 'Tamil MN', 'Nirmala UI', Latha";
+const ML = "'Noto Sans Malayalam', 'Malayalam Sangam MN', 'Malayalam MN', 'Nirmala UI', Kartika";
+const HE = "'Noto Sans Hebrew', 'Arial Hebrew', 'Segoe UI', Arial";
+const FA = "'Noto Sans Arabic', 'Geeza Pro', 'Segoe UI', Tahoma";
+const ET = "'Noto Sans Ethiopic', Kefa, Ebrima, Nyala";
 
 export const LANGS: readonly LangDef[] = [
   { code: "en", label: "English", short: "EN", dir: "ltr", fontFallback: "" },
@@ -106,6 +128,22 @@ export const LANGS: readonly LangDef[] = [
     fontFallback: "",
     derivedFrom: "zh",
   },
+  {
+    code: "zh-Bopo",
+    label: "Chinese (zhuyin)",
+    short: "注音",
+    dir: "ltr",
+    fontFallback: TC,
+    derivedFrom: "zh-Hant-TW",
+  },
+  {
+    code: "yue-Latn",
+    label: "Cantonese (jyutping)",
+    short: "Jyutping",
+    dir: "ltr",
+    fontFallback: "",
+    derivedFrom: "zh-Hant-TW",
+  },
 
   { code: "ko", label: "Korean", short: "KO", dir: "ltr", fontFallback: KR },
   {
@@ -124,13 +162,42 @@ export const LANGS: readonly LangDef[] = [
   { code: "fr", label: "French", short: "FR", dir: "ltr", fontFallback: "" },
   { code: "de", label: "German", short: "DE", dir: "ltr", fontFallback: "" },
   { code: "hi", label: "Hindi", short: "HI", dir: "ltr", fontFallback: DEV },
+  {
+    code: "hi-Latn",
+    label: "Hindi (romanized)",
+    short: "Hinglish",
+    dir: "ltr",
+    fontFallback: "",
+    derivedFrom: "hi",
+  },
   { code: "vi", label: "Vietnamese", short: "VI", dir: "ltr", fontFallback: "" },
+  { code: "fil", label: "Tagalog", short: "TL", dir: "ltr", fontFallback: "" },
+  { code: "th", label: "Thai", short: "TH", dir: "ltr", fontFallback: TH },
+  { code: "ta", label: "Tamil", short: "TA", dir: "ltr", fontFallback: TA },
+  { code: "ml", label: "Malayalam", short: "ML", dir: "ltr", fontFallback: ML },
+  { code: "ru", label: "Russian", short: "RU", dir: "ltr", fontFallback: "" },
+  { code: "uk", label: "Ukrainian", short: "UK", dir: "ltr", fontFallback: "" },
+  { code: "pl", label: "Polish", short: "PL", dir: "ltr", fontFallback: "" },
+  { code: "nl", label: "Dutch", short: "NL", dir: "ltr", fontFallback: "" },
+  { code: "it", label: "Italian", short: "IT", dir: "ltr", fontFallback: "" },
+  { code: "fa", label: "Farsi (Persian)", short: "FA", dir: "rtl", fontFallback: FA },
+  { code: "he", label: "Hebrew", short: "HE", dir: "rtl", fontFallback: HE },
+  { code: "sw", label: "Swahili", short: "SW", dir: "ltr", fontFallback: "" },
+  { code: "am", label: "Amharic", short: "AM", dir: "ltr", fontFallback: ET },
 ];
 
 /** Reading aids for another entry (how it sounds), as opposed to a language or
  *  a script of one. They sit at the bottom of every language picker. Traditional
  *  Chinese is derived too, but it's a script people read, so it isn't one. */
-const PRONUNCIATIONS: ReadonlySet<LangCode> = new Set(["ja-Hira", "ja-Latn", "zh-Latn", "ko-Latn"]);
+const PRONUNCIATIONS: ReadonlySet<LangCode> = new Set([
+  "ja-Hira",
+  "ja-Latn",
+  "zh-Latn",
+  "zh-Bopo",
+  "yue-Latn",
+  "ko-Latn",
+  "hi-Latn",
+]);
 
 export function isPronunciation(code: LangCode): boolean {
   return PRONUNCIATIONS.has(code);
@@ -159,9 +226,12 @@ export function langMatches(def: LangDef, query: string): boolean {
 export const WORKSPACE_LANGS: readonly LangDef[] = LANGS.filter((l) => !l.derivedFrom);
 
 /** The stored workspace-language code for any language code: the Chinese
- *  scripts fold into "zh" (settings saved before they were one language). */
+ *  scripts and readings fold into "zh" (settings saved before they were one
+ *  language), any other reading into its source. */
 export function workspaceLang(code: LangCode): LangCode {
-  return code === "zh-Hant-TW" || code === "zh-Latn" ? "zh" : code;
+  let c = code;
+  for (let d = langDef(c).derivedFrom; d; d = langDef(c).derivedFrom) c = d;
+  return c;
 }
 
 /** The label a workspace's language picker shows: plain "Chinese", since the
@@ -202,6 +272,8 @@ const LANG_HSL: Record<LangCode, string> = {
   zh: "hsl(26 80% 50%)", // Chinese family — orange
   "zh-Hant-TW": "hsl(26 70% 60%)",
   "zh-Latn": "hsl(26 62% 69%)",
+  "zh-Bopo": "hsl(18 58% 64%)",
+  "yue-Latn": "hsl(34 62% 72%)",
 
   ko: "hsl(286 48% 57%)", // Korean family — purple
   "ko-Latn": "hsl(286 40% 69%)",
@@ -214,8 +286,27 @@ const LANG_HSL: Record<LangCode, string> = {
   fr: "hsl(95 45% 44%)",
 
   de: "hsl(0 0% 45%)", // German, slate grey
-  hi: "hsl(330 60% 52%)", // Hindi, magenta
+  hi: "hsl(330 60% 52%)", // Indian languages: magenta
+  "hi-Latn": "hsl(330 50% 68%)",
+  ta: "hsl(312 48% 44%)",
+  ml: "hsl(318 42% 60%)",
+
   vi: "hsl(170 50% 38%)", // Vietnamese, deep teal
+  fil: "hsl(196 55% 50%)", // Tagalog, near Indonesian
+  th: "hsl(255 42% 58%)", // Thai, indigo
+
+  ru: "hsl(222 40% 38%)", // Slavic: navy
+  uk: "hsl(222 40% 58%)",
+  pl: "hsl(238 28% 50%)",
+
+  nl: "hsl(0 0% 62%)", // Dutch, light grey beside German
+  it: "hsl(75 50% 42%)", // Italian, with the Romance golds/greens
+
+  fa: "hsl(150 38% 56%)", // Farsi and Hebrew beside Arabic's green
+  he: "hsl(135 40% 32%)",
+
+  sw: "hsl(105 42% 38%)", // Swahili and Amharic: leaf greens
+  am: "hsl(100 38% 56%)",
 };
 
 export function langColor(code: LangCode): string {

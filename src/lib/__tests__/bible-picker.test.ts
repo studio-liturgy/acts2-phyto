@@ -52,7 +52,7 @@ describe("allTranslationGroups", () => {
     const rest = names.findIndex((n) => n.includes("Auhelawa"));
     const common = names.slice(10, rest);
     expect(common).toEqual([...common].sort((a, b) => a.localeCompare(b, "en")));
-    for (const l of ["German", "Russian", "Hindi", "Hindi (Roman script)", "Vietnamese", "Thai"])
+    for (const l of ["German", "Russian", "Hindi", "Hindi (romanized)", "Vietnamese", "Thai"])
       expect(common).toContain(l);
     expect(rest).toBe(10 + common.length);
     expect(common.at(-1)).toBe("Yoruba");
