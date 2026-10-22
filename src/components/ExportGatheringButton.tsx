@@ -133,7 +133,10 @@ export function ExportGatheringButton({
               Export {gatheringName}
             </DialogTitle>
           </header>
-          <div className="flex h-[60vh] min-h-0 divide-x divide-foreground">
+          {/* While exporting nothing in here responds, hover included. */}
+          <div
+            className={`flex h-[60vh] min-h-0 divide-x divide-foreground ${busy ? "pointer-events-none" : ""}`}
+          >
             {/* Left: background, format, and Export under them. */}
             <div className="flex w-80 shrink-0 flex-col overflow-y-auto p-6">
               <fieldset disabled={busy} className="space-y-4 disabled:opacity-60">
