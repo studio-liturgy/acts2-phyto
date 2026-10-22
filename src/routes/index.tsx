@@ -1957,7 +1957,9 @@ function GatheringCard({
   const cardShare = useAccountSlug({
     scope: { groupId },
     seed: shareToken,
-    enabled: showShareDialog,
+    // Every way into the Go live / Share dialog loads the link: Share, Go
+    // live (ready the moment it's live) and the red live button.
+    enabled: showShareDialog || showGoLiveDialog || showEndSessionDialog,
   });
   const shareUrl = cardShare.slug ? `${window.location.origin}/g/${cardShare.slug}` : "";
 

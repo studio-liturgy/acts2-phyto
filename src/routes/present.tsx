@@ -427,7 +427,9 @@ function Presenter() {
   const share = useAccountSlug({
     scope: { groupId: activeGathering?.group_id ?? null },
     seed: activeShareToken ?? "",
-    enabled: showShareDialog,
+    // Every way into the Go live / Share dialog loads the link: Share, Go
+    // live (ready the moment it's live) and the red live button.
+    enabled: showShareDialog || showGoLiveDialog || showEndSessionDialog,
   });
   const shareUrl = share.slug ? `${window.location.origin}/g/${share.slug}` : "";
 
