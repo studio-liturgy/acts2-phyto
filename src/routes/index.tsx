@@ -934,7 +934,7 @@ function Library() {
                   <button
                     type="button"
                     onClick={() => setShowGatheringShare(true)}
-                    className="pill flex h-10 w-10 items-center justify-center border border-white transition hover:bg-foreground hover:text-background"
+                    className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
                     title="Share gathering"
                     aria-label="Share gathering"
                   >
