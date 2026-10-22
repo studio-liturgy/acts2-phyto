@@ -57,10 +57,14 @@ export function ShareGatheringDialog({
   const [step, setStep] = useState(startStep);
   const [goingLive, setGoingLive] = useState(false);
   const [wentLive, setWentLive] = useState(false);
+  // Reset on opening, never on closing: changing what's shown while the
+  // close animation runs made the dialog collapse before it disappeared.
   useEffect(() => {
     if (open) setStep(startStep);
-    else setWentLive(false);
   }, [open, startStep]);
+  useEffect(() => {
+    if (open) setWentLive(false);
+  }, [open]);
   // The QR code and link appear together, once the link is known. Going live
   // holds on "Going Live..." until then (or 8 seconds, so it never sticks).
   const ready = !!shareUrl;
@@ -171,7 +175,10 @@ export function ShareGatheringDialog({
   // Just went live here: keep the two panels while the live flag catches up.
   // The Go live view (circle, then QR code, link and End Session): beside the
   // phone preview, or on its own where the page has its own preview.
-  const liveView = step === "confirm" || wentLive || (!!isLive && showPreview);
+  const liveView = step === "confirm" || wentLive || !!isLive;
+  // The two-panel view only with the phone; the presenter (its own preview)
+  // gets the single-column dialog for everything.
+  const twoPanel = liveView && showPreview;
   const NOTE = "mono text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
   const STAYS_LIVE =
     "This gathering will stay live until you end it or go live on another one. If it's left running, it ends on its own after 14 days.";
@@ -378,6 +385,34 @@ export function ShareGatheringDialog({
     </div>
   );
 
+  // The big red Go Live circle (fills and pulses on hover; pulses while going
+  // live). `size` caps its width.
+  const goLiveCircle = (size: string) => (
+    <button
+      type="button"
+      onClick={async () => {
+        if (!onGoLive) return;
+        setGoingLive(true);
+        try {
+          await onGoLive();
+          // The effect above moves on once the link is ready.
+          setWentLive(true);
+        } catch (err) {
+          console.error("Go live failed", err);
+          setGoingLive(false);
+        }
+      }}
+      disabled={goingLive}
+      className={`mono flex aspect-square w-full ${size} items-center justify-center rounded-full border border-[var(--brand-red)] text-sm uppercase tracking-wider transition-colors hover:animate-pulse hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] ${
+        goingLive
+          ? "animate-pulse bg-[var(--brand-red)] text-[var(--brand-white)]"
+          : "text-[var(--brand-red)]"
+      }`}
+    >
+      {goingLive ? "Going Live..." : "Go Live"}
+    </button>
+  );
+
   return (
     <Dialog
       open={open}
@@ -386,73 +421,37 @@ export function ShareGatheringDialog({
         onOpenChange(o);
       }}
     >
-      {liveView ? (
+      {twoPanel ? (
         <DialogContent
-          className={`flex flex-col gap-0 overflow-hidden rounded-3xl p-0 ${showPreview ? "max-w-[58rem]" : "max-w-[29rem]"}`}
+          className="flex max-w-[58rem] flex-col gap-0 overflow-hidden rounded-3xl p-0"
           aria-describedby={undefined}
         >
-          {/* Laid out like the set editor: a header bar, then (with the
-              preview) two columns split by a full-height line. */}
-          <header
-            className={`shrink-0 py-5 pl-8 pr-14 ${showPreview ? "border-b border-foreground" : "pb-0"}`}
-          >
+          {/* Laid out like the set editor: a header bar, then two columns
+              split by a full-height line. */}
+          <header className="shrink-0 border-b border-foreground py-5 pl-8 pr-14">
             <DialogTitle className="truncate text-2xl font-normal leading-tight">
               Share {gatheringName} to your friends!
             </DialogTitle>
           </header>
-          <div
-            className={`grid min-h-0 divide-x divide-foreground ${
-              showPreview ? "h-[min(51rem,78vh)] grid-cols-2" : "h-[33rem] grid-cols-1"
-            }`}
-          >
+          <div className="grid h-[min(51rem,78vh)] min-h-0 grid-cols-2 divide-x divide-foreground">
             {/* Left: what phones get. */}
-            {showPreview && (
-              <div className="min-h-0 px-8 py-8">
-                {gatheringId && <GatheringPhonePreview gatheringId={gatheringId} />}
-              </div>
-            )}
+            <div className="min-h-0 px-8 py-8">
+              {gatheringId && <GatheringPhonePreview gatheringId={gatheringId} />}
+            </div>
 
             {/* Right: the Go Live circle, or the QR code, link and End Session. */}
-            <div
-              className={`flex min-h-0 flex-col overflow-y-auto px-8 ${showPreview ? "py-8" : "pb-8 pt-6"}`}
-            >
+            <div className="flex min-h-0 flex-col overflow-y-auto px-8 py-8">
               {step === "confirm" ? (
                 <>
-                  <div
-                    className={`flex flex-1 justify-center ${showPreview ? "items-start pt-12" : "items-center pb-8"}`}
-                  >
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!onGoLive) return;
-                        setGoingLive(true);
-                        try {
-                          await onGoLive();
-                          // The effect above moves on once the link is ready.
-                          setWentLive(true);
-                        } catch (err) {
-                          console.error("Go live failed", err);
-                          setGoingLive(false);
-                        }
-                      }}
-                      disabled={goingLive}
-                      className={`mono flex aspect-square w-full ${showPreview ? "max-w-[24.5rem]" : "max-w-[15rem]"} items-center justify-center rounded-full border border-[var(--brand-red)] text-sm uppercase tracking-wider transition-colors hover:animate-pulse hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] ${
-                        goingLive
-                          ? "animate-pulse bg-[var(--brand-red)] text-[var(--brand-white)]"
-                          : "text-[var(--brand-red)]"
-                      }`}
-                    >
-                      {goingLive ? "Going Live..." : "Go Live"}
-                    </button>
+                  <div className="flex flex-1 items-start justify-center pt-12">
+                    {goLiveCircle("max-w-[24.5rem]")}
                   </div>
                 </>
               ) : (
                 // The QR code and link sit midway down, between the top and the note.
-                <div
-                  className={`flex flex-1 flex-col justify-center ${showPreview ? "pb-12" : "pb-8"} ${reveal}`}
-                >
+                <div className={`flex flex-1 flex-col justify-center pb-12 ${reveal}`}>
                   {qrBlock}
-                  <div className={showPreview ? "mt-12" : "mt-8"}>{linkBlock}</div>
+                  <div className="mt-12">{linkBlock}</div>
                 </div>
               )}
               {/* The note and the End Session row hold the same place before
@@ -466,30 +465,36 @@ export function ShareGatheringDialog({
                     onEndSession();
                     onOpenChange(false);
                   }}
-                  className={`mono ${showPreview ? "mt-12" : "mt-6"} w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] ${reveal}`}
+                  className={`mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] ${reveal}`}
                 >
                   End Session
                 </button>
               ) : (
-                <div
-                  aria-hidden
-                  className={`${showPreview ? "mt-12" : "mt-6"} h-[50px] shrink-0`}
-                />
+                <div aria-hidden className="mt-12 h-[50px] shrink-0" />
               )}
             </div>
           </div>
         </DialogContent>
       ) : (
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-          {/* Nothing live (or the presenter's Share): the link and its QR code
-              only. */}
-          <DialogTitle className="text-2xl font-normal leading-tight">Share your link!</DialogTitle>
-          <div className={reveal}>
-            <div className="mt-8">{qrBlock}</div>
-            <div className="mt-14">{linkBlock}</div>
-          </div>
+          {/* Single column: Share with nothing live, and everything in the
+              presenter (Go live, then the same view as its Share). */}
+          <DialogTitle className="text-2xl font-normal leading-tight">
+            {liveView ? `Share ${gatheringName} to your friends!` : "Share your link!"}
+          </DialogTitle>
+          {step === "confirm" ? (
+            // The Go Live circle, the note right under it.
+            <div className="mt-8 flex justify-center">{goLiveCircle("max-w-[15rem]")}</div>
+          ) : (
+            <div className={reveal}>
+              <div className="mt-8">{qrBlock}</div>
+              <div className="mt-14">{linkBlock}</div>
+            </div>
+          )}
           <p className={`${NOTE} mt-8`}>
-            {isLive ? STAYS_LIVE : "Whatever gathering goes live will be accessible at this link."}
+            {liveView
+              ? STAYS_LIVE
+              : "Whatever gathering goes live will be accessible at this link."}
           </p>
         </DialogContent>
       )}
