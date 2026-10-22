@@ -1,7 +1,24 @@
 import { refreshAfterGo } from "./live-refresh";
 import { create } from "zustand";
 import { nanoid } from "nanoid";
-import type { Set as PhytoSet, Slide, LiveState, Gathering, SetTemplate } from "./types";
+import type {
+  Background,
+  Set as PhytoSet,
+  Slide,
+  LiveState,
+  Gathering,
+  SetTemplate,
+} from "./types";
+import {
+  BACKGROUND_KEY,
+  fetchAccountBackground,
+  isDefaultBackground,
+  parseBackground,
+  readLocalBackground,
+  sameBackground,
+  saveAccountBackground,
+  writeLocalBackground,
+} from "./background";
 import { db } from "./db";
 import { liveQuery } from "dexie";
 import { supabase } from "./supabase";
@@ -301,6 +318,12 @@ interface LibraryState {
   /** Global template applied to ALL scripture sets. */
   scriptureTemplate: SetTemplate;
   setScriptureTemplate: (patch: SetTemplate) => void;
+  /** The one background behind every slide, and the screen's shape
+   *  (lib/background.ts). Edited from the presenter's Background card. */
+  background: Background;
+  setBackground: (patch: Partial<Background>) => void;
+  /** Adopt the account's saved background (another device's change). */
+  refreshBackground: () => Promise<void>;
   /** Global slide crossfade duration in milliseconds (applies to all set types). */
   fadeMs: number;
   setFadeMs: (ms: number) => void;
@@ -361,6 +384,26 @@ let imageMigrationRunning = false;
 // flight when the user clicked doesn't overwrite the click when it lands.
 let settingsEpoch = 0;
 
+// The background's account write, debounced so dragging the Dim slider sends
+// one save, not one per step. `backgroundEpoch` plays settingsEpoch's part.
+let backgroundEpoch = 0;
+let backgroundTimer: ReturnType<typeof setTimeout> | null = null;
+function queueBackgroundSave(b: Background) {
+  if (!useAuthStore.getState().session) return;
+  if (backgroundTimer) clearTimeout(backgroundTimer);
+  backgroundTimer = setTimeout(() => {
+    backgroundTimer = null;
+    void saveAccountBackground(b);
+  }, 500);
+}
+
+function applyBackground(next: Background) {
+  writeLocalBackground(next);
+  try {
+    new BroadcastChannel(BACKGROUND_KEY).postMessage(next);
+  } catch {}
+}
+
 export const useLibrary = create<LibraryState>()((set, get) => ({
   sets: {},
   order: [],
@@ -374,6 +417,8 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   songTemplate: typeof window !== "undefined" ? readSongTemplate() : { ...DEFAULT_SONG_TEMPLATE },
   scriptureTemplate:
     typeof window !== "undefined" ? readScriptureTemplate() : { ...DEFAULT_SCRIPTURE_TEMPLATE },
+  background:
+    typeof window !== "undefined" ? readLocalBackground(readSongTemplate()) : readLocalBackground(),
   fadeMs: typeof window !== "undefined" ? readFadeMs() : 0,
 
   loadFromDb: async () => {
@@ -651,6 +696,30 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       } catch {}
       return { scriptureTemplate: next };
     }),
+
+  setBackground: (patch) => {
+    const next = parseBackground({ ...get().background, ...patch }) ?? get().background;
+    backgroundEpoch += 1;
+    set({ background: next });
+    applyBackground(next);
+    queueBackgroundSave(next);
+  },
+
+  refreshBackground: async () => {
+    const epoch = backgroundEpoch;
+    const fetched = await fetchAccountBackground();
+    // A read in flight when something was changed here would undo the change.
+    if (!fetched || epoch !== backgroundEpoch || backgroundTimer) return;
+    const local = get().background;
+    if (!fetched.background) {
+      // The account has none yet: this device's choice becomes the account's.
+      if (!isDefaultBackground(local)) void saveAccountBackground(local);
+      return;
+    }
+    if (sameBackground(fetched.background, local)) return;
+    set({ background: fetched.background });
+    applyBackground(fetched.background);
+  },
 
   setFadeMs: (ms) =>
     set(() => {
@@ -1642,6 +1711,18 @@ if (typeof window !== "undefined") {
         useLibrary.setState({ scriptureTemplate: JSON.parse(e.newValue) });
       } catch {}
     }
+    if (e.key === BACKGROUND_KEY && e.newValue) {
+      try {
+        const b = parseBackground(JSON.parse(e.newValue));
+        if (b) useLibrary.setState({ background: b });
+      } catch {}
+    }
+  });
+
+  const bgc = new BroadcastChannel(BACKGROUND_KEY);
+  bgc.addEventListener("message", (e) => {
+    const b = parseBackground(e.data);
+    if (b) useLibrary.setState({ background: b });
   });
 
   const tc = new BroadcastChannel(TEMPLATE_KEY);

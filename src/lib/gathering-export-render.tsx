@@ -5,7 +5,8 @@
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { SlideView } from "@/components/SlideView";
-import { STAGE_H, STAGE_W } from "./slide-fit";
+import { stageSize } from "./slide-fit";
+import { useLibrary } from "./store";
 import {
   containRect,
   exportFetchUrl,
@@ -63,7 +64,17 @@ async function encode(canvas: HTMLCanvasElement, photo: boolean): Promise<SlideI
   return { type, data: new Uint8Array(await blob.arrayBuffer()) };
 }
 
-function blackCanvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+/** The export's slide shape: the screen shape set in the Background card. */
+function exportStage(): { w: number; h: number } {
+  return stageSize(useLibrary.getState().background.aspect);
+}
+
+type Stage = { w: number; h: number };
+
+function blackCanvas({ w: STAGE_W, h: STAGE_H }: Stage): {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+} {
   const canvas = document.createElement("canvas");
   canvas.width = STAGE_W;
   canvas.height = STAGE_H;
@@ -117,8 +128,8 @@ function videoFrame(url: string): Promise<HTMLVideoElement | null> {
   });
 }
 
-async function renderVideoSlide(slide: ExportSlide["slide"]): Promise<SlideImage> {
-  const { canvas, ctx } = blackCanvas();
+async function renderVideoSlide(slide: ExportSlide["slide"], stage: Stage): Promise<SlideImage> {
+  const { canvas, ctx } = blackCanvas(stage);
   const src = videoPosterSource(slide);
   let frame: CanvasImageSource | null = null;
   let w = 0;
@@ -131,7 +142,7 @@ async function renderVideoSlide(slide: ExportSlide["slide"]): Promise<SlideImage
     if (v) [frame, w, h] = [v, v.videoWidth, v.videoHeight];
   }
   if (frame) {
-    const r = containRect(w, h, STAGE_W, STAGE_H);
+    const r = containRect(w, h, stage.w, stage.h);
     try {
       ctx.drawImage(frame, r.x, r.y, r.w, r.h);
     } catch {
@@ -143,12 +154,19 @@ async function renderVideoSlide(slide: ExportSlide["slide"]): Promise<SlideImage
 
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
 
-/** Render each slide to a 3840×2160 picture, in order. `onProgress(done, total)`
- *  fires after every slide. */
+/** Render each slide to a picture at twice the stage (3840×2160 for 16:9), in
+ *  order. `onProgress(done, total)` fires after every slide. */
 export async function renderExportSlides(
   slides: ExportSlide[],
   onProgress?: (done: number, total: number) => void,
+  stage: Stage = exportStage(),
 ): Promise<SlideImage[]> {
+  const { w: STAGE_W, h: STAGE_H } = stage;
+  // The background, with its image inlined so the canvas can draw it.
+  const back = useLibrary.getState().background;
+  const background = back.bgImage
+    ? { ...back, bgImage: (await inlineImage(back.bgImage)) ?? undefined }
+    : back;
   const { toCanvas } = await import("html-to-image");
   const host = document.createElement("div");
   host.setAttribute("aria-hidden", "true");
@@ -168,7 +186,7 @@ export async function renderExportSlides(
     await document.fonts.ready;
     for (const [i, item] of slides.entries()) {
       if (item.slide.kind === "video") {
-        out.push(await renderVideoSlide(item.slide));
+        out.push(await renderVideoSlide(item.slide, stage));
       } else {
         let slide = item.slide;
         if (slide.imageUrl) {
@@ -182,7 +200,7 @@ export async function renderExportSlides(
               key={`${i}`}
               slide={slide}
               versions={item.versions}
-              template={item.template}
+              template={{ ...item.template, background }}
               variant="stage"
               className="h-full w-full"
             />,
@@ -200,6 +218,7 @@ export async function renderExportSlides(
           skipFonts: true,
           cacheBust: false,
         });
+        // Text over the background image stays PNG: JPEG softens it.
         out.push(await encode(canvas, !!slide.imageUrl));
       }
       onProgress?.(i + 1, slides.length);
@@ -211,12 +230,13 @@ export async function renderExportSlides(
   return out;
 }
 
-async function buildPdf(images: SlideImage[]): Promise<Blob> {
+async function buildPdf(images: SlideImage[], stage: Stage): Promise<Blob> {
   const { PDFDocument } = await import("pdf-lib");
   const doc = await PDFDocument.create();
-  // 16:9 at PowerPoint's widescreen size in points (13.333 × 7.5 in).
-  const W = 960;
+  // PowerPoint's widescreen height in points (7.5 in), as wide as the shape:
+  // 13.333 in for 16:9.
   const H = 540;
+  const W = Math.round((H * stage.w) / stage.h);
   for (const image of images) {
     const img =
       image.type === "png" ? await doc.embedPng(image.data) : await doc.embedJpg(image.data);
@@ -226,9 +246,9 @@ async function buildPdf(images: SlideImage[]): Promise<Blob> {
   return new Blob([bytes as BlobPart], { type: "application/pdf" });
 }
 
-async function buildPptx(images: SlideImage[], title: string): Promise<Blob> {
+async function buildPptx(images: SlideImage[], title: string, stage: Stage): Promise<Blob> {
   const { buildImagePptx } = await import("./pptx-images");
-  const bytes = buildImagePptx(images, title);
+  const bytes = buildImagePptx(images, title, stage.w / stage.h);
   return new Blob([bytes as BlobPart], {
     type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   });
@@ -252,7 +272,9 @@ export async function exportGatheringFile(
   format: ExportFormat,
   onProgress?: (done: number, total: number) => void,
 ): Promise<void> {
-  const images = await renderExportSlides(slides, onProgress);
-  const file = format === "pdf" ? await buildPdf(images) : await buildPptx(images, name);
+  const stage = exportStage();
+  const images = await renderExportSlides(slides, onProgress, stage);
+  const file =
+    format === "pdf" ? await buildPdf(images, stage) : await buildPptx(images, name, stage);
   download(file, exportFileName(name, format));
 }

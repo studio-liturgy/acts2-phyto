@@ -1,6 +1,7 @@
-import type { Slide, SetTemplate } from "@/lib/types";
+import type { Background, Slide, SetTemplate } from "@/lib/types";
 import { stripChords } from "@/lib/chords";
-import { STAGE_H, STAGE_W, fitOrigin, fitScale } from "@/lib/slide-fit";
+import { fitOrigin, fitScale, stageSize } from "@/lib/slide-fit";
+import { useLibrary } from "@/lib/store";
 import { displayLinesForVersions } from "@/lib/versions";
 import { shownReference } from "@/lib/verse-ref";
 import { renderInline } from "@/lib/inline-format";
@@ -51,8 +52,10 @@ interface Props {
   className?: string;
   /** Background-size for image slides. Defaults to "contain" so vertical images aren't cropped. */
   imageFit?: "contain" | "cover";
-  /** Visual template (font size/family/background) from the parent set. */
-  template?: SetTemplate;
+  /** Visual template (font size/family) from the parent set. Its `background`,
+   *  when given, is drawn instead of the global one: the dissolve snapshots it
+   *  so a change waits for the live slide to be clicked again. */
+  template?: SlideLook;
   /** Video playback command from live state. Only acted on by variant="stage". */
   videoCmd?: { action: "play" | "pause" | "restart" | "stop"; nonce: number };
   /** Called (stage only) when the current video reaches its end. */
@@ -283,10 +286,20 @@ function PlayGlyph() {
   );
 }
 
+/** A template plus the background it's drawn on. */
+export type SlideLook = SetTemplate & { background?: Background };
+
+/** The stage for the screen shape set in the Background card. */
+function useStageSize() {
+  const aspect = useLibrary((s) => s.background.aspect);
+  return useMemo(() => stageSize(aspect), [aspect]);
+}
+
 /**
- * Renders a slide at a fixed 1920x1080 canvas and uses a CSS transform to
- * scale-to-fit any container. Guarantees identical wrapping/layout across
- * editor preview, presenter preview, and live output.
+ * Renders a slide on a fixed canvas (1080 tall, as wide as the screen shape)
+ * and uses a CSS transform to scale-to-fit any container. Guarantees
+ * identical wrapping/layout across editor preview, presenter preview, and
+ * live output.
  */
 export function SlideView({
   slide,
@@ -301,7 +314,12 @@ export function SlideView({
   playbackEnabled = true,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
-  const [scale, setScale] = useState(1);
+  const stage = useStageSize();
+  // Scale, plus the offset that centres the stage. Thumbnails take the stage's
+  // own shape so the offset is zero; the output window is whatever shape the
+  // screen is, and a mismatched ratio letterboxes rather than hugging a corner.
+  const [fitStage, setFitStage] = useState({ scale: 1, x: 0, y: 0 });
+  const scale = fitStage.scale;
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -309,11 +327,13 @@ export function SlideView({
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth;
       const h = el.clientHeight;
-      if (w > 0 && h > 0) setScale(Math.min(w / STAGE_W, h / STAGE_H));
+      if (w <= 0 || h <= 0) return;
+      const s = Math.min(w / stage.w, h / stage.h);
+      setFitStage({ scale: s, x: (w - stage.w * s) / 2, y: (h - stage.h * s) / 2 });
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [stage.w, stage.h]);
 
   // Shrink-to-fit. The stage box is overflow-hidden and text size is a fixed
   // multiple of fontScale, so turning the font size up (or a long verse) would
@@ -377,20 +397,29 @@ export function SlideView({
     slide?.kind === "scripture" ? shownReference(slide.reference, slide) : undefined;
 
   const hasText = !!(displayLines.some((l) => l.trim()) || stacked || slide?.title);
-  const bg = slide?.imageUrl
+
+  // The background sits behind every slide; a slide's own image still wins.
+  // It covers rather than contains: a backdrop, not the subject.
+  const globalBackground = useLibrary((s) => s.background);
+  const back = template?.background ?? globalBackground;
+  const bgUrl = slide?.imageUrl ?? back.bgImage;
+  const bg = bgUrl
     ? {
-        backgroundImage: `url(${slide.imageUrl})`,
+        backgroundImage: `url(${bgUrl})`,
         // A per-slide fit (toggled in the editor) wins over the caller default.
-        backgroundSize: slide.imageFit ?? imageFit,
+        backgroundSize: slide?.imageUrl ? (slide.imageFit ?? imageFit) : "cover",
         backgroundRepeat: "no-repeat" as const,
         backgroundPosition: "center",
       }
     : undefined;
+  // A slide's own image keeps its fixed scrim; the backdrop's follows Dim.
+  const scrim = slide?.imageUrl ? 0.4 : Math.min(90, Math.max(0, back.bgDim)) / 100;
 
-  const aspect = variant === "stage" ? "h-full" : "aspect-video";
+  const aspect = variant === "stage" ? "h-full" : "";
+  const aspectStyle = variant === "stage" ? undefined : { aspectRatio: `${stage.w} / ${stage.h}` };
 
   const fontScale = template?.fontScale ?? 1;
-  const bgMode = template?.bg ?? "black";
+  const bgMode = back.bg;
   const surfaceBg = bgMode === "white" ? "bg-white" : "bg-black";
   const surfaceText = bgMode === "white" ? "text-black" : "text-white";
   const placeholderText = bgMode === "white" ? "text-black/40" : "text-white/40";
@@ -404,7 +433,10 @@ export function SlideView({
 
   if (slide?.kind === "video") {
     return (
-      <div className={`relative ${aspect} w-full overflow-hidden bg-black ${className}`}>
+      <div
+        className={`relative ${aspect} w-full overflow-hidden bg-black ${className}`}
+        style={aspectStyle}
+      >
         <VideoLayer
           slide={slide}
           variant={variant}
@@ -421,18 +453,21 @@ export function SlideView({
     <div
       ref={wrapRef}
       className={`relative ${aspect} w-full overflow-hidden ${surfaceBg} ${surfaceText} ${className}`}
+      style={aspectStyle}
     >
       <div
         className="absolute left-0 top-0 origin-top-left"
         style={{
-          width: STAGE_W,
-          height: STAGE_H,
-          transform: `scale(${scale})`,
+          width: stage.w,
+          height: stage.h,
+          transform: `translate(${fitStage.x}px, ${fitStage.y}px) scale(${scale})`,
           fontFamily: template?.fontFamily,
           ...bg,
         }}
       >
-        {slide?.imageUrl && hasText ? <div className="absolute inset-0 bg-black/40" /> : null}
+        {bgUrl && hasText && scrim > 0 ? (
+          <div className="absolute inset-0" style={{ backgroundColor: `rgb(0 0 0 / ${scrim})` }} />
+        ) : null}
         <div
           ref={fitBoxRef}
           className={`relative flex h-full w-full flex-col px-24 py-20 ${positionClass} ${alignClass}`}
@@ -572,7 +607,7 @@ export function DissolveSlide({
   durationMs = 0,
   className = "",
   imageFit,
-  template,
+  template: baseTemplate,
   videoCmd,
   onVideoEnded,
   playbackEnabled = true,
@@ -584,6 +619,14 @@ export function DissolveSlide({
    *  next slide). */
   refreshKey?: number;
 }) {
+  // The background travels with the template, so a Background change reaches
+  // the live slide the same way a template edit does: on the next slide, or
+  // when the live one is clicked again.
+  const background = useLibrary((s) => s.background);
+  const template = useMemo<SlideLook>(
+    () => ({ ...baseTemplate, background }),
+    [baseTemplate, background],
+  );
   const [a, setA] = useState<Slide | null | undefined>(slide);
   const [b, setB] = useState<Slide | null | undefined>(null);
   const [templateA, setTemplateA] = useState<Props["template"]>(template);
@@ -714,9 +757,11 @@ export function DissolveSlide({
           transition: durationMs > 0 ? `opacity ${durationMs}ms ease-in-out` : undefined,
         };
 
+  const stageShape = useStageSize();
   return (
     <div
-      className={`relative isolate ${variant === "stage" ? "h-full" : "aspect-video"} w-full ${className}`}
+      className={`relative isolate ${variant === "stage" ? "h-full" : ""} w-full ${className}`}
+      style={variant === "stage" ? undefined : { aspectRatio: `${stageShape.w} / ${stageShape.h}` }}
     >
       <div className="absolute inset-0" style={layerStyle(front === "a")}>
         <SlideView

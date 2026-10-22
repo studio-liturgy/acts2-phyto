@@ -20,6 +20,7 @@ import { ScrollingName } from "@/components/ScrollingName";
 import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
+import { BackgroundEditor } from "@/components/BackgroundEditor";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { useAccountSlug } from "@/hooks/use-account-slug";
 import { inferredVersions, versionsMismatchWorkspace, visibleVersions } from "@/lib/versions";
@@ -1694,10 +1695,15 @@ function Presenter() {
                 <SongLanguageBar set={activeSet} />
               </div>
             )}
-            {activeSet?.kind === "song" && <SongTemplateEditor />}
-            {(activeSet?.kind === "scripture" || activeSet?.kind === "message") && (
-              <ScriptureTemplateEditor />
-            )}
+            {/* The template and the background, grouped tight as on watch:
+                Background sits at the bottom, for every kind of set. */}
+            <div className="space-y-2">
+              {activeSet?.kind === "song" && <SongTemplateEditor />}
+              {(activeSet?.kind === "scripture" || activeSet?.kind === "message") && (
+                <ScriptureTemplateEditor />
+              )}
+              <BackgroundEditor />
+            </div>
 
             <div className="mono uppercase space-y-1 px-1 pt-2 text-xs text-muted-foreground">
               <div>→ / Space — next slide</div>

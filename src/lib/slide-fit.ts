@@ -21,6 +21,14 @@
 export const STAGE_W = 1920;
 export const STAGE_H = 1080;
 
+/** The stage for a screen shape: always STAGE_H tall, so text sizes mean the
+ *  same on every shape, with the width following the ratio. 16:9 when unset. */
+export function stageSize(aspect?: string): { w: number; h: number } {
+  const [a, b] = (aspect ?? "16:9").split(":").map(Number);
+  if (!(a > 0 && b > 0)) return { w: STAGE_W, h: STAGE_H };
+  return { w: Math.round((STAGE_H * a) / b), h: STAGE_H };
+}
+
 /**
  * Floor on the auto-fit. Past this the text is too small to read from the back
  * of a room, and the honest answer is that the slide holds too much: better to

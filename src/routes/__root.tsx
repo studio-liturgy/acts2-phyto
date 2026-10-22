@@ -393,6 +393,7 @@ function RootComponent() {
     await syncGroups();
     await useLibrary.getState().loadGroups();
     await useLibrary.getState().refreshWorkspaceSettings();
+    await useLibrary.getState().refreshBackground();
   };
 
   useEffect(() => {
@@ -475,6 +476,8 @@ function RootComponent() {
         await useLibrary.getState().loadGroups();
         // A group owner's settings change reaches members on the next tick.
         await useLibrary.getState().refreshWorkspaceSettings();
+        // So does this account's background, changed on another device.
+        await useLibrary.getState().refreshBackground();
       } catch {
         // Transient (offline/RLS) — the next tick retries.
       } finally {

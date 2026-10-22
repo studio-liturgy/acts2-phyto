@@ -115,12 +115,30 @@ export interface HiddenLangs {
 
 export type SetKind = "song" | "scripture" | "media" | "mixed" | "message";
 
+/** The one background behind every slide, edited from the presenter's
+ *  Background card (lib/background.ts). Replaced the templates' own `bg`. */
+export interface Background {
+  /** Colour behind the slide when no image covers it. Over an image it sets
+   *  the text colour instead: "black" gives white text, "white" black text. */
+  bg: "black" | "white";
+  /** Optional backdrop image (R2 URL or inline data URL). */
+  bgImage?: string;
+  /** How much to darken the backdrop image, 0 to 90 (percent). */
+  bgDim: number;
+  /** Shape of the projected screen. Absent = 16:9. */
+  aspect?: SlideAspect;
+}
+
+/** Screen shapes a slide can be laid out for, width:height. */
+export type SlideAspect = "16:9" | "16:10" | "4:3" | "21:9";
+
 export interface SetTemplate {
   /** Multiplier on slide text sizes. 1 = current/smallest. */
   fontScale?: number;
   /** CSS font-family stack applied to slide content. */
   fontFamily?: string;
-  /** Background mode for the slide. */
+  /** Old per-template background. No longer drawn: the global Background
+   *  replaced it, and only seeds that the first time (lib/background.ts). */
   bg?: "black" | "white";
   /** Text alignment. Default "center". */
   align?: "center" | "left";

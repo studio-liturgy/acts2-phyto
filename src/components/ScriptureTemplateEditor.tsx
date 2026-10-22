@@ -14,7 +14,6 @@ export function ScriptureTemplateEditor() {
   const t = {
     fontScale: scriptureTemplate.fontScale ?? 1,
     fontFamily: scriptureTemplate.fontFamily ?? FONT_OPTIONS[0].value,
-    bg: (scriptureTemplate.bg ?? "black") as "black" | "white",
     align: (scriptureTemplate.align ?? "left") as "center" | "left",
     referencePosition: (scriptureTemplate.referencePosition ?? "below") as "above" | "below",
   };
@@ -63,35 +62,6 @@ export function ScriptureTemplateEditor() {
                 </button>
               );
             })}
-          </div>
-        </div>
-
-        {/* Background */}
-        <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            Background
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => update({ bg: "black" })}
-              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                t.bg === "black"
-                  ? "border-foreground bg-black text-white"
-                  : "border-foreground/20 bg-black text-white/60 hover:border-foreground"
-              }`}
-            >
-              Black
-            </button>
-            <button
-              onClick={() => update({ bg: "white" })}
-              className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                t.bg === "white"
-                  ? "border-foreground bg-white text-black"
-                  : "border-foreground/20 bg-white text-black/60 hover:border-foreground"
-              }`}
-            >
-              White
-            </button>
           </div>
         </div>
 

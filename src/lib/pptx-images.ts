@@ -1,12 +1,16 @@
-// An image-only PowerPoint file: one full-bleed picture per slide, 16:9
-// widescreen (13.333 × 7.5 in). Hand-written OOXML with the minimum parts
+// An image-only PowerPoint file: one full-bleed picture per slide, 7.5 in tall
+// and as wide as the screen shape (13.333 in for 16:9 widescreen). Hand-written OOXML with the minimum parts
 // PowerPoint, Keynote, Google Slides and LibreOffice require (presentation,
 // one master, one blank layout, a theme), zipped with zip-store.
 
 import { zipStore, type ZipEntry } from "./zip-store";
 
-const SLIDE_CX = 12192000;
 const SLIDE_CY = 6858000;
+
+/** Slide width in EMU for a width:height ratio (16:9 gives 12192000). */
+export function slideWidthEmu(ratio = 16 / 9): number {
+  return Math.round(SLIDE_CY * ratio);
+}
 
 const NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main";
 const NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -112,7 +116,7 @@ function slideLayout(): string {
   );
 }
 
-function slide(n: number): string {
+function slide(n: number, SLIDE_CX: number): string {
   return (
     XML +
     `<p:sld xmlns:a="${NS_A}" xmlns:r="${NS_R}" xmlns:p="${NS_P}">` +
@@ -133,7 +137,8 @@ export interface SlideImage {
   data: Uint8Array;
 }
 
-export function pptxParts(images: SlideImage[], title: string): ZipEntry[] {
+export function pptxParts(images: SlideImage[], title: string, ratio = 16 / 9): ZipEntry[] {
+  const SLIDE_CX = slideWidthEmu(ratio);
   const enc = new TextEncoder();
   const text = (name: string, xml: string): ZipEntry => ({ name, data: enc.encode(xml) });
   const n = images.length;
@@ -245,7 +250,7 @@ export function pptxParts(images: SlideImage[], title: string): ZipEntry[] {
       rels([{ id: "rId1", type: "slideMaster", target: "../slideMasters/slideMaster1.xml" }]),
     ),
     ...nums.flatMap((i) => [
-      text(`ppt/slides/slide${i}.xml`, slide(i)),
+      text(`ppt/slides/slide${i}.xml`, slide(i, SLIDE_CX)),
       text(
         `ppt/slides/_rels/slide${i}.xml.rels`,
         rels([
@@ -259,6 +264,6 @@ export function pptxParts(images: SlideImage[], title: string): ZipEntry[] {
 }
 
 /** The .pptx file bytes. */
-export function buildImagePptx(images: SlideImage[], title: string): Uint8Array {
-  return zipStore(pptxParts(images, title));
+export function buildImagePptx(images: SlideImage[], title: string, ratio = 16 / 9): Uint8Array {
+  return zipStore(pptxParts(images, title, ratio));
 }

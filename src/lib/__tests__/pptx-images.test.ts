@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { crc32, unzipStore, zipStore } from "../zip-store";
-import { buildImagePptx, pptxParts } from "../pptx-images";
+import { buildImagePptx, pptxParts, slideWidthEmu } from "../pptx-images";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -100,5 +100,21 @@ describe("buildImagePptx", () => {
       const doc = parser.parseFromString(dec.decode(p.data), "application/xml");
       expect(doc.getElementsByTagName("parsererror").length, p.name).toBe(0);
     }
+  });
+});
+
+describe("slide shape", () => {
+  const jpeg = (n: number) => ({ type: "jpeg" as const, data: new Uint8Array([n]) });
+  it("keeps 7.5 in tall and widens with the ratio", () => {
+    expect(slideWidthEmu()).toBe(12192000);
+    expect(slideWidthEmu(4 / 3)).toBe(9144000);
+    const pres = new TextDecoder().decode(
+      pptxParts([jpeg(1)], "x", 4 / 3).find((e) => e.name === "ppt/presentation.xml")!.data,
+    );
+    expect(pres).toContain('<p:sldSz cx="9144000" cy="6858000"/>');
+    const slide = new TextDecoder().decode(
+      pptxParts([jpeg(1)], "x", 4 / 3).find((e) => e.name === "ppt/slides/slide1.xml")!.data,
+    );
+    expect(slide).toContain('cx="9144000" cy="6858000"');
   });
 });

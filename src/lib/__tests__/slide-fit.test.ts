@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fitScale, fitOrigin, FIT_MIN, STAGE_H, STAGE_W } from "../slide-fit";
+import { fitScale, fitOrigin, FIT_MIN, STAGE_H, STAGE_W, stageSize } from "../slide-fit";
 
 describe("fitScale", () => {
   it("leaves content that already fits completely alone", () => {
@@ -44,5 +44,19 @@ describe("fitOrigin", () => {
 describe("stage constants", () => {
   it("is 16:9, which the aspect-video containers assume", () => {
     expect(STAGE_W / STAGE_H).toBeCloseTo(16 / 9);
+  });
+});
+
+describe("stageSize", () => {
+  it("keeps the height and follows the shape with the width", () => {
+    expect(stageSize("16:9")).toEqual({ w: 1920, h: 1080 });
+    expect(stageSize("16:10")).toEqual({ w: 1728, h: 1080 });
+    expect(stageSize("4:3")).toEqual({ w: 1440, h: 1080 });
+    expect(stageSize("21:9")).toEqual({ w: 2520, h: 1080 });
+  });
+
+  it("falls back to 16:9 when unset or unreadable", () => {
+    expect(stageSize()).toEqual({ w: STAGE_W, h: STAGE_H });
+    expect(stageSize("wide")).toEqual({ w: STAGE_W, h: STAGE_H });
   });
 });
