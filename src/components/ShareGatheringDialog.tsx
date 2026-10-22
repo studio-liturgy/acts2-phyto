@@ -388,27 +388,31 @@ export function ShareGatheringDialog({
                       {goingLive ? "Going Live..." : "Go Live"}
                     </button>
                   </div>
-                  <p className={NOTE}>{STAYS_LIVE}</p>
                 </>
               ) : (
-                <>
-                  <div className="pt-8">{qrBlock}</div>
-                  <div className="mt-24">{linkBlock}</div>
-                  <div className="flex-1" />
-                  <p className={NOTE}>{STAYS_LIVE}</p>
-                  {onEndSession && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onEndSession();
-                        onOpenChange(false);
-                      }}
-                      className="mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-                    >
-                      End Session
-                    </button>
-                  )}
-                </>
+                // The QR code and link sit low, just above the note.
+                <div className="flex flex-1 flex-col justify-end pb-12">
+                  {qrBlock}
+                  <div className="mt-12">{linkBlock}</div>
+                </div>
+              )}
+              {/* The note and the End Session row hold the same place before
+                  and after going live, so nothing moves. Before, the row is
+                  kept as empty space. */}
+              <p className={NOTE}>{STAYS_LIVE}</p>
+              {step !== "confirm" && onEndSession ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onEndSession();
+                    onOpenChange(false);
+                  }}
+                  className="mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                >
+                  End Session
+                </button>
+              ) : (
+                <div aria-hidden className="mt-12 h-[50px] shrink-0" />
               )}
             </div>
           </div>
@@ -419,7 +423,7 @@ export function ShareGatheringDialog({
           <DialogTitle className="text-2xl font-normal leading-tight">Share your link!</DialogTitle>
           <div className="mt-8">{qrBlock}</div>
           <div className="mt-14">{linkBlock}</div>
-          <p className={`${NOTE} mt-20`}>
+          <p className={`${NOTE} mt-8`}>
             Whatever gathering goes live will be accessible at this link.
           </p>
         </DialogContent>
