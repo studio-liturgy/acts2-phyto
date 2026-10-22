@@ -1751,8 +1751,8 @@ function Presenter() {
             setShowGoLiveDialog(false);
           }
         }}
-        // The presenter has its own phone preview: Share here is just the QR
-        // code and link (Go live keeps the preview).
+        // The presenter has its own phone preview: Go live and Share here
+        // leave it out.
         showPreview={false}
         onEndSession={() => {
           if (activeGathering) endSession(activeGathering.id);

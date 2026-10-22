@@ -66,6 +66,7 @@ export function ExportGatheringButton({
   const [format, setFormat] = useState<ExportFormat>("pdf");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [failed, setFailed] = useState(false);
+  const [finished, setFinished] = useState(false);
   const busy = progress !== null;
 
   // The slides are read when the dialog opens, so they match what's there now.
@@ -95,17 +96,24 @@ export function ExportGatheringButton({
       await exportGatheringFile(name, slides, format, (done, total) =>
         setProgress({ done, total }),
       );
+      // Not an abrupt close: the full circle reads Done for a moment, then the
+      // dialog fades out, and only then does the circle reset.
+      setFinished(true);
+      await new Promise((r) => setTimeout(r, 900));
       setOpen(false);
+      await new Promise((r) => setTimeout(r, 250));
     } catch (err) {
       console.error("Gathering export failed", err);
       setFailed(true);
     } finally {
+      setFinished(false);
       setProgress(null);
     }
   };
 
   // The pie sweeps smoothly between slides rather than a step at a time.
-  const sweep = useSmoothProgress(progress?.done ?? 0, progress?.total ?? 0, busy);
+  const smooth = useSmoothProgress(progress?.done ?? 0, progress?.total ?? 0, busy);
+  const sweep = finished ? 1 : smooth;
 
   if (!hasSets) return null;
 
@@ -215,7 +223,9 @@ export function ExportGatheringButton({
                     // Every slide drawn, the file still being packed: pulse
                     // like Go Live so it reads as still working.
                     className={`absolute inset-0 rounded-full ${
-                      progress.total > 0 && progress.done >= progress.total ? "animate-pulse" : ""
+                      !finished && progress.total > 0 && progress.done >= progress.total
+                        ? "animate-pulse"
+                        : ""
                     }`}
                     style={{
                       background: `conic-gradient(var(--foreground) ${sweep * 360}deg, transparent 0deg)`,
@@ -229,6 +239,8 @@ export function ExportGatheringButton({
                 >
                   {!busy ? (
                     "Export"
+                  ) : finished ? (
+                    "Done"
                   ) : progress.total > 0 && progress.done >= progress.total ? (
                     <AlmostDone />
                   ) : (

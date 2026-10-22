@@ -169,7 +169,9 @@ export function ShareGatheringDialog({
   };
 
   // Just went live here: keep the two panels while the live flag catches up.
-  const twoPanel = step === "confirm" || wentLive || (!!isLive && showPreview);
+  // The Go live view (circle, then QR code, link and End Session): beside the
+  // phone preview, or on its own where the page has its own preview.
+  const liveView = step === "confirm" || wentLive || (!!isLive && showPreview);
   const NOTE = "mono text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
   const STAYS_LIVE =
     "This gathering will stay live until you end it or go live on another one. If it's left running, it ends on its own after 14 days.";
@@ -384,23 +386,27 @@ export function ShareGatheringDialog({
         onOpenChange(o);
       }}
     >
-      {twoPanel ? (
+      {liveView ? (
         <DialogContent
-          className="flex max-w-[58rem] flex-col gap-0 overflow-hidden rounded-3xl p-0"
+          className={`flex flex-col gap-0 overflow-hidden rounded-3xl p-0 ${showPreview ? "max-w-[58rem]" : "max-w-[29rem]"}`}
           aria-describedby={undefined}
         >
-          {/* Laid out like the set editor: a header bar, then two columns
-              split by a full-height line. */}
+          {/* Laid out like the set editor: a header bar, then (with the
+              preview) two columns split by a full-height line. */}
           <header className="shrink-0 border-b border-foreground py-5 pl-8 pr-14">
             <DialogTitle className="truncate text-2xl font-normal leading-tight">
               Share {gatheringName} to your friends!
             </DialogTitle>
           </header>
-          <div className="grid h-[min(51rem,78vh)] min-h-0 grid-cols-2 divide-x divide-foreground">
+          <div
+            className={`grid h-[min(51rem,78vh)] min-h-0 divide-x divide-foreground ${showPreview ? "grid-cols-2" : "grid-cols-1"}`}
+          >
             {/* Left: what phones get. */}
-            <div className="min-h-0 px-8 py-8">
-              {gatheringId && <GatheringPhonePreview gatheringId={gatheringId} />}
-            </div>
+            {showPreview && (
+              <div className="min-h-0 px-8 py-8">
+                {gatheringId && <GatheringPhonePreview gatheringId={gatheringId} />}
+              </div>
+            )}
 
             {/* Right: the Go Live circle, or the QR code, link and End Session. */}
             <div className="flex min-h-0 flex-col overflow-y-auto px-8 py-8">
