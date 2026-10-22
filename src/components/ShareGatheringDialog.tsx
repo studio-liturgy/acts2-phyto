@@ -56,6 +56,19 @@ export function ShareGatheringDialog({
     if (open) setStep(startStep);
     else setWentLive(false);
   }, [open, startStep]);
+  // The QR code and link appear together, once the link is known. Going live
+  // holds on "Going Live..." until then (or 8 seconds, so it never sticks).
+  const ready = !!shareUrl;
+  useEffect(() => {
+    if (!wentLive || step !== "confirm") return;
+    const done = () => {
+      setStep("share");
+      setGoingLive(false);
+    };
+    if (ready) return done();
+    const t = setTimeout(done, 8000);
+    return () => clearTimeout(t);
+  }, [wentLive, step, ready]);
   const [copiedShare, setCopiedShare] = useState(false);
   const editable = !!onSlugSave && slug !== undefined;
   const [editingSlug, setEditingSlug] = useState(false);
@@ -106,7 +119,8 @@ export function ShareGatheringDialog({
   const shareQrRef = useRef<HTMLCanvasElement>(null);
 
   const QR_FG_PRESETS = qrTransparent
-    ? ["#212121", "#F5EFEF", "#2E7299", "#538844", "#E07D31", "#C01E21"]
+    ? // Five presets plus the custom swatch, two rows of three like the others.
+      ["#212121", "#F5EFEF", "#2E7299", "#538844", "#E07D31"]
     : qrBg === "#000000"
       ? ["#F5EFEF", "#2E7299", "#538844", "#E07D31", "#C01E21"]
       : ["#212121", "#2E7299", "#538844", "#E07D31", "#C01E21"];
@@ -154,7 +168,9 @@ export function ShareGatheringDialog({
   });
 
   // The QR code with its colours and download, side by side.
-  const qrBlock = shareUrl ? (
+  // Drawn (hidden) before the link is known too, so it keeps its size and the
+  // whole block appears at once.
+  const qrBlock = (
     <div className="flex items-center gap-8">
       <div
         className="shrink-0 rounded-2xl p-3"
@@ -170,7 +186,7 @@ export function ShareGatheringDialog({
         }
       >
         <QRCodeCanvas
-          value={shareUrl}
+          value={shareUrl || "https://phyto.live/"}
           size={150}
           fgColor={qrFg}
           bgColor={qrTransparent ? "transparent" : qrBg}
@@ -178,7 +194,7 @@ export function ShareGatheringDialog({
         {/* The download's source, never shown. */}
         <QRCodeCanvas
           ref={shareQrRef}
-          value={shareUrl}
+          value={shareUrl || "https://phyto.live/"}
           size={1200}
           fgColor={qrFg}
           bgColor={qrTransparent ? "transparent" : qrBg}
@@ -266,7 +282,7 @@ export function ShareGatheringDialog({
         </button>
       </div>
     </div>
-  ) : null;
+  );
 
   // The link bar with copy, then Customize link under it.
   const linkBlock = (
@@ -324,20 +340,25 @@ export function ShareGatheringDialog({
           </>
         )}
       </div>
-      {editable && editingSlug && slugError && (
-        <p className="mono mt-2 px-4 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
-          {slugError}
-        </p>
-      )}
-      {editable && !editingSlug && (
-        <div className="mt-2 text-center">
-          <button
-            type="button"
-            onClick={() => setEditingSlug(true)}
-            className="mono text-[10px] uppercase tracking-wider text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
-          >
-            Customize link
-          </button>
+      {/* One fixed-height row under the bar: Customize link, a save error, or
+          empty while editing, so the block never moves. */}
+      {editable && (
+        <div className="mt-2 flex h-4 items-center justify-center">
+          {editingSlug ? (
+            slugError && (
+              <p className="mono text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+                {slugError}
+              </p>
+            )
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingSlug(true)}
+              className="mono text-[10px] uppercase tracking-wider text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
+            >
+              Customize link
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -381,9 +402,10 @@ export function ShareGatheringDialog({
                         setGoingLive(true);
                         try {
                           await onGoLive();
+                          // The effect above moves on once the link is ready.
                           setWentLive(true);
-                          setStep("share");
-                        } finally {
+                        } catch (err) {
+                          console.error("Go live failed", err);
                           setGoingLive(false);
                         }
                       }}
@@ -400,7 +422,9 @@ export function ShareGatheringDialog({
                 </>
               ) : (
                 // The QR code and link sit midway down, between the top and the note.
-                <div className="flex flex-1 flex-col justify-center pb-12">
+                <div
+                  className={`flex flex-1 flex-col justify-center pb-12 ${ready ? "" : "invisible"}`}
+                >
                   {qrBlock}
                   <div className="mt-12">{linkBlock}</div>
                 </div>
@@ -430,8 +454,10 @@ export function ShareGatheringDialog({
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
           {/* Nothing live: the link and its QR code only. */}
           <DialogTitle className="text-2xl font-normal leading-tight">Share your link!</DialogTitle>
-          <div className="mt-8">{qrBlock}</div>
-          <div className="mt-14">{linkBlock}</div>
+          <div className={ready ? "" : "invisible"}>
+            <div className="mt-8">{qrBlock}</div>
+            <div className="mt-14">{linkBlock}</div>
+          </div>
           <p className={`${NOTE} mt-8`}>
             Whatever gathering goes live will be accessible at this link.
           </p>
