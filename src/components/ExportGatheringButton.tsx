@@ -59,6 +59,7 @@ export function ExportGatheringButton({
   className?: string;
 }) {
   const hasSets = useLibrary((s) => (s.gatherings[gatheringId]?.setIds.length ?? 0) > 0);
+  const gatheringName = useLibrary((s) => s.gatherings[gatheringId]?.name ?? "gathering");
   const [open, setOpen] = useState(false);
   const [slides, setSlides] = useState<ExportSlide[] | null>(null);
   const [format, setFormat] = useState<ExportFormat>("pdf");
@@ -125,8 +126,7 @@ export function ExportGatheringButton({
           className="flex max-w-5xl flex-col gap-0 rounded-3xl p-8"
           aria-describedby={undefined}
         >
-          <DialogTitle className="text-2xl font-normal leading-tight">Export gathering</DialogTitle>
-          <div className="mt-6 flex h-[60vh] min-h-0 gap-6">
+          <div className="flex h-[60vh] min-h-0 gap-6">
             {/* Left: every slide in play order, as the file will show it. */}
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               {slides === null ? (
@@ -155,6 +155,9 @@ export function ExportGatheringButton({
 
             {/* Right: the background, the format, and Export at the bottom. */}
             <div className="flex w-72 shrink-0 flex-col justify-center">
+              <DialogTitle className="mb-6 break-words text-2xl font-normal leading-tight">
+                Export {gatheringName}
+              </DialogTitle>
               <fieldset
                 disabled={busy}
                 className="min-h-0 space-y-4 overflow-y-auto disabled:opacity-60"

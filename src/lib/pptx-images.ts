@@ -3,7 +3,7 @@
 // PowerPoint, Keynote, Google Slides and LibreOffice require (presentation,
 // one master, one blank layout, a theme), zipped with zip-store.
 
-import { zipStore, type ZipEntry } from "./zip-store";
+import { zip, type ZipEntry } from "./zip-store";
 
 const SLIDE_CY = 6858000;
 
@@ -140,7 +140,12 @@ export interface SlideImage {
 export function pptxParts(images: SlideImage[], title: string, ratio = 16 / 9): ZipEntry[] {
   const SLIDE_CX = slideWidthEmu(ratio);
   const enc = new TextEncoder();
-  const text = (name: string, xml: string): ZipEntry => ({ name, data: enc.encode(xml) });
+  // XML parts are compressed: macOS Preview misreads an all-stored package.
+  const text = (name: string, xml: string): ZipEntry => ({
+    name,
+    data: enc.encode(xml),
+    deflate: true,
+  });
   const n = images.length;
   const nums = Array.from({ length: n }, (_, i) => i + 1);
 
@@ -264,6 +269,10 @@ export function pptxParts(images: SlideImage[], title: string, ratio = 16 / 9): 
 }
 
 /** The .pptx file bytes. */
-export function buildImagePptx(images: SlideImage[], title: string, ratio = 16 / 9): Uint8Array {
-  return zipStore(pptxParts(images, title, ratio));
+export function buildImagePptx(
+  images: SlideImage[],
+  title: string,
+  ratio = 16 / 9,
+): Promise<Uint8Array> {
+  return zip(pptxParts(images, title, ratio));
 }

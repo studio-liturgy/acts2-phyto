@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crc32, unzipStore, zipStore } from "../zip-store";
+import { crc32, unzip, unzipStore, zipStore } from "../zip-store";
 import { buildImagePptx, pptxParts, slideWidthEmu } from "../pptx-images";
 
 const enc = new TextEncoder();
@@ -47,8 +47,8 @@ describe("buildImagePptx", () => {
     }
   });
 
-  it("keeps the slides in order and their pictures attached", () => {
-    const parts = unzipStore(buildImagePptx([jpeg(7), jpeg(8)], "Sunday"));
+  it("keeps the slides in order and their pictures attached", async () => {
+    const parts = await unzip(await buildImagePptx([jpeg(7), jpeg(8)], "Sunday"));
     const get = (n: string) => parts.find((p) => p.name === n)!;
     expect([...get("ppt/media/image2.jpeg").data]).toEqual([...jpeg(8).data]);
     const pres = dec.decode(get("ppt/presentation.xml").data);
@@ -66,14 +66,24 @@ describe("buildImagePptx", () => {
     );
   });
 
-  it("keeps each slide's picture format (PNG text slides, JPEG photos)", () => {
-    const parts = unzipStore(buildImagePptx([png(1), jpeg(2)], "x"));
+  it("keeps each slide's picture format (PNG text slides, JPEG photos)", async () => {
+    const parts = await unzip(await buildImagePptx([png(1), jpeg(2)], "x"));
     const names = parts.map((p) => p.name);
     expect(names).toContain("ppt/media/image1.png");
     expect(names).toContain("ppt/media/image2.jpeg");
     const rel1 = dec.decode(parts.find((p) => p.name === "ppt/slides/_rels/slide1.xml.rels")!.data);
     expect(rel1).toContain('Target="../media/image1.png"');
     expect(dec.decode(parts[0].data)).toContain('Extension="png" ContentType="image/png"');
+  });
+
+  // macOS Preview showed only the first two pictures, alternating, when every
+  // part was stored; compressing the XML parts fixed it.
+  it("compresses the XML parts and stores the pictures", async () => {
+    const parts = await unzip(await buildImagePptx([png(1), png(2), png(3)], "x"));
+    for (const p of parts) {
+      expect(p.method, p.name).toBe(p.name.startsWith("ppt/media/") ? 0 : 8);
+    }
+    expect(dec.decode(parts[0].data)).toContain("<Types");
   });
 
   it("declares every slide's content type", () => {

@@ -413,6 +413,8 @@ export function SlideView({
       }
     : undefined;
   // A slide's own image keeps its fixed scrim; the backdrop's follows Dim.
+  // The global backdrop (no image of the slide's own).
+  const backdrop = !slide?.imageUrl && !!bgUrl;
   const scrim = slide?.imageUrl ? 0.4 : Math.min(90, Math.max(0, back.bgDim)) / 100;
 
   const aspect = variant === "stage" ? "h-full" : "";
@@ -453,8 +455,14 @@ export function SlideView({
     <div
       ref={wrapRef}
       className={`relative ${aspect} w-full overflow-hidden ${surfaceBg} ${surfaceText} ${className}`}
-      style={aspectStyle}
+      style={backdrop ? { ...aspectStyle, ...bg } : aspectStyle}
     >
+      {/* The backdrop covers the whole box, not the scaled stage: on the
+          stage, rounding left a hairline of the surface colour (white with
+          black text) showing round the edge. */}
+      {backdrop && hasText && scrim > 0 ? (
+        <div className="absolute inset-0" style={{ backgroundColor: `rgb(0 0 0 / ${scrim})` }} />
+      ) : null}
       <div
         className="absolute left-0 top-0 origin-top-left"
         style={{
@@ -462,10 +470,10 @@ export function SlideView({
           height: stage.h,
           transform: `translate(${fitStage.x}px, ${fitStage.y}px) scale(${scale})`,
           fontFamily: template?.fontFamily,
-          ...bg,
+          ...(backdrop ? {} : bg),
         }}
       >
-        {bgUrl && hasText && scrim > 0 ? (
+        {!backdrop && bgUrl && hasText && scrim > 0 ? (
           <div className="absolute inset-0" style={{ backgroundColor: `rgb(0 0 0 / ${scrim})` }} />
         ) : null}
         <div

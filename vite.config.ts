@@ -35,5 +35,8 @@ export default defineConfig({
   },
   vite: {
     plugins: [requireSupabaseEnv()],
+    // The export's PDF worker (lib/pdf-build.worker.ts) loads pdf-lib on demand,
+    // which needs ES module workers (the default IIFE can't code-split).
+    worker: { format: "es" },
   },
 });

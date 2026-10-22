@@ -867,6 +867,11 @@ function Presenter() {
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
+                    {/* Export the gathering as PDF or PPTX, right of the pencil. */}
+                    <ExportGatheringButton
+                      gatheringId={activeGathering.id}
+                      className="pointer-events-auto shrink-0 border border-foreground"
+                    />
                   </>
                 )}
               </>
@@ -914,13 +919,6 @@ function Presenter() {
                 className="mr-3"
                 title="Slide size"
                 aria-label="Slide size"
-              />
-            )}
-            {/* Export the gathering as PDF or PowerPoint, both modes. */}
-            {activeGathering && (
-              <ExportGatheringButton
-                gatheringId={activeGathering.id}
-                className="border border-foreground"
               />
             )}
             {/* Share — mobile mode only. */}

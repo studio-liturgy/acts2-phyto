@@ -230,25 +230,38 @@ export async function renderExportSlides(
   return out;
 }
 
+/** The PDF, built in a worker so the page (and its spinner) keeps running.
+ *  Falls back to building it here if a worker can't start. */
 async function buildPdf(images: SlideImage[], stage: Stage): Promise<Blob> {
-  const { PDFDocument } = await import("pdf-lib");
-  const doc = await PDFDocument.create();
-  // PowerPoint's widescreen height in points (7.5 in), as wide as the shape:
-  // 13.333 in for 16:9.
-  const H = 540;
-  const W = Math.round((H * stage.w) / stage.h);
-  for (const image of images) {
-    const img =
-      image.type === "png" ? await doc.embedPng(image.data) : await doc.embedJpg(image.data);
-    doc.addPage([W, H]).drawImage(img, { x: 0, y: 0, width: W, height: H });
+  const ratio = stage.w / stage.h;
+  let bytes: Uint8Array;
+  try {
+    bytes = await new Promise<Uint8Array>((resolve, reject) => {
+      const worker = new Worker(new URL("./pdf-build.worker.ts", import.meta.url), {
+        type: "module",
+      });
+      worker.onmessage = (e: MessageEvent<{ ok: boolean; bytes?: Uint8Array; error?: string }>) => {
+        worker.terminate();
+        if (e.data.ok && e.data.bytes) resolve(e.data.bytes);
+        else reject(new Error(e.data.error ?? "PDF worker failed"));
+      };
+      worker.onerror = (e) => {
+        worker.terminate();
+        reject(e);
+      };
+      worker.postMessage({ images, ratio });
+    });
+  } catch (err) {
+    console.warn("PDF worker unavailable, building on the page", err);
+    const { buildPdfBytes } = await import("./pdf-build");
+    bytes = await buildPdfBytes(images, ratio);
   }
-  const bytes = await doc.save();
   return new Blob([bytes as BlobPart], { type: "application/pdf" });
 }
 
 async function buildPptx(images: SlideImage[], title: string, stage: Stage): Promise<Blob> {
   const { buildImagePptx } = await import("./pptx-images");
-  const bytes = buildImagePptx(images, title, stage.w / stage.h);
+  const bytes = await buildImagePptx(images, title, stage.w / stage.h);
   return new Blob([bytes as BlobPart], {
     type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   });
