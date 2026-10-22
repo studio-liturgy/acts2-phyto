@@ -1,4 +1,4 @@
-// An image-only PowerPoint file: one full-bleed JPEG per slide, 16:9
+// An image-only PowerPoint file: one full-bleed picture per slide, 16:9
 // widescreen (13.333 × 7.5 in). Hand-written OOXML with the minimum parts
 // PowerPoint, Keynote, Google Slides and LibreOffice require (presentation,
 // one master, one blank layout, a theme), zipped with zip-store.
@@ -127,10 +127,16 @@ function slide(n: number): string {
 }
 
 /** The parts of the file, in zip order ([Content_Types].xml first). */
-export function pptxParts(jpegs: Uint8Array[], title: string): ZipEntry[] {
+/** One slide's picture: PNG for text on plain backgrounds, JPEG for photos. */
+export interface SlideImage {
+  type: "png" | "jpeg";
+  data: Uint8Array;
+}
+
+export function pptxParts(images: SlideImage[], title: string): ZipEntry[] {
   const enc = new TextEncoder();
   const text = (name: string, xml: string): ZipEntry => ({ name, data: enc.encode(xml) });
-  const n = jpegs.length;
+  const n = images.length;
   const nums = Array.from({ length: n }, (_, i) => i + 1);
 
   const contentTypes =
@@ -139,6 +145,7 @@ export function pptxParts(jpegs: Uint8Array[], title: string): ZipEntry[] {
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
     '<Default Extension="xml" ContentType="application/xml"/>' +
     '<Default Extension="jpeg" ContentType="image/jpeg"/>' +
+    '<Default Extension="png" ContentType="image/png"/>' +
     '<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>' +
     '<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>' +
     '<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>' +
@@ -243,15 +250,15 @@ export function pptxParts(jpegs: Uint8Array[], title: string): ZipEntry[] {
         `ppt/slides/_rels/slide${i}.xml.rels`,
         rels([
           { id: "rId1", type: "slideLayout", target: "../slideLayouts/slideLayout1.xml" },
-          { id: "rId2", type: "image", target: `../media/image${i}.jpeg` },
+          { id: "rId2", type: "image", target: `../media/image${i}.${images[i - 1].type}` },
         ]),
       ),
-      { name: `ppt/media/image${i}.jpeg`, data: jpegs[i - 1] },
+      { name: `ppt/media/image${i}.${images[i - 1].type}`, data: images[i - 1].data },
     ]),
   ];
 }
 
 /** The .pptx file bytes. */
-export function buildImagePptx(jpegs: Uint8Array[], title: string): Uint8Array {
-  return zipStore(pptxParts(jpegs, title));
+export function buildImagePptx(images: SlideImage[], title: string): Uint8Array {
+  return zipStore(pptxParts(images, title));
 }

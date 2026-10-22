@@ -31,7 +31,11 @@ describe("zipStore", () => {
 });
 
 describe("buildImagePptx", () => {
-  const jpeg = (n: number) => new Uint8Array([0xff, 0xd8, n, 0xff, 0xd9]);
+  const jpeg = (n: number) => ({
+    type: "jpeg" as const,
+    data: new Uint8Array([0xff, 0xd8, n, 0xff, 0xd9]),
+  });
+  const png = (n: number) => ({ type: "png" as const, data: new Uint8Array([0x89, 0x50, n]) });
 
   it("puts [Content_Types].xml first and one slide + image per JPEG", () => {
     const names = pptxParts([jpeg(1), jpeg(2), jpeg(3)], "Sunday").map((p) => p.name);
@@ -46,7 +50,7 @@ describe("buildImagePptx", () => {
   it("keeps the slides in order and their pictures attached", () => {
     const parts = unzipStore(buildImagePptx([jpeg(7), jpeg(8)], "Sunday"));
     const get = (n: string) => parts.find((p) => p.name === n)!;
-    expect([...get("ppt/media/image2.jpeg").data]).toEqual([...jpeg(8)]);
+    expect([...get("ppt/media/image2.jpeg").data]).toEqual([...jpeg(8).data]);
     const pres = dec.decode(get("ppt/presentation.xml").data);
     expect(pres).toContain('<p:sldId id="256" r:id="rId2"/><p:sldId id="257" r:id="rId3"/>');
     expect(pres).toContain('<p:sldSz cx="12192000" cy="6858000"/>');
@@ -60,6 +64,16 @@ describe("buildImagePptx", () => {
     expect(dec.decode(get("ppt/slides/_rels/slide2.xml.rels").data)).toContain(
       'Target="../media/image2.jpeg"',
     );
+  });
+
+  it("keeps each slide's picture format (PNG text slides, JPEG photos)", () => {
+    const parts = unzipStore(buildImagePptx([png(1), jpeg(2)], "x"));
+    const names = parts.map((p) => p.name);
+    expect(names).toContain("ppt/media/image1.png");
+    expect(names).toContain("ppt/media/image2.jpeg");
+    const rel1 = dec.decode(parts.find((p) => p.name === "ppt/slides/_rels/slide1.xml.rels")!.data);
+    expect(rel1).toContain('Target="../media/image1.png"');
+    expect(dec.decode(parts[0].data)).toContain('Extension="png" ContentType="image/png"');
   });
 
   it("declares every slide's content type", () => {

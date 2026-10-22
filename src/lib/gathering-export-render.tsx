@@ -1,6 +1,6 @@
-// Draws a gathering's slides into JPEGs (exactly as the output window shows
-// them, via the same SlideView at 1920×1080) and packs them into a PDF or
-// PPTX. Browser only; loaded on demand when someone exports.
+// Draws a gathering's slides into pictures (exactly as the output window
+// shows them, via the same SlideView) and packs them into a PDF or PPTX.
+// Browser only; loaded on demand when someone exports.
 
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -15,7 +15,12 @@ import {
   type ExportSlide,
 } from "./gathering-export";
 
-const JPEG_QUALITY = 0.9;
+import type { SlideImage } from "./pptx-images";
+
+// Slides are drawn at twice the stage size (3840×2160) so text stays sharp on
+// high-density screens and projectors, and when zoomed in a PDF viewer.
+const EXPORT_SCALE = 2;
+const JPEG_QUALITY = 0.92;
 
 async function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -43,14 +48,19 @@ async function inlineImage(url: string): Promise<string | null> {
   return blob ? blobToDataUrl(blob) : null;
 }
 
-function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) =>
+/** Encode a slide. Text on a plain background goes out as PNG (lossless, so
+ *  letter edges stay crisp, and small); slides with a photo or video frame
+ *  as JPEG, which keeps photos to a sensible size. */
+async function encode(canvas: HTMLCanvasElement, photo: boolean): Promise<SlideImage> {
+  const type = photo ? "jpeg" : "png";
+  const blob = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error("JPEG encode failed"))),
-      "image/jpeg",
-      JPEG_QUALITY,
+      (b) => (b ? resolve(b) : reject(new Error("Image encode failed"))),
+      `image/${type}`,
+      photo ? JPEG_QUALITY : undefined,
     ),
   );
+  return { type, data: new Uint8Array(await blob.arrayBuffer()) };
 }
 
 function blackCanvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
@@ -107,7 +117,7 @@ function videoFrame(url: string): Promise<HTMLVideoElement | null> {
   });
 }
 
-async function renderVideoSlide(slide: ExportSlide["slide"]): Promise<Blob> {
+async function renderVideoSlide(slide: ExportSlide["slide"]): Promise<SlideImage> {
   const { canvas, ctx } = blackCanvas();
   const src = videoPosterSource(slide);
   let frame: CanvasImageSource | null = null;
@@ -128,17 +138,17 @@ async function renderVideoSlide(slide: ExportSlide["slide"]): Promise<Blob> {
       // a tainted or broken frame stays black
     }
   }
-  return canvasToJpeg(canvas);
+  return encode(canvas, true);
 }
 
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
 
-/** Render each slide to a 1920×1080 JPEG, in order. `onProgress(done, total)`
+/** Render each slide to a 3840×2160 picture, in order. `onProgress(done, total)`
  *  fires after every slide. */
 export async function renderExportSlides(
   slides: ExportSlide[],
   onProgress?: (done: number, total: number) => void,
-): Promise<Blob[]> {
+): Promise<SlideImage[]> {
   const { toCanvas } = await import("html-to-image");
   const host = document.createElement("div");
   host.setAttribute("aria-hidden", "true");
@@ -153,7 +163,7 @@ export async function renderExportSlides(
   document.body.appendChild(host);
   const root = createRoot(host);
   const images = new Map<string, string | null>();
-  const out: Blob[] = [];
+  const out: SlideImage[] = [];
   try {
     await document.fonts.ready;
     for (const [i, item] of slides.entries()) {
@@ -186,11 +196,11 @@ export async function renderExportSlides(
         const canvas = await toCanvas(node, {
           width: STAGE_W,
           height: STAGE_H,
-          pixelRatio: 1,
+          pixelRatio: EXPORT_SCALE,
           skipFonts: true,
           cacheBust: false,
         });
-        out.push(await canvasToJpeg(canvas));
+        out.push(await encode(canvas, !!slide.imageUrl));
       }
       onProgress?.(i + 1, slides.length);
     }
@@ -201,26 +211,24 @@ export async function renderExportSlides(
   return out;
 }
 
-async function buildPdf(jpegs: Blob[]): Promise<Blob> {
+async function buildPdf(images: SlideImage[]): Promise<Blob> {
   const { PDFDocument } = await import("pdf-lib");
   const doc = await PDFDocument.create();
   // 16:9 at PowerPoint's widescreen size in points (13.333 × 7.5 in).
   const W = 960;
   const H = 540;
-  for (const jpeg of jpegs) {
-    const img = await doc.embedJpg(await jpeg.arrayBuffer());
+  for (const image of images) {
+    const img =
+      image.type === "png" ? await doc.embedPng(image.data) : await doc.embedJpg(image.data);
     doc.addPage([W, H]).drawImage(img, { x: 0, y: 0, width: W, height: H });
   }
   const bytes = await doc.save();
   return new Blob([bytes as BlobPart], { type: "application/pdf" });
 }
 
-async function buildPptx(jpegs: Blob[], title: string): Promise<Blob> {
+async function buildPptx(images: SlideImage[], title: string): Promise<Blob> {
   const { buildImagePptx } = await import("./pptx-images");
-  const bytes = buildImagePptx(
-    await Promise.all(jpegs.map(async (j) => new Uint8Array(await j.arrayBuffer()))),
-    title,
-  );
+  const bytes = buildImagePptx(images, title);
   return new Blob([bytes as BlobPart], {
     type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   });
@@ -244,7 +252,7 @@ export async function exportGatheringFile(
   format: ExportFormat,
   onProgress?: (done: number, total: number) => void,
 ): Promise<void> {
-  const jpegs = await renderExportSlides(slides, onProgress);
-  const file = format === "pdf" ? await buildPdf(jpegs) : await buildPptx(jpegs, name);
+  const images = await renderExportSlides(slides, onProgress);
+  const file = format === "pdf" ? await buildPdf(images) : await buildPptx(images, name);
   download(file, exportFileName(name, format));
 }
