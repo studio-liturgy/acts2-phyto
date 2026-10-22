@@ -227,7 +227,13 @@ export function ExportGatheringButton({
                 <span
                   className={`relative tabular-nums ${busy ? "text-white mix-blend-difference" : ""}`}
                 >
-                  {busy ? `${progress.done}/${progress.total}` : "Export"}
+                  {!busy ? (
+                    "Export"
+                  ) : progress.total > 0 && progress.done >= progress.total ? (
+                    <AlmostDone />
+                  ) : (
+                    `${progress.done}/${progress.total}`
+                  )}
                 </span>
               </button>
             </div>
@@ -254,6 +260,26 @@ export function ExportGatheringButton({
           </div>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  );
+}
+
+/** "Almost done" with its three dots coming in one after another, on a loop.
+ *  The dots keep their space, so the words don't shift. */
+function AlmostDone() {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setN((v) => (v + 1) % 4), 400);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <>
+      Almost done
+      {[1, 2, 3].map((i) => (
+        <span key={i} className={n >= i ? "opacity-100" : "opacity-0"}>
+          .
+        </span>
+      ))}
     </>
   );
 }

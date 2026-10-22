@@ -59,11 +59,18 @@ export function ShareGatheringDialog({
   // The QR code and link appear together, once the link is known. Going live
   // holds on "Going Live..." until then (or 8 seconds, so it never sticks).
   const ready = !!shareUrl;
+  const [shown, setShown] = useState(true);
+  const reveal = `transition-opacity duration-500 ease-out ${
+    ready && shown ? "opacity-100" : "pointer-events-none opacity-0"
+  }`;
   useEffect(() => {
     if (!wentLive || step !== "confirm") return;
     const done = () => {
+      // Fade the QR code, link and End Session in over the Go Live circle.
+      setShown(false);
       setStep("share");
       setGoingLive(false);
+      requestAnimationFrame(() => requestAnimationFrame(() => setShown(true)));
     };
     if (ready) return done();
     const t = setTimeout(done, 8000);
@@ -422,9 +429,7 @@ export function ShareGatheringDialog({
                 </>
               ) : (
                 // The QR code and link sit midway down, between the top and the note.
-                <div
-                  className={`flex flex-1 flex-col justify-center pb-12 ${ready ? "" : "invisible"}`}
-                >
+                <div className={`flex flex-1 flex-col justify-center pb-12 ${reveal}`}>
                   {qrBlock}
                   <div className="mt-12">{linkBlock}</div>
                 </div>
@@ -440,7 +445,7 @@ export function ShareGatheringDialog({
                     onEndSession();
                     onOpenChange(false);
                   }}
-                  className="mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  className={`mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] ${reveal}`}
                 >
                   End Session
                 </button>
@@ -454,7 +459,7 @@ export function ShareGatheringDialog({
         <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
           {/* Nothing live: the link and its QR code only. */}
           <DialogTitle className="text-2xl font-normal leading-tight">Share your link!</DialogTitle>
-          <div className={ready ? "" : "invisible"}>
+          <div className={reveal}>
             <div className="mt-8">{qrBlock}</div>
             <div className="mt-14">{linkBlock}</div>
           </div>
