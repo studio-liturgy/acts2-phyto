@@ -21,6 +21,9 @@
 }
 
 @theme inline {
+  /* A very slight grow and shrink, like breathing (the export circle while
+     the file is packed). */
+  --animate-breathe: breathe 2.4s ease-in-out infinite;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -305,4 +308,14 @@ input[type="range"].phone-range::-webkit-slider-thumb,
 input[type="range"].phone-range::-moz-range-track,
 input[type="range"].phone-range::-moz-range-thumb {
   background: var(--phone-fg);
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.025);
+  }
 }

@@ -114,6 +114,10 @@ export function ExportGatheringButton({
   // The pie sweeps smoothly between slides rather than a step at a time.
   const smooth = useSmoothProgress(progress?.done ?? 0, progress?.total ?? 0, busy);
   const sweep = finished ? 1 : smooth;
+  // Every slide drawn, the file still being packed: the circle breathes (a
+  // very slight grow and shrink) so it reads as still working.
+  const packing =
+    busy && !finished && !!progress && progress.total > 0 && progress.done >= progress.total;
 
   if (!hasSets) return null;
 
@@ -209,7 +213,7 @@ export function ExportGatheringButton({
                 onClick={run}
                 disabled={busy || !slides || slides.length === 0}
                 aria-label={exportLabel}
-                className={`mono relative mt-6 flex aspect-square w-full items-center justify-center rounded-full border border-foreground text-sm uppercase tracking-wider transition-colors disabled:cursor-default ${
+                className={`mono relative mt-6 flex aspect-square w-full items-center justify-center rounded-full border border-foreground text-sm uppercase tracking-wider transition-colors disabled:cursor-default ${packing ? "animate-breathe" : ""} ${
                   busy
                     ? ""
                     : "hover:bg-foreground hover:text-background disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-foreground"
@@ -220,13 +224,7 @@ export function ExportGatheringButton({
                 {busy && (
                   <span
                     aria-hidden
-                    // Every slide drawn, the file still being packed: pulse
-                    // like Go Live so it reads as still working.
-                    className={`absolute inset-0 rounded-full ${
-                      !finished && progress.total > 0 && progress.done >= progress.total
-                        ? "animate-pulse"
-                        : ""
-                    }`}
+                    className="absolute inset-0 rounded-full"
                     style={{
                       background: `conic-gradient(var(--foreground) ${sweep * 360}deg, transparent 0deg)`,
                     }}
