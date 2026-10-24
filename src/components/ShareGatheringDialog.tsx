@@ -227,7 +227,9 @@ export function ShareGatheringDialog({
           aria-hidden
         />
       </div>
-      <div className="flex flex-1 flex-col gap-4">
+      {/* As wide as the labels and swatches (not the rest of the row), so
+          Download PNG centres under them. */}
+      <div className="flex flex-col gap-4">
         <div className="flex items-start gap-4">
           <span className="mono w-24 pt-1 text-[10px] uppercase tracking-wider">Dots</span>
           <div className="grid grid-cols-3 gap-2">
