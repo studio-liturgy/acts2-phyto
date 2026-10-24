@@ -492,7 +492,9 @@ export function ShareGatheringDialog({
             // The Go Live circle, the note right under it.
             <div className="mt-8 flex justify-center">{goLiveCircle("max-w-[15rem]")}</div>
           ) : (
-            <div className={reveal}>
+            // As wide as the QR code and its colours, so the link bar ends
+            // under the last swatch instead of running past it.
+            <div className={`w-fit ${reveal}`}>
               <div className="mt-8">{qrBlock}</div>
               <div className="mt-14">{linkBlock}</div>
             </div>
