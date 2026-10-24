@@ -408,7 +408,7 @@ export function MessageBlockEditor({
                     versions={versions[0] === "_" ? undefined : versions}
                     variant="thumb"
                   />
-                  <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition group-hover:opacity-100">
+                  <div className="absolute right-1 top-1 flex gap-0.5 opacity-0 transition group-hover:opacity-100">
                     <button
                       type="button"
                       onClick={() =>

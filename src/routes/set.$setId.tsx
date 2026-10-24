@@ -1307,7 +1307,7 @@ function SlideGrid({
         <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
           {i + 1}
         </div>
-        <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100">
+        <div className="absolute right-1.5 top-1.5 flex gap-0.5 opacity-0 transition group-hover:opacity-100">
           {s.kind === "image" && onToggleFit && (
             <button
               onClick={(e) => {

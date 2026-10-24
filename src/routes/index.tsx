@@ -2099,7 +2099,9 @@ function GatheringCard({
               (isLive ? (
                 <button
                   onClick={() => setShowEndSessionDialog(true)}
-                  className="pill flex h-10 w-10 items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)] transition animate-pulse hover:animate-none [&>svg]:opacity-0 [&>svg]:transition-opacity [&>svg]:duration-200 hover:[&>svg]:opacity-100"
+                  // Filled red while live: a little more room so a hovered Export
+                  // beside it doesn't look like it touches.
+                  className="pill ml-1 flex h-10 w-10 items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)] transition animate-pulse hover:animate-none [&>svg]:opacity-0 [&>svg]:transition-opacity [&>svg]:duration-200 hover:[&>svg]:opacity-100"
                   title="End session"
                   aria-label="End session"
                 >
