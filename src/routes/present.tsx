@@ -93,6 +93,7 @@ import { z } from "zod";
 import { SONG_LAYOUTS, songLayoutOf, songPatternStyle, songPatterns } from "@/lib/song-layout";
 import {
   KIND_STEP_LABEL,
+  KIND_STEP_NAME,
   kindColorOf,
   kindStepColor,
   kindStepPatterns,
@@ -1105,7 +1106,7 @@ function Presenter() {
               {activeGathering && q && (
                 <div className="mb-2">
                   <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between px-1">
-                    <span>Catalogue</span>
+                    <span>{kindFilter === "all" ? "Catalogue" : KIND_STEP_NAME[kindFilter]}</span>
                     {kindFilterDots}
                   </div>
                   {catalogueResults.length === 0 && (
@@ -1150,7 +1151,7 @@ function Presenter() {
                     </span>
                   ) : (
                     <span className="flex items-center justify-between">
-                      <span>Catalogue</span>
+                      <span>{kindFilter === "all" ? "Catalogue" : KIND_STEP_NAME[kindFilter]}</span>
                       <span className="flex items-center gap-1">
                         {kindFilterDots}
                         <button

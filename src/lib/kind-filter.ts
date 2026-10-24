@@ -25,6 +25,17 @@ export const KIND_CYCLE: Record<KindColor, readonly KindStep[]> = {
   media: ["media"],
 };
 
+/** A step's name, shown in place of the presenter's "Catalogue" heading. */
+export const KIND_STEP_NAME: Record<KindStep, string> = {
+  song: "Songs",
+  "song-chords": "Songs with chords",
+  "song-multilang": "Multi-Language",
+  "song-response": "Call and Response",
+  scripture: "Scriptures",
+  message: "Messages",
+  media: "Media",
+};
+
 /** Tooltip for the click that moves to a step. */
 export const KIND_STEP_LABEL: Record<KindStep, string> = {
   song: "Show songs",
