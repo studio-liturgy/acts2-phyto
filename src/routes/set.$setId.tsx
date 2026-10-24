@@ -326,80 +326,83 @@ function SetHeader({
       {/* Right actions. A set shared into a group belongs to its owner: other
           members can edit it but can't remove it (the owner or the group admin
           retracts it). */}
-      {removeMode && (
-        <button
-          onClick={() => setShowDeleteSetDialog(true)}
-          className="pill flex h-10 w-10 shrink-0 items-center justify-center transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-          title={removeLabel}
-          aria-label={removeLabel}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      )}
-      <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
-        <AlertDialogContent className="gap-0 rounded-3xl p-8">
-          <AlertDialogTitle className="text-2xl font-normal leading-tight">
-            {removeMode === "remove-shared"
-              ? "Remove this shared set?"
-              : removeMode === "remove-group" || removeMode === "remove-group-admin"
-                ? "Remove this set from the group?"
-                : "Delete this set?"}
-          </AlertDialogTitle>
-          <AlertDialogDescription className="mt-4 text-base text-foreground">
-            {removeMode === "remove-shared"
-              ? `This removes you from “${phytoSet.name}” completely. You'll lose access, and it won't come back unless the owner shares it with you again.`
-              : removeMode === "remove-group"
-                ? "Remove the set out of the group and its gatherings. It stays in your personal catalogue."
-                : removeMode === "remove-group-admin"
-                  ? "This takes the set out of the group and its gatherings. It stays in its owner's personal catalogue."
-                  : "This cannot be undone."}
-          </AlertDialogDescription>
-          <div className="mt-8 flex gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                if (removeMode === "remove-group" || removeMode === "remove-group-admin") {
-                  unshareSetFromGroup(phytoSet.id, activeWorkspace);
-                } else {
-                  deleteSet(phytoSet.id);
-                }
-                navigate({ to: redirectTo ?? "/" });
-              }}
-              className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
-            >
-              {removeLabel}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowDeleteSetDialog(false)}
-              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
-            >
-              Cancel
-            </button>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
-      {isSignedIn && !phytoSet.shared && (
-        <button
-          onClick={() => setShowShareDialog(true)}
-          className="pill flex h-10 w-10 shrink-0 items-center justify-center transition hover:bg-foreground hover:text-background"
-          title="Share set"
-          aria-label="Share set"
-        >
-          <Share2 className="h-4 w-4" />
-        </button>
-      )}
-      {showShareDialog && (
-        <ShareSetDialog
-          open={showShareDialog}
-          onOpenChange={setShowShareDialog}
-          setId={phytoSet.id}
-          setName={phytoSet.name}
-          groups={groups}
-        />
-      )}
-      {/* Export this set as PDF or PPTX (the gathering export's dialog). */}
-      <ExportGatheringButton setId={phytoSet.id} />
+      {/* Delete, Share and Export: plain icons, grouped tight. */}
+      <div className="flex shrink-0 items-center gap-0.5">
+        {removeMode && (
+          <button
+            onClick={() => setShowDeleteSetDialog(true)}
+            className="pill flex h-10 w-10 shrink-0 items-center justify-center transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+            title={removeLabel}
+            aria-label={removeLabel}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+        <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
+          <AlertDialogContent className="gap-0 rounded-3xl p-8">
+            <AlertDialogTitle className="text-2xl font-normal leading-tight">
+              {removeMode === "remove-shared"
+                ? "Remove this shared set?"
+                : removeMode === "remove-group" || removeMode === "remove-group-admin"
+                  ? "Remove this set from the group?"
+                  : "Delete this set?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="mt-4 text-base text-foreground">
+              {removeMode === "remove-shared"
+                ? `This removes you from “${phytoSet.name}” completely. You'll lose access, and it won't come back unless the owner shares it with you again.`
+                : removeMode === "remove-group"
+                  ? "Remove the set out of the group and its gatherings. It stays in your personal catalogue."
+                  : removeMode === "remove-group-admin"
+                    ? "This takes the set out of the group and its gatherings. It stays in its owner's personal catalogue."
+                    : "This cannot be undone."}
+            </AlertDialogDescription>
+            <div className="mt-8 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (removeMode === "remove-group" || removeMode === "remove-group-admin") {
+                    unshareSetFromGroup(phytoSet.id, activeWorkspace);
+                  } else {
+                    deleteSet(phytoSet.id);
+                  }
+                  navigate({ to: redirectTo ?? "/" });
+                }}
+                className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+              >
+                {removeLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteSetDialog(false)}
+                className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+              >
+                Cancel
+              </button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
+        {isSignedIn && !phytoSet.shared && (
+          <button
+            onClick={() => setShowShareDialog(true)}
+            className="pill flex h-10 w-10 shrink-0 items-center justify-center transition hover:bg-foreground hover:text-background"
+            title="Share set"
+            aria-label="Share set"
+          >
+            <Share2 className="h-4 w-4" />
+          </button>
+        )}
+        {showShareDialog && (
+          <ShareSetDialog
+            open={showShareDialog}
+            onOpenChange={setShowShareDialog}
+            setId={phytoSet.id}
+            setName={phytoSet.name}
+            groups={groups}
+          />
+        )}
+        {/* Export this set as PDF or PPTX (the gathering export's dialog). */}
+        <ExportGatheringButton setId={phytoSet.id} />
+      </div>
       <AddToGathering setId={phytoSet.id} onAdded={setPresentGatheringId} />
       {!fromPresenter && (
         <button
