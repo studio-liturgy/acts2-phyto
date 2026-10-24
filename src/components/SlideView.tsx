@@ -448,19 +448,32 @@ export function SlideView({
     slide?.kind === "lyric" && template?.textCase === "upper" ? ("uppercase" as const) : undefined;
 
   if (slide?.kind === "video") {
+    // The video sits in the stage's box, so a slide shape that differs from
+    // the screen letterboxes it the same way as every other slide.
     return (
       <div
+        ref={wrapRef}
         className={`relative ${aspect} w-full overflow-hidden bg-black ${className}`}
         style={aspectStyle}
       >
-        <VideoLayer
-          slide={slide}
-          variant={variant}
-          videoCmd={videoCmd}
-          onEnded={onVideoEnded}
-          active={active}
-          playbackEnabled={playbackEnabled}
-        />
+        <div
+          className="absolute overflow-hidden"
+          style={{
+            left: fitStage.x,
+            top: fitStage.y,
+            width: stage.w * scale,
+            height: stage.h * scale,
+          }}
+        >
+          <VideoLayer
+            slide={slide}
+            variant={variant}
+            videoCmd={videoCmd}
+            onEnded={onVideoEnded}
+            active={active}
+            playbackEnabled={playbackEnabled}
+          />
+        </div>
       </div>
     );
   }

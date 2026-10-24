@@ -158,6 +158,11 @@ export function SongModesEntry() {
         <FeatureItem>
           Backgrounds are saved to your account, and slides, the output and exports all follow them
         </FeatureItem>
+        <FeatureItem>
+          Background replaces the Black or White choice in Song Template and Scripture Template, and
+          starts from your song template&rsquo;s choice. If your scripture slides used the other
+          colour, they now match your songs
+        </FeatureItem>
       </ul>
 
       <div className={subCls}>Go Live and Share</div>
