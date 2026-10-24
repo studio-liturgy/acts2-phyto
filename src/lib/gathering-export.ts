@@ -56,6 +56,18 @@ export function playedSlides(set: PhytoSet, ctx: ExportContext): Slide[] {
   return set.slides.filter((s) => !hiddenIds.has(s.id));
 }
 
+/** One set's slides for the set editor's export: every slide as written
+ *  (hidden sections and arrangements belong to a gathering, not the set). */
+export function setExportSlides(
+  set: PhytoSet,
+  songTemplate: SetTemplate | undefined,
+  scriptureTemplate: SetTemplate | undefined,
+): ExportSlide[] {
+  const template = templateForSet(set, songTemplate, scriptureTemplate);
+  const versions = visibleVersions(set);
+  return set.slides.map((slide) => ({ setId: set.id, slide, template, versions }));
+}
+
 /** Every slide of the gathering, in run order, with what it's drawn with.
  *  Sets missing from the library (not synced yet) are skipped. */
 export function gatheringExportSlides(gathering: Gathering, ctx: ExportContext): ExportSlide[] {

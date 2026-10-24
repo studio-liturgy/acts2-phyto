@@ -27,6 +27,7 @@ import {
   slidesToScriptureText,
 } from "@/lib/slide-text";
 import { SlideView } from "@/components/SlideView";
+import { ExportGatheringButton } from "@/components/ExportGatheringButton";
 import { AddElementBar, MessageElements } from "@/components/MessageElements";
 import { MessageBlockEditor } from "@/components/MessageBlockEditor";
 import { ScriptureVerseEditor } from "@/components/ScriptureVerseEditor";
@@ -113,6 +114,7 @@ import {
   ArrowLeftRight,
   X,
   ChevronUp,
+  Share2,
 } from "lucide-react";
 import { NumberStepper } from "@/components/NumberStepper";
 import { useIsSignedIn } from "@/lib/authStore";
@@ -327,9 +329,11 @@ function SetHeader({
       {removeMode && (
         <button
           onClick={() => setShowDeleteSetDialog(true)}
-          className="mono uppercase pill shrink-0 bg-[var(--brand-red)] px-4 py-2 text-xs text-[var(--brand-white)] transition hover:opacity-90"
+          className="pill flex h-10 w-10 shrink-0 items-center justify-center transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+          title={removeLabel}
+          aria-label={removeLabel}
         >
-          {removeLabel}
+          <Trash2 className="h-4 w-4" />
         </button>
       )}
       <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
@@ -378,10 +382,11 @@ function SetHeader({
       {isSignedIn && !phytoSet.shared && (
         <button
           onClick={() => setShowShareDialog(true)}
-          className="pill mono uppercase shrink-0 border border-foreground px-4 py-2 text-xs transition hover:bg-foreground hover:text-background"
+          className="pill flex h-10 w-10 shrink-0 items-center justify-center transition hover:bg-foreground hover:text-background"
           title="Share set"
+          aria-label="Share set"
         >
-          Share
+          <Share2 className="h-4 w-4" />
         </button>
       )}
       {showShareDialog && (
@@ -393,6 +398,8 @@ function SetHeader({
           groups={groups}
         />
       )}
+      {/* Export this set as PDF or PPTX (the gathering export's dialog). */}
+      <ExportGatheringButton setId={phytoSet.id} />
       <AddToGathering setId={phytoSet.id} onAdded={setPresentGatheringId} />
       {!fromPresenter && (
         <button

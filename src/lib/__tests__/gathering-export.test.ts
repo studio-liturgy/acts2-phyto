@@ -6,6 +6,7 @@ import {
   gatheringExportSlides,
   isOwnMediaUrl,
   playedSlides,
+  setExportSlides,
   templateForSet,
   videoPosterSource,
   type ExportContext,
@@ -198,5 +199,13 @@ describe("containRect", () => {
   });
   it("fills when the shape matches", () => {
     expect(containRect(1280, 720, 1920, 1080)).toEqual({ x: 0, y: 0, w: 1920, h: 1080 });
+  });
+});
+
+describe("setExportSlides", () => {
+  it("exports every slide of the set as written, with its template", () => {
+    const out = setExportSlides(song, songTpl, scriptureTpl);
+    expect(out.map((s) => s.slide.id)).toEqual(["v", "c", "b"]);
+    expect(out.every((s) => s.template === songTpl && s.setId === "song")).toBe(true);
   });
 });

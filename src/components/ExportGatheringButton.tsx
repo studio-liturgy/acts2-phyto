@@ -16,7 +16,12 @@ import {
   useGatheringSections,
   useLibrary,
 } from "@/lib/store";
-import { gatheringExportSlides, type ExportFormat, type ExportSlide } from "@/lib/gathering-export";
+import {
+  gatheringExportSlides,
+  setExportSlides,
+  type ExportFormat,
+  type ExportSlide,
+} from "@/lib/gathering-export";
 
 const LABEL = "mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground";
 
@@ -24,6 +29,14 @@ const FORMATS: { value: ExportFormat; label: string }[] = [
   { value: "pdf", label: "PDF" },
   { value: "pptx", label: "PPTX" },
 ];
+
+/** One set's slides (the set editor's export). */
+async function exportSlidesForSet(setId: string): Promise<ExportSlide[]> {
+  const lib = useLibrary.getState();
+  const set = lib.sets[setId];
+  if (!set) throw new Error("Set not found");
+  return setExportSlides(set, lib.songTemplate, lib.scriptureTemplate);
+}
 
 /** The gathering's slides in play order, as the export draws them. */
 async function exportSlidesFor(gatheringId: string): Promise<ExportSlide[]> {
@@ -49,18 +62,28 @@ async function exportSlidesFor(gatheringId: string): Promise<ExportSlide[]> {
  * order, each slide drawn as the output screen shows it. The button sits
  * beside the gathering's other header buttons (home card, presenter header)
  * and opens a dialog: the slides on the left, the Background controls (the same
- * setting as the presenter's card), format and Export on the right.
+ * setting as the presenter's card), format and Export on the right. Given a
+ * `setId` instead, it exports that one set (the set editor's header).
  */
 export function ExportGatheringButton({
   gatheringId,
+  setId,
   className = "",
 }: {
-  gatheringId: string;
+  gatheringId?: string;
+  setId?: string;
   /** Border/hover styling of the neighbouring buttons. */
   className?: string;
 }) {
-  const hasSets = useLibrary((s) => (s.gatherings[gatheringId]?.setIds.length ?? 0) > 0);
-  const gatheringName = useLibrary((s) => s.gatherings[gatheringId]?.name ?? "gathering");
+  const hasSets = useLibrary((s) =>
+    setId
+      ? (s.sets[setId]?.slides.length ?? 0) > 0
+      : (s.gatherings[gatheringId ?? ""]?.setIds.length ?? 0) > 0,
+  );
+  const gatheringName = useLibrary((s) =>
+    setId ? (s.sets[setId]?.name ?? "set") : (s.gatherings[gatheringId ?? ""]?.name ?? "gathering"),
+  );
+  const what = setId ? "set" : "gathering";
   const [open, setOpen] = useState(false);
   const [slides, setSlides] = useState<ExportSlide[] | null>(null);
   const [format, setFormat] = useState<ExportFormat>("pdf");
@@ -74,7 +97,7 @@ export function ExportGatheringButton({
     if (!open) return;
     let cancelled = false;
     setSlides(null);
-    exportSlidesFor(gatheringId)
+    (setId ? exportSlidesForSet(setId) : exportSlidesFor(gatheringId ?? ""))
       .then((s) => {
         if (!cancelled) setSlides(s);
       })
@@ -85,13 +108,13 @@ export function ExportGatheringButton({
     return () => {
       cancelled = true;
     };
-  }, [open, gatheringId]);
+  }, [open, gatheringId, setId]);
 
   const run = async () => {
     if (busy || !slides || slides.length === 0) return;
     setProgress({ done: 0, total: slides.length });
     try {
-      const name = useLibrary.getState().gatherings[gatheringId]?.name ?? "Gathering";
+      const name = gatheringName;
       const { exportGatheringFile } = await import("@/lib/gathering-export-render");
       await exportGatheringFile(name, slides, format, (done, total) =>
         setProgress({ done, total }),
@@ -136,8 +159,8 @@ export function ExportGatheringButton({
         type="button"
         onClick={() => setOpen(true)}
         className={`pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background ${className}`}
-        title="Export gathering"
-        aria-label="Export gathering"
+        title={`Export ${what}`}
+        aria-label={`Export ${what}`}
       >
         <Upload className="h-4 w-4" />
       </button>
