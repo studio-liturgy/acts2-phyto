@@ -963,7 +963,7 @@ function Presenter() {
               ) : (
                 <button
                   onClick={() => setShowGoLiveDialog(true)}
-                  className="pill flex h-10 w-10 items-center justify-center transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
                   title="Go live"
                   aria-label="Go live"
                 >
