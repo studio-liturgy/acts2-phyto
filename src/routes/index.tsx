@@ -1409,32 +1409,35 @@ function Library() {
                               </span>
                             </span>
                           </div>
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center">
-                            {!editMode && !d.shared && isSignedIn && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShareSet(d);
-                                }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/20"
-                                title="Share set"
-                                aria-label="Share set"
-                              >
-                                <Share2 className="h-4 w-4" />
-                              </button>
-                            )}
+                          {/* Share and Edit: plain icons 2px apart. */}
+                          <span className="flex shrink-0 items-center gap-0.5">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center">
+                              {!editMode && !d.shared && isSignedIn && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShareSet(d);
+                                  }}
+                                  className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-foreground/15"
+                                  title="Share set"
+                                  aria-label="Share set"
+                                >
+                                  <Share2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </span>
+                            <Link
+                              to="/set/$setId"
+                              params={{ setId: d.id }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-foreground/15"
+                              title="Edit set"
+                              aria-label="Edit set"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Link>
                           </span>
-                          <Link
-                            to="/set/$setId"
-                            params={{ setId: d.id }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-white/20"
-                            title="Edit set"
-                            aria-label="Edit set"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Link>
                         </div>
                       </li>
                     );

@@ -867,22 +867,25 @@ function Presenter() {
                     >
                       {activeGathering.name}
                     </span>
-                    <button
-                      onClick={() => {
-                        setEditingGatheringName(true);
-                        setTimeout(() => gatheringNameInputRef.current?.select(), 0);
-                      }}
-                      className="pill pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-                      title="Rename gathering"
-                      aria-label="Rename gathering"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    {/* Export the gathering as PDF or PPTX, right of the pencil. */}
-                    <ExportGatheringButton
-                      gatheringId={activeGathering.id}
-                      className="pointer-events-auto shrink-0 border border-foreground"
-                    />
+                    {/* Plain icons 2px apart, like the home gathering card. */}
+                    <span className="pointer-events-auto flex shrink-0 items-center gap-0.5">
+                      <button
+                        onClick={() => {
+                          setEditingGatheringName(true);
+                          setTimeout(() => gatheringNameInputRef.current?.select(), 0);
+                        }}
+                        className="pill flex h-10 w-10 shrink-0 items-center justify-center transition hover:bg-foreground hover:text-background"
+                        title="Rename gathering"
+                        aria-label="Rename gathering"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      {/* Export the gathering as PDF or PPTX, right of the pencil. */}
+                      <ExportGatheringButton
+                        gatheringId={activeGathering.id}
+                        className="shrink-0"
+                      />
+                    </span>
                   </>
                 )}
               </>
@@ -902,7 +905,7 @@ function Presenter() {
                   to="/set/$setId"
                   params={{ setId: activeSet.id }}
                   search={{ redirectTo: presenterReturn(activeSet.id) }}
-                  className="pill pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
+                  className="pill pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center transition hover:bg-foreground hover:text-background"
                   title="Edit set"
                   aria-label="Edit set"
                 >
@@ -912,7 +915,8 @@ function Presenter() {
             ) : null}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          {/* Outlined icon group: 6px apart. */}
+          <div className="flex shrink-0 items-center gap-1.5">
             {/* Slide-size slider — slides mode only, just left of Output. */}
             {effectiveViewMode === "slides" && (
               <input
@@ -959,7 +963,7 @@ function Presenter() {
               ) : (
                 <button
                   onClick={() => setShowGoLiveDialog(true)}
-                  className="pill flex h-10 w-10 items-center justify-center border border-foreground transition hover:border-[var(--brand-red)] hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+                  className="pill flex h-10 w-10 items-center justify-center transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
                   title="Go live"
                   aria-label="Go live"
                 >
@@ -1501,7 +1505,7 @@ function Presenter() {
                             title="Edit set"
                             aria-label="Edit set"
                           >
-                            <Pencil className="h-3 w-3" />
+                            <Pencil className="h-3.5 w-3.5" />
                           </Link>
                           {canHide && (
                             <button
@@ -1655,7 +1659,7 @@ function Presenter() {
                   />
                   <span className="text-xs text-muted-foreground">s</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   {liveSlide?.kind === "video" && (
                     <>
                       <button
@@ -2039,11 +2043,11 @@ function PresenterThumb({
           className="absolute inset-0 z-20 flex flex-col overflow-hidden rounded-lg border-2 border-foreground bg-background"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex justify-end gap-1 p-1">
+          <div className="flex justify-end gap-0.5 p-1">
             <button
               type="button"
               onClick={closeEdit}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/10"
+              className="flex h-6 w-6 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/15"
               title="Cancel"
               aria-label="Cancel edit"
             >
