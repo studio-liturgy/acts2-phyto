@@ -3,6 +3,8 @@ import {
   clearColumnRange,
   editedLangLines,
   insertColumnCell,
+  joinColumnCell,
+  splitColumnCell,
   leaveMultilang,
   returnToMultilang,
   slideStarts,
@@ -242,6 +244,54 @@ describe("one-column edits", () => {
       { kind: "line", byLang: { en: "b", ja: "い" } },
     ];
     expect(clearColumnRange(one, "en", 0, 1)).toEqual([{ kind: "line", byLang: { ja: "い" } }]);
+  });
+
+  const song: MultiRow[] = [
+    { kind: "line", byLang: { en: "Amazing (G)grace", zh: "奇异恩典" } },
+    { kind: "line", byLang: { en: "How sweet the sound", zh: "何等甘甜" } },
+    { kind: "break" },
+    { kind: "line", byLang: { zh: "我罪已得赦免" } },
+    { kind: "section", text: "Chorus" },
+    { kind: "line", byLang: { en: "That saved a wretch", zh: "前我失丧" } },
+  ];
+
+  it("Enter mid-line pushes this language down to the end of the song, chords with their words", () => {
+    const next = splitColumnCell(song, 0, "en", "Amazing ".length);
+    expect(next).toEqual([
+      { kind: "line", byLang: { en: "Amazing ", zh: "奇异恩典" } },
+      { kind: "line", byLang: { en: "(G)grace", zh: "何等甘甜" } },
+      { kind: "break" },
+      { kind: "line", byLang: { en: "How sweet the sound", zh: "我罪已得赦免" } },
+      { kind: "section", text: "Chorus" },
+      { kind: "line", byLang: { zh: "前我失丧" } },
+      { kind: "line", byLang: { en: "That saved a wretch" } },
+    ]);
+  });
+
+  it("Backspace at the start joins back exactly (no space added) and drops the emptied last row", () => {
+    const split = splitColumnCell(song, 0, "en", "Amazing ".length);
+    const joined = joinColumnCell(split, 1, "en");
+    expect(joined).toEqual({ rows: song, row: 0, caret: "Amazing ".length });
+  });
+
+  it("Backspace joins across a slide break and a section heading", () => {
+    const joined = joinColumnCell(song, 5, "zh");
+    expect(joined?.rows).toEqual([
+      ...song.slice(0, 3),
+      { kind: "line", byLang: { zh: "我罪已得赦免前我失丧" } },
+      { kind: "section", text: "Chorus" },
+      { kind: "line", byLang: { en: "That saved a wretch" } },
+    ]);
+    expect(joined?.caret).toBe("我罪已得赦免".length);
+  });
+
+  it("Enter at the end of the last line opens an empty line below; Backspace on line 1 does nothing", () => {
+    const one: MultiRow[] = [{ kind: "line", byLang: { en: "a", ja: "あ" } }];
+    expect(splitColumnCell(one, 0, "en", 1)).toEqual([
+      { kind: "line", byLang: { en: "a", ja: "あ" } },
+      { kind: "line", byLang: {} },
+    ]);
+    expect(joinColumnCell(one, 0, "en")).toBeNull();
   });
 });
 

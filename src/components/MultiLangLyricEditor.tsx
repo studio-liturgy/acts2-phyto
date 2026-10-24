@@ -24,6 +24,8 @@ import {
   clearColumnRange,
   columnRangeText,
   pasteDownColumn,
+  joinColumnCell,
+  splitColumnCell,
   rowsToSlides,
   shownLangs,
   slidesToRows,
@@ -466,6 +468,23 @@ export function MultiLangLyricEditor({
     setRows((rs) => [...rs.slice(0, row + 1), { kind: "line", byLang: {} }, ...rs.slice(row + 1)]);
     pendingFocus.current = { line: lineNo(rows, row) + 1, lang };
   };
+  // Enter: this language's words after the cursor go onto its next line and
+  // every later line of it moves down one; the other languages stay put.
+  const splitCell = (row: number, lang: LangCode, caret: number) => {
+    step();
+    setRows((rs) => splitColumnCell(rs, row, lang, caret));
+    pendingFocus.current = { line: lineNo(rows, row) + 1, lang, caret: 0 };
+  };
+  // Backspace at the start of a line: it joins the end of this language's line
+  // above and every later line of it moves up one.
+  const joinCell = (row: number, lang: LangCode) => {
+    const joined = joinColumnCell(rows, row, lang);
+    if (!joined) return false;
+    step();
+    setRows(joined.rows);
+    pendingFocus.current = { line: lineNo(rows, joined.row), lang, caret: joined.caret };
+    return true;
+  };
   const removeRow = (row: number, lang?: LangCode) => {
     step();
     setRows((rs) => (rs.length <= 1 ? rs : rs.filter((_, i) => i !== row)));
@@ -810,6 +829,8 @@ export function MultiLangLyricEditor({
                   } else stripEdit.current = { row, index: at };
                 }}
                 insertLineAfter={insertLineAfter}
+                splitCell={splitCell}
+                joinCell={joinCell}
                 breakAfter={breakAfter}
                 breakAbove={rows[i - 1]?.kind === "break"}
                 removeBreakAbove={removeBreakAbove}
@@ -865,6 +886,8 @@ function Row({
   stripClose,
   onStripEditing,
   insertLineAfter,
+  splitCell,
+  joinCell,
   breakAfter,
   breakAbove,
   removeBreakAbove,
@@ -896,6 +919,8 @@ function Row({
   stripClose: number;
   onStripEditing: (row: number, index: number | null) => void;
   insertLineAfter: (row: number, lang: LangCode) => void;
+  splitCell: (row: number, lang: LangCode, caret: number) => void;
+  joinCell: (row: number, lang: LangCode) => boolean;
   breakAfter: (row: number, lang: LangCode, caret: number) => void;
   /** The row above is a slide break. */
   breakAbove: boolean;
@@ -1002,9 +1027,13 @@ function Row({
                   // A new slide after this line (same as Call and Response).
                   e.preventDefault();
                   breakAfter(index, code, el.selectionStart);
-                } else if (e.key === "Enter") {
+                } else if (e.key === "Enter" && e.shiftKey) {
+                  // A blank line underneath, in every language.
                   e.preventDefault();
                   insertLineAfter(index, code);
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  splitCell(index, code, el.selectionStart);
                 } else if (
                   e.key === "Backspace" &&
                   el.selectionStart === 0 &&
@@ -1022,6 +1051,13 @@ function Row({
                 ) {
                   e.preventDefault();
                   removeRow(index, code);
+                } else if (
+                  e.key === "Backspace" &&
+                  el.selectionStart === 0 &&
+                  el.selectionEnd === 0
+                ) {
+                  // Joins the line above in this language only.
+                  if (joinCell(index, code)) e.preventDefault();
                 } else if (e.key === "ArrowUp" && el.selectionStart === 0) {
                   e.preventDefault();
                   moveCaret(index, code, -1);

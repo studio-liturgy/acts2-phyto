@@ -25,7 +25,7 @@
 // exactly and hiding a language never loses its words.
 import type { HiddenLangs, Slide, Set as PhytoSet } from "./types";
 import { LANGS, type LangCode } from "./langs";
-import { stripChordsRaw } from "./chords";
+import { splitChordLine, stripChordsRaw } from "./chords";
 
 /** At most this many languages are stacked on a slide at once. */
 export const MAX_SHOWN_LANGS = 4;
@@ -472,6 +472,62 @@ export function removeColumnCell(rows: MultiRow[], row: number, lang: LangCode):
     return next.filter((_, i) => i !== lastAt);
   }
   return next;
+}
+
+/**
+ * Enter: split `row`'s cell in `lang` at `caret` (a position in the words, chords
+ * left out). The words after the cursor, chords with them, become the next line
+ * of that language and every later line of it moves down one, across sections
+ * and slide breaks; the other languages stay where they are. Nothing is
+ * trimmed, so Backspace joins the two halves back exactly.
+ */
+export function splitColumnCell(
+  rows: MultiRow[],
+  row: number,
+  lang: LangCode,
+  caret: number,
+): MultiRow[] {
+  const cur = rows[row];
+  if (cur?.kind !== "line") return rows;
+  const [left, right] = splitChordLine(cur.byLang[lang] ?? "", caret);
+  const idx = lineIndexes(rows);
+  const pos = idx.indexOf(row);
+  const values = idx.map((i) => (rows[i] as LineRow).byLang[lang] ?? "");
+  const shifted = [...values.slice(0, pos), left, right, ...values.slice(pos + 1)];
+  let next = rows;
+  if (shifted[shifted.length - 1] || pos === values.length - 1) {
+    next = [...rows, { kind: "line", byLang: {} }];
+    idx.push(next.length - 1);
+  } else {
+    shifted.pop();
+  }
+  return writeColumn(next, idx, lang, shifted);
+}
+
+/**
+ * Backspace at the start of a line: `row`'s cell in `lang` joins the end of the
+ * line above in that language (as typed, no space added, chords kept) and every
+ * later line of it moves up one, across sections and slide breaks. `caret` is
+ * where the join happened in the line above (words only). Null on the first
+ * line, where there is nothing to join onto.
+ */
+export function joinColumnCell(
+  rows: MultiRow[],
+  row: number,
+  lang: LangCode,
+): { rows: MultiRow[]; row: number; caret: number } | null {
+  const idx = lineIndexes(rows);
+  const pos = idx.indexOf(row);
+  if (pos <= 0) return null;
+  const aboveAt = idx[pos - 1];
+  const above = (rows[aboveAt] as LineRow).byLang[lang] ?? "";
+  const here = (rows[row] as LineRow).byLang[lang] ?? "";
+  const joined = writeColumn(rows, [aboveAt], lang, [above + here]);
+  return {
+    rows: removeColumnCell(joined, row, lang),
+    row: aboveAt,
+    caret: stripChordsRaw(above).length,
+  };
 }
 
 /**
