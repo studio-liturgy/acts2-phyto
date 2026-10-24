@@ -78,9 +78,9 @@ const STEPS: Step[] = [
     ],
     textB: (
       <>
-        Turn on multi-language to display scriptures in different translations simultaneously
+        Display scriptures in two translations at once
         <br />
-        (Lyrics coming soon)
+        and songs in several languages side by side
       </>
     ),
     clips: [

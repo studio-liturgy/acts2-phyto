@@ -21,7 +21,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: October 1, 2026
+          Effective Date: October 24, 2026
         </p>
 
         {/* OFFLINE TAB */}
@@ -312,8 +312,8 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
                   database so you can access them across devices
                 </li>
                 <li>
-                  <strong>Uploaded media:</strong> any video files you upload for use in your slides
-                  are stored on our servers. See section 5 below.
+                  <strong>Uploaded media:</strong> images and videos you upload for your slides and
+                  backgrounds are stored on our servers. See section 5 below.
                 </li>
                 <li>
                   <strong>Device identifier:</strong> an anonymous ID generated locally on each
@@ -331,7 +331,8 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
                   stored with your account, and a group&rsquo;s with the group, along with any
                   language preferences saved before October 1, 2026. They can be read by anyone who
                   has your gathering link. Which bible versions a set shows is part of the set
-                  itself, not these settings.
+                  itself, not these settings. Your slide background (colour, image, dimming and
+                  slide shape) is stored with your account.
                 </li>
               </ul>
               <p className="mt-2">
@@ -398,10 +399,11 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             <section>
               <h2 className="text-2xl">5. Uploaded Media</h2>
               <p className="mt-2">
-                Signed-in users can upload short video clips to use as slide media. Uploaded videos
-                are stored in Cloudflare R2 (object storage) rather than on your device, subject to
-                a limit of 5 MB per image or PDF, 100 MB per video, and 50 MB total per account
-                (accounts created before 6 October 2026 keep their earlier 300 MB allowance).
+                Signed-in users can upload images and short video clips for their slides and
+                backgrounds. Uploaded media is stored in Cloudflare R2 (object storage) rather than
+                on your device, subject to a limit of 5 MB per image or PDF, 100 MB per video, and
+                50 MB total per account (accounts created before 6 October 2026 keep their earlier
+                300 MB allowance).
               </p>
               <p className="mt-2">
                 Each uploaded file is served from its own public URL containing a random,

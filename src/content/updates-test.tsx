@@ -6,6 +6,7 @@ import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 import {
   ArrangementsEntry,
+  SongModesEntry,
   LiveGatheringsEntry,
   ReleaseEntry,
   VersionsEntry,
@@ -34,6 +35,7 @@ export default function UpdatesTest() {
         </Link>
         {/* The next release's entry, exactly as phyto.live/updates will show it. */}
         <ul className="mt-8 space-y-12">
+          <SongModesEntry />
           <ArrangementsEntry />
           <LiveGatheringsEntry />
           <YouVersionEntry />

@@ -5,6 +5,7 @@ import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 import {
   ArrangementsEntry,
+  SongModesEntry,
   FeatureItem,
   LiveGatheringsEntry,
   ReleaseEntry,
@@ -24,6 +25,7 @@ export default function UpdatesMain() {
           <ArrowLeft className="h-3 w-3" /> BACK
         </Link>
         <ul className="mt-8 space-y-12">
+          <SongModesEntry />
           <ArrangementsEntry />
           <LiveGatheringsEntry />
           <YouVersionEntry />

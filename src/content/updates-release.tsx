@@ -2,16 +2,190 @@ import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 
-// The next release's Updates entry. Shown on phyto.live/updates (updates-main)
-// and, until it ships, at the top of phytoexp.live/updates (updates-test) so
-// the copy can be checked in place.
-export const RELEASE_DATE = "September 26, 2026";
+// The latest release's date: the newest Updates entry (shown on
+// phyto.live/updates via updates-main and, until it ships, at the top of
+// phytoexp.live/updates via updates-test) and the Terms Effective Date. Older
+// entries write their own date.
+export const RELEASE_DATE = "October 24, 2026";
 
 export function FeatureItem({ children }: { children: ReactNode }) {
   return (
     <li className="flex items-start gap-2">
       <Plus className="mt-0.5 h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
       <div className="flex-1">{children}</div>
+    </li>
+  );
+}
+
+const sectionCls = "mt-8 text-xl";
+const subCls = "mono mt-5 text-xs uppercase tracking-wider opacity-80";
+
+/** October 24, 2026: song modes, export, background, go live. One `<li>`, above ArrangementsEntry. */
+export function SongModesEntry() {
+  return (
+    <li className="border-t border-[var(--brand-white)]/20 pt-8">
+      <div className="text-2xl">{RELEASE_DATE}</div>
+
+      <div className={sectionCls}>Songs</div>
+
+      <div className={subCls}>Song Modes</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Every song now has a Mode, picked beside the SONG pill: Standard, Multi-Language or Call
+          and Response. Chords can be on or off in any mode
+        </FeatureItem>
+        <FeatureItem>
+          Switching modes never loses anything. Languages and roles you set aside come back when you
+          switch back
+        </FeatureItem>
+        <FeatureItem>The presenter shows each song&rsquo;s mode on its pill</FeatureItem>
+        <FeatureItem>
+          In the Multi-Language and Call and Response grids, cmd or ctrl and Enter starts a new
+          slide at the cursor, and shift and Enter adds a new line. Drag sections and slide breaks
+          around, and copy, cut and paste lines
+        </FeatureItem>
+      </ul>
+
+      <div className={subCls}>Multi-Language</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Write a song in several languages side by side, one column per language, and the slides
+          show them together
+        </FeatureItem>
+        <FeatureItem>
+          A language bar in the editor and the presenter picks which languages show and the order
+          they appear in
+        </FeatureItem>
+        <FeatureItem>
+          Enter splits a line at the cursor in just that language, and Backspace at the start of a
+          line joins it back
+        </FeatureItem>
+        <FeatureItem>Language lists are searchable</FeatureItem>
+        <FeatureItem>
+          Every script shows in fonts already on your computer, and Hebrew and Farsi read right to
+          left
+        </FeatureItem>
+        <FeatureItem>
+          Available languages
+          <ul className="mt-1 space-y-1 pl-2">
+            <FeatureItem>
+              English, Japanese, Chinese (simplified), Chinese (traditional), Korean, Arabic,
+              Indonesian, Spanish, Portuguese, French, German, Hindi, Vietnamese, Tagalog, Thai,
+              Tamil, Malayalam, Russian, Ukrainian, Polish, Dutch, Italian, Farsi, Hebrew, Swahili
+              and Amharic
+            </FeatureItem>
+            <FeatureItem>
+              Reading aids: Japanese hiragana and romaji, Chinese pinyin and zhuyin, Cantonese
+              jyutping, romanized Korean and romanized Hindi
+            </FeatureItem>
+          </ul>
+        </FeatureItem>
+      </ul>
+
+      <div className={subCls}>Call and Response</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Designate each line for the Leader or the People. A gap appears wherever the reader
+          changes, on the slides and on phones
+        </FeatureItem>
+        <FeatureItem>
+          Turn on role marks (off by default) and align lines Left, Middle or Right
+        </FeatureItem>
+      </ul>
+
+      <div className={subCls}>Song Search</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Metrical psalms from the Seedbed Psalter now appear in song search, set to familiar tunes
+          and ready to sing
+        </FeatureItem>
+      </ul>
+
+      <div className={subCls}>Song Arrangements</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Sections added to a song later now show up in saved arrangements, right after the section
+          written before them
+        </FeatureItem>
+      </ul>
+
+      <div className={subCls}>Fixes</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          A slide&rsquo;s thumbnail no longer flashes full size while you type in it
+        </FeatureItem>
+      </ul>
+
+      <div className={sectionCls}>Export</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Export a gathering as a PDF or PowerPoint: every set in running order, with arrangements
+          and hidden sections respected, each slide exactly as the output shows it
+        </FeatureItem>
+        <FeatureItem>You can also export an individual set from its editor</FeatureItem>
+        <FeatureItem>Slides are drawn at 4K, so text stays sharp on any screen</FeatureItem>
+      </ul>
+
+      <div className={sectionCls}>Presenting</div>
+
+      <div className={subCls}>Presenter View</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Click the live slide again to apply template changes to the output. It dissolves over your
+          fade time
+        </FeatureItem>
+        <FeatureItem>
+          Song Template, Scripture Template and Media Functions fold open from their title bar, and
+          changes apply instantly with no Apply button
+        </FeatureItem>
+        <FeatureItem>
+          Click a catalogue colour again to narrow it down: songs to Chords, Multi-Language or C+R,
+          and scriptures to messages. The home chips work the same way
+        </FeatureItem>
+        <FeatureItem>
+          After a reload, the output preview no longer gets stuck on &ldquo;No slide selected&rdquo;
+          while a slide is live
+        </FeatureItem>
+      </ul>
+
+      <div className={subCls}>Background</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          A new Background card in the presenter sets one background for all your slides: a colour,
+          or an image with dimming
+        </FeatureItem>
+        <FeatureItem>Choose the slide shape: 16:9, 16:10, 4:3 or 21:9</FeatureItem>
+        <FeatureItem>
+          Backgrounds are saved to your account, and slides, the output and exports all follow them
+        </FeatureItem>
+      </ul>
+
+      <div className={subCls}>Go Live and Share</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          A redesigned Go Live dialog. On the home page it shows a preview of the phone view, a big
+          Go Live button, then your QR code and link together
+        </FeatureItem>
+        <FeatureItem>The QR code downloads at high resolution, sharp enough to print</FeatureItem>
+      </ul>
+
+      <div className={subCls}>Phone</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          A QR Code button in the phone menu shows the gathering&rsquo;s QR code full screen, so
+          people can pass it to the person next to them
+        </FeatureItem>
+      </ul>
+
+      <div className={sectionCls}>Sharing</div>
+
+      <div className={subCls}>Groups</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          A group&rsquo;s admin can now remove other members&rsquo; sets right from the set editor
+        </FeatureItem>
+        <FeatureItem>The Personal filter now cycles through Personal, Others and off</FeatureItem>
+      </ul>
     </li>
   );
 }
@@ -166,7 +340,7 @@ export function VersionsEntry() {
 export function ReleaseEntry() {
   return (
     <li className="border-t border-[var(--brand-white)]/20 pt-8">
-      <div className="text-2xl">{RELEASE_DATE}</div>
+      <div className="text-2xl">September 26, 2026</div>
 
       <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Sharing</div>
       <ul className="mt-2 space-y-1">
