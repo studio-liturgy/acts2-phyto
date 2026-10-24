@@ -482,10 +482,14 @@ export function ShareGatheringDialog({
           </div>
         </DialogContent>
       ) : (
-        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+        // Hugs its content (the QR row and link bar): no spare width on the right.
+        <DialogContent
+          className="w-fit max-w-[calc(100vw-2rem)] gap-0 rounded-3xl p-8"
+          aria-describedby={undefined}
+        >
           {/* Single column: Share with nothing live, and everything in the
               presenter (Go live, then the same view as its Share). */}
-          <DialogTitle className="text-2xl font-normal leading-tight">
+          <DialogTitle className="pr-8 text-2xl font-normal leading-tight">
             {liveView ? `Share ${gatheringName} to your friends!` : "Share your link!"}
           </DialogTitle>
           {step === "confirm" ? (
@@ -499,7 +503,8 @@ export function ShareGatheringDialog({
               <div className="mt-14">{linkBlock}</div>
             </div>
           )}
-          <p className={`${NOTE} mt-8`}>
+          {/* Wraps to the content's width rather than widening the dialog. */}
+          <p className={`${NOTE} mt-8 w-0 min-w-full`}>
             {liveView
               ? STAYS_LIVE
               : "Whatever gathering goes live will be accessible at this link."}
