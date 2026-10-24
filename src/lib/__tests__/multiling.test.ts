@@ -5,6 +5,7 @@ import {
   insertColumnCell,
   joinColumnCell,
   splitColumnCell,
+  langToKeep,
   leaveMultilang,
   returnToMultilang,
   slideStarts,
@@ -292,6 +293,26 @@ describe("one-column edits", () => {
       { kind: "line", byLang: {} },
     ]);
     expect(joinColumnCell(one, 0, "en")).toBeNull();
+  });
+});
+
+describe("leaving Multi-Language with every column removed", () => {
+  // Removing a column keeps its words, so a song whose last column was
+  // removed still has them; switching mode used to wipe every slide.
+  const slides = rowsToSlides(
+    [{ kind: "line", byLang: { en: "Amazing grace", ja: "おどろくばかりの" } }],
+    ["en", "ja"],
+  );
+  it("keeps the first language that still has words", () => {
+    expect(langToKeep({ slides, langs: [] })).toBe("en");
+    expect(langToKeep({ slides, langs: ["ja"] })).toBe("ja");
+    expect(langToKeep({ slides, langs: [] }, "ja")).toBe("ja");
+    expect(langToKeep({ slides: [], langs: [] })).toBeUndefined();
+  });
+  it("hands the plain editor that language's words and keeps the grid hidden", () => {
+    const { text, hidden } = leaveMultilang({ slides, langs: [] }, "en");
+    expect(text).toBe("Amazing grace");
+    expect(hidden.langs).toEqual(["en"]);
   });
 });
 

@@ -291,6 +291,16 @@ export function standardToRows(slides: Slide[], lang: LangCode): MultiRow[] {
  * as `[Label]`, one lyric line per line, the grid's slide breaks as `---`),
  * and the whole grid to keep hidden.
  */
+/** The language to keep when leaving Multi-Language: the one picked, else the
+ *  first column, else (every column removed: removing one keeps its words) the
+ *  first language that still has words. Undefined only when nothing has words. */
+export function langToKeep(
+  set: Pick<PhytoSet, "slides" | "langs">,
+  picked?: LangCode,
+): LangCode | undefined {
+  return picked ?? set.langs?.[0] ?? langsWithText(set.slides)[0];
+}
+
 export function leaveMultilang(
   set: Pick<PhytoSet, "slides" | "langs" | "langsShown" | "langLinesPer">,
   kept: LangCode,
@@ -312,7 +322,7 @@ export function leaveMultilang(
     text: out.join("\n"),
     hidden: {
       kept,
-      langs: set.langs ?? [kept],
+      langs: set.langs?.length ? set.langs : [kept],
       ...(set.langsShown ? { langsShown: set.langsShown } : {}),
       ...(set.langLinesPer ? { langLinesPer: set.langLinesPer } : {}),
       rows,

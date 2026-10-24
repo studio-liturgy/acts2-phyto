@@ -38,7 +38,7 @@ type Step = {
   /** Three-clip card only: a line under clip B, in the empty right half of the clip C row. */
   textC?: React.ReactNode;
   /** Mobile copy where the desktop line breaks / paragraph splits don't read well stacked. */
-  mobile?: { textA?: React.ReactNode[]; textC?: React.ReactNode };
+  mobile?: { textA?: React.ReactNode[]; textB?: React.ReactNode; textC?: React.ReactNode };
   /** Two clips (A, B: the original staggered pair) or three (step 1: A beside the textA
    *  stack, B under textA, C staggered below A overlapping B's lower edge). */
   clips: Clip[];
@@ -99,6 +99,8 @@ const STEPS: Step[] = [
       textA: [
         "Create sets by importing lyrics, scripture or your own media, or build message slides from scratch, then arrange them into gatherings",
       ],
+      textB:
+        "Display scriptures in two translations at once and songs in several languages side by side",
       textC: "Add chords to songs, viewed on a mobile phone",
     },
     desktop: { hookEndX: 317 },
@@ -1105,7 +1107,9 @@ export function FirstTimeLanding({
                         {step.mobile?.textC ?? step.textC}
                       </p>
                     )}
-                    <p className="mono mt-6 text-xs uppercase leading-relaxed">{step.textB}</p>
+                    <p className="mono mt-6 text-xs uppercase leading-relaxed">
+                      {step.mobile?.textB ?? step.textB}
+                    </p>
                     <StepVideo
                       clip={step.clips[step.clips.length - 1]}
                       className="mt-4 w-full"

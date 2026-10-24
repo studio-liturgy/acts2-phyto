@@ -52,6 +52,7 @@ import { SongLanguageBar } from "@/components/SongLanguageBar";
 import {
   MAX_LANG_LINES_PER,
   langLinesPer,
+  langToKeep,
   leaveMultilang,
   returnToMultilang,
   rowsToSlides,
@@ -1861,7 +1862,7 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     }
     if (from === "multilang") {
       // Keep one language in the plain editor; the grid stays hidden on the set.
-      const kept = lang ?? set.langs?.[0];
+      const kept = langToKeep(set, lang);
       if (kept) {
         const { text, hidden } = leaveMultilang(set, kept);
         const divided = set.customBreaks ? text : applyDividers(text, linesPer);
