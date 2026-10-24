@@ -1100,73 +1100,77 @@ function Library() {
                       {/* Icon actions, left to right: share, import, export,
                           delete. Import/export are edit-mode only (rare,
                           destructive-adjacent) and hidden for group guests. */}
-                      {isSignedIn && (
-                        <button
-                          type="button"
-                          onClick={() => setShowBulkShare(true)}
-                          disabled={ownedSelectedIds.length === 0}
-                          className="pill flex h-10 w-10 items-center justify-center transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
-                          title={
-                            ownedSelectedIds.length
-                              ? `Share ${ownedSelectedIds.length} selected set${ownedSelectedIds.length === 1 ? "" : "s"}`
-                              : "Select your own sets to share"
-                          }
-                          aria-label="Share selected sets"
-                        >
-                          <Share2 className="h-4 w-4" />
-                        </button>
-                      )}
-                      {!isGroupGuest && (
-                        <>
+                      {/* The icons sit tight together (2px), like the set
+                          editor's; the text pills keep their own spacing. */}
+                      <div className="flex items-center gap-0.5">
+                        {isSignedIn && (
                           <button
                             type="button"
-                            onClick={() => importFileRef.current?.click()}
-                            className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
-                            title="Import"
-                            aria-label="Import"
-                          >
-                            <Download className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowExportConfirm(true)}
-                            // Only my own sets go in a file (foreign shared
-                            // rows aren't mine to export), so count those.
+                            onClick={() => setShowBulkShare(true)}
                             disabled={ownedSelectedIds.length === 0}
                             className="pill flex h-10 w-10 items-center justify-center transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
                             title={
                               ownedSelectedIds.length
-                                ? `Export ${ownedSelectedIds.length} selected set${ownedSelectedIds.length === 1 ? "" : "s"}`
-                                : "Select your own sets to export"
+                                ? `Share ${ownedSelectedIds.length} selected set${ownedSelectedIds.length === 1 ? "" : "s"}`
+                                : "Select your own sets to share"
                             }
-                            aria-label="Export selected sets"
+                            aria-label="Share selected sets"
                           >
-                            <Upload className="h-4 w-4" />
+                            <Share2 className="h-4 w-4" />
                           </button>
-                        </>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setShowBulkDelete(true)}
-                        disabled={selectedIds.size === 0}
-                        className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
-                        title={
-                          activeGroup
-                            ? selectedIds.size
-                              ? `Remove ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"} from the group`
-                              : "Select sets to remove from the group"
-                            : selectedIds.size
-                              ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
-                              : "Select sets to delete"
-                        }
-                        aria-label={
-                          activeGroup
-                            ? "Remove selected sets from the group"
-                            : "Delete selected sets"
-                        }
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                        )}
+                        {!isGroupGuest && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => importFileRef.current?.click()}
+                              className="pill flex h-10 w-10 items-center justify-center transition hover:bg-foreground hover:text-background"
+                              title="Import"
+                              aria-label="Import"
+                            >
+                              <Download className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowExportConfirm(true)}
+                              // Only my own sets go in a file (foreign shared
+                              // rows aren't mine to export), so count those.
+                              disabled={ownedSelectedIds.length === 0}
+                              className="pill flex h-10 w-10 items-center justify-center transition enabled:hover:bg-foreground enabled:hover:text-background disabled:cursor-not-allowed disabled:opacity-40"
+                              title={
+                                ownedSelectedIds.length
+                                  ? `Export ${ownedSelectedIds.length} selected set${ownedSelectedIds.length === 1 ? "" : "s"}`
+                                  : "Select your own sets to export"
+                              }
+                              aria-label="Export selected sets"
+                            >
+                              <Upload className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setShowBulkDelete(true)}
+                          disabled={selectedIds.size === 0}
+                          className="pill flex h-10 w-10 items-center justify-center text-foreground transition enabled:hover:bg-[var(--brand-red)] enabled:hover:text-[var(--brand-white)] disabled:cursor-not-allowed disabled:opacity-40"
+                          title={
+                            activeGroup
+                              ? selectedIds.size
+                                ? `Remove ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"} from the group`
+                                : "Select sets to remove from the group"
+                              : selectedIds.size
+                                ? `Delete ${selectedIds.size} selected set${selectedIds.size === 1 ? "" : "s"}`
+                                : "Select sets to delete"
+                          }
+                          aria-label={
+                            activeGroup
+                              ? "Remove selected sets from the group"
+                              : "Delete selected sets"
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </>
                   ) : (
                     <button
@@ -2043,7 +2047,9 @@ function GatheringCard({
         dropActive ? "border-2 p-[19px]" : "border p-5"
       } ${className}`}
     >
-      <div className="mb-4 flex items-center gap-1">
+      {/* Title, then its plain icons (Edit, Present, Go live, Export,
+          Delete) 2px apart, as in the set editor. */}
+      <div className="mb-4 flex items-center gap-0.5">
         {editingName && editMode ? (
           <Input
             autoFocus
@@ -2051,11 +2057,11 @@ function GatheringCard({
             onChange={(e) => onRename(e.target.value)}
             onBlur={() => setEditingName(false)}
             onKeyDown={(e) => e.key === "Enter" && setEditingName(false)}
-            className="h-9 flex-1 border-foreground text-lg shadow-none focus-visible:ring-0"
+            className="mr-0.5 h-9 flex-1 border-foreground text-lg shadow-none focus-visible:ring-0"
           />
         ) : (
           <h3
-            className={`flex items-center gap-2 flex-1 truncate text-2xl ${editMode ? "cursor-text" : ""}`}
+            className={`mr-0.5 flex items-center gap-2 flex-1 truncate text-2xl ${editMode ? "cursor-text" : ""}`}
             onClick={() => editMode && setEditingName(true)}
             title={editMode ? "Rename" : undefined}
           >
