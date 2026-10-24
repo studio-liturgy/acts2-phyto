@@ -179,7 +179,9 @@ export function ShareGatheringDialog({
   // The two-panel view only with the phone; the presenter (its own preview)
   // gets the single-column dialog for everything.
   const twoPanel = liveView && showPreview;
-  const NOTE = "mono text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
+  // text-pretty: no word left alone on the last line ("days").
+  const NOTE =
+    "mono text-pretty text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
   const STAYS_LIVE =
     "This gathering will stay live until you end it or go live on another one. If it's left running, it ends on its own after 14 days.";
   const swatch = (selected: boolean): React.CSSProperties => ({
@@ -192,7 +194,9 @@ export function ShareGatheringDialog({
   // Drawn (hidden) before the link is known too, so it keeps its size and the
   // whole block appears at once.
   const qrBlock = (
-    <div className="flex items-center gap-8">
+    // The right column runs the QR code's full height: colours at the top,
+    // Download PNG centred in it and level with the QR code's bottom edge.
+    <div className="flex items-stretch gap-8">
       <div
         className="shrink-0 rounded-2xl p-3"
         style={
@@ -223,7 +227,7 @@ export function ShareGatheringDialog({
           aria-hidden
         />
       </div>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-1 flex-col gap-4">
         <div className="flex items-start gap-4">
           <span className="mono w-24 pt-1 text-[10px] uppercase tracking-wider">Dots</span>
           <div className="grid grid-cols-3 gap-2">
@@ -297,7 +301,7 @@ export function ShareGatheringDialog({
         <button
           type="button"
           onClick={() => downloadQr(`${gatheringName}-qr.png`)}
-          className="mono uppercase self-start rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+          className="mono uppercase mt-auto self-center rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
         >
           Download PNG
         </button>
