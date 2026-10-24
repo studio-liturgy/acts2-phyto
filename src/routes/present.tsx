@@ -91,6 +91,15 @@ import { Switch } from "@/components/ui/switch";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { z } from "zod";
 import { SONG_LAYOUTS, songLayoutOf, songPatternStyle, songPatterns } from "@/lib/song-layout";
+import {
+  KIND_STEP_LABEL,
+  kindColorOf,
+  kindStepColor,
+  kindStepPatterns,
+  matchesKindStep,
+  nextKindFilter,
+  type KindStep,
+} from "@/lib/kind-filter";
 import { SongLanguageBar } from "@/components/SongLanguageBar";
 import { editedLangLines, songLangs } from "@/lib/multiling";
 
@@ -219,7 +228,7 @@ export const Route = createFileRoute("/present")({
 // Presenter catalogue kind filter, kept in a session store so it survives moving
 // into and out of a gathering (which re-renders the presenter) instead of
 // resetting to "all" each time.
-type PresenterKind = "all" | "song" | "scripture" | "media";
+type PresenterKind = "all" | KindStep;
 const usePresenterKindFilter = create<{ kind: PresenterKind; setKind: (k: PresenterKind) => void }>(
   (set) => ({ kind: "all", setKind: (kind) => set({ kind }) }),
 );
@@ -545,9 +554,7 @@ function Presenter() {
       if (activeGathering || kindFilter === "all") return true;
       const s = sets[id];
       if (!s) return false;
-      return kindFilter === "scripture"
-        ? s.kind === "scripture" || s.kind === "message"
-        : s.kind === kindFilter;
+      return matchesKindStep(s, kindFilter);
     })
     .filter((id) => {
       if (!q) return true;
@@ -569,23 +576,23 @@ function Presenter() {
 
   // Coloured kind-filter dots (song / scripture / media), reused in the Sets
   // header and the in-gathering Catalogue search header. Tight cluster; each dot
-  // has a padded hit area. Clicking the active one clears back to all.
+  // has a padded hit area. Each colour cycles through its steps on click (see
+  // lib/kind-filter.ts); the active dot shows the step: a song pattern for
+  // Chords, Multi-Language and Call and Response, message green for Messages.
+  const activeKindColor = kindColorOf(kindFilter);
   const kindFilterDots = (
     <span className="flex items-center">
-      {(
-        [
-          ["song", "var(--brand-blue)"],
-          ["scripture", "var(--brand-green)"],
-          ["media", "var(--brand-orange)"],
-        ] as const
-      ).map(([k, color]) => {
-        const active = kindFilter === k;
+      {(["song", "scripture", "media"] as const).map((k) => {
+        const active = activeKindColor === k;
+        const next = nextKindFilter(kindFilter, k);
+        const label = next === "all" ? "Show all" : KIND_STEP_LABEL[next];
+        const color = active ? kindStepColor(kindFilter) : kindStepColor(k);
         return (
           <button
             key={k}
-            onClick={() => setKindFilter(active ? "all" : k)}
-            title={active ? "Show all" : `Show ${k}`}
-            aria-label={active ? "Show all" : `Show ${k}`}
+            onClick={() => setKindFilter(next)}
+            title={label}
+            aria-label={label}
             aria-pressed={active}
             className={`flex items-center justify-center rounded-full p-1 transition ${
               kindFilter !== "all" && !active ? "opacity-30" : ""
@@ -596,6 +603,7 @@ function Presenter() {
               style={{
                 backgroundColor: active || kindFilter === "all" ? color : "transparent",
                 borderColor: color,
+                ...(active ? songPatternStyle(kindStepPatterns(kindFilter), 4, 0.22) : {}),
               }}
             />
           </button>

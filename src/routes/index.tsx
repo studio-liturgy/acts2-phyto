@@ -73,6 +73,14 @@ import { DotsGrip } from "@/components/DragBits";
 import { songPatternStyle, songPatterns } from "@/lib/song-layout";
 import { hideDragGhost, setCircleDragGhost } from "@/lib/drag-ghost";
 import { nextOwnershipFilter, type OwnershipFilter } from "@/lib/group-catalogue";
+import {
+  kindColorOf,
+  kindStepColor,
+  kindStepPatterns,
+  matchesKindStep,
+  nextKindFilter,
+  type KindStep,
+} from "@/lib/kind-filter";
 
 const KIND_COLOR: Record<string, string> = {
   song: "#2E7299",
@@ -146,7 +154,7 @@ export const Route = createFileRoute("/")({
 const SET_DRAG_TYPE = "application/x-stage-set-id";
 
 type SortMode = "az" | "newest";
-type KindFilter = "all" | "shared" | OwnershipFilter | SetKind;
+type KindFilter = "all" | "shared" | OwnershipFilter | KindStep;
 
 // A user can belong to at most this many groups.
 const MAX_GROUPS = 3;
@@ -618,10 +626,9 @@ function Library() {
               ? !d.shared
               : kindFilter === "others"
                 ? !!d.shared
-                : // A message is a scripture variant, so it shows under Scripture too.
-                  kindFilter === "scripture"
-                  ? d.kind === "scripture" || d.kind === "message"
-                  : d.kind === kindFilter,
+                : // Kind steps (lib/kind-filter.ts). A message is a scripture
+                  // variant, so it shows under Scripture too.
+                  matchesKindStep(d, kindFilter),
       )
       .filter(
         (d) =>
@@ -657,6 +664,10 @@ function Library() {
     song: "No Songs yet!",
     scripture: "No Scriptures yet!",
     media: "No Media yet!",
+    "song-chords": "No songs with chords yet!",
+    "song-multilang": "No Multi-Language songs yet!",
+    "song-response": "No Call and Response songs yet!",
+    message: "No Messages yet!",
     shared: "No shared sets yet!",
     personal: "You haven't shared any of your own sets into this group yet",
     others: "No one else has shared sets into this group yet",
@@ -1187,35 +1198,55 @@ function Library() {
                         : // One ownership chip that cycles Personal, Others, off.
                           ([kindFilter === "others" ? "others" : "personal"] as const)),
                     ] as KindFilter[]
-                  ).map((k) => (
-                    <button
-                      key={k === "others" ? "personal" : k}
-                      // Toggle: clicking the active chip clears back to "all".
-                      // The ownership chip steps through its three states.
-                      onClick={() =>
-                        setKindFilter(
-                          k === "personal" || k === "others"
-                            ? nextOwnershipFilter(kindFilter)
-                            : kindFilter === k
-                              ? "all"
-                              : k,
-                        )
-                      }
-                      className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, kindFilter === k)}`}
-                    >
-                      {k === "song"
-                        ? "Songs"
-                        : k === "scripture"
-                          ? "Scriptures"
-                          : k === "media"
-                            ? "Media"
-                            : k === "personal"
-                              ? "Personal"
-                              : k === "others"
-                                ? "Others"
-                                : "Shared"}
-                    </button>
-                  ))}
+                  ).map((k) => {
+                    // Kind chips cycle through their colour's steps (Songs:
+                    // all, chords, Multi-Language, Call and Response, off;
+                    // Scriptures: all, messages, off; Media: on, off). The
+                    // active step shows as the song pattern or message green.
+                    const kindColor = k === "song" || k === "scripture" || k === "media" ? k : null;
+                    const active = kindColor
+                      ? kindColorOf(kindFilter) === kindColor
+                      : kindFilter === k;
+                    const stepStyle =
+                      kindColor && active
+                        ? {
+                            backgroundColor: kindStepColor(kindFilter),
+                            borderColor: kindStepColor(kindFilter),
+                            ...songPatternStyle(kindStepPatterns(kindFilter), 6, 0.14),
+                          }
+                        : undefined;
+                    return (
+                      <button
+                        key={k === "others" ? "personal" : k}
+                        // The ownership chip steps through its three states.
+                        onClick={() =>
+                          setKindFilter(
+                            kindColor
+                              ? nextKindFilter(kindFilter, kindColor)
+                              : k === "personal" || k === "others"
+                                ? nextOwnershipFilter(kindFilter)
+                                : kindFilter === k
+                                  ? "all"
+                                  : k,
+                          )
+                        }
+                        className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, active)}`}
+                        style={stepStyle}
+                      >
+                        {k === "song"
+                          ? "Songs"
+                          : k === "scripture"
+                            ? "Scriptures"
+                            : k === "media"
+                              ? "Media"
+                              : k === "personal"
+                                ? "Personal"
+                                : k === "others"
+                                  ? "Others"
+                                  : "Shared"}
+                      </button>
+                    );
+                  })}
                   <button
                     onClick={() => setSortMode(sortMode === "az" ? "newest" : "az")}
                     title={`Sort: ${sortLabel[sortMode]}`}
