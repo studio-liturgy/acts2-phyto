@@ -321,16 +321,27 @@ export function SlideView({
   const [fitStage, setFitStage] = useState({ scale: 1, x: 0, y: 0 });
   const scale = fitStage.scale;
 
-  useEffect(() => {
+  // Measured before the first paint, not only from the ResizeObserver: its
+  // state update lands a frame later, and a SlideView that mounts fresh (the
+  // set editor's thumbnail of the slide being typed in gets a new id, so a new
+  // one, on every keystroke) would paint that frame at scale 1, a full-size
+  // stage cropped by the thumbnail.
+  useLayoutEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
+    const measure = () => {
       const w = el.clientWidth;
       const h = el.clientHeight;
       if (w <= 0 || h <= 0) return;
       const s = Math.min(w / stage.w, h / stage.h);
-      setFitStage({ scale: s, x: (w - stage.w * s) / 2, y: (h - stage.h * s) / 2 });
-    });
+      setFitStage((prev) => {
+        const x = (w - stage.w * s) / 2;
+        const y = (h - stage.h * s) / 2;
+        return prev.scale === s && prev.x === x && prev.y === y ? prev : { scale: s, x, y };
+      });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, [stage.w, stage.h]);
