@@ -74,6 +74,7 @@ import { songPatternStyle, songPatterns } from "@/lib/song-layout";
 import { hideDragGhost, setCircleDragGhost } from "@/lib/drag-ghost";
 import { nextOwnershipFilter, type OwnershipFilter } from "@/lib/group-catalogue";
 import {
+  KIND_STEP_NAME,
   kindColorOf,
   kindStepColor,
   kindStepPatterns,
@@ -1233,17 +1234,19 @@ function Library() {
                         className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, active)}`}
                         style={stepStyle}
                       >
-                        {k === "song"
-                          ? "Songs"
-                          : k === "scripture"
-                            ? "Scriptures"
-                            : k === "media"
-                              ? "Media"
-                              : k === "personal"
-                                ? "Personal"
-                                : k === "others"
-                                  ? "Others"
-                                  : "Shared"}
+                        {kindColor && active
+                          ? KIND_STEP_NAME[kindFilter as KindStep]
+                          : k === "song"
+                            ? "Songs"
+                            : k === "scripture"
+                              ? "Scriptures"
+                              : k === "media"
+                                ? "Media"
+                                : k === "personal"
+                                  ? "Personal"
+                                  : k === "others"
+                                    ? "Others"
+                                    : "Shared"}
                       </button>
                     );
                   })}
