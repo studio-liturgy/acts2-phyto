@@ -1,6 +1,4 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { PhoneGathering } from "@/components/phone/PhoneGathering";
-import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import {
   useLibrary,
   useLive,
@@ -225,29 +223,8 @@ export const Route = createFileRoute("/present")({
   head: () => ({
     meta: [{ title: `Presenter | ${APP_NAME}` }, { name: "robots", content: "noindex" }],
   }),
-  component: PresentRoute,
+  component: Presenter,
 });
-
-/** Presenting is desktop only: on a phone-sized screen (when this build has
- *  the phone layout) a gathering opens its phone screen, a single set its
- *  editor, and anything else the home. */
-function PresentRoute() {
-  const phone = usePhoneLayout();
-  const { set, gathering, view } = Route.useSearch();
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (!phone || gathering) return;
-    if (set) navigate({ to: "/set/$setId", params: { setId: set }, replace: true });
-    else navigate({ to: "/", replace: true });
-  }, [phone, gathering, set, navigate]);
-  if (phone === null) return <div className="h-screen bg-background" />;
-  if (phone) {
-    return gathering ? (
-      <PhoneGathering gatheringId={gathering} view={view === "mobile" ? "phone" : "sets"} />
-    ) : null;
-  }
-  return <Presenter />;
-}
 
 // Presenter catalogue kind filter, kept in a session store so it survives moving
 // into and out of a gathering (which re-renders the presenter) instead of

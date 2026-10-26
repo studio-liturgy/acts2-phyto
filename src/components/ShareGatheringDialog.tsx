@@ -30,11 +30,7 @@ export function ShareGatheringDialog({
   onGoLive,
   onEndSession,
   showPreview = true,
-  phone = false,
 }: {
-  /** The phone layout: a full-screen sheet, one column, the QR code above its
-   *  colours, the phone's own share menu under the link, and End Session. */
-  phone?: boolean;
   /** Show the phone preview (and the live two-panel view). The presenter
    *  turns it off: it has its own preview, so Share there is just the QR code
    *  and link. Going live keeps the two panels either way. */
@@ -90,8 +86,6 @@ export function ShareGatheringDialog({
     return () => clearTimeout(t);
   }, [wentLive, step, ready]);
   const [copiedShare, setCopiedShare] = useState(false);
-  // The phone's own share menu (Messages, WhatsApp...), where there is one.
-  const canNativeShare = phone && typeof navigator !== "undefined" && !!navigator.share;
   const editable = !!onSlugSave && slug !== undefined;
   const [editingSlug, setEditingSlug] = useState(false);
   const [draftSlug, setDraftSlug] = useState(slug ?? "");
@@ -184,7 +178,7 @@ export function ShareGatheringDialog({
   const liveView = step === "confirm" || wentLive || !!isLive;
   // The two-panel view only with the phone; the presenter (its own preview)
   // gets the single-column dialog for everything.
-  const twoPanel = liveView && showPreview && !phone;
+  const twoPanel = liveView && showPreview;
   // text-pretty: no word left alone on the last line ("days").
   const NOTE =
     "mono text-pretty text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
@@ -202,7 +196,7 @@ export function ShareGatheringDialog({
   const qrBlock = (
     // The right column is centred on the QR code: colours, then Download PNG
     // a short step below them.
-    <div className={phone ? "flex flex-col items-center gap-6" : "flex items-stretch gap-8"}>
+    <div className="flex items-stretch gap-8">
       <div
         className="shrink-0 rounded-2xl p-3"
         style={
@@ -433,55 +427,7 @@ export function ShareGatheringDialog({
         onOpenChange(o);
       }}
     >
-      {phone ? (
-        // Full screen: title, then the Go Live circle or the QR code, link,
-        // the phone's share menu and End Session, scrolling as one column.
-        <DialogContent
-          className="left-0 top-0 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-0 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100"
-          aria-describedby={undefined}
-        >
-          <DialogTitle className="pr-10 text-2xl font-normal leading-tight">
-            {liveView ? `Share ${gatheringName} to your friends!` : "Share your link!"}
-          </DialogTitle>
-          {step === "confirm" ? (
-            <div className="mt-10 flex justify-center">{goLiveCircle("max-w-[16rem]")}</div>
-          ) : (
-            <div className={reveal}>
-              <div className="mt-8">{qrBlock}</div>
-              <div className="mt-10">{linkBlock}</div>
-              {canNativeShare && (
-                <button
-                  type="button"
-                  disabled={!shareUrl}
-                  onClick={() => {
-                    navigator.share({ title: gatheringName, url: shareUrl }).catch(() => {});
-                  }}
-                  className="mono mt-6 w-full rounded-full bg-foreground py-3 text-xs uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
-                >
-                  Share link
-                </button>
-              )}
-            </div>
-          )}
-          <p className={`${NOTE} mt-8`}>
-            {liveView
-              ? STAYS_LIVE
-              : "Whatever gathering goes live will be accessible at this link."}
-          </p>
-          {step !== "confirm" && liveView && onEndSession && (
-            <button
-              type="button"
-              onClick={() => {
-                onEndSession();
-                onOpenChange(false);
-              }}
-              className={`mono mt-10 w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)] ${reveal}`}
-            >
-              End Session
-            </button>
-          )}
-        </DialogContent>
-      ) : twoPanel ? (
+      {twoPanel ? (
         <DialogContent
           className="flex max-w-[58rem] flex-col gap-0 overflow-hidden rounded-3xl p-0"
           aria-describedby={undefined}
