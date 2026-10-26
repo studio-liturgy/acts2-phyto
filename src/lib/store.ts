@@ -197,6 +197,13 @@ function schedulePush(opts?: { set?: string; gathering?: string }) {
   }, pushRetryDelay(pushFailures));
 }
 
+/** Push these rows (a newer local copy found by the background sync). */
+export function pushLater(ids: { sets?: string[]; gatherings?: string[] }): void {
+  for (const id of ids.sets ?? []) dirtySetIds.add(id);
+  for (const id of ids.gatherings ?? []) dirtyGatheringIds.add(id);
+  if ((ids.sets?.length ?? 0) + (ids.gatherings?.length ?? 0) > 0) schedulePush();
+}
+
 // Back online: retry a waiting push now instead of sitting out the backoff.
 if (typeof window !== "undefined") {
   window.addEventListener("online", () => {

@@ -25,7 +25,11 @@ export function VersionPicker({
   exclude,
   groups,
   recent = [],
+  compact = false,
 }: {
+  /** The phone editor: no label above, and the list opens wider than the
+   *  trigger (it sits beside the search bar). */
+  compact?: boolean;
   label: string;
   value: string;
   /** Shown when there's no value (the optional second version). */
@@ -106,7 +110,7 @@ export function VersionPicker({
   let index = -1;
   return (
     <div>
-      <div className="mono mb-1 text-[10px] uppercase tracking-wider">{label}</div>
+      {!compact && <div className="mono mb-1 text-[10px] uppercase tracking-wider">{label}</div>}
       <div
         className="relative"
         onBlur={(e) => {
@@ -136,7 +140,7 @@ export function VersionPicker({
             onMouseDown={(e) => {
               if (e.target !== inputRef.current) e.preventDefault();
             }}
-            className="catalogue-scroll absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-foreground bg-popover shadow-md"
+            className={`catalogue-scroll absolute z-50 mt-1 max-h-60 ${compact ? "right-0 w-64" : "w-full"} overflow-auto rounded-2xl border border-foreground bg-popover shadow-md`}
           >
             <div className="sticky top-0 z-10 border-b border-foreground/20 bg-popover">
               <input

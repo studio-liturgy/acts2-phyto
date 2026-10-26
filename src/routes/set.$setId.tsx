@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
-import { moveSlideKeepingSections } from "@/lib/sections";
+import { groupSlides, moveSlideKeepingSections } from "@/lib/sections";
 import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
 import { parseYouTubeId } from "@/lib/parsers";
 import { applyDividers, breakCount } from "@/lib/apply-dividers";
@@ -67,6 +67,7 @@ import {
 } from "@/lib/multiling";
 import { langColor, langDef, type LangCode } from "@/lib/langs";
 import { phoneLangPair, tapPairLang } from "@/lib/phone-layout";
+import { usePhoneEditorBus } from "@/lib/phone-editor-bus";
 import { VersionWarning } from "@/components/VersionWarning";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -120,6 +121,9 @@ import {
   X,
   ChevronUp,
   Share2,
+  Settings,
+  ImagePlus,
+  SeparatorHorizontal,
 } from "lucide-react";
 import { NumberStepper } from "@/components/NumberStepper";
 import { useIsSignedIn } from "@/lib/authStore";
@@ -254,6 +258,9 @@ function SetHeader({
   // Opened from the presenter — Back returns there, and we hide Present so the
   // only way out is Back (to wherever they came from).
   const fromPresenter = !!redirectTo?.startsWith("/present");
+  // Phone: the + beside Share turns the title row into the gathering search.
+  const [addingTo, setAddingTo] = useState(false);
+  const setScriptureSettings = usePhoneEditorBus((s) => s.setScriptureSettings);
   const deleteDialog = (
     <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
       <AlertDialogContent className="gap-0 rounded-3xl p-8">
@@ -335,6 +342,7 @@ function SetHeader({
     </h1>
   );
   if (phone) {
+    const ICON = "pill flex h-10 w-10 shrink-0 items-center justify-center transition";
     return (
       <header className="shrink-0 border-b border-foreground px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="flex items-center gap-3">
@@ -346,43 +354,64 @@ function SetHeader({
           >
             <ArrowUpLeft className="h-5 w-5" />
           </Link>
-          <div className="flex min-w-0 flex-1 items-center">{titleEl}</div>
-          <div className="flex shrink-0 items-center gap-0.5">
-            {removeMode && (
-              <button
-                onClick={() => setShowDeleteSetDialog(true)}
-                className="pill flex h-10 w-10 shrink-0 items-center justify-center transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
-                title={removeLabel}
-                aria-label={removeLabel}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-            {deleteDialog}
-            {isSignedIn && !phytoSet.shared && (
-              <button
-                onClick={() => setShowShareDialog(true)}
-                className="pill flex h-10 w-10 shrink-0 items-center justify-center transition active:bg-foreground/15"
-                title="Share set"
-                aria-label="Share set"
-              >
-                <Share2 className="h-4 w-4" />
-              </button>
-            )}
-            {shareDialog}
-          </div>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span
-            className={`pill mono shrink-0 px-2.5 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(phytoSet.kind)}`}
-          >
-            {phytoSet.kind}
-          </span>
-          {phytoSet.kind === "song" && <SongModePicker setId={phytoSet.id} />}
-          <VersionWarning set={phytoSet} hint="Re-import or duplicate to unfreeze." />
-          <div className="ml-auto">
-            <AddToGathering setId={phytoSet.id} />
-          </div>
+          {addingTo ? (
+            <PhoneAddToGathering setId={phytoSet.id} onClose={() => setAddingTo(false)} />
+          ) : (
+            <>
+              {/* The name, then its kind's dot. */}
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <div className="flex min-w-0 items-center">{titleEl}</div>
+                <span
+                  aria-label={phytoSet.kind}
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: kindColor(phytoSet.kind) }}
+                />
+                <VersionWarning set={phytoSet} hint="Re-import or duplicate to unfreeze." />
+              </div>
+              <div className="flex shrink-0 items-center gap-0.5">
+                {removeMode && (
+                  <button
+                    onClick={() => setShowDeleteSetDialog(true)}
+                    className={`${ICON} active:bg-[var(--brand-red)] active:text-[var(--brand-white)]`}
+                    title={removeLabel}
+                    aria-label={removeLabel}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+                {isSignedIn && !phytoSet.shared && (
+                  <button
+                    onClick={() => setShowShareDialog(true)}
+                    className={`${ICON} active:bg-foreground/15`}
+                    title="Share set"
+                    aria-label="Share set"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setAddingTo(true)}
+                  className={`${ICON} active:bg-foreground/15`}
+                  title="Add to a gathering"
+                  aria-label="Add to a gathering"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+                {(phytoSet.kind === "scripture" || phytoSet.kind === "message") && (
+                  <button
+                    onClick={() => setScriptureSettings(true)}
+                    className={`${ICON} active:bg-foreground/15`}
+                    title="Settings"
+                    aria-label="Settings"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+          {deleteDialog}
+          {shareDialog}
         </div>
         {phytoSet.shared && (
           <p className="mono mt-2 truncate text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -645,7 +674,7 @@ function SetEditor() {
                     {/* Multilanguage (1/4 width, as on watch): one slide per
                       row, numbered like the grid. */}
                     <div
-                      className={`grid ${phytoSet.songLayout === "multilang" ? "grid-cols-1" : "grid-cols-2"} gap-2`}
+                      className={`grid ${phytoSet.songLayout === "multilang" || phone ? "grid-cols-1" : "grid-cols-2"} gap-2`}
                     >
                       {g.slides.map((s) => (
                         <div key={s.id} className="relative overflow-hidden rounded-md">
@@ -780,7 +809,7 @@ function SetEditor() {
                       backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 45%, transparent)`,
                     }}
                   >
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className={`grid ${phone ? "grid-cols-1" : "grid-cols-2"} gap-2`}>
                       {g.slides.map((s) => (
                         <div key={s.id} className="overflow-hidden rounded-md">
                           <SlideView
@@ -952,6 +981,41 @@ function SetEditor() {
     }
   };
 
+  const mediaImages = phytoSet.slides.filter((sl) => sl.kind === "image");
+  const hasImages = mediaImages.length > 0;
+  const allCover = hasImages && mediaImages.every((sl) => sl.imageFit === "cover");
+  const fitAllImages = () => {
+    const nextFit = allCover ? "contain" : "cover";
+    updateSet(phytoSet.id, {
+      slides: phytoSet.slides.map((sl) =>
+        sl.kind === "image" ? { ...sl, imageFit: nextFit } : sl,
+      ),
+    });
+  };
+  const addMediaSection = () => {
+    // The selected slide (or the last one) opens the new section:
+    // the divider goes on the slide before it. The first slide
+    // already opens the first section; on a set with no sections
+    // yet, that makes the whole set one (named) section.
+    const slides = phytoSet.slides;
+    const at = selected ? slides.findIndex((sl) => sl.id === selected.id) : slides.length - 1;
+    if (at < 0) return;
+    if (at === 0) {
+      if (slides[0].sectionBefore === undefined) {
+        updateSet(phytoSet.id, {
+          slides: slides.map((sl, i) => (i === 0 ? { ...sl, sectionBefore: "" } : sl)),
+        });
+      }
+      return;
+    }
+    const before = slides[at - 1];
+    if (before.sectionAfter !== undefined) return;
+    updateSet(phytoSet.id, {
+      slides: slides.map((sl) => (sl.id === before.id ? { ...sl, sectionAfter: "" } : sl)),
+    });
+  };
+  const ICONBTN =
+    "pill flex h-9 w-9 shrink-0 items-center justify-center transition active:bg-foreground/15 disabled:opacity-40";
   /* Left (1/2): import controls, then the slides grid. Mirrors the song and
           scripture editors — a shrink-0 controls header over a scrollable body,
           no rounded panel. The whole column is the drop target. */
@@ -977,28 +1041,80 @@ function SetEditor() {
       }}
     >
       <div className="shrink-0 border-b border-foreground/20 p-4">
-        <div className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-1.5">
-          <input
-            value={videoLink}
-            onChange={(e) => setVideoLink(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addVideoLink();
-              }
-            }}
-            placeholder="PASTE A YOUTUBE OR VIDEO LINK"
-            className="mono w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-          />
-          <button
-            onClick={addVideoLink}
-            disabled={!videoLink.trim()}
-            className="flex items-center transition disabled:opacity-20"
-            aria-label="Add video link"
-          >
-            <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
-          </button>
+        <div className="flex items-center gap-0.5">
+          <div className="pill flex min-w-0 flex-1 items-center gap-2 border border-foreground bg-background px-3 py-1.5">
+            <input
+              value={videoLink}
+              onChange={(e) => setVideoLink(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addVideoLink();
+                }
+              }}
+              placeholder="PASTE A YOUTUBE OR VIDEO LINK"
+              className="mono w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+            />
+            <button
+              onClick={addVideoLink}
+              disabled={!videoLink.trim()}
+              className="flex items-center transition disabled:opacity-20"
+              aria-label="Add video link"
+            >
+              <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
+            </button>
+          </div>
+          {/* Phone: Fit, Add image and Section as icons on the link's row. */}
+          {phone && (
+            <>
+              <span className="w-1.5 shrink-0" />
+              {hasImages && (
+                <button
+                  type="button"
+                  onClick={fitAllImages}
+                  className={ICONBTN}
+                  title={allCover ? "Fit every image" : "Fill the frame with every image"}
+                  aria-label={allCover ? "Fit image" : "Fill frame"}
+                >
+                  {allCover ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => mediaFileRef.current?.click()}
+                disabled={converting || uploading}
+                className={ICONBTN}
+                title="Add image"
+                aria-label="Add image"
+              >
+                <ImagePlus className="h-4 w-4" />
+              </button>
+              {phytoSet.slides.length > 0 && (
+                <button
+                  type="button"
+                  onClick={addMediaSection}
+                  className={ICONBTN}
+                  title="Add section"
+                  aria-label="Add section"
+                >
+                  <SeparatorHorizontal className="h-4 w-4" />
+                </button>
+              )}
+            </>
+          )}
         </div>
+        <input
+          ref={mediaFileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm"
+          multiple
+          disabled={converting || uploading}
+          className="hidden"
+          onChange={(e) => {
+            handleMediaFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
         {videoErr && (
           <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
             {videoErr}
@@ -1046,24 +1162,15 @@ function SetEditor() {
                 {uploading ? "Uploading…" : "Drop to add media"}
               </p>
             )}
-            <div className="mb-3 flex justify-end gap-2">
+            <div className={`mb-3 justify-end gap-2 ${phone ? "hidden" : "flex"}`}>
               {/* Fit for EVERY image at once: fills the frame unless they all
                   already do, in which case it fits them instead. */}
-              {phytoSet.slides.some((sl) => sl.kind === "image") &&
+              {hasImages &&
                 (() => {
-                  const images = phytoSet.slides.filter((sl) => sl.kind === "image");
-                  const allCover = images.every((sl) => sl.imageFit === "cover");
-                  const nextFit = allCover ? "contain" : "cover";
                   return (
                     <button
                       type="button"
-                      onClick={() =>
-                        updateSet(phytoSet.id, {
-                          slides: phytoSet.slides.map((sl) =>
-                            sl.kind === "image" ? { ...sl, imageFit: nextFit } : sl,
-                          ),
-                        })
-                      }
+                      onClick={fitAllImages}
                       className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
                       title={allCover ? "Fit every image" : "Fill the frame with every image"}
                     >
@@ -1079,48 +1186,9 @@ function SetEditor() {
               >
                 Add image
               </button>
-              <input
-                ref={mediaFileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm"
-                multiple
-                disabled={converting || uploading}
-                className="hidden"
-                onChange={(e) => {
-                  handleMediaFiles(e.target.files);
-                  e.target.value = "";
-                }}
-              />
               <button
                 type="button"
-                onClick={() => {
-                  // The selected slide (or the last one) opens the new section:
-                  // the divider goes on the slide before it. The first slide
-                  // already opens the first section; on a set with no sections
-                  // yet, that makes the whole set one (named) section.
-                  const slides = phytoSet.slides;
-                  const at = selected
-                    ? slides.findIndex((sl) => sl.id === selected.id)
-                    : slides.length - 1;
-                  if (at < 0) return;
-                  if (at === 0) {
-                    if (slides[0].sectionBefore === undefined) {
-                      updateSet(phytoSet.id, {
-                        slides: slides.map((sl, i) =>
-                          i === 0 ? { ...sl, sectionBefore: "" } : sl,
-                        ),
-                      });
-                    }
-                    return;
-                  }
-                  const before = slides[at - 1];
-                  if (before.sectionAfter !== undefined) return;
-                  updateSet(phytoSet.id, {
-                    slides: slides.map((sl) =>
-                      sl.id === before.id ? { ...sl, sectionAfter: "" } : sl,
-                    ),
-                  });
-                }}
+                onClick={addMediaSection}
                 className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
               >
                 Add section
@@ -1164,6 +1232,7 @@ function SetEditor() {
                 })
               }
               dense={dense}
+              single={!!phone}
               kind={phytoSet.kind}
             />
           </>
@@ -1250,7 +1319,35 @@ function SetEditor() {
             {mediaDialogs}
           </>
         }
-        slides={mediaPreview}
+        slides={
+          phytoSet.slides.length === 0 ? (
+            mediaPreview
+          ) : (
+            <div className="space-y-4">
+              {groupSlides(phytoSet.slides).map((g, gi) => (
+                <div key={gi}>
+                  {g.section && (
+                    <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                      {g.section}
+                    </div>
+                  )}
+                  <div
+                    className="space-y-2 rounded-xl p-2"
+                    style={{
+                      backgroundColor: `color-mix(in oklab, ${SECTION_TINTS[gi % 3]} 45%, transparent)`,
+                    }}
+                  >
+                    {g.items.map(({ slide }) => (
+                      <div key={slide.id} className="relative overflow-hidden rounded-md">
+                        <SlideView slide={slide} variant="thumb" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        }
       />
     );
   }
@@ -1324,8 +1421,11 @@ function SlideGrid({
   onRemoveDivider,
   onRenameFirst,
   dense,
+  single = false,
   kind,
 }: {
+  /** One slide per row (the phone editor). */
+  single?: boolean;
   slides: Slide[];
   selectedId: string | null;
   multiSel: Set<string>;
@@ -1352,7 +1452,11 @@ function SlideGrid({
   // The tile whose right half the slide was last dropped after, if any.
   const joinAfterRef = useRef<string | undefined>(undefined);
 
-  const cols = dense ? "grid-cols-3 md:grid-cols-4" : "grid-cols-2 md:grid-cols-4";
+  const cols = single
+    ? "grid-cols-1"
+    : dense
+      ? "grid-cols-3 md:grid-cols-4"
+      : "grid-cols-2 md:grid-cols-4";
   const selColor = kindColor(kind);
   const displaySlides = liveOrder ?? slides;
 
@@ -2055,7 +2159,7 @@ function Importers({
   );
   const songToggles = (
     <>
-      {toggle("Chords", !chordsHidden, (on) =>
+      {toggle(phone ? "C" : "Chords", !chordsHidden, (on) =>
         updateSet(setId, {
           chords: {
             ...(chordCfg ?? { key: guessKey(lyrics) ?? "G", display: "letters" as const }),
@@ -2063,6 +2167,8 @@ function Importers({
           },
         }),
       )}
+      {/* Phone: the song's mode, as its pattern, right of C. */}
+      {phone && <SongModePicker setId={setId} compact />}
       {songLayout === "response" && (
         <>
           {toggle("Show role", showRoles, (on) => updateSet(setId, { showRoles: on || undefined }))}
@@ -2124,7 +2230,12 @@ function Importers({
 
   const [ref, setRef] = useState("");
   const [version2Open, setVersion2Open] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpenHere, setSettingsOpenHere] = useState(false);
+  // Phone: the header's cog opens it.
+  const busSettingsOpen = usePhoneEditorBus((s) => s.scriptureSettings);
+  const setBusSettingsOpen = usePhoneEditorBus((s) => s.setScriptureSettings);
+  const settingsOpen = phone ? busSettingsOpen : settingsOpenHere;
+  const setSettingsOpen = phone ? setBusSettingsOpen : setSettingsOpenHere;
   const [showUpdateVersions, setShowUpdateVersions] = useState(false);
   // Who else sees the set, named in the re-import dialog (a re-import changes
   // it for everyone it's shared with). Fetched when the dialog opens.
@@ -2620,7 +2731,7 @@ function Importers({
             >
               <span className="inline-flex shrink-0 items-center gap-2">
                 <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
-                  Lines per slide
+                  {phone ? "L/S" : "Lines per slide"}
                 </span>
                 <NumberStepper
                   value={linesPer}
@@ -2661,7 +2772,7 @@ function Importers({
             >
               <span className="inline-flex shrink-0 items-center gap-2">
                 <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
-                  Lines per slide
+                  {phone ? "L/S" : "Lines per slide"}
                 </span>
                 <NumberStepper
                   value={multiPer}
@@ -2821,7 +2932,7 @@ function Importers({
                 ? `\nPaste a chord sheet, or type a chord on the row above the word it belongs to. They never show on the projector. Pasting doesn't always guess the right key, double-check it below.`
                 : "")
             }
-            className={`mono h-full w-full resize-none rounded-none border-0 bg-transparent py-4 pr-5 text-xs shadow-none focus-visible:ring-0 ${"pl-5"}`}
+            className={`mono h-full w-full resize-none rounded-none border-0 bg-transparent py-4 text-xs shadow-none focus-visible:ring-0 ${phone ? "px-4" : "pl-5 pr-5"}`}
           />
         </div>
 
@@ -2924,19 +3035,39 @@ function Importers({
                 <PillInput
                   value={ref}
                   onChange={setRef}
-                  placeholder="e.g. John 3, John 3:16-18, John 3:21-John 4:2"
+                  placeholder={
+                    phone ? "e.g. John 3:16-18" : "e.g. John 3, John 3:16-18, John 3:21-John 4:2"
+                  }
                   onEnter={() => {
                     if (ref.trim() && !busy && !scripture.frozen) importScripture();
                   }}
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => setSettingsOpen(true)}
-                className="pill mono uppercase shrink-0 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-              >
-                Settings
-              </button>
+              {/* Phone: one version sits beside the search; two get their own row. */}
+              {phone && !scripture.twoVersions && (
+                <div className="w-24 shrink-0">
+                  <VersionPicker
+                    compact
+                    label="Version"
+                    value={translation}
+                    open={versionOpen}
+                    setOpen={setVersionOpen}
+                    onPick={setTranslation}
+                    exclude=""
+                    groups={scripture.versionGroups}
+                    recent={scripture.recentVersions}
+                  />
+                </div>
+              )}
+              {!phone && (
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(true)}
+                  className="pill mono uppercase shrink-0 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                >
+                  Settings
+                </button>
+              )}
             </div>
             <ScriptureSettingsDialog
               open={settingsOpen}
@@ -2954,7 +3085,9 @@ function Importers({
               refPerSlide={scripture.refPerSlide}
               setRefPerSlide={(on) => void scripture.setRefPerSlide(on)}
             />
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div
+              className={`mt-3 grid grid-cols-2 gap-3 ${phone && !scripture.twoVersions ? "hidden" : ""}`}
+            >
               <div className={scripture.twoVersions ? "" : "col-span-2"}>
                 <VersionPicker
                   label={scripture.twoVersions ? "1st version" : "Version"}
@@ -3132,7 +3265,7 @@ function Importers({
             </button>
           )}
           {!scripture.frozen && (
-            <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} />
+            <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} icons={phone} />
           )}
         </div>
 
@@ -3301,6 +3434,66 @@ function MediaImporter({
         />
       </label>
     </PanelCard>
+  );
+}
+
+/** Phone: the title row as a gathering search; picking one adds the set. */
+function PhoneAddToGathering({ setId, onClose }: { setId: string; onClose: () => void }) {
+  const gatherings = useLibrary((s) => s.gatherings);
+  const gatheringOrder = useLibrary((s) => s.gatheringOrder);
+  const addSetToGathering = useLibrary((s) => s.addSetToGathering);
+  const [query, setQuery] = useState("");
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const ids = q
+      ? gatheringOrder.filter((pid) => gatherings[pid]?.name.toLowerCase().includes(q))
+      : gatheringOrder;
+    return ids.map((pid) => gatherings[pid]).filter(Boolean);
+  }, [query, gatherings, gatheringOrder]);
+  return (
+    <div className="relative flex min-w-0 flex-1 items-center gap-1">
+      <div className="pill flex min-w-0 flex-1 items-center gap-2 border border-foreground bg-background px-4 py-2">
+        <Plus className="h-4 w-4 shrink-0" />
+        <input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onBlur={() => setTimeout(onClose, 150)}
+          placeholder="Add to a gathering"
+          className="mono uppercase min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+      <button
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onClose}
+        className="pill flex h-10 w-10 shrink-0 items-center justify-center active:bg-foreground/15"
+        aria-label="Close"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      <div className="absolute left-0 right-11 top-full z-30 mt-1 max-h-72 overflow-auto rounded-2xl border border-foreground bg-popover shadow-md">
+        {matches.length === 0 ? (
+          <p className="px-4 py-3 text-sm text-muted-foreground">No gatherings found.</p>
+        ) : (
+          matches.map((p) => (
+            <button
+              key={p.id}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                addSetToGathering(p.id, setId);
+                onClose();
+              }}
+              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm active:bg-muted"
+            >
+              <span className="truncate">{p.name}</span>
+              <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                {p.setIds.length} sets
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 

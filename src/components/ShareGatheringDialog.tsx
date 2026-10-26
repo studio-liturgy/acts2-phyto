@@ -434,21 +434,21 @@ export function ShareGatheringDialog({
       }}
     >
       {phone ? (
-        // Full screen: title, then the Go Live circle or the QR code, link,
-        // the phone's share menu and End Session, scrolling as one column.
+        // Full screen. Go live: the circle in the middle of the screen. Live or
+        // Share: Share link, the link bar, then the QR code and its colours.
         <DialogContent
-          className="left-0 top-0 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-0 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100"
+          className="left-0 top-0 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-0 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(3.5rem,env(safe-area-inset-top))] data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100"
           aria-describedby={undefined}
         >
-          <DialogTitle className="pr-10 text-2xl font-normal leading-tight">
-            {liveView ? `Share ${gatheringName} to your friends!` : "Share your link!"}
+          <DialogTitle className="sr-only">
+            {liveView ? `Share ${gatheringName}` : "Share your link"}
           </DialogTitle>
           {step === "confirm" ? (
-            <div className="mt-10 flex justify-center">{goLiveCircle("max-w-[16rem]")}</div>
+            <div className="flex flex-1 items-center justify-center">
+              {goLiveCircle("max-w-[16rem]")}
+            </div>
           ) : (
-            <div className={reveal}>
-              <div className="mt-8">{qrBlock}</div>
-              <div className="mt-10">{linkBlock}</div>
+            <div className={`flex-1 ${reveal}`}>
               {canNativeShare && (
                 <button
                   type="button"
@@ -456,14 +456,16 @@ export function ShareGatheringDialog({
                   onClick={() => {
                     navigator.share({ title: gatheringName, url: shareUrl }).catch(() => {});
                   }}
-                  className="mono mt-6 w-full rounded-full bg-foreground py-3 text-xs uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
+                  className="mono mb-4 w-full rounded-full bg-foreground py-3 text-xs uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
                 >
                   Share link
                 </button>
               )}
+              {linkBlock}
+              <div className="mt-10">{qrBlock}</div>
             </div>
           )}
-          <p className={`${NOTE} mt-8`}>
+          <p className="mono mt-8 w-full text-[10px] uppercase leading-snug tracking-wider text-foreground/80">
             {liveView
               ? STAYS_LIVE
               : "Whatever gathering goes live will be accessible at this link."}
@@ -475,7 +477,7 @@ export function ShareGatheringDialog({
                 onEndSession();
                 onOpenChange(false);
               }}
-              className={`mono mt-10 w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)] ${reveal}`}
+              className={`mono mt-8 w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)] ${reveal}`}
             >
               End Session
             </button>

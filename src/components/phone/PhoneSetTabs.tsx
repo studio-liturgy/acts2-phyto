@@ -16,9 +16,9 @@ const TABS: { tab: PhoneEditorTab; label: string }[] = [
 ];
 
 /**
- * The set editor on a phone: the header, then Editor / Phone / Slides. The
- * editor stays mounted while another tab shows, so typing, undo and the song
- * search survive a look at the slides.
+ * The set editor on a phone: the header, the body, and Editor / Phone /
+ * Slides along the bottom. The editor stays mounted while another tab shows,
+ * so typing, undo and the song search survive a look at the slides.
  */
 export function PhoneSetTabs({
   header,
@@ -35,52 +35,57 @@ export function PhoneSetTabs({
   const updateSet = useLibrary((s) => s.updateSet);
   const [prefs, setPrefs] = useState<ViewerPrefs>(() => loadPrefs());
   const phoneSets = useMemo(() => [toPhoneSet(set)], [set]);
+  // The song's chords switched off: no chord rows, no key or letters/numbers.
+  const chordsOff = !set.chords || !!set.chords.hidden;
 
   return (
-    <PhoneScreen
-      scroll={false}
-      header={
-        <>
-          {header}
-          <div className="flex shrink-0 justify-center gap-2 border-b border-foreground/20 px-4 py-2.5">
-            {TABS.map(({ tab: t, label }) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`pill mono uppercase px-4 py-1.5 text-xs tracking-wider transition ${
-                  tab === t ? "bg-foreground text-background" : "border border-foreground"
-                }`}
-              >
-                {label}
-              </button>
+    <PhoneScreen scroll={false} header={header}>
+      <div className="flex h-full flex-col">
+        <div className="min-h-0 flex-1">
+          <div className={`h-full ${tab === "editor" ? "" : "hidden"}`}>{editor}</div>
+          {tab === "phone" &&
+            (set.slides.length === 0 ? (
+              <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
+                Nothing to show yet
+              </p>
+            ) : (
+              <div className="relative h-full bg-black">
+                <PhoneViewer
+                  sets={phoneSets}
+                  embedded
+                  bare
+                  showSettings={false}
+                  prefs={chordsOff ? { ...prefs, showChords: false } : prefs}
+                  onPrefsChange={(p) =>
+                    setPrefs(chordsOff ? { ...p, showChords: prefs.showChords } : p)
+                  }
+                  onChordChange={(setId, patch) => {
+                    const p = chordChangePatch(set, patch);
+                    if (p) updateSet(setId, p);
+                  }}
+                />
+              </div>
             ))}
-          </div>
-        </>
-      }
-    >
-      <div className={`h-full ${tab === "editor" ? "" : "hidden"}`}>{editor}</div>
-      {tab === "phone" &&
-        (set.slides.length === 0 ? (
-          <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
-            Nothing to show yet
-          </p>
-        ) : (
-          <div className="relative h-full bg-black">
-            <PhoneViewer
-              sets={phoneSets}
-              embedded
-              prefs={prefs}
-              onPrefsChange={setPrefs}
-              onChordChange={(setId, patch) => {
-                const p = chordChangePatch(set, patch);
-                if (p) updateSet(setId, p);
-              }}
-            />
-          </div>
-        ))}
-      {tab === "slides" && (
-        <div className="h-full overflow-y-auto overscroll-contain px-4 pb-10 pt-4">{slides}</div>
-      )}
+          {tab === "slides" && (
+            <div className="h-full overflow-y-auto overscroll-contain px-4 pb-10 pt-4">
+              {slides}
+            </div>
+          )}
+        </div>
+        <nav className="flex shrink-0 justify-center gap-2 border-t border-foreground/20 px-4 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2.5">
+          {TABS.map(({ tab: t, label }) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`pill mono uppercase px-4 py-1.5 text-xs tracking-wider transition ${
+                tab === t ? "bg-foreground text-background" : "border border-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+      </div>
     </PhoneScreen>
   );
 }

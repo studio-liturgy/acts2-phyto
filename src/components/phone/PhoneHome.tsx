@@ -38,6 +38,7 @@ import {
   saveSharedSet,
   removeSharedSet,
   fetchGroupInvites,
+  createGroup,
   acceptGroupInvite,
   declineGroupInvite,
   type InboxShare,
@@ -62,6 +63,11 @@ import { ShareSetDialog } from "@/components/ShareSetDialog";
 import { SharedInboxList } from "@/components/SharedInboxList";
 import { GroupPanelDialog } from "@/components/GroupPanelDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SongTemplateEditor } from "@/components/SongTemplateEditor";
+import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
+import { BackgroundEditor } from "@/components/BackgroundEditor";
+import { fetchWorkspaceSettings, saveWorkspaceSettings } from "@/lib/workspace-settings";
+import { markBackToAccount } from "@/hooks/use-back-home";
 import { VersionWarning } from "@/components/VersionWarning";
 import { PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
 import { PhoneShareSheet } from "@/components/phone/PhoneShareSheet";
@@ -71,23 +77,13 @@ const MAX_GROUPS = 3;
 type SortMode = "az" | "newest";
 type KindFilter = "all" | "shared" | OwnershipFilter | KindStep;
 
-function kindChip(kind: KindFilter, active: boolean): string {
-  // Literal classes so Tailwind keeps them (no hover tint on touch).
-  if (kind === "song")
-    return active
-      ? "border-[var(--brand-blue)] bg-[var(--brand-blue)] text-[var(--brand-white)]"
-      : "border-[var(--brand-blue)] text-[var(--brand-blue)]";
-  if (kind === "scripture")
-    return active
-      ? "border-[var(--brand-green)] bg-[var(--brand-green)] text-[var(--brand-white)]"
-      : "border-[var(--brand-green)] text-[var(--brand-green)]";
-  if (kind === "media")
-    return active
-      ? "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]"
-      : "border-[var(--brand-orange)] text-[var(--brand-orange)]";
-  return active
-    ? "border-[#6b7280] bg-[#6b7280] text-[var(--brand-white)]"
-    : "border-[#6b7280] text-[#6b7280]";
+/** A catalogue filter's name, shown right of the dots. */
+function filterName(f: KindFilter): string {
+  if (f === "all") return "All";
+  if (f === "shared") return "Shared";
+  if (f === "personal") return "Personal";
+  if (f === "others") return "Others";
+  return KIND_STEP_NAME[f];
 }
 
 const PILL_OUTLINE =
@@ -96,55 +92,6 @@ const PILL_FILLED =
   "pill mono uppercase flex items-center gap-2 bg-foreground px-4 py-1.5 text-xs tracking-wider text-background transition active:opacity-80";
 const ICON_PLAIN =
   "pill flex h-10 w-10 items-center justify-center transition active:bg-foreground/15";
-
-/** The workspace switcher (Personal and your groups), as on the desktop header. */
-function WorkspacePill() {
-  const isSignedIn = useIsSignedIn();
-  const activeWorkspace = useLibrary((s) => s.activeWorkspace) ?? "personal";
-  const activeWorkspaceName = useLibrary((s) => s.activeWorkspaceName) ?? "";
-  const groups = useLibrary((s) => s.groups) ?? [];
-  const setActiveWorkspace = useLibrary((s) => s.setActiveWorkspace);
-  if (!isSignedIn || groups.length === 0) return null;
-  const label =
-    activeWorkspace === "personal"
-      ? "Personal"
-      : groups.find((g) => g.id === activeWorkspace)?.name || activeWorkspaceName || "Group";
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className={PILL_OUTLINE} title="Switch group">
-          <span
-            className={`max-w-[7rem] truncate ${activeWorkspace === "personal" ? "" : "normal-case"}`}
-          >
-            {label}
-          </span>
-          <ChevronDown className="h-3.5 w-3.5" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {activeWorkspace !== "personal" && (
-          <DropdownMenuItem
-            onClick={() => setActiveWorkspace("personal")}
-            className="mono uppercase text-xs tracking-wider"
-          >
-            Personal
-          </DropdownMenuItem>
-        )}
-        {groups
-          .filter((g) => g.id !== activeWorkspace)
-          .map((g) => (
-            <DropdownMenuItem
-              key={g.id}
-              onClick={() => setActiveWorkspace(g.id)}
-              className="mono text-xs tracking-wider"
-            >
-              {g.name}
-            </DropdownMenuItem>
-          ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 export function PhoneHome({ tab }: { tab: PhoneTab }) {
   const isSignedIn = useIsSignedIn();
@@ -204,29 +151,8 @@ export function PhoneHome({ tab }: { tab: PhoneTab }) {
   };
 
   const arrivals =
-    groupInvites.length > 0 || inbox.length > 0 ? (
+    inbox.length > 0 ? (
       <div className="space-y-2 px-5 pb-4">
-        {groupInvites.map((inv) => (
-          <div
-            key={inv.inviteId}
-            className="flex items-center gap-2 rounded-3xl border border-foreground px-4 py-3"
-          >
-            <span className="mono min-w-0 flex-1 text-xs uppercase tracking-wider">
-              Join <span className="normal-case">{inv.groupName}</span>?
-            </span>
-            <button onClick={() => acceptInvite(inv)} className={PILL_FILLED}>
-              Join
-            </button>
-            <button
-              onClick={() => declineInvite(inv)}
-              className={ICON_PLAIN}
-              aria-label="Decline"
-              title="Decline"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
         {inbox.length > 0 && (
           <button
             onClick={() => setInboxOpen(true)}
@@ -245,7 +171,13 @@ export function PhoneHome({ tab }: { tab: PhoneTab }) {
     <>
       {tab === "gatherings" && <GatheringsTab arrivals={arrivals} />}
       {tab === "catalogue" && <CatalogueTab sharedOutIds={sharedOutIds} />}
-      {tab === "account" && <AccountTab />}
+      {tab === "account" && (
+        <AccountTab
+          groupInvites={groupInvites}
+          onAcceptInvite={acceptInvite}
+          onDeclineInvite={declineInvite}
+        />
+      )}
 
       <Dialog open={inboxOpen} onOpenChange={setInboxOpen}>
         <DialogContent
@@ -313,6 +245,9 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
   // One sheet at a time: which gathering, and whether it opens on Go Live.
   // The id stays after closing so the sheet can play its close animation.
   const [sheet, setSheet] = useState<{ id: string; step: "confirm" | "share" | null } | null>(null);
+  // The red live button asks before ending, apart from Share.
+  const [ending, setEnding] = useState<string | null>(null);
+  const endSession = useLibrary((s) => s.endSession);
 
   // The live gathering leads, as on desktop.
   const order = useMemo(
@@ -338,12 +273,11 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
           title="Gatherings"
           actions={
             <>
-              <WorkspacePill />
               {isSignedIn && primary?.share_token && (
                 <button
                   type="button"
                   onClick={() => setSheet({ id: primary.id, step: "share" })}
-                  className="pill flex h-9 w-9 items-center justify-center border border-foreground transition active:bg-foreground active:text-background"
+                  className={ICON_PLAIN}
                   title="Share gathering"
                   aria-label="Share gathering"
                 >
@@ -379,13 +313,22 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
                   >
                     {g.name}
                   </Link>
+                  <Link
+                    to="/present"
+                    search={{ gathering: id }}
+                    className={ICON_PLAIN}
+                    title="Edit"
+                    aria-label="Edit"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Link>
                   {isSignedIn &&
                     (live ? (
                       <button
-                        onClick={() => setSheet({ id, step: "share" })}
+                        onClick={() => setEnding(id)}
                         className="pill ml-1 flex h-10 w-10 animate-pulse items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)]"
-                        title="Live"
-                        aria-label="Live"
+                        title="End session"
+                        aria-label="End session"
                       >
                         <Wifi className="h-4 w-4" />
                       </button>
@@ -436,6 +379,36 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
           onClose={() => setSheet({ id: sheet.id, step: null })}
         />
       )}
+      {/* End Session confirmation (the red live button), as in the presenter. */}
+      <AlertDialog open={ending !== null} onOpenChange={(o) => !o && setEnding(null)}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            End this session?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            Ending the session will take this gathering offline. You can go live again at any time.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                if (ending) void endSession(ending);
+                setEnding(null);
+              }}
+              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background"
+            >
+              End Session
+            </button>
+            <button
+              type="button"
+              onClick={() => setEnding(null)}
+              className="mono uppercase flex-1 rounded-full border border-foreground py-2 text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </PhoneScreen>
   );
 }
@@ -589,7 +562,6 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
                 </>
               ) : (
                 <>
-                  <WorkspacePill />
                   <button
                     onClick={() => setEditMode(true)}
                     className={ICON_PLAIN}
@@ -629,7 +601,7 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
               )
             }
           />
-          {/* Search and sort, then the kind chips in one scrolling row. */}
+          {/* Search and sort, then the kind filter. */}
           <div className="shrink-0 space-y-3 px-5 pb-3">
             <div className="flex items-center gap-2">
               <div className="pill flex flex-1 items-center gap-2 border border-foreground px-4 py-2">
@@ -638,7 +610,7 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search"
-                  className="mono uppercase min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground"
+                  className="mono uppercase min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
                 />
                 {query && (
                   <button
@@ -663,51 +635,52 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
                 )}
               </button>
             </div>
-            <div className="catalogue-scroll -mx-5 flex gap-2 overflow-x-auto px-5">
-              {chips.map((k) => {
-                const color = k === "song" || k === "scripture" || k === "media" ? k : null;
-                const active = color ? kindColorOf(kindFilter) === color : kindFilter === k;
-                const style =
-                  color && active
-                    ? {
-                        backgroundColor: kindStepColor(kindFilter),
-                        borderColor: kindStepColor(kindFilter),
-                        ...songPatternStyle(kindStepPatterns(kindFilter), 6, 0.14),
-                      }
-                    : undefined;
-                return (
-                  <button
-                    key={k === "others" ? "personal" : k}
-                    onClick={() =>
-                      setKindFilter(
-                        color
-                          ? nextKindFilter(kindFilter, color)
-                          : k === "personal" || k === "others"
-                            ? nextOwnershipFilter(kindFilter)
-                            : kindFilter === k
-                              ? "all"
-                              : k,
-                      )
-                    }
-                    className={`pill mono shrink-0 border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${kindChip(k, active)}`}
-                    style={style}
-                  >
-                    {color && active
-                      ? KIND_STEP_NAME[kindFilter as KindStep]
-                      : k === "song"
-                        ? "Songs"
-                        : k === "scripture"
-                          ? "Scriptures"
-                          : k === "media"
-                            ? "Media"
-                            : k === "personal"
-                              ? "Personal"
-                              : k === "others"
-                                ? "Others"
-                                : "Shared"}
-                  </button>
-                );
-              })}
+            {/* The presenter's filter dots; the filter's name on the right,
+                level with the pills' right edge. */}
+            <div className="flex items-center justify-between">
+              <span className="-ml-1.5 flex items-center">
+                {chips.map((k) => {
+                  const color = k === "song" || k === "scripture" || k === "media" ? k : null;
+                  const active = color ? kindColorOf(kindFilter) === color : kindFilter === k;
+                  const dot = color
+                    ? active
+                      ? kindStepColor(kindFilter)
+                      : kindStepColor(color)
+                    : "#6b7280";
+                  const next = color
+                    ? nextKindFilter(kindFilter, color)
+                    : k === "personal" || k === "others"
+                      ? nextOwnershipFilter(kindFilter)
+                      : kindFilter === k
+                        ? "all"
+                        : k;
+                  return (
+                    <button
+                      key={k === "others" ? "personal" : k}
+                      onClick={() => setKindFilter(next)}
+                      aria-pressed={active}
+                      aria-label={filterName(next)}
+                      className={`flex items-center justify-center rounded-full p-1.5 transition ${
+                        kindFilter !== "all" && !active ? "opacity-30" : ""
+                      }`}
+                    >
+                      <span
+                        className="h-4 w-4 rounded-full border"
+                        style={{
+                          backgroundColor: active || kindFilter === "all" ? dot : "transparent",
+                          borderColor: dot,
+                          ...(color && active
+                            ? songPatternStyle(kindStepPatterns(kindFilter), 4, 0.22)
+                            : {}),
+                        }}
+                      />
+                    </button>
+                  );
+                })}
+              </span>
+              <span className="mono text-xs uppercase tracking-wider">
+                {filterName(kindFilter)}
+              </span>
             </div>
           </div>
         </>
@@ -830,7 +803,15 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
 
 /* ── Account ────────────────────────────────────────────────────────────── */
 
-function AccountTab() {
+function AccountTab({
+  groupInvites,
+  onAcceptInvite,
+  onDeclineInvite,
+}: {
+  groupInvites: GroupInvite[];
+  onAcceptInvite: (invite: GroupInvite) => void;
+  onDeclineInvite: (invite: GroupInvite) => void;
+}) {
   const isSignedIn = useIsSignedIn();
   const userEmail = useUserEmail();
   const syncStatus = useSyncStatus();
@@ -842,8 +823,33 @@ function AccountTab() {
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [manage, setManage] = useState(false);
 
+  // New group, as on the desktop home: name it, then invite people.
+  const [showNewGroup, setShowNewGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
+  const inviteGroup = groups.find((g) => g.id === inviteGroupId);
+  const handleCreateGroup = async () => {
+    const name = newGroupName.trim();
+    if (!name || creatingGroup || groups.length >= MAX_GROUPS) return;
+    setCreatingGroup(true);
+    const id = await createGroup(name);
+    setCreatingGroup(false);
+    setShowNewGroup(false);
+    setNewGroupName("");
+    if (id) {
+      const personal = await fetchWorkspaceSettings({ groupId: null });
+      if (personal) await saveWorkspaceSettings({ groupId: id }, personal.settings);
+      await loadGroups();
+      await setActiveWorkspace(id);
+      setInviteGroupId(id);
+    }
+  };
+
   const ROW = "flex items-center justify-between border-b border-foreground/15 py-4";
   const LABEL = "mono text-xs uppercase tracking-wider";
+  const SECTION = "border-b border-foreground/15 py-4";
+  const HEADING = `${LABEL} mb-3 text-muted-foreground`;
 
   return (
     <PhoneScreen tab="account" header={<PhoneTitleHeader title="Account" />}>
@@ -870,9 +876,10 @@ function AccountTab() {
           </div>
         )}
 
-        {isSignedIn && groups.length > 0 && (
-          <div className="border-b border-foreground/15 py-4">
-            <div className={`${LABEL} mb-3 text-muted-foreground`}>Workspace</div>
+        {/* Groups: switch, manage, create, and invites waiting to be joined. */}
+        {isSignedIn && (
+          <div className={SECTION}>
+            <div className={HEADING}>Groups</div>
             <div className="flex flex-wrap gap-2">
               {[{ id: "personal", name: "Personal" }, ...groups].map((g) => (
                 <button
@@ -883,14 +890,54 @@ function AccountTab() {
                   {g.name}
                 </button>
               ))}
+              {groups.length < MAX_GROUPS && (
+                <button
+                  onClick={() => setShowNewGroup(true)}
+                  className={`${PILL_OUTLINE} border-dashed text-muted-foreground`}
+                >
+                  <Plus className="h-3.5 w-3.5" /> New group
+                </button>
+              )}
             </div>
             {activeGroup && (
               <button onClick={() => setManage(true)} className={`${PILL_OUTLINE} mt-3`}>
-                Manage group
+                Manage <span className="normal-case">{activeGroup.name}</span>
               </button>
             )}
+            {groupInvites.map((inv) => (
+              <div
+                key={inv.inviteId}
+                className="mt-3 flex items-center gap-2 rounded-3xl border border-foreground px-4 py-3"
+              >
+                <span className="mono min-w-0 flex-1 text-xs uppercase tracking-wider">
+                  Join <span className="normal-case">{inv.groupName}</span>?
+                </span>
+                <button onClick={() => onAcceptInvite(inv)} className={PILL_FILLED}>
+                  Join
+                </button>
+                <button
+                  onClick={() => onDeclineInvite(inv)}
+                  className={ICON_PLAIN}
+                  aria-label="Decline"
+                  title="Decline"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
           </div>
         )}
+
+        {/* Slide settings: the presenter's Song Template, Scripture Template
+            and Background cards. */}
+        <div className={SECTION}>
+          <div className={HEADING}>Slide settings</div>
+          <div className="space-y-3">
+            <SongTemplateEditor />
+            <ScriptureTemplateEditor />
+            <BackgroundEditor />
+          </div>
+        </div>
 
         <div className={ROW}>
           <span className={LABEL}>Dark mode</span>
@@ -910,14 +957,26 @@ function AccountTab() {
               ["/updates", "Updates"],
               ["/feedback", "Feedback"],
               ["/about", "About"],
-              ["/privacy", "Privacy"],
-              ["/terms", "Terms"],
+              ["/terms", "Legal"],
             ] as const
           ).map(([href, label]) => (
-            <Link key={href} to={href} className={`${LABEL} border-b border-foreground/15 py-4`}>
+            <Link
+              key={href}
+              to={href}
+              onClick={markBackToAccount}
+              className={`${LABEL} border-b border-foreground/15 py-4`}
+            >
               {label}
             </Link>
           ))}
+          <a
+            href="https://github.com/studio-liturgy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${LABEL} border-b border-foreground/15 py-4`}
+          >
+            Source
+          </a>
           <a
             href="/donate"
             target="_blank"
@@ -969,12 +1028,58 @@ function AccountTab() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <Dialog
+        open={showNewGroup}
+        onOpenChange={(o) => {
+          if (!o) {
+            setShowNewGroup(false);
+            setNewGroupName("");
+          }
+        }}
+      >
+        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+          <DialogTitle className="text-2xl font-normal leading-tight">New group</DialogTitle>
+          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            Invite people into a group and edit together.
+          </p>
+          <div className="mt-6 flex items-center gap-2">
+            <input
+              autoFocus
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleCreateGroup();
+              }}
+              placeholder="Group name"
+              className="mono min-w-0 flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => void handleCreateGroup()}
+              disabled={!newGroupName.trim() || creatingGroup}
+              className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background disabled:opacity-40"
+            >
+              {creatingGroup ? "Creating…" : "Create"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {activeGroup && (
         <GroupPanelDialog
           open={manage}
           onOpenChange={setManage}
           group={activeGroup}
           onChanged={loadGroups}
+        />
+      )}
+      {inviteGroup && (
+        <GroupPanelDialog
+          open={inviteGroupId !== null}
+          onOpenChange={(o) => !o && setInviteGroupId(null)}
+          group={inviteGroup}
+          onChanged={loadGroups}
+          mode="invite"
         />
       )}
     </PhoneScreen>

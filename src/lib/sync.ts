@@ -707,6 +707,36 @@ export function hasDifferences(diff: SyncDiff): boolean {
   );
 }
 
+/**
+ * Newest edit wins (two signed-in devices, applied quietly, no dialog): a
+ * conflict whose LOCAL copy is newer leaves the diff, so Merge (remote wins)
+ * doesn't overwrite it, and its id comes back to be pushed instead. Everything
+ * else in the diff applies as Merge does.
+ */
+export function newestWins(diff: SyncDiff): {
+  diff: SyncDiff;
+  pushSets: string[];
+  pushGatherings: string[];
+} {
+  const localSets = diff.modified.sets.filter(
+    ({ local, remote }) => local.updatedAt > remote.updatedAt,
+  );
+  const localGatherings = diff.modified.gatherings.filter(
+    ({ local, remote }) => local.updatedAt > remote.updatedAt,
+  );
+  return {
+    diff: {
+      ...diff,
+      modified: {
+        sets: diff.modified.sets.filter((m) => !localSets.includes(m)),
+        gatherings: diff.modified.gatherings.filter((m) => !localGatherings.includes(m)),
+      },
+    },
+    pushSets: localSets.map(({ local }) => local.id),
+    pushGatherings: localGatherings.map(({ local }) => local.id),
+  };
+}
+
 // NOTE: `strandedLocal`, `touched`, and `remotelyDeleted` are intentionally
 // excluded — they are auto-applicable non-conflicts, and a diff containing ONLY
 // them must return null here so runDiff's `latestRemoteTime(diff) === null`

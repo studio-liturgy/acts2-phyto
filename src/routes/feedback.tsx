@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useBackHomeSearch } from "@/hooks/use-back-home";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
@@ -64,6 +65,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type Status = "idle" | "submitting" | "success" | "error";
 
 function FeedbackPage() {
+  const backSearch = useBackHomeSearch();
   const [category, setCategory] = useState<Category | null>(null);
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
@@ -116,6 +118,7 @@ function FeedbackPage() {
       <header className="mx-auto w-full max-w-3xl px-6 pt-10">
         <Link
           to="/"
+          search={backSearch}
           className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> BACK

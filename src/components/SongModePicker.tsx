@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +41,15 @@ function Swatch({ layout }: { layout: SongLayout }) {
  * mode isn't listed again. Picking one hands it to the lyrics editor, which
  * asks its language question first when there is one.
  */
-export function SongModePicker({ setId }: { setId: string }) {
+export function SongModePicker({
+  setId,
+  compact = false,
+}: {
+  setId: string;
+  /** The phone editor: just the pattern (no words, no outline); the menu lists
+   *  every mode with a tick on the current one. */
+  compact?: boolean;
+}) {
   const ask = useSongModeRequest((s) => s.ask);
   const layout = useLibrary((s) => {
     const set = s.sets[setId];
@@ -53,24 +61,30 @@ export function SongModePicker({ setId }: { setId: string }) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          aria-label={compact ? `Song mode: ${current.label}` : undefined}
           // Same height and type as the top bar's buttons on the right.
-          className="pill mono inline-flex w-auto shrink-0 items-center gap-2 border border-foreground bg-background px-4 py-2 text-xs uppercase tracking-wider transition hover:bg-muted"
+          className={
+            compact
+              ? "pill inline-flex shrink-0 items-center gap-1 py-2 pl-1 pr-1.5"
+              : "pill mono inline-flex w-auto shrink-0 items-center gap-2 border border-foreground bg-background px-4 py-2 text-xs uppercase tracking-wider transition hover:bg-muted"
+          }
         >
           <Swatch layout={layout} />
-          {current.label}
+          {!compact && current.label}
           {/* Nudged down: the caps sit low in Space Mono, so a centred icon reads high. */}
           <ChevronDown className="relative top-px h-3 w-3 shrink-0" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-0 dark:border-white">
-        {SONG_LAYOUTS.filter((l) => l.value !== layout).map((l) => (
+        {SONG_LAYOUTS.filter((l) => compact || l.value !== layout).map((l) => (
           <DropdownMenuItem
             key={l.value}
-            onClick={() => ask(setId, l.value)}
+            onClick={() => l.value !== layout && ask(setId, l.value)}
             className="mono gap-2 py-2 text-xs uppercase tracking-wider"
           >
             <Swatch layout={l.value} />
             {l.label}
+            {compact && l.value === layout && <Check className="ml-auto h-3.5 w-3.5" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

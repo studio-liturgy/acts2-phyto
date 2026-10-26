@@ -222,7 +222,11 @@ export function MultiLangLyricEditor({
       const available = Math.max(1, el.clientWidth - GUTTER_PX);
       const sum = contents.reduce((a, b) => a + b, 0);
 
-      if (n <= 4) {
+      if (visibleKey) {
+        // Phone (two at a time): an even split, so the second column always
+        // shows; a long line scrolls inside its own cell.
+        setGridCols(`${GUTTER} repeat(${n}, minmax(0, 1fr))`);
+      } else if (n <= 4) {
         // Fill the container exactly, no scroll. A column never gets less than
         // its own text needs; any leftover raises the SHORTER columns up to a
         // shared level (water-filling), so a long English column keeps just its
@@ -262,7 +266,7 @@ export function MultiLangLyricEditor({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [rows, cols]);
+  }, [rows, cols, visibleKey]);
 
   // Drag down a column to select a run of its cells as if it were one text box:
   // the drag ignores section rows and every other language. A plain click (no

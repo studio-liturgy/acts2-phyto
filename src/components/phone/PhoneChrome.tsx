@@ -1,8 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowUpLeft, CalendarDays, CircleUser, Library } from "lucide-react";
+import { ArrowUpLeft, Circle, CircleUser, Library } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
-import { useLibrary } from "@/lib/store";
-import { isLiveNow } from "@/lib/live-session";
 import type { PhoneTab } from "@/lib/phone-layout";
 
 /**
@@ -100,17 +98,13 @@ export function PhoneBackHeader({
 }
 
 const TABS: { tab: PhoneTab; label: string; Icon: typeof Library }[] = [
-  { tab: "gatherings", label: "Gatherings", Icon: CalendarDays },
+  { tab: "gatherings", label: "Gatherings", Icon: Circle },
   { tab: "catalogue", label: "Catalogue", Icon: Library },
   { tab: "account", label: "Account", Icon: CircleUser },
 ];
 
 /** Icon-only tab bar along the bottom edge, like the Shiro app's. */
 export function PhoneTabBar({ tab }: { tab: PhoneTab }) {
-  // A red dot on Gatherings while one of them is live (and you're elsewhere).
-  const anyLive = useLibrary((s) =>
-    Object.values(s.gatherings ?? {}).some((g) => g && isLiveNow(g)),
-  );
   return (
     <nav className="flex shrink-0 border-t border-foreground/15 bg-background px-1.5 pb-[env(safe-area-inset-bottom)]">
       {TABS.map(({ tab: t, label, Icon }) => (
@@ -124,12 +118,7 @@ export function PhoneTabBar({ tab }: { tab: PhoneTab }) {
           aria-label={label}
           aria-current={tab === t ? "page" : undefined}
         >
-          <span className="relative">
-            <Icon className="h-[23px] w-[23px]" strokeWidth={1.5} />
-            {t === "gatherings" && anyLive && tab !== "gatherings" && (
-              <span className="absolute -right-1 -top-0.5 h-[7px] w-[7px] animate-pulse rounded-full bg-[var(--brand-red)]" />
-            )}
-          </span>
+          <Icon className="h-[23px] w-[23px]" strokeWidth={1.5} />
         </Link>
       ))}
     </nav>

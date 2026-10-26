@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { usePhoneLayout } from "@/hooks/use-phone-layout";
 
 /**
  * The bar pinned to the bottom of an editor (song grids, scripture, message):
@@ -10,6 +11,12 @@ import type { ReactNode } from "react";
  * `sticky bottom-0` keeps it there when the content scrolls.
  */
 export function EditorBar({ children, hints }: { children?: ReactNode; hints?: string[] }) {
+  // Phones have no keyboard shortcuts to hint at.
+  const phone = usePhoneLayout();
+  if (phone) {
+    hints = undefined;
+    if (!children) return null;
+  }
   return (
     <div className="sticky bottom-0 z-20 mt-auto flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-t bg-background px-4 py-2">
       {children}

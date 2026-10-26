@@ -100,7 +100,10 @@ export function PhoneViewer({
   prefs: controlledPrefs,
   onPrefsChange,
   onAddSet,
+  bare = false,
 }: {
+  /** One set with no tab bar and no menu (the set editor's Phone tab). */
+  bare?: boolean;
   /** The leader's own live gathering, signed in: a + after the last tab adds
    *  a set on the fly. */
   onAddSet?: () => void;
@@ -358,108 +361,110 @@ export function PhoneViewer({
         fontSize: `${prefs.fontSize * BASE_FONT_REM}rem`,
       }}
     >
-      {/* Tab bar */}
-      <div className={`relative flex shrink-0 items-stretch border-b ${borderClass}`}>
-        {/* Hamburger — hidden in the presenter preview. */}
-        {showSettings && (
-          <div ref={menuRef} className="relative shrink-0">
-            <button
-              onClick={toggleMenu}
-              className={`flex h-full items-center px-4 ${mutedClass} hover:text-inherit`}
-              aria-label="Settings"
-            >
-              <span className="flex flex-col gap-[5px]">
-                <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
-                <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
-                <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
-              </span>
-            </button>
-
-            {/* Settings overlay: opens and closes like the app's dropdown menus
-                (fade + slight zoom + slide from the hamburger). */}
-            {menuOpen && (
-              <div
-                className={`absolute left-0 top-full z-50 mt-1 w-[240px] origin-top-left rounded-2xl border p-4 shadow-xl duration-150 ${
-                  menuClosing
-                    ? "animate-out fade-out-0 zoom-out-95 slide-out-to-top-2 fill-mode-forwards"
-                    : "animate-in fade-in-0 zoom-in-95 slide-in-from-top-2"
-                } ${
-                  prefs.isDark
-                    ? "dark border-white/10 bg-neutral-900 text-white"
-                    : "border-black/10 bg-white text-black"
-                }`}
-                style={{ fontFamily: "'Space Mono', monospace", fontSize: "1rem" }}
+      {/* Tab bar (hidden for a single set shown bare, as in the set editor). */}
+      {!bare && (
+        <div className={`relative flex shrink-0 items-stretch border-b ${borderClass}`}>
+          {/* Hamburger — hidden in the presenter preview. */}
+          {showSettings && (
+            <div ref={menuRef} className="relative shrink-0">
+              <button
+                onClick={toggleMenu}
+                className={`flex h-full items-center px-4 ${mutedClass} hover:text-inherit`}
+                aria-label="Settings"
               >
-                <ViewerSettings
-                  prefs={prefs}
-                  setPrefs={setPrefs}
-                  hasChords={sets.some((s) => setHasChords(s))}
-                  dark={prefs.isDark}
-                />
-                {/* QR Code: phone menu only (not the presenter's settings panel). */}
-                <button
-                  onClick={() => {
-                    // Menu stays put while the QR fades in over it, then goes.
-                    openQr();
-                    if (menuTimer.current) clearTimeout(menuTimer.current);
-                    menuTimer.current = setTimeout(() => setMenuOpen(false), QR_FADE_MS);
-                  }}
-                  style={{ fontFamily: FONT_FAMILY_CSS.mono }}
-                  className={`mt-4 w-full rounded-lg border px-3 py-1.5 text-center text-sm uppercase transition ${
+                <span className="flex flex-col gap-[5px]">
+                  <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
+                  <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
+                  <span className={`block h-[2px] w-5 ${prefs.isDark ? "bg-white" : "bg-black"}`} />
+                </span>
+              </button>
+
+              {/* Settings overlay: opens and closes like the app's dropdown menus
+                  (fade + slight zoom + slide from the hamburger). */}
+              {menuOpen && (
+                <div
+                  className={`absolute left-0 top-full z-50 mt-1 w-[240px] origin-top-left rounded-2xl border p-4 shadow-xl duration-150 ${
+                    menuClosing
+                      ? "animate-out fade-out-0 zoom-out-95 slide-out-to-top-2 fill-mode-forwards"
+                      : "animate-in fade-in-0 zoom-in-95 slide-in-from-top-2"
+                  } ${
                     prefs.isDark
-                      ? "border-white/40 hover:border-white"
-                      : "border-black/40 hover:border-black"
+                      ? "dark border-white/10 bg-neutral-900 text-white"
+                      : "border-black/10 bg-white text-black"
                   }`}
+                  style={{ fontFamily: "'Space Mono', monospace", fontSize: "1rem" }}
                 >
-                  QR Code
-                </button>
-              </div>
+                  <ViewerSettings
+                    prefs={prefs}
+                    setPrefs={setPrefs}
+                    hasChords={sets.some((s) => setHasChords(s))}
+                    dark={prefs.isDark}
+                  />
+                  {/* QR Code: phone menu only (not the presenter's settings panel). */}
+                  <button
+                    onClick={() => {
+                      // Menu stays put while the QR fades in over it, then goes.
+                      openQr();
+                      if (menuTimer.current) clearTimeout(menuTimer.current);
+                      menuTimer.current = setTimeout(() => setMenuOpen(false), QR_FADE_MS);
+                    }}
+                    style={{ fontFamily: FONT_FAMILY_CSS.mono }}
+                    className={`mt-4 w-full rounded-lg border px-3 py-1.5 text-center text-sm uppercase transition ${
+                      prefs.isDark
+                        ? "border-white/40 hover:border-white"
+                        : "border-black/40 hover:border-black"
+                    }`}
+                  >
+                    QR Code
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div
+            ref={tabBarRef}
+            className="phone-tab-scroll flex overflow-x-auto"
+            style={{
+              scrollbarWidth: "thin",
+              scrollbarColor: `${
+                prefs.isDark ? "rgba(245,239,239,0.55)" : "rgba(33,33,33,0.55)"
+              } transparent`,
+              // Consumed by the ::-webkit-scrollbar-thumb rule above.
+              ["--phone-sb" as string]: prefs.isDark
+                ? "rgba(245,239,239,0.55)"
+                : "rgba(33,33,33,0.55)",
+            }}
+          >
+            {sets.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => selectSet(s.id)}
+                className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm transition-colors ${
+                  s.id === activeTabId
+                    ? prefs.isDark
+                      ? "border-b-2 border-white text-white"
+                      : "border-b-2 border-black text-black"
+                    : mutedClass
+                }`}
+              >
+                {s.title}
+              </button>
+            ))}
+            {onAddSet && (
+              <button
+                onClick={onAddSet}
+                className={`flex shrink-0 items-center px-4 py-3 ${mutedClass}`}
+                aria-label="Add a set"
+                title="Add a set"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             )}
           </div>
-        )}
-
-        {/* Tabs */}
-        <div
-          ref={tabBarRef}
-          className="phone-tab-scroll flex overflow-x-auto"
-          style={{
-            scrollbarWidth: "thin",
-            scrollbarColor: `${
-              prefs.isDark ? "rgba(245,239,239,0.55)" : "rgba(33,33,33,0.55)"
-            } transparent`,
-            // Consumed by the ::-webkit-scrollbar-thumb rule above.
-            ["--phone-sb" as string]: prefs.isDark
-              ? "rgba(245,239,239,0.55)"
-              : "rgba(33,33,33,0.55)",
-          }}
-        >
-          {sets.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => selectSet(s.id)}
-              className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm transition-colors ${
-                s.id === activeTabId
-                  ? prefs.isDark
-                    ? "border-b-2 border-white text-white"
-                    : "border-b-2 border-black text-black"
-                  : mutedClass
-              }`}
-            >
-              {s.title}
-            </button>
-          ))}
-          {onAddSet && (
-            <button
-              onClick={onAddSet}
-              className={`flex shrink-0 items-center px-4 py-3 ${mutedClass}`}
-              aria-label="Add a set"
-              title="Add a set"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          )}
         </div>
-      </div>
+      )}
 
       {/* Languages: which of a Multilanguage song's languages this phone reads. */}
       {activeLangs.length > 1 && (

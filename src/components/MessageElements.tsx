@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Trash2, Maximize2, Minimize2 } from "lucide-react";
+import { AlignLeft, Image as ImageIcon, Maximize2, Minimize2, Pencil, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +41,10 @@ const HINTS = [
 export function AddElementBar({
   setId,
   onManualVerse,
+  icons = false,
 }: {
+  /** The phone editor: three plain icons instead of the worded buttons. */
+  icons?: boolean;
   setId: string;
   /** Adds a blank hand-typed verse (see useScriptureVersions.addManualVerse). */
   onManualVerse?: () => void;
@@ -86,6 +89,65 @@ export function AddElementBar({
     addSlide(setId, base);
     becomeMessage();
   };
+
+  const ICON =
+    "pill flex h-10 w-10 cursor-pointer items-center justify-center transition active:bg-foreground/15";
+  if (icons) {
+    return (
+      <>
+        <div className="mt-2 flex items-center justify-center gap-0.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className={ICON} title="Add a point" aria-label="Add a point">
+                <AlignLeft className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="dark:border-white">
+              {POINT_TYPES.map((pt) => (
+                <DropdownMenuItem
+                  key={pt.type}
+                  onSelect={() => addPoint(pt.type)}
+                  className="mono text-xs uppercase tracking-wider"
+                >
+                  {pt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <label
+            className={`${ICON} ${busy ? "opacity-50" : ""}`}
+            title="Add an image"
+            aria-label="Add an image"
+          >
+            <ImageIcon className="h-4 w-4" />
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={busy}
+              onChange={(e) => addImage(e.target.files?.[0])}
+            />
+          </label>
+          {onManualVerse && (
+            <button
+              type="button"
+              onClick={onManualVerse}
+              className={ICON}
+              title="Manual verse"
+              aria-label="Manual verse"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {err && (
+          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+            {err}
+          </p>
+        )}
+      </>
+    );
+  }
 
   // Under the importer's Import button, as wide as it.
   return (

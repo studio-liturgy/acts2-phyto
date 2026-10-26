@@ -25,7 +25,7 @@ import { safeNextPath, useSessionLost, wasUserSignOut } from "@/lib/session-lost
 import { SignedOutDialog } from "@/components/SignedOutDialog";
 import { getSession } from "@/lib/auth";
 import { useAuthStore } from "@/lib/authStore";
-import { useLibrary } from "@/lib/store";
+import { pushLater, useLibrary } from "@/lib/store";
 import { readLocalPersonalSettings } from "@/lib/workspace-settings";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import {
@@ -44,6 +44,7 @@ import {
   stopGroupChannels,
   setGroupChangeHandler,
   withSyncLock,
+  newestWins,
   type SyncAction,
   type SyncEffects,
   type SyncDiff,
@@ -365,6 +366,15 @@ function RootComponent() {
     }
     if (!hasDifferences(diff)) return;
 
+    // Test builds: newest edit wins, quietly. The phone and the computer stay
+    // in step without a reload or the Review-versions dialog.
+    if (isTest) {
+      const { diff: rest, pushSets, pushGatherings } = newestWins(diff);
+      await applyMerge(rest);
+      pushLater({ sets: pushSets, gatherings: pushGatherings });
+      return;
+    }
+
     // Only prompt when there's a real remote version to reconcile against.
     // `latestRemoteTime` is null when the diff has no onlyRemote/modified/rekeyed
     // items — i.e. only local changes to push (brand-new account / first push),
@@ -476,11 +486,19 @@ function RootComponent() {
   useEffect(() => {
     if (!session || pathname.startsWith("/g/")) return;
     let running = false;
-    const tick = async () => {
+    let ticks = 0;
+    const tick = async (personal = false) => {
       if (running) return;
       if (typeof document !== "undefined" && document.hidden) return;
       running = true;
       try {
+        // Test builds: this account's own sets and gatherings too (newest edit
+        // wins), on focus and every third tick, so another signed-in device's
+        // edits arrive without a reload.
+        ticks += 1;
+        if (isTest && diffRanThisSession && (personal || ticks % 3 === 0)) {
+          await withSyncLock(() => runDiffLocked(false));
+        }
         await refreshLiveState();
         await syncSharedSets();
         await syncGroups();
@@ -495,10 +513,10 @@ function RootComponent() {
         running = false;
       }
     };
-    const interval = setInterval(tick, 12000);
-    const onFocus = () => tick();
+    const interval = setInterval(() => tick(), 12000);
+    const onFocus = () => tick(true);
     const onVisible = () => {
-      if (!document.hidden) tick();
+      if (!document.hidden) tick(true);
     };
     window.addEventListener("focus", onFocus);
     window.addEventListener("online", onFocus);

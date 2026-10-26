@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
+import { useBackHomeSearch } from "@/hooks/use-back-home";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
@@ -46,6 +47,7 @@ export function LegalLayout({
   active: "terms" | "privacy";
   children: ReactNode;
 }) {
+  const backSearch = useBackHomeSearch();
   usePageBackgroundColor(isTest ? "var(--brand-orange-dark)" : "var(--brand-blue)");
 
   return (
@@ -55,6 +57,7 @@ export function LegalLayout({
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
         <Link
           to="/"
+          search={backSearch}
           className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"
         >
           <ArrowLeft className="h-3 w-3" /> BACK

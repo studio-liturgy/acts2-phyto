@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useBackHomeSearch } from "@/hooks/use-back-home";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
@@ -7,6 +8,7 @@ import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 const aboutBg = "/about-bg-or.jpg";
 
 export default function AboutTest() {
+  const backSearch = useBackHomeSearch();
   usePageBackgroundColor("#cf936f");
   return (
     <div className="flex flex-col bg-[var(--brand-orange)] text-[var(--brand-black)]">
@@ -22,6 +24,7 @@ export default function AboutTest() {
         <div className="mx-auto w-full max-w-6xl px-6 pt-10 pb-24 md:pt-14 md:pb-32">
           <Link
             to="/"
+            search={backSearch}
             className="mono inline-flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--brand-black)] opacity-90 transition-opacity hover:opacity-60"
           >
             <ArrowLeft className="h-3 w-3" /> BACK
