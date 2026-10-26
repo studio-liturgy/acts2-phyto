@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
 import { createPortal } from "react-dom";
 import { EditorBar } from "@/components/EditorBar";
 import { Plus, Trash2, X } from "lucide-react";
@@ -142,6 +143,8 @@ export function MultiLangLyricEditor({
     h.lastAt = 0;
     setRowsRaw(target);
   };
+  // Phone: the header's Undo button (two languages at a time on screen).
+  useRegisterPhoneUndo(() => undoRedo(false), !!visibleLangs);
 
   // Re-focus after a row is inserted/removed. Set during the edit, consumed once.
   // By line number (the nth line row), not row index: re-dividing adds and

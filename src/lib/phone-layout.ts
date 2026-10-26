@@ -15,12 +15,12 @@ export const PHONE_MAX_WIDTH = 767;
 export const PHONE_QUERY = `(max-width: ${PHONE_MAX_WIDTH}px)`;
 
 /** The three screens of the bottom tab bar on the phone home. */
-export type PhoneTab = "gatherings" | "catalogue" | "account";
+export type PhoneTab = "gatherings" | "catalogue" | "settings";
 
-export const PHONE_TABS: PhoneTab[] = ["gatherings", "catalogue", "account"];
+export const PHONE_TABS: PhoneTab[] = ["gatherings", "catalogue", "settings"];
 
 export function parsePhoneTab(v: unknown): PhoneTab | undefined {
-  return v === "catalogue" || v === "account" || v === "gatherings" ? v : undefined;
+  return v === "catalogue" || v === "settings" || v === "gatherings" ? v : undefined;
 }
 
 /**

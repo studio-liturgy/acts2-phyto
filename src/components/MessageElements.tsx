@@ -95,7 +95,7 @@ export function AddElementBar({
   if (icons) {
     return (
       <>
-        <div className="mt-2 flex items-center justify-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" className={ICON} title="Add a point" aria-label="Add a point">

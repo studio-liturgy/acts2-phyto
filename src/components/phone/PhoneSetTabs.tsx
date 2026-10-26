@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { Monitor, Pencil, Smartphone } from "lucide-react";
 import { useLibrary } from "@/lib/store";
 import { toPhoneSet } from "@/lib/gathering-phone-sets";
 import { chordChangePatch } from "@/lib/chord-change";
@@ -9,10 +10,10 @@ import { PhoneScreen } from "@/components/phone/PhoneChrome";
 
 export type PhoneEditorTab = "editor" | "phone" | "slides";
 
-const TABS: { tab: PhoneEditorTab; label: string }[] = [
-  { tab: "editor", label: "Editor" },
-  { tab: "phone", label: "Phone" },
-  { tab: "slides", label: "Slides" },
+const TABS: { tab: PhoneEditorTab; label: string; Icon: typeof Pencil }[] = [
+  { tab: "editor", label: "Editor", Icon: Pencil },
+  { tab: "phone", label: "Phone", Icon: Smartphone },
+  { tab: "slides", label: "Slides", Icon: Monitor },
 ];
 
 /**
@@ -28,7 +29,8 @@ export function PhoneSetTabs({
 }: {
   header: ReactNode;
   editor: ReactNode;
-  slides: ReactNode;
+  /** Absent: no Slides tab (media, whose editor is its slides). */
+  slides?: ReactNode;
   set: PhytoSet;
 }) {
   const [tab, setTab] = useState<PhoneEditorTab>("editor");
@@ -73,17 +75,22 @@ export function PhoneSetTabs({
           )}
         </div>
         <nav className="flex shrink-0 justify-center gap-2 border-t border-foreground/20 px-4 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2.5">
-          {TABS.map(({ tab: t, label }) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`pill mono uppercase px-4 py-1.5 text-xs tracking-wider transition ${
-                tab === t ? "bg-foreground text-background" : "border border-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          {TABS.filter((t) => t.tab !== "slides" || slides !== undefined).map(
+            ({ tab: t, label, Icon }) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`pill flex h-10 w-14 items-center justify-center transition ${
+                  tab === t ? "bg-foreground text-background" : "text-foreground/50"
+                }`}
+                title={label}
+                aria-label={label}
+                aria-pressed={tab === t}
+              >
+                <Icon className="h-5 w-5" strokeWidth={1.5} />
+              </button>
+            ),
+          )}
         </nav>
       </div>
     </PhoneScreen>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
 import { Maximize2, Minimize2, Plus, Trash2 } from "lucide-react";
 import { DotsGrip } from "@/components/DragBits";
 import { hideDragGhost } from "@/lib/drag-ghost";
@@ -130,6 +131,8 @@ export function MessageBlockEditor({
     equals: (a, b) => a === b || JSON.stringify(a) === JSON.stringify(b),
   });
   const record = (key?: string) => history.record(currentCaret(scope.current), key);
+  // Phone: the header's Undo button.
+  useRegisterPhoneUndo(() => history.undo(null));
 
   // During a drag we reorder a local copy of the slides so the list follows the
   // pointer, and only write the final order to the store on drop (rather than on

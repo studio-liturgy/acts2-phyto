@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
-import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
+import { useAuthStore, useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useAccountPull, useSyncStatus } from "@/hooks/use-sync-status";
 import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
 import { fetchWorkspaceSettings, saveWorkspaceSettings } from "@/lib/workspace-settings";
@@ -173,6 +173,10 @@ function Home() {
   const isEmpty = gatheringOrder.length === 0 && order.length === 0;
   const landing = !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
   const pulling = isSignedIn && isEmpty && !!accountPull;
+  const authLoading = useAuthStore((s) => s.isLoading);
+  // Phone, signed out: only the intro, with Sign in. No library to browse.
+  if (phone && authLoading) return <div className="min-h-screen bg-background" />;
+  if (phone && !isSignedIn) return <Library signInOnly />;
   if (phone && !landing && !pulling) return <PhoneHome tab={tab ?? "gatherings"} />;
   if (phone === null && !landing) return <div className="min-h-screen bg-background" />;
   return <Library />;
@@ -236,7 +240,7 @@ function kindChip(kind: KindFilter, active: boolean): string {
   return "";
 }
 
-function Library() {
+function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
   const navigate = useNavigate();
   const {
     // Default the array/record fields: during SSR + first client render the
@@ -593,7 +597,8 @@ function Library() {
   // someone who already belongs to a group — they aren't a brand-new user even
   // if their personal catalogue happens to be empty. The explicit Intro link
   // (?intro) still opens it for anyone.
-  const showLanding = !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
+  const showLanding =
+    signInOnly || !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
 
   // The live gathering always leads, regardless of creation order.
   const gatheringDisplayOrder = useMemo(
@@ -960,6 +965,7 @@ function Library() {
           userEmail={userEmail}
           syncStatus={syncStatus}
           onSignOut={() => setShowSignOutDialog(true)}
+          signInOnly={signInOnly}
         />
       ) : (
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">

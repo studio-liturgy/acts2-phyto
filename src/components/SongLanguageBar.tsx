@@ -93,8 +93,37 @@ export function SongLanguageBar({
               dragFrom.current = null;
               setDragging(null);
             }}
+            // Touch screens have no HTML drag: follow the finger instead, and
+            // move the chip into whichever chip it's over.
+            data-lang-idx={i}
+            onPointerDown={(e) => {
+              if (e.pointerType === "mouse") return;
+              dragFrom.current = i;
+              setDragging(code);
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              if (e.pointerType === "mouse" || dragFrom.current === null) return;
+              const over = document
+                .elementFromPoint(e.clientX, e.clientY)
+                ?.closest<HTMLElement>("[data-lang-idx]");
+              const to = over ? Number(over.dataset.langIdx) : NaN;
+              if (!Number.isNaN(to) && to !== dragFrom.current) {
+                move(dragFrom.current, to);
+                dragFrom.current = to;
+              }
+            }}
+            onPointerUp={(e) => {
+              if (e.pointerType === "mouse") return;
+              dragFrom.current = null;
+              setDragging(null);
+            }}
+            onPointerCancel={() => {
+              dragFrom.current = null;
+              setDragging(null);
+            }}
             className={cn(
-              "mono group flex h-7 cursor-grab items-center gap-1 rounded-full border px-2 text-xs uppercase tracking-wider text-foreground active:cursor-grabbing",
+              "mono group flex h-7 cursor-grab touch-none select-none items-center gap-1 rounded-full border px-2 text-xs uppercase tracking-wider text-foreground active:cursor-grabbing",
               dragging === code && "opacity-50",
             )}
             style={{

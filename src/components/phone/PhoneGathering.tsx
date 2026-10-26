@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Trash2, X } from "lucide-react";
+import { List, Search, Smartphone, Trash2, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   gatheringSectionsReady,
   loadGatheringSections,
@@ -135,6 +136,30 @@ export function PhoneGathering({
   const canDelete = !g.shared;
   const slots: Slot[] = drag?.order ?? g.setIds.map((id, i) => ({ key: `${id}#${i}`, id }));
 
+  // Sets / Phone, the presenter's Slides / Mobile switch: icons either side.
+  const setView = (v: "sets" | "phone") =>
+    navigate({
+      to: "/present",
+      search:
+        v === "phone" ? { gathering: gatheringId, view: "mobile" } : { gathering: gatheringId },
+      replace: true,
+    });
+  const viewSwitch = (
+    <div className="flex items-center gap-2 pl-1">
+      <button type="button" onClick={() => setView("sets")} aria-label="Sets" title="Sets">
+        <List className={`h-4 w-4 ${view === "sets" ? "" : "text-muted-foreground"}`} />
+      </button>
+      <Switch
+        checked={view === "phone"}
+        onCheckedChange={(on) => setView(on ? "phone" : "sets")}
+        aria-label="Phone view"
+      />
+      <button type="button" onClick={() => setView("phone")} aria-label="Phone" title="Phone">
+        <Smartphone className={`h-4 w-4 ${view === "phone" ? "" : "text-muted-foreground"}`} />
+      </button>
+    </div>
+  );
+
   const header = (
     <PhoneBackHeader
       back="/"
@@ -145,55 +170,16 @@ export function PhoneGathering({
           onChange={(e) => renameGathering(gatheringId, e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
           aria-label="Gathering name"
-          className="w-full truncate bg-transparent text-xl outline-none"
+          className="w-full truncate bg-transparent text-xl tracking-[-0.045em] outline-none"
         />
       }
+      actions={viewSwitch}
     />
-  );
-
-  // Sets / Phone, like the presenter's Slides / Mobile switch.
-  const viewSwitch = (
-    <div className="flex shrink-0 justify-center gap-2 px-5 py-3">
-      {(
-        [
-          ["sets", "Sets"],
-          ["phone", "Phone"],
-        ] as const
-      ).map(([v, label]) => (
-        <button
-          key={v}
-          onClick={() =>
-            navigate({
-              to: "/present",
-              search:
-                v === "phone"
-                  ? { gathering: gatheringId, view: "mobile" }
-                  : { gathering: gatheringId },
-              replace: true,
-            })
-          }
-          className={`pill mono uppercase px-5 py-1.5 text-xs tracking-wider transition ${
-            view === v ? "bg-foreground text-background" : "border border-foreground"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
   );
 
   if (view === "phone") {
     return (
-      <PhoneScreen
-        tab="gatherings"
-        scroll={false}
-        header={
-          <>
-            {header}
-            {viewSwitch}
-          </>
-        }
-      >
+      <PhoneScreen tab="gatherings" scroll={false} header={header}>
         {phoneSets.length === 0 ? (
           <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
             Gathering is empty. Add a set to preview the phone view.
@@ -226,15 +212,7 @@ export function PhoneGathering({
   }
 
   return (
-    <PhoneScreen
-      tab="gatherings"
-      header={
-        <>
-          {header}
-          {viewSwitch}
-        </>
-      }
-    >
+    <PhoneScreen tab="gatherings" header={header}>
       <div className="px-5 pb-10">
         {slots.length === 0 ? (
           <p className="mono uppercase rounded-2xl border border-dashed border-muted-foreground p-4 text-center text-xs text-muted-foreground">

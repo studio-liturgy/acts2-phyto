@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PHONE_UI } from "@/lib/phone-layout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -178,7 +179,7 @@ const themeInitScript = `(function(){try{var m=localStorage.getItem('phyto-theme
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-phone-ui={PHONE_UI ? "" : undefined}>
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />

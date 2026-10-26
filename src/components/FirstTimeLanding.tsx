@@ -14,6 +14,7 @@ import type { SyncState } from "@/hooks/use-sync-status";
 import wordmark from "@/assets/wordmark.svg";
 import wordmarkTest from "@/assets/wordmark-test.svg";
 import { PHONE_UI } from "@/lib/phone-layout";
+import { useBackHomeSearch } from "@/hooks/use-back-home";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
 const aboutBg = "/about-bg.jpg";
@@ -252,7 +253,11 @@ export function FirstTimeLanding({
   userEmail,
   syncStatus,
   onSignOut,
+  signInOnly = false,
 }: {
+  /** Phone, signed out: nothing to edit until you sign in, so the only
+   *  action is Sign in (no Back into a library). */
+  signInOnly?: boolean;
   onNewGathering: () => void;
   onNewSet: (kind: SetKind) => void;
   isSignedIn: boolean;
@@ -264,6 +269,8 @@ export function FirstTimeLanding({
   // Tints the mobile overscroll/safe-area chrome (top + bottom) to match the page
   // instead of showing default white/dark bars — same fix used on /about and /legal.
   usePageBackgroundColor("var(--brand-blue)");
+  // Opened from the phone's Settings tab: Back returns there.
+  const backSearch = useBackHomeSearch();
 
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -558,16 +565,16 @@ export function FirstTimeLanding({
             button gives the normal header, so the pills sit at the identical position. */}
         <div className="absolute inset-x-0 top-0">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 pt-6 md:pt-10">
-            {!isEmpty && (
+            {!isEmpty && !signInOnly && (
               <Link
                 to="/"
-                search={{}}
+                search={backSearch}
                 className="pill mono uppercase border border-[var(--brand-white)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"
               >
                 Back
               </Link>
             )}
-            {!isSignedIn && !isEmpty && (
+            {!isSignedIn && !isEmpty && !signInOnly && (
               <Link
                 to="/login"
                 className={`pill mono uppercase border border-[var(--brand-white)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)] ${PHONE_UI ? "inline-block" : "hidden md:inline-block"}`}
@@ -648,47 +655,58 @@ export function FirstTimeLanding({
         <div
           className={`mt-10 flex-wrap items-center justify-center gap-3 ${PHONE_UI ? "flex" : "hidden md:flex"}`}
         >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="pill mono uppercase flex items-center gap-2 bg-foreground px-6 py-3 text-sm tracking-wider text-background transition hover:opacity-90">
-                <Plus className="h-4 w-4" /> New Set
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center">
-              <DropdownMenuItem
-                onClick={() => onNewSet("song")}
-                className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
-              >
-                New Song
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onNewSet("scripture")}
-                className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
-              >
-                New Scripture
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onNewSet("media")}
-                className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
-              >
-                New Media
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {isSignedIn || !isEmpty ? (
-            <button
-              onClick={onNewGathering}
-              className="pill mono uppercase flex items-center gap-2 border border-foreground px-6 py-3 text-sm tracking-wider transition hover:bg-foreground hover:text-background"
-            >
-              <Plus className="h-4 w-4" /> New Gathering
-            </button>
-          ) : (
+          {signInOnly ? (
             <Link
               to="/login"
-              className="pill mono uppercase flex items-center gap-2 border border-foreground px-6 py-3 text-sm tracking-wider transition hover:bg-foreground hover:text-background"
+              className="pill mono uppercase flex items-center gap-2 bg-foreground px-6 py-3 text-sm tracking-wider text-background transition hover:opacity-90"
             >
               Sign In
             </Link>
+          ) : (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="pill mono uppercase flex items-center gap-2 bg-foreground px-6 py-3 text-sm tracking-wider text-background transition hover:opacity-90">
+                    <Plus className="h-4 w-4" /> New Set
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center">
+                  <DropdownMenuItem
+                    onClick={() => onNewSet("song")}
+                    className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
+                  >
+                    New Song
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onNewSet("scripture")}
+                    className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-green)] focus:text-[var(--brand-white)]"
+                  >
+                    New Scripture
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onNewSet("media")}
+                    className="mono uppercase text-xs tracking-wider focus:bg-[var(--brand-orange)] focus:text-[var(--brand-white)]"
+                  >
+                    New Media
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {isSignedIn || !isEmpty ? (
+                <button
+                  onClick={onNewGathering}
+                  className="pill mono uppercase flex items-center gap-2 border border-foreground px-6 py-3 text-sm tracking-wider transition hover:bg-foreground hover:text-background"
+                >
+                  <Plus className="h-4 w-4" /> New Gathering
+                </button>
+              ) : (
+                <Link
+                  to="/login"
+                  className="pill mono uppercase flex items-center gap-2 border border-foreground px-6 py-3 text-sm tracking-wider transition hover:bg-foreground hover:text-background"
+                >
+                  Sign In
+                </Link>
+              )}
+            </>
           )}
         </div>
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
 import { Plus, Trash2 } from "lucide-react";
 import { DotsGrip } from "@/components/DragBits";
 import { hideDragGhost } from "@/lib/drag-ghost";
@@ -53,6 +54,8 @@ export function ScriptureVerseEditor({
     equals: (a, b) => versions.every((v) => (a[v] ?? "") === (b[v] ?? "")),
   });
   const record = (key?: string) => history.record(currentCaret(scope.current), key);
+  // Phone: the header's Undo button.
+  useRegisterPhoneUndo(() => history.undo(null));
 
   const editCell = (ri: number, v: string, value: string) => {
     record(`type:${cellKey(ri, v)}`);

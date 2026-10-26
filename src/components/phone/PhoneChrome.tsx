@@ -1,7 +1,8 @@
-import { Link } from "@tanstack/react-router";
-import { ArrowUpLeft, Circle, CircleUser, Library } from "lucide-react";
+import { Link, Navigate } from "@tanstack/react-router";
+import { ArrowUpLeft, Layers, Library, Settings } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import type { PhoneTab } from "@/lib/phone-layout";
+import { useAuthStore } from "@/lib/authStore";
 
 /**
  * A phone screen: header, the scrolling body, and (on the main screens) the
@@ -24,6 +25,9 @@ export function PhoneScreen({
   bodyClassName?: string;
 }) {
   useNoInputZoom();
+  // Signed out, a phone shows only the intro (sign in to edit anything).
+  const signedOut = useAuthStore((s) => !s.isLoading && s.session === null);
+  if (signedOut) return <Navigate to="/" search={{}} replace />;
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
       {header}
@@ -98,9 +102,9 @@ export function PhoneBackHeader({
 }
 
 const TABS: { tab: PhoneTab; label: string; Icon: typeof Library }[] = [
-  { tab: "gatherings", label: "Gatherings", Icon: Circle },
+  { tab: "gatherings", label: "Gatherings", Icon: Layers },
   { tab: "catalogue", label: "Catalogue", Icon: Library },
-  { tab: "account", label: "Account", Icon: CircleUser },
+  { tab: "settings", label: "Settings", Icon: Settings },
 ];
 
 /** Icon-only tab bar along the bottom edge, like the Shiro app's. */

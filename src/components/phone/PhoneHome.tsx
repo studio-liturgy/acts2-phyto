@@ -67,7 +67,7 @@ import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { BackgroundEditor } from "@/components/BackgroundEditor";
 import { fetchWorkspaceSettings, saveWorkspaceSettings } from "@/lib/workspace-settings";
-import { markBackToAccount } from "@/hooks/use-back-home";
+import { clearBackToSettings, markBackToSettings } from "@/hooks/use-back-home";
 import { VersionWarning } from "@/components/VersionWarning";
 import { PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
 import { PhoneShareSheet } from "@/components/phone/PhoneShareSheet";
@@ -95,6 +95,10 @@ const ICON_PLAIN =
 
 export function PhoneHome({ tab }: { tab: PhoneTab }) {
   const isSignedIn = useIsSignedIn();
+  // Back to Settings only holds for a page opened from Settings.
+  useEffect(() => {
+    if (tab !== "settings") clearBackToSettings();
+  }, [tab]);
   const activeWorkspace = useLibrary((s) => s.activeWorkspace) ?? "personal";
   const groups = useLibrary((s) => s.groups) ?? [];
   const loadGroups = useLibrary((s) => s.loadGroups);
@@ -171,8 +175,8 @@ export function PhoneHome({ tab }: { tab: PhoneTab }) {
     <>
       {tab === "gatherings" && <GatheringsTab arrivals={arrivals} />}
       {tab === "catalogue" && <CatalogueTab sharedOutIds={sharedOutIds} />}
-      {tab === "account" && (
-        <AccountTab
+      {tab === "settings" && (
+        <SettingsTab
           groupInvites={groupInvites}
           onAcceptInvite={acceptInvite}
           onDeclineInvite={declineInvite}
@@ -259,6 +263,82 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
   );
   const primary = order.length ? gatherings[order[0]] : null;
 
+  // Each gathering's card: its name, Edit, Go live (or End Session), sets.
+  const renderCard = (id: string) => {
+    const g = gatherings[id];
+    if (!g) return null;
+    const live = g.is_live === null ? false : isLiveNow(g);
+    return (
+      <div key={id} className="rounded-3xl border border-foreground p-4">
+        <div className="mb-3 flex items-center gap-0.5">
+          <Link
+            to="/present"
+            search={{ gathering: id }}
+            className="mr-0.5 min-w-0 flex-1 truncate text-2xl"
+          >
+            {g.name}
+          </Link>
+          <Link
+            to="/present"
+            search={{ gathering: id }}
+            className={ICON_PLAIN}
+            title="Edit"
+            aria-label="Edit"
+          >
+            <Pencil className="h-4 w-4" />
+          </Link>
+          {isSignedIn &&
+            (live ? (
+              <button
+                onClick={() => setEnding(id)}
+                className="pill ml-1 flex h-10 w-10 animate-pulse items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)]"
+                title="End session"
+                aria-label="End session"
+              >
+                <Wifi className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setSheet({ id, step: "confirm" })}
+                className={ICON_PLAIN}
+                title="Go live"
+                aria-label="Go live"
+              >
+                <Wifi className="h-4 w-4" />
+              </button>
+            ))}
+        </div>
+        <Link to="/present" search={{ gathering: id }} className="block">
+          {g.setIds.length === 0 ? (
+            <p className="mono uppercase rounded-2xl border border-dashed border-muted-foreground p-3 text-center text-xs text-muted-foreground">
+              Tap to add sets to this gathering
+            </p>
+          ) : (
+            <ol className="flex flex-col gap-1">
+              {g.setIds.map((sid, i) => {
+                const d = sets[sid];
+                return (
+                  <li
+                    key={`${sid}#${i}`}
+                    className={`pill flex items-center gap-3 px-4 py-1.5 text-sm ${phoneKindBg(d?.kind ?? "mixed")}`}
+                  >
+                    <span className="flex-1 truncate">{d?.name ?? "(missing)"}</span>
+                    <span className="mono text-[10px] uppercase tracking-wider opacity-90">
+                      {d?.kind}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </Link>
+      </div>
+    );
+  };
+  const liveIds = order.filter((id) => gatherings[id] && isLiveNow(gatherings[id]));
+  const otherIds = liveIds.length ? order.filter((id) => !liveIds.includes(id)) : order;
+  const [othersOpen, setOthersOpen] = useState(false);
+
   const newGathering = () => {
     const name = new Date().toLocaleDateString(undefined, { month: "long", day: "numeric" });
     const id = createGathering(name);
@@ -299,77 +379,24 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
             No gatherings yet. Tap New to plan a gathering!
           </div>
         ) : (
-          order.map((id) => {
-            const g = gatherings[id];
-            if (!g) return null;
-            const live = g.is_live === null ? false : isLiveNow(g);
-            return (
-              <div key={id} className="rounded-3xl border border-foreground p-4">
-                <div className="mb-3 flex items-center gap-0.5">
-                  <Link
-                    to="/present"
-                    search={{ gathering: id }}
-                    className="mr-0.5 min-w-0 flex-1 truncate text-2xl"
-                  >
-                    {g.name}
-                  </Link>
-                  <Link
-                    to="/present"
-                    search={{ gathering: id }}
-                    className={ICON_PLAIN}
-                    title="Edit"
-                    aria-label="Edit"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Link>
-                  {isSignedIn &&
-                    (live ? (
-                      <button
-                        onClick={() => setEnding(id)}
-                        className="pill ml-1 flex h-10 w-10 animate-pulse items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)]"
-                        title="End session"
-                        aria-label="End session"
-                      >
-                        <Wifi className="h-4 w-4" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setSheet({ id, step: "confirm" })}
-                        className={ICON_PLAIN}
-                        title="Go live"
-                        aria-label="Go live"
-                      >
-                        <Wifi className="h-4 w-4" />
-                      </button>
-                    ))}
-                </div>
-                <Link to="/present" search={{ gathering: id }} className="block">
-                  {g.setIds.length === 0 ? (
-                    <p className="mono uppercase rounded-2xl border border-dashed border-muted-foreground p-3 text-center text-xs text-muted-foreground">
-                      Tap to add sets to this gathering
-                    </p>
-                  ) : (
-                    <ol className="flex flex-col gap-1">
-                      {g.setIds.map((sid, i) => {
-                        const d = sets[sid];
-                        return (
-                          <li
-                            key={`${sid}#${i}`}
-                            className={`pill flex items-center gap-3 px-4 py-1.5 text-sm ${phoneKindBg(d?.kind ?? "mixed")}`}
-                          >
-                            <span className="flex-1 truncate">{d?.name ?? "(missing)"}</span>
-                            <span className="mono text-[10px] uppercase tracking-wider opacity-90">
-                              {d?.kind}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ol>
-                  )}
-                </Link>
-              </div>
-            );
-          })
+          <>
+            {liveIds.map(renderCard)}
+            {/* While one is live, the rest wait behind one row. */}
+            {liveIds.length > 0 && otherIds.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setOthersOpen((o) => !o)}
+                aria-expanded={othersOpen}
+                className="mono flex w-full items-center justify-between rounded-full border border-foreground px-5 py-3 text-xs uppercase tracking-wider"
+              >
+                <span>Other gatherings ({otherIds.length})</span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${othersOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+            )}
+            {(liveIds.length === 0 || othersOpen) && otherIds.map(renderCard)}
+          </>
         )}
       </div>
       {sheet && (
@@ -803,7 +830,7 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
 
 /* ── Account ────────────────────────────────────────────────────────────── */
 
-function AccountTab({
+function SettingsTab({
   groupInvites,
   onAcceptInvite,
   onDeclineInvite,
@@ -812,6 +839,7 @@ function AccountTab({
   onAcceptInvite: (invite: GroupInvite) => void;
   onDeclineInvite: (invite: GroupInvite) => void;
 }) {
+  const navigate = useNavigate();
   const isSignedIn = useIsSignedIn();
   const userEmail = useUserEmail();
   const syncStatus = useSyncStatus();
@@ -852,7 +880,7 @@ function AccountTab({
   const HEADING = `${LABEL} mb-3 text-muted-foreground`;
 
   return (
-    <PhoneScreen tab="account" header={<PhoneTitleHeader title="Account" />}>
+    <PhoneScreen tab="settings" header={<PhoneTitleHeader title="Settings" />}>
       <div className="px-5 pb-10">
         {isSignedIn ? (
           <div className={ROW}>
@@ -944,48 +972,78 @@ function AccountTab({
           <ThemeToggle />
         </div>
 
-        <nav className="flex flex-col py-2">
-          <Link
-            to="/"
-            search={{ intro: true }}
-            className={`${LABEL} border-b border-foreground/15 py-4`}
-          >
-            Intro
-          </Link>
-          {(
-            [
-              ["/updates", "Updates"],
-              ["/feedback", "Feedback"],
-              ["/about", "About"],
-              ["/terms", "Legal"],
-            ] as const
-          ).map(([href, label]) => (
-            <Link
-              key={href}
-              to={href}
-              onClick={markBackToAccount}
-              className={`${LABEL} border-b border-foreground/15 py-4`}
-            >
-              {label}
-            </Link>
-          ))}
-          <a
-            href="https://github.com/studio-liturgy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${LABEL} border-b border-foreground/15 py-4`}
-          >
-            Source
-          </a>
-          <a
-            href="/donate"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${LABEL} border-b border-foreground/15 py-4`}
-          >
-            Donate
-          </a>
-        </nav>
+        {/* The footer's links as pill clusters, grouped like the sections above.
+            Internal pages come Back to Settings. */}
+        {(
+          [
+            {
+              heading: "phyto",
+              links: [
+                { to: "/?intro=true", label: "Intro" },
+                { to: "/updates", label: "Updates" },
+                { to: "/about", label: "About" },
+              ],
+            },
+            {
+              heading: "Help",
+              links: [
+                { to: "/feedback", label: "Feedback" },
+                { to: "/terms", label: "Legal" },
+              ],
+            },
+            {
+              heading: "Connect",
+              links: [
+                { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
+                { href: "https://github.com/studio-liturgy", label: "Source" },
+                { href: "/donate", label: "Donate" },
+              ],
+            },
+          ] as {
+            heading: string;
+            links: ({ to: string; label: string } | { href: string; label: string })[];
+          }[]
+        ).map(({ heading, links }) => (
+          <div key={heading} className={SECTION}>
+            <div className={HEADING}>{heading}</div>
+            <div className="flex flex-wrap gap-2">
+              {links.map((l) =>
+                "to" in l ? (
+                  l.to === "/?intro=true" ? (
+                    <Link
+                      key={l.label}
+                      to="/"
+                      search={{ intro: true }}
+                      onClick={markBackToSettings}
+                      className={PILL_OUTLINE}
+                    >
+                      {l.label}
+                    </Link>
+                  ) : (
+                    <Link
+                      key={l.label}
+                      to={l.to}
+                      onClick={markBackToSettings}
+                      className={PILL_OUTLINE}
+                    >
+                      {l.label}
+                    </Link>
+                  )
+                ) : (
+                  <a
+                    key={l.label}
+                    href={l.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={PILL_OUTLINE}
+                  >
+                    {l.label}
+                  </a>
+                ),
+              )}
+            </div>
+          </div>
+        ))}
 
         {isSignedIn && (
           <button
@@ -1011,7 +1069,9 @@ function AccountTab({
               type="button"
               onClick={() => {
                 setConfirmSignOut(false);
-                signOut();
+                clearBackToSettings();
+                // Out to the intro: nothing to see signed out.
+                void signOut().then(() => navigate({ to: "/", search: {}, replace: true }));
               }}
               className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background"
             >

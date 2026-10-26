@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 
-// Pages opened from the phone's Account tab (Updates, Legal, Feedback, About)
+// Pages opened from the phone's Settings tab (Updates, Legal, Feedback, About)
 // go Back to that tab, not to Gatherings. Kept per tab in sessionStorage.
-const KEY = "phyto:back-to-account";
+const KEY = "phyto:back-to-settings";
 
-/** Remember that the next page was opened from the Account tab. */
-export function markBackToAccount(): void {
+/** Remember that the next page was opened from the Settings tab. */
+export function markBackToSettings(): void {
   try {
     sessionStorage.setItem(KEY, "1");
   } catch {
@@ -14,7 +14,7 @@ export function markBackToAccount(): void {
 }
 
 /** Opened from anywhere else: Back goes home as usual. */
-export function clearBackToAccount(): void {
+export function clearBackToSettings(): void {
   try {
     sessionStorage.removeItem(KEY);
   } catch {
@@ -22,16 +22,16 @@ export function clearBackToAccount(): void {
   }
 }
 
-/** The home page's search for a Back link: the Account tab when that's
+/** The home page's search for a Back link: the Settings tab when that's
  *  where this page was opened from. Read after mount (no server mismatch). */
-export function useBackHomeSearch(): { tab?: "account" } {
-  const [toAccount, setToAccount] = useState(false);
+export function useBackHomeSearch(): { tab?: "settings" } {
+  const [toSettings, setToSettings] = useState(false);
   useEffect(() => {
     try {
-      setToAccount(sessionStorage.getItem(KEY) === "1");
+      setToSettings(sessionStorage.getItem(KEY) === "1");
     } catch {
-      setToAccount(false);
+      setToSettings(false);
     }
   }, []);
-  return toAccount ? { tab: "account" } : {};
+  return toSettings ? { tab: "settings" } : {};
 }

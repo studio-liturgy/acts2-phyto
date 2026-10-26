@@ -67,7 +67,7 @@ import {
 } from "@/lib/multiling";
 import { langColor, langDef, type LangCode } from "@/lib/langs";
 import { phoneLangPair, tapPairLang } from "@/lib/phone-layout";
-import { usePhoneEditorBus } from "@/lib/phone-editor-bus";
+import { usePhoneEditorBus, useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
 import { VersionWarning } from "@/components/VersionWarning";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -124,6 +124,7 @@ import {
   Settings,
   ImagePlus,
   SeparatorHorizontal,
+  Undo2,
 } from "lucide-react";
 import { NumberStepper } from "@/components/NumberStepper";
 import { useIsSignedIn } from "@/lib/authStore";
@@ -261,6 +262,7 @@ function SetHeader({
   // Phone: the + beside Share turns the title row into the gathering search.
   const [addingTo, setAddingTo] = useState(false);
   const setScriptureSettings = usePhoneEditorBus((s) => s.setScriptureSettings);
+  const phoneUndo = usePhoneEditorBus((s) => s.undo);
   const deleteDialog = (
     <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
       <AlertDialogContent className="gap-0 rounded-3xl p-8">
@@ -369,6 +371,16 @@ function SetHeader({
                 <VersionWarning set={phytoSet} hint="Re-import or duplicate to unfreeze." />
               </div>
               <div className="flex shrink-0 items-center gap-0.5">
+                {phoneUndo && (
+                  <button
+                    onClick={phoneUndo}
+                    className={`${ICON} active:bg-foreground/15`}
+                    title="Undo"
+                    aria-label="Undo"
+                  >
+                    <Undo2 className="h-4 w-4" />
+                  </button>
+                )}
                 {removeMode && (
                   <button
                     onClick={() => setShowDeleteSetDialog(true)}
@@ -1319,35 +1331,6 @@ function SetEditor() {
             {mediaDialogs}
           </>
         }
-        slides={
-          phytoSet.slides.length === 0 ? (
-            mediaPreview
-          ) : (
-            <div className="space-y-4">
-              {groupSlides(phytoSet.slides).map((g, gi) => (
-                <div key={gi}>
-                  {g.section && (
-                    <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-                      {g.section}
-                    </div>
-                  )}
-                  <div
-                    className="space-y-2 rounded-xl p-2"
-                    style={{
-                      backgroundColor: `color-mix(in oklab, ${SECTION_TINTS[gi % 3]} 45%, transparent)`,
-                    }}
-                  >
-                    {g.items.map(({ slide }) => (
-                      <div key={slide.id} className="relative overflow-hidden rounded-md">
-                        <SlideView slide={slide} variant="thumb" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )
-        }
       />
     );
   }
@@ -1543,14 +1526,19 @@ function SlideGrid({
         <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
           {i + 1}
         </div>
-        <div className="absolute right-1.5 top-1.5 flex gap-0.5 opacity-0 transition group-hover:opacity-100">
+        {/* Hover controls; always shown on the phone (no hover there). */}
+        <div
+          className={`absolute right-1.5 top-1.5 flex transition ${
+            single ? "gap-1.5" : "gap-0.5 opacity-0 group-hover:opacity-100"
+          }`}
+        >
           {s.kind === "image" && onToggleFit && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleFit(s.id);
               }}
-              className="rounded-full bg-black/60 p-1 text-white"
+              className={`rounded-full bg-black/60 text-white ${single ? "p-2" : "p-1"}`}
               aria-label={s.imageFit === "cover" ? "Fit image (contain)" : "Fill frame (cover)"}
               title={s.imageFit === "cover" ? "Fit image" : "Fill frame"}
             >
@@ -1566,7 +1554,7 @@ function SlideGrid({
               e.stopPropagation();
               onRemove(s.id);
             }}
-            className="rounded-full bg-black/60 p-1 text-white"
+            className={`rounded-full bg-black/60 text-white ${single ? "p-2" : "p-1"}`}
             aria-label="Remove slide"
           >
             <Trash2 className="h-3 w-3" />
@@ -2409,6 +2397,9 @@ function Importers({
     undoStack.current.push(snapshot());
     restore(entry);
   };
+  // Phone: the header's Undo button (the box and Call and Response; the
+  // Multi-Language grid registers its own).
+  useRegisterPhoneUndo(undoLyrics, !!phone && kind === "song" && songLayout !== "multilang");
 
   /** Translate what the box now contains back into stored form. Returns the
    *  new stored lyrics, so a caller that needs to know where something ended
@@ -3085,9 +3076,43 @@ function Importers({
               refPerSlide={scripture.refPerSlide}
               setRefPerSlide={(on) => void scripture.setRefPerSlide(on)}
             />
-            <div
-              className={`mt-3 grid grid-cols-2 gap-3 ${phone && !scripture.twoVersions ? "hidden" : ""}`}
-            >
+            {/* Phone, two versions: 1st, a swap arrow, 2nd, on one row. */}
+            {phone && scripture.twoVersions && (
+              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-1.5">
+                <VersionPicker
+                  label="1st"
+                  value={translation}
+                  open={versionOpen}
+                  setOpen={setVersionOpen}
+                  onPick={setTranslation}
+                  exclude={translation2}
+                  groups={scripture.versionGroups}
+                  recent={scripture.recentVersions}
+                />
+                <button
+                  type="button"
+                  onClick={scripture.swapVersions}
+                  disabled={!scripture.bilingual}
+                  className="pill flex h-9 w-9 items-center justify-center transition active:bg-foreground/15 disabled:opacity-30"
+                  title="Swap versions"
+                  aria-label="Swap versions"
+                >
+                  <ArrowLeftRight className="h-4 w-4" />
+                </button>
+                <VersionPicker
+                  label="2nd"
+                  value={translation2}
+                  placeholder="Choose"
+                  open={version2Open}
+                  setOpen={setVersion2Open}
+                  onPick={setTranslation2}
+                  exclude={translation}
+                  groups={scripture.versionGroups}
+                  recent={scripture.recentVersions}
+                />
+              </div>
+            )}
+            <div className={`mt-3 grid grid-cols-2 gap-3 ${phone ? "hidden" : ""}`}>
               <div className={scripture.twoVersions ? "" : "col-span-2"}>
                 <VersionPicker
                   label={scripture.twoVersions ? "1st version" : "Version"}
@@ -3114,7 +3139,7 @@ function Importers({
                 />
               )}
             </div>
-            {scripture.bilingual && (
+            {scripture.bilingual && !phone && (
               <button
                 type="button"
                 onClick={scripture.swapVersions}
@@ -3255,17 +3280,23 @@ function Importers({
               {err}
             </p>
           )}
+          {/* Phone: Import, then the point / image / verse icons on its right. */}
           {!scripture.frozen && (
-            <button
-              onClick={importScripture}
-              disabled={!ref.trim() || busy}
-              className="mono uppercase pill mt-3 w-full bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? "Fetching…" : "Import"}
-            </button>
+            <div className={phone ? "mt-3 flex items-center gap-1.5" : ""}>
+              <button
+                onClick={importScripture}
+                disabled={!ref.trim() || busy}
+                className={`mono uppercase pill bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50 ${phone ? "min-w-0 flex-1" : "mt-3 w-full"}`}
+              >
+                {busy ? "Fetching…" : "Import"}
+              </button>
+              {phone && (
+                <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} icons />
+              )}
+            </div>
           )}
-          {!scripture.frozen && (
-            <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} icons={phone} />
+          {!scripture.frozen && !phone && (
+            <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} />
           )}
         </div>
 
