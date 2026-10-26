@@ -105,6 +105,8 @@ interface SessionLostStore {
   lost: boolean;
   dialogOpen: boolean;
   markLost: () => void;
+  /** Re-open the dialog when a cloud action is tried while signed out by expiry. */
+  prompt: () => void;
   close: () => void;
   clear: () => void;
 }
@@ -113,6 +115,7 @@ export const useSessionLost = create<SessionLostStore>((set) => ({
   lost: false,
   dialogOpen: false,
   markLost: () => set({ lost: true, dialogOpen: true }),
+  prompt: () => set((s) => (s.lost ? { dialogOpen: true } : s)),
   close: () => set({ dialogOpen: false }),
   clear: () => set({ lost: false, dialogOpen: false }),
 }));
