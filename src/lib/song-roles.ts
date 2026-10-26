@@ -10,6 +10,7 @@
 // role per stored lyrics line, and edits carry it along.
 import type { Slide } from "./types";
 import { isChordOnlyLine } from "./chords";
+import { lyricsToSlides } from "./slide-text";
 
 export type Role = "leader" | "people";
 
@@ -169,6 +170,20 @@ export function attachRoles(
       ...(style.align ? { roleAlign: style.align } : {}),
     };
   });
+}
+
+/**
+ * The slides the plain editor (Standard, Call and Response) builds from its
+ * lyrics and roles. The live-sync effect and the mode switch both use it, so
+ * a switch can write the final slides in the same update as the new mode.
+ */
+export function plainSongSlides(
+  text: string,
+  roles: LineRoles,
+  response: boolean,
+  style: RoleStyle = {},
+): Slide[] {
+  return text.trim() ? attachRoles(lyricsToSlides(text), text, roles, response, style) : [];
 }
 
 /** A lyric line of the plain text: words, not a `[Label]`, `---` or blank. */
