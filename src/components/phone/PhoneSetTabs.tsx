@@ -74,20 +74,21 @@ export function PhoneSetTabs({
             </div>
           )}
         </div>
-        <nav className="flex shrink-0 justify-center gap-2 border-t border-foreground/20 px-4 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2.5">
+        {/* Across the full width, lit like the home tab bar. */}
+        <nav className="flex shrink-0 border-t border-foreground/15 bg-background px-1.5 pb-[env(safe-area-inset-bottom)]">
           {TABS.filter((t) => t.tab !== "slides" || slides !== undefined).map(
             ({ tab: t, label, Icon }) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`pill flex h-10 w-14 items-center justify-center transition ${
-                  tab === t ? "bg-foreground text-background" : "text-foreground/50"
+                className={`flex h-[54px] flex-1 items-center justify-center transition-colors ${
+                  tab === t ? "text-foreground" : "text-foreground/35"
                 }`}
                 title={label}
                 aria-label={label}
                 aria-pressed={tab === t}
               >
-                <Icon className="h-5 w-5" strokeWidth={1.5} />
+                <Icon className="h-[23px] w-[23px]" strokeWidth={1.5} />
               </button>
             ),
           )}

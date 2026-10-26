@@ -1,4 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { touchReorder } from "@/lib/touch-reorder";
+import { DotsGrip } from "@/components/DragBits";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
@@ -391,16 +393,7 @@ function SetHeader({
                     <Trash2 className="h-4 w-4" />
                   </button>
                 )}
-                {isSignedIn && !phytoSet.shared && (
-                  <button
-                    onClick={() => setShowShareDialog(true)}
-                    className={`${ICON} active:bg-foreground/15`}
-                    title="Share set"
-                    aria-label="Share set"
-                  >
-                    <Share2 className="h-4 w-4" />
-                  </button>
-                )}
+                {/* No Share here on the phone: sets are shared from the catalogue. */}
                 <button
                   onClick={() => setAddingTo(true)}
                   className={`${ICON} active:bg-foreground/15`}
@@ -1460,6 +1453,53 @@ function SlideGrid({
     (sl) => sl.sectionAfter !== undefined || sl.sectionBefore !== undefined,
   );
 
+  // Preview the dragged slide dropped beside tile `s`: after it, or before.
+  const previewAt = (s: Slide, afterTile: boolean) => {
+    if (!draggingId) return;
+    // Dropping onto a tile means joining its section: after it (right
+    // half) or before it (left half). At a section boundary the two
+    // halves land in the same slot but in different sections. The
+    // preview is always derived from the SAVED order, never from the
+    // previous preview, so no half-applied markers pile up.
+    const moved = slides.find((x) => x.id === draggingId);
+    if (!moved) return;
+    const base = slides.filter((x) => x.id !== draggingId);
+    const hoverIdx = base.findIndex((x) => x.id === s.id);
+    if (hoverIdx === -1) return;
+    const next = [...base];
+    next.splice(afterTile ? hoverIdx + 1 : hoverIdx, 0, moved);
+    const joinAfter = afterTile ? s.id : undefined;
+    const prev = liveOrderRef.current;
+    if (
+      prev &&
+      joinAfter === joinAfterRef.current &&
+      prev.length === next.length &&
+      prev.every((x, k) => x.id === next[k].id)
+    )
+      return;
+    joinAfterRef.current = joinAfter;
+    // Sections follow the slides around the drop point (see sections.ts).
+    const kept = moveSlideKeepingSections(slides, next, draggingId, joinAfter);
+    liveOrderRef.current = kept;
+    setLiveOrder(kept);
+  };
+  // Phone: no HTML drag on touch, so each tile's number is a grip to drag by.
+  const touchGrip = (s: Slide, i: number) =>
+    touchReorder({
+      attr: "media-tile",
+      onStart: () => {
+        setDraggingId(s.id);
+        dragIndex.current = i;
+      },
+      onOver: (idx, row, y) => {
+        const target = displaySlides[idx];
+        if (!target || target.id === s.id) return;
+        const rect = row.getBoundingClientRect();
+        previewAt(target, y > rect.top + rect.height / 2);
+      },
+      onEnd: commitOrder,
+    });
+
   // One tile. Sections wrap the tiles below; the tile itself is the same.
   const renderTile = (s: Slide, i: number) => {
     const isSelected = selectedId === s.id;
@@ -1473,6 +1513,7 @@ function SlideGrid({
     return (
       <div
         key={s.id}
+        data-media-tile={i}
         draggable
         onDragStart={(e) => {
           setDraggingId(s.id);
@@ -1486,34 +1527,8 @@ function SlideGrid({
           // Hovering the dragged tile itself (where the preview put it) changes
           // nothing, which is what keeps the preview from flickering.
           if (s.id === draggingId) return;
-          // Dropping onto a tile means joining its section: after it (right
-          // half) or before it (left half). At a section boundary the two
-          // halves land in the same slot but in different sections. The
-          // preview is always derived from the SAVED order, never from the
-          // previous preview, so no half-applied markers pile up.
           const rect = e.currentTarget.getBoundingClientRect();
-          const afterTile = e.clientX > rect.left + rect.width / 2;
-          const moved = slides.find((x) => x.id === draggingId);
-          if (!moved) return;
-          const base = slides.filter((x) => x.id !== draggingId);
-          const hoverIdx = base.findIndex((x) => x.id === s.id);
-          if (hoverIdx === -1) return;
-          const next = [...base];
-          next.splice(afterTile ? hoverIdx + 1 : hoverIdx, 0, moved);
-          const joinAfter = afterTile ? s.id : undefined;
-          const prev = liveOrderRef.current;
-          if (
-            prev &&
-            joinAfter === joinAfterRef.current &&
-            prev.length === next.length &&
-            prev.every((x, k) => x.id === next[k].id)
-          )
-            return;
-          joinAfterRef.current = joinAfter;
-          // Sections follow the slides around the drop point (see sections.ts).
-          const kept = moveSlideKeepingSections(slides, next, draggingId, joinAfter);
-          liveOrderRef.current = kept;
-          setLiveOrder(kept);
+          previewAt(s, e.clientX > rect.left + rect.width / 2);
         }}
         onDragEnd={commitOrder}
         onClick={(e) => onSelect(s.id, e)}
@@ -1523,9 +1538,21 @@ function SlideGrid({
         } ${isSelected || inMulti ? "" : "border-transparent hover:border-muted-foreground"}`}
       >
         <SlideView slide={s} variant="thumb" />
-        <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
-          {i + 1}
-        </div>
+        {single ? (
+          <div
+            {...touchGrip(s, i)}
+            onClick={(e) => e.stopPropagation()}
+            className="mono absolute left-1.5 top-1.5 flex touch-none items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1.5 text-[11px] text-white"
+            aria-label="Drag to reorder"
+          >
+            <DotsGrip size={10} />
+            {i + 1}
+          </div>
+        ) : (
+          <div className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
+            {i + 1}
+          </div>
+        )}
         {/* Hover controls; always shown on the phone (no hover there). */}
         <div
           className={`absolute right-1.5 top-1.5 flex transition ${
@@ -2042,6 +2069,7 @@ function Importers({
   };
   // The Lines per slide row: the grid editors put their toolbars here.
   const [toolbarSlot, setToolbarSlot] = useState<HTMLDivElement | null>(null);
+  const [langAddSlot, setLangAddSlot] = useState<HTMLDivElement | null>(null);
   const multiPer = useLibrary((s) => {
     const set = s.sets[setId];
     return set ? langLinesPer(set) : 1;
@@ -2155,21 +2183,26 @@ function Importers({
           },
         }),
       )}
-      {/* Phone: the song's mode, as its pattern, right of C. */}
+      {/* Phone: + Section (portalled in by the grid editors), then the
+          song's mode as its pattern. */}
+      {phone && songLayout !== "standard" && <div ref={setToolbarSlot} className="contents" />}
       {phone && <SongModePicker setId={setId} compact />}
       {songLayout === "response" && (
         <>
-          {toggle("Show role", showRoles, (on) => updateSet(setId, { showRoles: on || undefined }))}
+          {toggle(phone ? "Role" : "Show role", showRoles, (on) =>
+            updateSet(setId, { showRoles: on || undefined }),
+          )}
           <span className="inline-flex shrink-0 items-center gap-2">
             <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
               Align
             </span>
+            {/* Phone: L / M / R. */}
             <div className="pill flex h-7 items-center border border-foreground p-0.5">
               {(
                 [
-                  ["left", "Left"],
-                  [undefined, "Middle"],
-                  ["split", "Right"],
+                  ["left", phone ? "L" : "Left"],
+                  [undefined, phone ? "M" : "Middle"],
+                  ["split", phone ? "R" : "Right"],
                 ] as const
               ).map(([value, label]) => (
                 <button
@@ -2735,7 +2768,9 @@ function Importers({
                 />
               </span>
               {songToggles}
-              {songLayout === "response" && <div ref={setToolbarSlot} className="contents" />}
+              {songLayout === "response" && !phone && (
+                <div ref={setToolbarSlot} className="contents" />
+              )}
             </ChordControls>
           ) : (
             // Multilanguage: lines of each language per slide (1 or 2), and the
@@ -2781,34 +2816,38 @@ function Importers({
                 />
               </span>
               {songToggles}
-              <div ref={setToolbarSlot} className="contents" />
+              {!phone && <div ref={setToolbarSlot} className="contents" />}
             </ChordControls>
           )}
         </div>
 
-        {songLayout === "multilang" && phone && (songLangCols?.length ?? 0) > 2 && (
-          // Two languages at a time: tap one to swap it in for the one shown longest.
-          <div className="catalogue-scroll flex shrink-0 gap-1.5 overflow-x-auto border-b border-foreground/20 px-4 py-2.5">
-            {(songLangCols ?? []).map((code) => {
-              const on = langPair.includes(code);
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => setPickedLangs((p) => tapPairLang(songLangCols ?? [], p, code))}
-                  className="mono flex h-7 shrink-0 items-center rounded-full border px-3 text-xs uppercase tracking-wider transition"
-                  style={{
-                    borderColor: langColor(code),
-                    backgroundColor: on ? langColor(code) : "transparent",
-                    color: on ? "var(--brand-white)" : undefined,
-                  }}
-                  aria-pressed={on}
-                  title={langDef(code).label}
-                >
-                  {langDef(code).short}
-                </button>
-              );
-            })}
+        {songLayout === "multilang" && phone && (
+          // Two languages at a time: tap one to swap it in for the one shown
+          // longest. + adds a language; the chips scroll sideways in one row.
+          <div className="flex shrink-0 items-center gap-1.5 border-b border-foreground/20 py-2.5 pl-4">
+            <div ref={setLangAddSlot} className="contents" />
+            <div className="catalogue-scroll flex min-w-0 flex-1 gap-1.5 overflow-x-auto pr-4">
+              {(songLangCols ?? []).map((code) => {
+                const on = langPair.includes(code);
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setPickedLangs((p) => tapPairLang(songLangCols ?? [], p, code))}
+                    className="mono flex h-7 shrink-0 items-center rounded-full border px-3 text-xs uppercase tracking-wider transition"
+                    style={{
+                      borderColor: langColor(code),
+                      backgroundColor: on ? langColor(code) : "transparent",
+                      color: on ? "var(--brand-white)" : undefined,
+                    }}
+                    aria-pressed={on}
+                    title={langDef(code).label}
+                  >
+                    {langDef(code).short}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
         {songLayout === "multilang" && (
@@ -2817,6 +2856,7 @@ function Importers({
               key={gridKey}
               setId={setId}
               toolbarSlot={toolbarSlot}
+              langAddSlot={langAddSlot}
               visibleLangs={phone ? langPair : undefined}
             />
           </div>
@@ -3286,7 +3326,7 @@ function Importers({
               <button
                 onClick={importScripture}
                 disabled={!ref.trim() || busy}
-                className={`mono uppercase pill bg-foreground py-2.5 text-sm text-background transition hover:opacity-90 disabled:opacity-50 ${phone ? "min-w-0 flex-1" : "mt-3 w-full"}`}
+                className={`mono uppercase pill bg-foreground text-background transition hover:opacity-90 disabled:opacity-50 ${phone ? "min-w-0 flex-1 py-2 text-xs tracking-wider" : "mt-3 w-full py-2.5 text-sm"}`}
               >
                 {busy ? "Fetching…" : "Import"}
               </button>

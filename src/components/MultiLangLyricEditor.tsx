@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { touchReorder } from "@/lib/touch-reorder";
 import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
 import { createPortal } from "react-dom";
 import { EditorBar } from "@/components/EditorBar";
@@ -54,12 +55,15 @@ const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"]
 export function MultiLangLyricEditor({
   setId,
   toolbarSlot,
+  langAddSlot,
   visibleLangs,
 }: {
   setId: string;
   /** The columns the grid shows (the phone layout shows two at a time). Every
    *  edit still works on the whole song. Absent = every column. */
   visibleLangs?: LangCode[];
+  /** Phone: where + (add a language) goes, left of the language chips. */
+  langAddSlot?: HTMLElement | null;
   /** Where the language pills and + Section go (the Lines per slide row). */
   toolbarSlot?: HTMLElement | null;
 }) {
@@ -631,6 +635,25 @@ export function MultiLangLyricEditor({
   let sectionNo = -1;
   let tint = "transparent";
 
+  const sectionButton = (
+    <button
+      type="button"
+      onClick={addSection}
+      className="mono flex h-7 shrink-0 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+      title="Add a section above the line your cursor is on"
+    >
+      <Plus className="h-3 w-3" />
+      Section
+    </button>
+  );
+  // Phone: + Section alone in the toolbar; + (a language) opens beside the
+  // language chips, which live in their own scrolling row.
+  const phoneToolbar = sectionButton;
+  const phoneLangAdd =
+    available.length > 0 ? (
+      <LangPicker available={available} onAdd={(c) => setLangs([...langs, c])} label="" />
+    ) : null;
+
   const toolbar = (
     // Column languages for THIS song, coloured and drag-reorderable.
     <div className="ml-auto flex flex-wrap items-center gap-1.5">
@@ -679,21 +702,18 @@ export function MultiLangLyricEditor({
           align="right"
         />
       )}
-      <button
-        type="button"
-        onClick={addSection}
-        className="mono flex h-7 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
-        title="Add a section above the line your cursor is on"
-      >
-        <Plus className="h-3 w-3" />
-        Section
-      </button>
+      {sectionButton}
     </div>
   );
 
   return (
     <div ref={rootRef} className="flex h-full flex-col">
-      {toolbarSlot ? createPortal(toolbar, toolbarSlot) : toolbar}
+      {visibleLangs
+        ? toolbarSlot && createPortal(phoneToolbar, toolbarSlot)
+        : toolbarSlot
+          ? createPortal(toolbar, toolbarSlot)
+          : toolbar}
+      {visibleLangs && langAddSlot && phoneLangAdd && createPortal(phoneLangAdd, langAddSlot)}
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto border-t">
         <div className="grid" style={{ gridTemplateColumns: gridCols }}>
@@ -718,6 +738,7 @@ export function MultiLangLyricEditor({
               return (
                 <div
                   key={i}
+                  data-drag-row={i}
                   onDragOver={(e) => {
                     e.preventDefault();
                     dragSectionOver(i);
@@ -741,7 +762,13 @@ export function MultiLangLyricEditor({
                         hideDragGhost(e);
                       }}
                       onDragEnd={() => (dragSecRow.current = null)}
-                      className="flex shrink-0 cursor-grab items-center justify-start pl-2"
+                      {...touchReorder({
+                        attr: "drag-row",
+                        onStart: () => (dragSecRow.current = i),
+                        onOver: dragSectionOver,
+                        onEnd: () => (dragSecRow.current = null),
+                      })}
+                      className="flex shrink-0 cursor-grab touch-none items-center justify-start pl-2"
                       style={{ width: GUTTER }}
                       title="Drag to move this section"
                     >
@@ -771,6 +798,7 @@ export function MultiLangLyricEditor({
               return (
                 <div
                   key={i}
+                  data-drag-row={i}
                   onDragOver={(e) => {
                     e.preventDefault();
                     dragSectionOver(i);
@@ -787,7 +815,16 @@ export function MultiLangLyricEditor({
                       hideDragGhost(e);
                     }}
                     onDragEnd={() => (dragSecRow.current = null)}
-                    className="sticky left-0 z-[5] flex shrink-0 cursor-grab items-center px-2"
+                    {...touchReorder({
+                      attr: "drag-row",
+                      onStart: () => {
+                        dragSecRow.current = i;
+                        markCustom();
+                      },
+                      onOver: dragSectionOver,
+                      onEnd: () => (dragSecRow.current = null),
+                    })}
+                    className="sticky left-0 z-[5] flex shrink-0 cursor-grab touch-none items-center px-2"
                   >
                     <DotsGrip className="opacity-50" size={10} />
                   </span>
@@ -828,6 +865,7 @@ export function MultiLangLyricEditor({
                 cellKey={key}
                 autosize={autosize}
                 onDragOverRow={() => dragSecRow.current !== null && dragSectionOver(i)}
+                dragRow={i}
                 onFocusRow={() => (focusRowRef.current = i)}
                 onCaret={(row, lang, caret) => {
                   focusLangRef.current = lang;
@@ -895,6 +933,7 @@ function Row({
   cellKey,
   autosize,
   onDragOverRow,
+  dragRow,
   onFocusRow,
   onCaret,
   editCell,
@@ -927,6 +966,8 @@ function Row({
   cellKey: (row: number, lang: LangCode) => string;
   autosize: (el: HTMLTextAreaElement | null) => void;
   onDragOverRow: () => void;
+  /** This line's row, for a touch drag passing over it. */
+  dragRow: number;
   onFocusRow: () => void;
   onCaret: (row: number, lang: LangCode, caret: number) => void;
   editCell: (row: number, lang: LangCode, value: string) => void;
@@ -970,6 +1011,7 @@ function Row({
   return (
     <div className="group/row contents">
       <div
+        data-drag-row={dragRow}
         onDragOver={(e) => {
           e.preventDefault();
           onDragOverRow();

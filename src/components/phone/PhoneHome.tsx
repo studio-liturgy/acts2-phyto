@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
+import { deleteAccount } from "@/lib/account";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { isLiveNow } from "@/lib/live-session";
@@ -372,32 +373,60 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
         />
       }
     >
-      {arrivals}
-      <div className="space-y-2 px-5 pb-8">
-        {order.length === 0 ? (
-          <div className="mono uppercase rounded-3xl border border-foreground p-8 text-center text-sm text-muted-foreground">
-            No gatherings yet. Tap New to plan a gathering!
-          </div>
-        ) : (
-          <>
-            {liveIds.map(renderCard)}
-            {/* While one is live, the rest wait behind one row. */}
-            {liveIds.length > 0 && otherIds.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setOthersOpen((o) => !o)}
-                aria-expanded={othersOpen}
-                className="mono flex w-full items-center justify-between rounded-full border border-foreground px-5 py-3 text-xs uppercase tracking-wider"
-              >
-                <span>Other gatherings ({otherIds.length})</span>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${othersOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-            )}
-            {(liveIds.length === 0 || othersOpen) && otherIds.map(renderCard)}
-          </>
-        )}
+      <div className="flex min-h-full flex-col">
+        {arrivals}
+        {/* While one is live it sits mid-screen, Other gatherings below it
+          (auto margins centre without cutting off the top once it grows). */}
+        <div className={`space-y-2 px-5 pb-8 ${liveIds.length > 0 ? "my-auto" : ""}`}>
+          {order.length === 0 ? (
+            <div className="mono uppercase rounded-3xl border border-foreground p-8 text-center text-sm text-muted-foreground">
+              No gatherings yet. Tap New to plan a gathering!
+            </div>
+          ) : (
+            <>
+              {liveIds.map(renderCard)}
+              {/* While one is live, the rest wait behind one row. */}
+              {liveIds.length > 0 && otherIds.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setOthersOpen((o) => !o)}
+                    aria-expanded={othersOpen}
+                    className="mono flex w-full items-center justify-center gap-2 py-3 text-xs uppercase tracking-wider"
+                  >
+                    <span>Other gatherings ({otherIds.length})</span>
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform duration-300 ${othersOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {/* Splay: the space opens, and the cards drop in one after another. */}
+                  <div
+                    className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+                      othersOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                    }`}
+                  >
+                    <div className="min-h-0 space-y-2 overflow-hidden">
+                      {otherIds.map((id, k) => (
+                        <div
+                          key={id}
+                          className="transition-[opacity,transform] duration-300 ease-out"
+                          style={{
+                            opacity: othersOpen ? 1 : 0,
+                            transform: othersOpen ? "none" : `translateY(-${12 + k * 8}px)`,
+                            transitionDelay: othersOpen ? `${80 + k * 60}ms` : "0ms",
+                          }}
+                        >
+                          {renderCard(id)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+              {liveIds.length === 0 && otherIds.map(renderCard)}
+            </>
+          )}
+        </div>
       </div>
       {sheet && (
         <PhoneShareSheet
@@ -878,6 +907,29 @@ function SettingsTab({
   const LABEL = "mono text-xs uppercase tracking-wider";
   const SECTION = "border-b border-foreground/15 py-4";
   const HEADING = `${LABEL} mb-3 text-muted-foreground`;
+  // Settings' pills in the small mono of the Song Template card's title.
+  const SMALL = "!py-[7px] !text-[10px] leading-5";
+  const S_OUTLINE = `${PILL_OUTLINE} ${SMALL}`;
+  const S_FILLED = `${PILL_FILLED} ${SMALL}`;
+
+  // Delete account, as in the desktop's Account Settings: type the email.
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const runDelete = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    const err = await deleteAccount(confirmEmail);
+    setDeleting(false);
+    if (err) {
+      setDeleteError(err);
+      return;
+    }
+    setConfirmDelete(false);
+    clearBackToSettings();
+    navigate({ to: "/", search: {}, replace: true });
+  };
 
   return (
     <PhoneScreen tab="settings" header={<PhoneTitleHeader title="Settings" />}>
@@ -913,7 +965,7 @@ function SettingsTab({
                 <button
                   key={g.id}
                   onClick={() => setActiveWorkspace(g.id)}
-                  className={`${g.id === activeWorkspace ? PILL_FILLED : PILL_OUTLINE} ${g.id === "personal" ? "" : "normal-case"}`}
+                  className={`${g.id === activeWorkspace ? S_FILLED : S_OUTLINE} ${g.id === "personal" ? "" : "normal-case"}`}
                 >
                   {g.name}
                 </button>
@@ -921,14 +973,14 @@ function SettingsTab({
               {groups.length < MAX_GROUPS && (
                 <button
                   onClick={() => setShowNewGroup(true)}
-                  className={`${PILL_OUTLINE} border-dashed text-muted-foreground`}
+                  className={`${S_OUTLINE} border-dashed text-muted-foreground`}
                 >
-                  <Plus className="h-3.5 w-3.5" /> New group
+                  <Plus className="h-3 w-3" /> New group
                 </button>
               )}
             </div>
             {activeGroup && (
-              <button onClick={() => setManage(true)} className={`${PILL_OUTLINE} mt-3`}>
+              <button onClick={() => setManage(true)} className={`${S_OUTLINE} mt-3`}>
                 Manage <span className="normal-case">{activeGroup.name}</span>
               </button>
             )}
@@ -940,7 +992,7 @@ function SettingsTab({
                 <span className="mono min-w-0 flex-1 text-xs uppercase tracking-wider">
                   Join <span className="normal-case">{inv.groupName}</span>?
                 </span>
-                <button onClick={() => onAcceptInvite(inv)} className={PILL_FILLED}>
+                <button onClick={() => onAcceptInvite(inv)} className={S_FILLED}>
                   Join
                 </button>
                 <button
@@ -977,11 +1029,14 @@ function SettingsTab({
         {(
           [
             {
-              heading: "phyto",
+              heading: "About",
               links: [
                 { to: "/?intro=true", label: "Intro" },
                 { to: "/updates", label: "Updates" },
-                { to: "/about", label: "About" },
+                { to: "/about", label: "Story" },
+                { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
+                { href: "https://github.com/studio-liturgy", label: "Source" },
+                { href: "/donate", label: "Donate" },
               ],
             },
             {
@@ -989,14 +1044,6 @@ function SettingsTab({
               links: [
                 { to: "/feedback", label: "Feedback" },
                 { to: "/terms", label: "Legal" },
-              ],
-            },
-            {
-              heading: "Connect",
-              links: [
-                { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
-                { href: "https://github.com/studio-liturgy", label: "Source" },
-                { href: "/donate", label: "Donate" },
               ],
             },
           ] as {
@@ -1015,7 +1062,7 @@ function SettingsTab({
                       to="/"
                       search={{ intro: true }}
                       onClick={markBackToSettings}
-                      className={PILL_OUTLINE}
+                      className={S_OUTLINE}
                     >
                       {l.label}
                     </Link>
@@ -1024,7 +1071,7 @@ function SettingsTab({
                       key={l.label}
                       to={l.to}
                       onClick={markBackToSettings}
-                      className={PILL_OUTLINE}
+                      className={S_OUTLINE}
                     >
                       {l.label}
                     </Link>
@@ -1035,7 +1082,7 @@ function SettingsTab({
                     href={l.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={PILL_OUTLINE}
+                    className={S_OUTLINE}
                   >
                     {l.label}
                   </a>
@@ -1046,14 +1093,71 @@ function SettingsTab({
         ))}
 
         {isSignedIn && (
-          <button
-            onClick={() => setConfirmSignOut(true)}
-            className={`${PILL_OUTLINE} mt-6 w-full justify-center py-3`}
-          >
-            Sign out
-          </button>
+          <>
+            <button
+              onClick={() => setConfirmSignOut(true)}
+              className={`${S_OUTLINE} mt-6 w-full justify-center`}
+            >
+              Sign out
+            </button>
+            <button
+              onClick={() => {
+                setConfirmEmail("");
+                setDeleteError(null);
+                setConfirmDelete(true);
+              }}
+              className={`${S_OUTLINE} mt-2 w-full justify-center border-[var(--brand-red)] text-[var(--brand-red)] active:bg-[var(--brand-red)] active:text-[var(--brand-white)]`}
+            >
+              Delete Account
+            </button>
+          </>
         )}
       </div>
+
+      <AlertDialog open={confirmDelete} onOpenChange={(o) => !deleting && setConfirmDelete(o)}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Delete <span className="normal-case">{userEmail}</span>?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            This permanently deletes your sets, gatherings, uploaded media, shares, and any groups
+            you own (their members keep their own sets). It cannot be undone. Type your email to
+            confirm.
+          </AlertDialogDescription>
+          <input
+            type="email"
+            value={confirmEmail}
+            onChange={(e) => setConfirmEmail(e.target.value)}
+            placeholder={userEmail ?? "your email"}
+            className="mono mt-4 w-full rounded-full border border-foreground bg-background px-4 py-2 text-[16px] outline-none"
+          />
+          {deleteError && (
+            <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+              {deleteError}
+            </p>
+          )}
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              disabled={
+                deleting || confirmEmail.trim().toLowerCase() !== (userEmail ?? "").toLowerCase()
+              }
+              onClick={() => void runDelete()}
+              className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] disabled:opacity-40"
+            >
+              {deleting ? "Deleting" : "Delete forever"}
+            </button>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => setConfirmDelete(false)}
+              className="mono uppercase flex-1 rounded-full border border-foreground py-2 text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmSignOut} onOpenChange={setConfirmSignOut}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">

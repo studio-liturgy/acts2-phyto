@@ -437,12 +437,7 @@ export function ShareGatheringDialog({
         // Full screen. Go live: the circle in the middle of the screen. Live or
         // Share: Share link, the link bar, then the QR code and its colours.
         <DialogContent
-          className={
-            step === "confirm"
-              ? // Go live: a pop-up around the circle.
-                "flex w-[calc(100vw-2.5rem)] max-w-sm flex-col gap-0 rounded-3xl px-6 pb-6 pt-10"
-              : "left-0 top-0 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-0 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(3.5rem,env(safe-area-inset-top))] data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100"
-          }
+          className="left-0 top-0 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-0 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(3.5rem,env(safe-area-inset-top))] data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100"
           aria-describedby={undefined}
         >
           <DialogTitle className="sr-only">
@@ -450,7 +445,7 @@ export function ShareGatheringDialog({
           </DialogTitle>
           {step === "confirm" ? (
             <div className="flex flex-1 items-center justify-center">
-              {goLiveCircle("max-w-[13rem]")}
+              {goLiveCircle("max-w-[16rem]")}
             </div>
           ) : (
             <div className={`flex-1 ${reveal}`}>
@@ -475,18 +470,7 @@ export function ShareGatheringDialog({
               ? STAYS_LIVE
               : "Whatever gathering goes live will be accessible at this link."}
           </p>
-          {step !== "confirm" && liveView && onEndSession && (
-            <button
-              type="button"
-              onClick={() => {
-                onEndSession();
-                onOpenChange(false);
-              }}
-              className={`mono mt-8 w-full rounded-full border border-[var(--brand-red)] py-4 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)] ${reveal}`}
-            >
-              End Session
-            </button>
-          )}
+          {/* No End Session here: the red live button on the card ends it. */}
         </DialogContent>
       ) : twoPanel ? (
         <DialogContent

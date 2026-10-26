@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { List, Search, Smartphone, Trash2, X } from "lucide-react";
+import { List, Search, Smartphone, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   gatheringSectionsReady,
@@ -213,7 +213,7 @@ export function PhoneGathering({
 
   return (
     <PhoneScreen tab="gatherings" header={header}>
-      <div className="px-5 pb-10">
+      <div className="px-5 pb-10 pt-5">
         {slots.length === 0 ? (
           <p className="mono uppercase rounded-2xl border border-dashed border-muted-foreground p-4 text-center text-xs text-muted-foreground">
             Search below to add a set to this gathering
@@ -319,7 +319,7 @@ export function PhoneGathering({
             onClick={() => setConfirmDelete(true)}
             className="mono mt-10 flex w-full items-center justify-center gap-2 rounded-full border border-[var(--brand-red)] py-3 text-xs uppercase tracking-wider text-[var(--brand-red)] active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
           >
-            <Trash2 className="h-4 w-4" /> Delete gathering
+            Delete gathering
           </button>
         )}
       </div>

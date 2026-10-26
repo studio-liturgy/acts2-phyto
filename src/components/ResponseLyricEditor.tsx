@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { touchReorder } from "@/lib/touch-reorder";
 import { createPortal } from "react-dom";
 import { EditorBar } from "@/components/EditorBar";
 import { Plus, Trash2, X } from "lucide-react";
@@ -299,6 +300,7 @@ export function ResponseLyricEditor({
               return (
                 <div
                   key={row.index}
+                  data-drag-row={row.index}
                   onDragOver={(e) => {
                     e.preventDefault();
                     dragOver(row.index);
@@ -317,7 +319,16 @@ export function ResponseLyricEditor({
                       hideDragGhost(e);
                     }}
                     onDragEnd={() => (dragFrom.current = null)}
-                    className="flex shrink-0 cursor-grab items-center pl-2"
+                    {...touchReorder({
+                      attr: "drag-row",
+                      onStart: () => {
+                        dragFrom.current = row.index;
+                        dragIsBreak.current = false;
+                      },
+                      onOver: dragOver,
+                      onEnd: () => (dragFrom.current = null),
+                    })}
+                    className="flex shrink-0 cursor-grab touch-none items-center pl-2"
                     title="Drag to move this section"
                   >
                     <DotsGrip className="opacity-50" size={12} />
@@ -350,6 +361,7 @@ export function ResponseLyricEditor({
               return (
                 <div
                   key={row.index}
+                  data-drag-row={row.index}
                   onDragOver={(e) => {
                     e.preventDefault();
                     dragOver(row.index);
@@ -366,7 +378,16 @@ export function ResponseLyricEditor({
                       hideDragGhost(e);
                     }}
                     onDragEnd={() => (dragFrom.current = null)}
-                    className="flex shrink-0 cursor-grab items-center px-2"
+                    {...touchReorder({
+                      attr: "drag-row",
+                      onStart: () => {
+                        dragFrom.current = row.index;
+                        dragIsBreak.current = true;
+                      },
+                      onOver: dragOver,
+                      onEnd: () => (dragFrom.current = null),
+                    })}
+                    className="flex shrink-0 cursor-grab touch-none items-center px-2"
                   >
                     <DotsGrip className="opacity-50" size={10} />
                   </span>
@@ -590,6 +611,7 @@ function Line({
           onDragOverRow();
         }}
         data-row={index}
+        data-drag-row={index}
         title="Click to change who reads this line"
         aria-label={`Reader: ${role ? ROLE_LABEL[role] : "none"}`}
         className={`flex items-end border-b border-r px-2 pb-1.5 text-left transition ${
