@@ -45,6 +45,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { markGatheringEditReturn, takeGatheringEditReturn } from "@/lib/gathering-edit-return";
 import type { Set as PhytoSet, SetKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
+import { parsePhoneTab, type PhoneTab } from "@/lib/phone-layout";
 import { FirstTimeLanding } from "@/components/FirstTimeLanding";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { ExportGatheringButton } from "@/components/ExportGatheringButton";
@@ -93,8 +94,11 @@ const KIND_COLOR: Record<string, string> = {
 export const Route = createFileRoute("/")({
   // `?intro` forces the first-time landing to render even when the catalogue
   // has content, so signed-in users can revisit it from the home header.
-  validateSearch: (search: Record<string, unknown>): { intro?: boolean } => ({
+  validateSearch: (search: Record<string, unknown>): { intro?: boolean; tab?: PhoneTab } => ({
     ...(search.intro === true || search.intro === "true" ? { intro: true } : {}),
+    ...(parsePhoneTab(search.tab) && search.tab !== "gatherings"
+      ? { tab: parsePhoneTab(search.tab) }
+      : {}),
   }),
   head: () => ({
     meta: [
