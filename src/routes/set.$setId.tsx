@@ -41,6 +41,7 @@ import { ResponseLyricEditor } from "@/components/ResponseLyricEditor";
 import {
   attachRoles,
   lyricLineRoles,
+  plainSongSlides,
   remapRoles,
   rolesForLyricLines,
   rolesFromSlides,
@@ -1697,6 +1698,8 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     return rolesFromSlides(slidesToLyricsText(slides), slides);
   });
   const prevLinesPer = useRef(linesPer);
+  /** Text the box is about to get from a mode switch (see the live-sync effect). */
+  const awaitLyrics = useRef<string | null>(null);
   /** Shared by the stepper buttons and typing directly into the box. */
   const requestLinesPerChange = (raw: number) => {
     const next = Math.min(8, Math.max(1, raw || 1));
@@ -1866,6 +1869,14 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
       if (kept) {
         const { text, hidden } = leaveMultilang(set, kept);
         const divided = set.customBreaks ? text : applyDividers(text, linesPer);
+        const nextRoles = rolesForLyricLines(divided, set.lineRoles ?? []);
+        // The final slides go in with the new mode, so no frame shows the
+        // grid's slides (or slides from the box's old text) under it.
+        const parsed = plainSongSlides(divided, nextRoles, next === "response", {
+          marks: showRoles,
+          align: roleAlign,
+        });
+        awaitLyrics.current = divided;
         updateSet(setId, {
           songLayout: next === "standard" ? undefined : next,
           langs: undefined,
@@ -1873,10 +1884,12 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
           langLinesPer: undefined,
           hiddenLangs: hidden,
           lineRoles: undefined,
+          slides: reconcileSlideIds(parsed, set.slides).slides,
         });
-        setRoles(rolesForLyricLines(divided, set.lineRoles ?? []));
+        setRoles(nextRoles);
         setLyrics(divided);
       } else {
+        awaitLyrics.current = "";
         updateSet(setId, { songLayout: next === "standard" ? undefined : next, slides: [] });
         setRoles([]);
         setLyrics("");
@@ -2046,13 +2059,17 @@ function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
     if (kind !== "song") return;
     // A Multilanguage song is written by its grid, never from this box.
     if (songLayout === "multilang") return;
+    // Just out of Multi-Language: the store can show the new mode a render
+    // before the box gets its text. Wait for it, or the old text is written.
+    if (awaitLyrics.current !== null) {
+      if (lyrics !== awaitLyrics.current) return;
+      awaitLyrics.current = null;
+    }
     // Roles go on as `roles` in Call and Response, kept as `hiddenRoles` else.
-    const parsed = lyrics.trim()
-      ? attachRoles(lyricsToSlides(lyrics), lyrics, roles, songLayout === "response", {
-          marks: showRoles,
-          align: roleAlign,
-        })
-      : [];
+    const parsed = plainSongSlides(lyrics, roles, songLayout === "response", {
+      marks: showRoles,
+      align: roleAlign,
+    });
     const current = useLibrary.getState().sets[setId]?.slides ?? [];
     const { slides, changed } = reconcileSlideIds(parsed, current);
     if (changed) updateSet(setId, { slides });
