@@ -3,6 +3,7 @@ import { useState } from "react";
 import { signInWithEmail, verifyEmailCode } from "@/lib/auth";
 import { sendWelcomeIfNew } from "@/lib/welcome";
 import { supabase } from "@/lib/supabase";
+import { safeNextPath } from "@/lib/session-lost";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { APP_NAME } from "@/lib/appConfig";
 import wordmark from "@/assets/wordmark.svg";
@@ -11,9 +12,13 @@ import wordmarkTestBlack from "@/assets/wordmark-test-black.svg";
 const isTest = import.meta.env.VITE_APP_ENV === "test";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>): { error?: string } => ({
-    ...(typeof search.error === "string" ? { error: search.error } : {}),
-  }),
+  validateSearch: (search: Record<string, unknown>): { error?: string; next?: string } => {
+    const next = safeNextPath(search.next);
+    return {
+      ...(typeof search.error === "string" ? { error: search.error } : {}),
+      ...(next ? { next } : {}),
+    };
+  },
   head: () => ({
     meta: [{ title: `Sign In | ${APP_NAME}` }, { name: "robots", content: "noindex" }],
   }),
@@ -21,7 +26,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { error: callbackError } = Route.useSearch();
+  const { error: callbackError, next } = Route.useSearch();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
@@ -56,7 +61,7 @@ function LoginPage() {
       return;
     }
     if (data.user) await sendWelcomeIfNew(data.user);
-    navigate({ to: "/" });
+    navigate({ href: next ?? "/" });
   };
 
   const handleCodeSubmit = (e: React.FormEvent) => {

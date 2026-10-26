@@ -20,7 +20,9 @@ const ogImage = `${domain}/${isTest ? "og-image-or.png" : "og-image.png"}`;
 const favicon32 = isTest ? "/favicon-32-or.png" : "/favicon-32.png";
 const faviconAny = isTest ? "/favicon-or.png" : "/favicon.png";
 const appleTouchIcon = isTest ? "/apple-touch-icon-or.png" : "/apple-touch-icon.png";
-import { supabase } from "@/lib/supabase";
+import { authGuard, supabase } from "@/lib/supabase";
+import { safeNextPath, useSessionLost } from "@/lib/session-lost";
+import { SignedOutDialog } from "@/components/SignedOutDialog";
 import { getSession } from "@/lib/auth";
 import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
@@ -430,6 +432,9 @@ function RootComponent() {
         stopGroupChannels();
       }
       if (event === "SIGNED_IN" && s) {
+        // Signed in again after an expired login: drop the signed-out prompt.
+        authGuard.reset();
+        useSessionLost.getState().clear();
         // Welcome email is sent from auth.callback.tsx (respects mailing-list opt-in).
         const isFirstLogin = s.user.created_at === s.user.last_sign_in_at;
         refreshLiveState();
@@ -451,7 +456,9 @@ function RootComponent() {
 
   useEffect(() => {
     if (session && pathname === "/login") {
-      navigate({ to: "/" });
+      // Back to where the signed-out dialog sent them from, if anywhere.
+      const next = safeNextPath(new URLSearchParams(window.location.search).get("next"));
+      navigate({ href: next ?? "/" });
     }
   }, [session, pathname, navigate]);
 
@@ -582,6 +589,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <SignedOutDialog />
       <Dialog
         open={pathname !== "/output" && syncDiff !== null}
         onOpenChange={(open) => {

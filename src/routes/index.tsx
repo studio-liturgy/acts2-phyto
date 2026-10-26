@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
+import { useSessionLost } from "@/lib/session-lost";
 import { useAccountPull, useSyncStatus } from "@/hooks/use-sync-status";
 import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
 import { fetchWorkspaceSettings, saveWorkspaceSettings } from "@/lib/workspace-settings";
@@ -992,7 +993,11 @@ function Library() {
                       onRemoveAt={(i) => removeSetFromGathering(pid, i)}
                       onReorder={(ids) => reorderGatheringSets(pid, ids)}
                       onGoLive={() =>
-                        isSignedIn ? goLive(pid) : (setShowGoLivePrompt(true), Promise.resolve())
+                        isSignedIn
+                          ? goLive(pid)
+                          : (setShowGoLivePrompt(true),
+                            useSessionLost.getState().prompt(),
+                            Promise.resolve())
                       }
                       onEndSession={() => endSession(pid)}
                       groupId={p.group_id ?? null}
