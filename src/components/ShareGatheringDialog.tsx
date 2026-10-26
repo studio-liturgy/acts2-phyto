@@ -449,18 +449,30 @@ export function ShareGatheringDialog({
             </div>
           ) : (
             <div className={`flex-1 ${reveal}`}>
-              {canNativeShare && (
-                <button
-                  type="button"
-                  disabled={!shareUrl}
-                  onClick={() => {
-                    navigator.share({ title: gatheringName, url: shareUrl }).catch(() => {});
-                  }}
-                  className="mono mb-4 w-full rounded-full bg-foreground py-3 text-xs uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
+              {/* Share link (the phone's share sheet) and Visit link (opens it). */}
+              <div className="mb-4 flex gap-2">
+                {canNativeShare && (
+                  <button
+                    type="button"
+                    disabled={!shareUrl}
+                    onClick={() => {
+                      navigator.share({ title: gatheringName, url: shareUrl }).catch(() => {});
+                    }}
+                    className="mono flex-1 rounded-full bg-foreground py-3 text-xs uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
+                  >
+                    Share link
+                  </button>
+                )}
+                <a
+                  href={shareUrl || undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-disabled={!shareUrl}
+                  className={`mono flex-1 rounded-full border border-foreground py-3 text-center text-xs uppercase tracking-wider transition active:bg-foreground active:text-background ${shareUrl ? "" : "pointer-events-none opacity-40"}`}
                 >
-                  Share link
-                </button>
-              )}
+                  Visit link
+                </a>
+              </div>
               {linkBlock}
               <div className="mt-10">{qrBlock}</div>
             </div>

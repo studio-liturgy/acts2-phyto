@@ -14,3 +14,6 @@ export function scrollEditorToEnd(): void {
     }),
   );
 }
+
+/** On a dock button: the tap doesn't take focus, so the keyboard stays up. */
+export const keepFocus = (e: { preventDefault: () => void }) => e.preventDefault();

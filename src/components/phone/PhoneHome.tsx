@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownAZ,
   ArrowDownWideNarrow,
@@ -40,6 +40,7 @@ import {
   saveSharedSet,
   removeSharedSet,
   fetchGroupInvites,
+  createGroup,
   acceptGroupInvite,
   declineGroupInvite,
   type InboxShare,
@@ -69,6 +70,7 @@ import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { BackgroundEditor } from "@/components/BackgroundEditor";
 import { clearBackToSettings, markBackToSettings } from "@/hooks/use-back-home";
+import { fetchWorkspaceSettings, saveWorkspaceSettings } from "@/lib/workspace-settings";
 import { VersionWarning } from "@/components/VersionWarning";
 import { PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
 import { PhoneShareSheet } from "@/components/phone/PhoneShareSheet";
@@ -348,6 +350,49 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
   const otherIds = liveIds.length ? order.filter((id) => !liveIds.includes(id)) : order;
   const [othersOpen, setOthersOpen] = useState(false);
 
+  // While one is live: scrolling down (a swipe up, or the wheel) splays the
+  // other gatherings out; back at the very top, they fold away again.
+  const canSplay = liveIds.length > 0 && otherIds.length > 0;
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const touch = useRef<{ y: number; atTop: boolean } | null>(null);
+  const scroller = () => listRef.current?.parentElement ?? null;
+  useEffect(() => {
+    const el = scroller();
+    if (!el || !canSplay || !othersOpen) return;
+    let last = el.scrollTop;
+    const onScroll = () => {
+      // Scrolled back up to the top (from further down): fold them away.
+      if (el.scrollTop <= 0 && last > 0) setOthersOpen(false);
+      last = el.scrollTop;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [canSplay, othersOpen]);
+  const splayGestures = canSplay
+    ? {
+        onTouchStart: (e: React.TouchEvent) => {
+          touch.current = { y: e.touches[0].clientY, atTop: (scroller()?.scrollTop ?? 0) <= 0 };
+        },
+        onTouchMove: (e: React.TouchEvent) => {
+          const t = touch.current;
+          if (!t) return;
+          const dy = e.touches[0].clientY - t.y;
+          if (!othersOpen && dy < -40) {
+            setOthersOpen(true);
+            touch.current = null;
+          } else if (othersOpen && t.atTop && (scroller()?.scrollTop ?? 0) <= 0 && dy > 50) {
+            setOthersOpen(false);
+            touch.current = null;
+          }
+        },
+        onWheel: (e: React.WheelEvent) => {
+          if (!othersOpen && e.deltaY > 20) setOthersOpen(true);
+          else if (othersOpen && e.deltaY < -20 && (scroller()?.scrollTop ?? 0) <= 0)
+            setOthersOpen(false);
+        },
+      }
+    : {};
+
   const newGathering = () => {
     const name = new Date().toLocaleDateString(undefined, { month: "long", day: "numeric" });
     const id = createGathering(name);
@@ -381,7 +426,7 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
         />
       }
     >
-      <div className="flex min-h-full flex-col">
+      <div ref={listRef} className="flex min-h-full flex-col" {...splayGestures}>
         {arrivals}
         {/* While one is live it sits mid-screen, Other gatherings below it
           (auto margins centre without cutting off the top once it grows). */}
@@ -900,6 +945,29 @@ function SettingsTab({
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [manage, setManage] = useState(false);
 
+  // New group, as on the desktop home: name it, then invite people.
+  const [showNewGroup, setShowNewGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
+  const inviteGroup = groups.find((g) => g.id === inviteGroupId);
+  const handleCreateGroup = async () => {
+    const name = newGroupName.trim();
+    if (!name || creatingGroup || groups.length >= MAX_GROUPS) return;
+    setCreatingGroup(true);
+    const id = await createGroup(name);
+    setCreatingGroup(false);
+    setShowNewGroup(false);
+    setNewGroupName("");
+    if (id) {
+      const personal = await fetchWorkspaceSettings({ groupId: null });
+      if (personal) await saveWorkspaceSettings({ groupId: id }, personal.settings);
+      await loadGroups();
+      await setActiveWorkspace(id);
+      setInviteGroupId(id);
+    }
+  };
+
   const LABEL = "mono text-xs uppercase tracking-wider";
   const SECTION = "py-4";
   // Section titles in the page's small mono, quieter than the controls.
@@ -914,6 +982,7 @@ function SettingsTab({
   const SMALL = "!py-[7px] !text-[10px] leading-5";
   const S_OUTLINE = `${PILL_OUTLINE} ${SMALL}`;
   const S_FILLED = `${PILL_FILLED} ${SMALL}`;
+  const TEXT_LINK = "mono text-[10px] uppercase tracking-wider transition active:opacity-50";
 
   // Delete account, as in the desktop's Account Settings: type the email.
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -944,17 +1013,30 @@ function SettingsTab({
             group), then the sync dot beside the email. */}
         {isSignedIn ? (
           <div className="space-y-3 py-2">
+            {/* One row: email, the sync dot, then the group switcher. */}
             <div className="flex items-center gap-2">
+              <span className="mono min-w-0 truncate text-[10px] uppercase tracking-wider text-foreground/60">
+                {userEmail}
+              </span>
+              {syncStatus !== "offline" && (
+                <span
+                  data-sync={syncStatus}
+                  className={`h-3 w-3 shrink-0 rounded-full ${syncStatus === "syncing" ? "bg-[var(--brand-orange)]" : "bg-[var(--brand-green)]"}`}
+                  title={syncStatus === "syncing" ? "Syncing…" : "Synced"}
+                />
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className={`${S_OUTLINE} gap-1.5`} title="Switch group">
-                    <span className={activeWorkspace === "personal" ? "" : "normal-case"}>
+                  <button className={`${S_OUTLINE} ml-auto shrink-0 gap-1.5`} title="Switch group">
+                    <span
+                      className={`max-w-[9rem] truncate ${activeWorkspace === "personal" ? "" : "normal-case"}`}
+                    >
                       {activeGroup?.name ?? "Personal"}
                     </span>
-                    <ChevronDown className="h-3 w-3" />
+                    <ChevronDown className="h-3 w-3 shrink-0" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
+                <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     onClick={() => setActiveWorkspace("personal")}
                     className="mono uppercase text-xs tracking-wider"
@@ -970,25 +1052,25 @@ function SettingsTab({
                       {g.name}
                     </DropdownMenuItem>
                   ))}
+                  {groups.length < MAX_GROUPS && (
+                    <DropdownMenuItem
+                      onClick={() => setShowNewGroup(true)}
+                      className="mono uppercase text-xs tracking-wider text-muted-foreground"
+                    >
+                      + New group
+                    </DropdownMenuItem>
+                  )}
+                  {/* In a group: its Manage panel (the desktop's Manage pill). */}
+                  {activeGroup && (
+                    <DropdownMenuItem
+                      onClick={() => setManage(true)}
+                      className="mono uppercase text-xs tracking-wider text-muted-foreground"
+                    >
+                      Manage
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {activeGroup && (
-                <button onClick={() => setManage(true)} className={S_OUTLINE}>
-                  Manage
-                </button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {syncStatus !== "offline" && (
-                <span
-                  data-sync={syncStatus}
-                  className={`h-3 w-3 shrink-0 rounded-full ${syncStatus === "syncing" ? "bg-[var(--brand-orange)]" : "bg-[var(--brand-green)]"}`}
-                  title={syncStatus === "syncing" ? "Syncing…" : "Synced"}
-                />
-              )}
-              <span className="mono min-w-0 truncate text-[10px] uppercase tracking-wider text-foreground/60">
-                {userEmail}
-              </span>
             </div>
             {groupInvites.map((inv) => (
               <div
@@ -1039,73 +1121,65 @@ function SettingsTab({
           </div>
         </div>
 
-        {/* The footer's links as pill clusters, grouped like the sections above.
-            Internal pages come Back to Settings. */}
-        {(
-          [
-            {
-              heading: "About",
-              links: [
-                { to: "/?intro=true", label: "Intro" },
-                { to: "/updates", label: "Updates" },
-                { to: "/about", label: "Story" },
-                { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
-                { href: "https://github.com/studio-liturgy", label: "Source" },
-                { href: "/donate", label: "Donate" },
-              ],
-            },
-            {
-              heading: "Help",
-              links: [
-                { to: "/feedback", label: "Feedback" },
-                { to: "/terms", label: "Legal" },
-              ],
-            },
-          ] as {
-            heading: string;
-            links: ({ to: string; label: string } | { href: string; label: string })[];
-          }[]
-        ).map(({ heading, links }) => (
-          <div key={heading} className={SECTION}>
-            <div className={HEADING}>{heading}</div>
-            <div className="flex flex-wrap gap-2">
-              {links.map((l) =>
-                "to" in l ? (
-                  l.to === "/?intro=true" ? (
-                    <Link
-                      key={l.label}
-                      to="/"
-                      search={{ intro: true }}
-                      onClick={markBackToSettings}
-                      className={S_OUTLINE}
-                    >
-                      {l.label}
-                    </Link>
-                  ) : (
-                    <Link
-                      key={l.label}
-                      to={l.to}
-                      onClick={markBackToSettings}
-                      className={S_OUTLINE}
-                    >
-                      {l.label}
-                    </Link>
-                  )
-                ) : (
-                  <a
-                    key={l.label}
-                    href={l.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={S_OUTLINE}
-                  >
-                    {l.label}
-                  </a>
-                ),
-              )}
+        {/* The footer's links as a quiet two-column list, like the desktop
+            footer: About on the left, Help on the right. Internal pages come
+            Back to Settings. */}
+        <div className="grid grid-cols-2 gap-x-6 py-4">
+          {(
+            [
+              {
+                heading: "About",
+                links: [
+                  { to: "/?intro=true", label: "Intro" },
+                  { to: "/updates", label: "Updates" },
+                  { to: "/about", label: "Story" },
+                  { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
+                  { href: "https://github.com/studio-liturgy", label: "Source" },
+                  { href: "/donate", label: "Donate" },
+                ],
+              },
+              {
+                heading: "Help",
+                links: [
+                  { to: "/feedback", label: "Feedback" },
+                  { to: "/terms", label: "Legal" },
+                ],
+              },
+            ] as {
+              heading: string;
+              links: ({ to: string; label: string } | { href: string; label: string })[];
+            }[]
+          ).map(({ heading, links }) => (
+            <div key={heading}>
+              <div className={HEADING}>{heading}</div>
+              <ul className="flex flex-col gap-2.5">
+                {links.map((l) => (
+                  <li key={l.label}>
+                    {"to" in l ? (
+                      <Link
+                        to={l.to === "/?intro=true" ? "/" : l.to}
+                        search={l.to === "/?intro=true" ? { intro: true } : undefined}
+                        onClick={markBackToSettings}
+                        className={TEXT_LINK}
+                      >
+                        {l.label}
+                      </Link>
+                    ) : (
+                      <a
+                        href={l.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={TEXT_LINK}
+                      >
+                        {l.label}
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
 
         {isSignedIn && (
           <>
@@ -1207,6 +1281,51 @@ function SettingsTab({
         </AlertDialogContent>
       </AlertDialog>
 
+      <Dialog
+        open={showNewGroup}
+        onOpenChange={(o) => {
+          if (!o) {
+            setShowNewGroup(false);
+            setNewGroupName("");
+          }
+        }}
+      >
+        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
+          <DialogTitle className="text-2xl font-normal leading-tight">New group</DialogTitle>
+          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            Invite people into a group and edit together.
+          </p>
+          <div className="mt-6 flex items-center gap-2">
+            <input
+              autoFocus
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleCreateGroup();
+              }}
+              placeholder="Group name"
+              className="mono min-w-0 flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => void handleCreateGroup()}
+              disabled={!newGroupName.trim() || creatingGroup}
+              className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background disabled:opacity-40"
+            >
+              {creatingGroup ? "Creating…" : "Create"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {inviteGroup && (
+        <GroupPanelDialog
+          open={inviteGroupId !== null}
+          onOpenChange={(o) => !o && setInviteGroupId(null)}
+          group={inviteGroup}
+          onChanged={loadGroups}
+          mode="invite"
+        />
+      )}
       {activeGroup && (
         <GroupPanelDialog
           open={manage}

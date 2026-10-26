@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { PHONE_DOCK_ICON, scrollEditorToEnd } from "@/lib/phone-dock";
-import { Scissors, SeparatorHorizontal } from "lucide-react";
+import { PHONE_DOCK_ICON, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock";
+import { Heading, SeparatorHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
 import { createPortal } from "react-dom";
@@ -664,6 +664,7 @@ export function MultiLangLyricEditor({
           addLineAtEnd();
           scrollEditorToEnd();
         }}
+        onMouseDown={keepFocus}
         className={PHONE_DOCK_ICON}
         title="Add a line"
         aria-label="Add a line"
@@ -674,13 +675,22 @@ export function MultiLangLyricEditor({
         type="button"
         onClick={() => {
           const at = focusRowRef.current ?? 0;
-          if (at > 0 && rows[at - 1]?.kind !== "break") splitAbove(at);
+          if (at > 0 && rows[at - 1]?.kind !== "break") {
+            // Keep the line focused (by line number, which a break doesn't change).
+            pendingFocus.current = {
+              line: lineNo(rows, at),
+              lang: focusLangRef.current ?? langs[0],
+            };
+            focusRowRef.current = at + 1;
+            splitAbove(at);
+          }
         }}
+        onMouseDown={keepFocus}
         className={PHONE_DOCK_ICON}
         title="Slide break"
         aria-label="Slide break"
       >
-        <Scissors className="h-4 w-4" />
+        <SeparatorHorizontal className="h-4 w-4" />
       </button>
       <button
         type="button"
@@ -689,11 +699,12 @@ export function MultiLangLyricEditor({
           addSection();
           if (atEnd) scrollEditorToEnd();
         }}
+        onMouseDown={keepFocus}
         className={PHONE_DOCK_ICON}
         title="Add a section"
         aria-label="Add a section"
       >
-        <SeparatorHorizontal className="h-4 w-4" />
+        <Heading className="h-4 w-4" />
       </button>
     </>
   );
@@ -840,7 +851,27 @@ export function MultiLangLyricEditor({
                   <button
                     type="button"
                     aria-label="Delete section"
-                    onClick={() => removeRow(i)}
+                    // Keeps the keyboard up (the tap doesn't take focus).
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      // A line being typed in stays focused (rows shift, its
+                      // line number doesn't).
+                      const el = document.activeElement;
+                      const at = focusRowRef.current;
+                      if (
+                        el instanceof HTMLTextAreaElement &&
+                        at !== null &&
+                        rows[at]?.kind === "line"
+                      ) {
+                        pendingFocus.current = {
+                          line: lineNo(rows, at),
+                          lang: focusLangRef.current ?? langs[0],
+                          caret: el.selectionStart,
+                        };
+                        if (at > i) focusRowRef.current = at - 1;
+                      }
+                      removeRow(i);
+                    }}
                     className="sticky right-0 z-[5] mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-foreground/60 transition hover:bg-foreground/15 hover:text-foreground"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -906,8 +937,10 @@ export function MultiLangLyricEditor({
                 key={i}
                 index={i}
                 n={n}
+                // Not on the phone: a tap between lines would split by accident
+                // (Slide break is in the dock there).
                 onSplitAbove={
-                  n === null && rows.slice(0, i).some((r) => r.kind === "line")
+                  !visibleLangs && n === null && rows.slice(0, i).some((r) => r.kind === "line")
                     ? () => splitAbove(i)
                     : undefined
                 }

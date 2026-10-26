@@ -2581,7 +2581,7 @@ function Importers({
         <div ref={searchBoxRef} className="shrink-0 border-b border-foreground/20 p-4">
           <PhoneFold
             enabled={!!phone}
-            title="Import"
+            title="Song settings"
             open={importOpen}
             onToggle={() => setImportOpen((o) => !o)}
           >

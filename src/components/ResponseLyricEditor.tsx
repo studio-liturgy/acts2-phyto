@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { PHONE_DOCK_ICON, scrollEditorToEnd } from "@/lib/phone-dock";
-import { Scissors, SeparatorHorizontal } from "lucide-react";
+import { PHONE_DOCK_ICON, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock";
+import { Heading, SeparatorHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { createPortal } from "react-dom";
 import { EditorBar } from "@/components/EditorBar";
@@ -290,6 +290,7 @@ export function ResponseLyricEditor({
           addLineAtEnd();
           scrollEditorToEnd();
         }}
+        onMouseDown={keepFocus}
         className={PHONE_DOCK_ICON}
         title="Add a line"
         aria-label="Add a line"
@@ -300,13 +301,19 @@ export function ResponseLyricEditor({
         type="button"
         onClick={() => {
           const at = focusIndex.current ?? 0;
-          if (at > 0) commit(breakBefore(doc(), at), undefined, false, true);
+          if (at <= 0) return;
+          const d = doc();
+          const next = breakBefore(d, at);
+          // The line moves down one (a break went in above): keep it focused.
+          const moved = next.lines.length > d.lines.length;
+          commit(next, { index: moved ? at + 1 : at, caret: 0 }, false, true);
         }}
+        onMouseDown={keepFocus}
         className={PHONE_DOCK_ICON}
         title="Slide break"
         aria-label="Slide break"
       >
-        <Scissors className="h-4 w-4" />
+        <SeparatorHorizontal className="h-4 w-4" />
       </button>
       <button
         type="button"
@@ -315,11 +322,12 @@ export function ResponseLyricEditor({
           onAddSection();
           if (atEnd) scrollEditorToEnd();
         }}
+        onMouseDown={keepFocus}
         className={PHONE_DOCK_ICON}
         title="Add a section"
         aria-label="Add a section"
       >
-        <SeparatorHorizontal className="h-4 w-4" />
+        <Heading className="h-4 w-4" />
       </button>
     </>
   ) : null;
@@ -398,7 +406,19 @@ export function ResponseLyricEditor({
                   <button
                     type="button"
                     aria-label="Delete section"
-                    onClick={() => commit(removeLine(doc(), row.index))}
+                    // Keeps the keyboard up (the tap doesn't take focus).
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      // A line being typed in stays focused, one up if the
+                      // section was above it.
+                      const el = document.activeElement;
+                      const at = focusIndex.current;
+                      const keep =
+                        el instanceof HTMLTextAreaElement && at !== null && at !== row.index
+                          ? { index: at > row.index ? at - 1 : at, caret: el.selectionStart }
+                          : undefined;
+                      commit(removeLine(doc(), row.index), keep);
+                    }}
                     className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-foreground/60 transition hover:bg-foreground/15 hover:text-foreground"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -478,7 +498,11 @@ export function ResponseLyricEditor({
                 }}
                 autosize={autosize}
                 onCycleRole={() => cycleRole(row.index)}
-                onSplitAbove={() => commit(breakBefore(doc(), row.index), undefined, false, true)}
+                onSplitAbove={
+                  phone
+                    ? undefined
+                    : () => commit(breakBefore(doc(), row.index), undefined, false, true)
+                }
                 onFocus={() => (focusIndex.current = row.index)}
                 onCaret={(caret) => (lastCaret.current = { index: row.index, caret })}
                 onStripEditing={(at) => {
@@ -639,7 +663,8 @@ function Line({
   cellRef: (el: HTMLTextAreaElement | null) => void;
   autosize: (el: HTMLTextAreaElement | null) => void;
   onCycleRole: () => void;
-  onSplitAbove: () => void;
+  /** Absent on the phone (Slide break is in the dock there). */
+  onSplitAbove?: () => void;
   onFocus: () => void;
   onCaret: (caret: number) => void;
   onStripEditing: (at: number | null) => void;
@@ -691,7 +716,8 @@ function Line({
           onDragOverRow();
         }}
       >
-        {!first && (
+        {/* Not on the phone: a tap between lines would split by accident. */}
+        {!first && onSplitAbove && (
           // Hover the seam above this line to split the slide here.
           <button
             type="button"

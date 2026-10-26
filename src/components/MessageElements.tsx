@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { PHONE_DOCK_ICON, scrollEditorToEnd } from "@/lib/phone-dock";
-import { AlignLeft, Image as ImageIcon, Maximize2, Minimize2, Pencil, Trash2 } from "lucide-react";
+import {
+  AlignLeft,
+  BookOpen,
+  Image as ImageIcon,
+  Maximize2,
+  Minimize2,
+  Trash2,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -141,7 +148,7 @@ export function AddElementBar({
               title="Manual verse"
               aria-label="Manual verse"
             >
-              <Pencil className="h-4 w-4" />
+              <BookOpen className="h-4 w-4" />
             </button>
           )}
         </div>
