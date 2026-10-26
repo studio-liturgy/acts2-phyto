@@ -53,8 +53,12 @@ const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"]
 export function MultiLangLyricEditor({
   setId,
   toolbarSlot,
+  visibleLangs,
 }: {
   setId: string;
+  /** The columns the grid shows (the phone layout shows two at a time). Every
+   *  edit still works on the whole song. Absent = every column. */
+  visibleLangs?: LangCode[];
   /** Where the language pills and + Section go (the Lines per slide row). */
   toolbarSlot?: HTMLElement | null;
 }) {
@@ -62,6 +66,11 @@ export function MultiLangLyricEditor({
   const updateSet = useLibrary((s) => s.updateSet);
 
   const langs = useMemo(() => phytoSet?.langs ?? [], [phytoSet?.langs]);
+  const visibleKey = visibleLangs?.join("|") ?? "";
+  const cols = useMemo(
+    () => (visibleKey ? langs.filter((c) => visibleKey.split("|").includes(c)) : langs),
+    [langs, visibleKey],
+  );
   const langsShown = phytoSet?.langsShown;
   const perSlide = phytoSet ? langLinesPer(phytoSet) : 1;
   // Breaks placed by hand stay put; otherwise Lines per slide keeps the grid
@@ -192,14 +201,14 @@ export function MultiLangLyricEditor({
   );
   useLayoutEffect(() => {
     const el = scrollRef.current;
-    if (!el || langs.length === 0) return;
+    if (!el || cols.length === 0) return;
     const GUTTER_PX = 44; // 2.75rem
     const PAD = 18; // cell padding + caret room
     const measure = () => {
       const canvas = (measureCanvas.current ??= document.createElement("canvas"));
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      const contents = langs.map((code) => {
+      const contents = cols.map((code) => {
         ctx.font = `14px ${langFontStack(code) || "system-ui, -apple-system, sans-serif"}`;
         let max = 0;
         for (const r of rows) {
@@ -209,7 +218,7 @@ export function MultiLangLyricEditor({
         }
         return Math.max(max + PAD, 24); // a floor so an empty column isn't 0-wide
       });
-      const n = langs.length;
+      const n = cols.length;
       const available = Math.max(1, el.clientWidth - GUTTER_PX);
       const sum = contents.reduce((a, b) => a + b, 0);
 
@@ -253,7 +262,7 @@ export function MultiLangLyricEditor({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [rows, langs]);
+  }, [rows, cols]);
 
   // Drag down a column to select a run of its cells as if it were one text box:
   // the drag ignores section rows and every other language. A plain click (no
@@ -682,7 +691,7 @@ export function MultiLangLyricEditor({
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto border-t">
         <div className="grid" style={{ gridTemplateColumns: gridCols }}>
           <div className="sticky left-0 top-0 z-20 border-b border-r bg-background" />
-          {langs.map((code) => (
+          {cols.map((code) => (
             <div
               key={code}
               className="mono sticky top-0 z-10 flex min-w-0 items-center gap-1 truncate border-b bg-background px-2 py-1 text-[11px] uppercase tracking-wider"
@@ -803,7 +812,7 @@ export function MultiLangLyricEditor({
                     ? () => splitAbove(i)
                     : undefined
                 }
-                langs={langs}
+                langs={cols}
                 row={row}
                 tint={rowTint}
                 colSel={colSel}
