@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { signOut } from "@/lib/auth";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { isLiveNow } from "@/lib/live-session";
@@ -13,9 +14,8 @@ import {
 } from "@/lib/share-view";
 import { nextPollDelay } from "@/lib/share-poll";
 import { useLibrary } from "@/lib/store";
-import { useIsSignedIn } from "@/lib/authStore";
+import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { NO_GATHERINGS, ownLiveGathering, PHONE_UI } from "@/lib/phone-layout";
-import { PhoneAddSetSheet } from "@/components/phone/PhoneAddSetSheet";
 
 // Per-gathering share view — private, ephemeral links. Keep out of search.
 
@@ -89,12 +89,10 @@ function GatheringViewer() {
   const prevLiveRef = useRef<boolean | null>(null);
   const stoppedRef = useRef(false);
 
-  // The leader's own live gathering, signed in on this device: a + after the
-  // tabs adds a set on the fly (test builds, with the phone layout).
+  // The leader's own live gathering, signed in on this device: the menu's
+  // Edit Gathering opens it (test builds, with the phone layout).
   const isSignedIn = useIsSignedIn();
   const localGatherings = useLibrary((s) => s.gatherings ?? NO_GATHERINGS);
-  const addSetToGathering = useLibrary((s) => s.addSetToGathering);
-  const [addOpen, setAddOpen] = useState(false);
   const ownId =
     PHONE_UI && isSignedIn && status === "live" && gatheringName !== null
       ? ownLiveGathering(
@@ -104,29 +102,6 @@ function GatheringViewer() {
           sets.map((s) => s.id),
         )
       : null;
-  const addSet = (setId: string) => {
-    if (!ownId) return;
-    const d = useLibrary.getState().sets[setId];
-    if (!d) return;
-    addSetToGathering(ownId, setId);
-    // Shown at once; the next poll brings the server's copy once it's pushed.
-    setSets((prev) => [
-      ...prev,
-      {
-        id: d.id,
-        title: d.name,
-        type: d.kind,
-        content: {
-          slides: d.slides as ShareSetRow["content"]["slides"],
-          chords: d.chords,
-          versions: d.versions,
-          songLayout: d.songLayout,
-          langs: d.langs,
-          langsShown: d.langsShown,
-        },
-      },
-    ]);
-  };
 
   useEffect(() => {
     document.title = gatheringName || "Gathering";
@@ -269,9 +244,51 @@ function GatheringViewer() {
         sets={sets.map(toPhoneSet)}
         hiddenBySet={hiddenBySet}
         arrangementsBySet={arrangementsBySet}
-        onAddSet={ownId ? () => setAddOpen(true) : undefined}
+        menuExtra={PHONE_UI ? <LinkAccountMenu ownId={ownId} /> : undefined}
       />
-      {ownId && <PhoneAddSetSheet open={addOpen} onOpenChange={setAddOpen} onPick={addSet} />}
     </>
   );
 }
+
+/**
+ * The live link's menu, under QR Code (test builds): Sign in; or, signed in,
+ * Edit Gathering when it's your live gathering, else which account you're in
+ * and Sign out.
+ */
+function LinkAccountMenu({ ownId }: { ownId: string | null }) {
+  const isSignedIn = useIsSignedIn();
+  const email = useUserEmail();
+  const navigate = useNavigate();
+  const BTN =
+    "mt-2 block w-full rounded-lg border border-current/40 px-3 py-1.5 text-center text-sm uppercase transition";
+  const here = typeof window !== "undefined" ? window.location.pathname : "/";
+  if (!isSignedIn) {
+    return (
+      <Link to="/login" search={{ next: here }} className={BTN} style={MONO}>
+        Sign in
+      </Link>
+    );
+  }
+  if (ownId) {
+    return (
+      <button
+        type="button"
+        onClick={() => navigate({ to: "/present", search: { gathering: ownId, link: true } })}
+        className={BTN}
+        style={MONO}
+      >
+        Edit Gathering
+      </button>
+    );
+  }
+  return (
+    <div className="mt-3 text-center" style={MONO}>
+      <div className="truncate text-[10px] uppercase tracking-wider opacity-60">{email}</div>
+      <button type="button" onClick={() => void signOut()} className={BTN} style={MONO}>
+        Sign out
+      </button>
+    </div>
+  );
+}
+
+const MONO = { fontFamily: "'Space Mono', monospace" } as const;

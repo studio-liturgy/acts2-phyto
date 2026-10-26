@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownAZ,
   ArrowDownWideNarrow,
@@ -368,6 +368,27 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, [canSplay, othersOpen]);
+  // The space above the live gathering that centres it on the screen,
+  // measured once and on resize, never from what opens below it.
+  const arrivalsRef = useRef<HTMLDivElement | null>(null);
+  const liveRef = useRef<HTMLDivElement | null>(null);
+  const [livePad, setLivePad] = useState(0);
+  const hasLive = liveIds.length > 0;
+  useLayoutEffect(() => {
+    const el = scroller();
+    const card = liveRef.current;
+    if (!el || !card || !hasLive) return;
+    const measure = () => {
+      const above = arrivalsRef.current?.offsetHeight ?? 0;
+      setLivePad(Math.max(0, Math.round((el.clientHeight - card.offsetHeight) / 2 - above)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    ro.observe(card);
+    return () => ro.disconnect();
+  }, [hasLive]);
+
   const splayGestures = canSplay
     ? {
         onTouchStart: (e: React.TouchEvent) => {
@@ -427,17 +448,22 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
       }
     >
       <div ref={listRef} className="flex min-h-full flex-col" {...splayGestures}>
-        {arrivals}
-        {/* While one is live it sits mid-screen, Other gatherings below it
-          (auto margins centre without cutting off the top once it grows). */}
-        <div className={`space-y-2 px-5 pb-8 ${liveIds.length > 0 ? "my-auto" : ""}`}>
+        <div ref={arrivalsRef}>{arrivals}</div>
+        {/* While one is live it sits mid-screen and stays put: Other
+            gatherings open below it, extending the page downward. */}
+        <div
+          className="space-y-2 px-5 pb-8"
+          style={liveIds.length > 0 ? { paddingTop: livePad } : undefined}
+        >
           {order.length === 0 ? (
             <div className="mono uppercase rounded-3xl border border-foreground p-8 text-center text-xs tracking-wider text-muted-foreground">
               No gatherings yet. Tap New to plan a gathering!
             </div>
           ) : (
             <>
-              {liveIds.map((id) => renderCard(id))}
+              <div ref={liveRef} className="space-y-2">
+                {liveIds.map((id) => renderCard(id))}
+              </div>
               {/* While one is live, the rest wait behind one row. */}
               {liveIds.length > 0 && otherIds.length > 0 && (
                 <>
@@ -1122,62 +1148,49 @@ function SettingsTab({
         </div>
 
         {/* The footer's links as a quiet two-column list, like the desktop
-            footer: About on the left, Help on the right. Internal pages come
-            Back to Settings. */}
+            footer. Internal pages come Back to Settings. */}
         <div className="grid grid-cols-2 gap-x-6 py-4">
           {(
             [
-              {
-                heading: "About",
-                links: [
-                  { to: "/?intro=true", label: "Intro" },
-                  { to: "/updates", label: "Updates" },
-                  { to: "/about", label: "Story" },
-                  { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
-                  { href: "https://github.com/studio-liturgy", label: "Source" },
-                  { href: "/donate", label: "Donate" },
-                ],
-              },
-              {
-                heading: "Help",
-                links: [
-                  { to: "/feedback", label: "Feedback" },
-                  { to: "/terms", label: "Legal" },
-                ],
-              },
-            ] as {
-              heading: string;
-              links: ({ to: string; label: string } | { href: string; label: string })[];
-            }[]
-          ).map(({ heading, links }) => (
-            <div key={heading}>
-              <div className={HEADING}>{heading}</div>
-              <ul className="flex flex-col gap-2.5">
-                {links.map((l) => (
-                  <li key={l.label}>
-                    {"to" in l ? (
-                      <Link
-                        to={l.to === "/?intro=true" ? "/" : l.to}
-                        search={l.to === "/?intro=true" ? { intro: true } : undefined}
-                        onClick={markBackToSettings}
-                        className={TEXT_LINK}
-                      >
-                        {l.label}
-                      </Link>
-                    ) : (
-                      <a
-                        href={l.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={TEXT_LINK}
-                      >
-                        {l.label}
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
+              [
+                { to: "/?intro=true", label: "Intro" },
+                { to: "/about", label: "About" },
+                { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
+                { href: "/donate", label: "Donate" },
+              ],
+              [
+                { to: "/updates", label: "Updates" },
+                { href: "https://github.com/studio-liturgy", label: "Source" },
+                { to: "/feedback", label: "Feedback" },
+                { to: "/terms", label: "Legal" },
+              ],
+            ] as ({ to: string; label: string } | { href: string; label: string })[][]
+          ).map((links, col) => (
+            <ul key={col} className="flex flex-col gap-2.5">
+              {links.map((l) => (
+                <li key={l.label}>
+                  {"to" in l ? (
+                    <Link
+                      to={l.to === "/?intro=true" ? "/" : l.to}
+                      search={l.to === "/?intro=true" ? { intro: true } : undefined}
+                      onClick={markBackToSettings}
+                      className={TEXT_LINK}
+                    >
+                      {l.label}
+                    </Link>
+                  ) : (
+                    <a
+                      href={l.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={TEXT_LINK}
+                    >
+                      {l.label}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
           ))}
         </div>
 

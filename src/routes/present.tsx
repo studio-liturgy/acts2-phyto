@@ -207,6 +207,8 @@ const searchSchema = z.object({
   /** Which presenter view to open in. Round-trips through the set editor so
    *  going back from an edit lands on the mobile preview, not slides. */
   view: z.enum(["slides", "mobile"]).optional(),
+  /** Phone: opened from a live link's menu (Edit Gathering). */
+  link: z.boolean().optional(),
 });
 
 /** The sidebar's colour dot for a set, or a warning triangle in its place when
@@ -233,7 +235,7 @@ export const Route = createFileRoute("/present")({
  *  editor, and anything else the home. */
 function PresentRoute() {
   const phone = usePhoneLayout();
-  const { set, gathering, view } = Route.useSearch();
+  const { set, gathering, view, link } = Route.useSearch();
   const navigate = useNavigate();
   useEffect(() => {
     if (!phone || gathering) return;
@@ -243,7 +245,11 @@ function PresentRoute() {
   if (phone === null) return <div className="h-screen bg-background" />;
   if (phone) {
     return gathering ? (
-      <PhoneGathering gatheringId={gathering} view={view === "mobile" ? "phone" : "sets"} />
+      <PhoneGathering
+        gatheringId={gathering}
+        view={view === "mobile" ? "phone" : "sets"}
+        fromLink={!!link}
+      />
     ) : null;
   }
   return <Presenter />;

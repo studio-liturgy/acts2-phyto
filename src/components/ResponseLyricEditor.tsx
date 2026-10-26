@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PHONE_DOCK_ICON, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock";
-import { Heading, SeparatorHorizontal } from "lucide-react";
+import { SeparatorHorizontal, StretchHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { createPortal } from "react-dom";
 import { EditorBar } from "@/components/EditorBar";
@@ -287,8 +287,18 @@ export function ResponseLyricEditor({
       <button
         type="button"
         onClick={() => {
-          addLineAtEnd();
-          scrollEditorToEnd();
+          // Under the line being typed in; at the end when none is.
+          const at = focusIndex.current;
+          if (at !== null) {
+            const d = doc();
+            commit(insertLines(d, at + 1, [" "], [d.roles[at] ?? null]), {
+              index: at + 1,
+              caret: 0,
+            });
+          } else {
+            addLineAtEnd();
+            scrollEditorToEnd();
+          }
         }}
         onMouseDown={keepFocus}
         className={PHONE_DOCK_ICON}
@@ -327,7 +337,7 @@ export function ResponseLyricEditor({
         title="Add a section"
         aria-label="Add a section"
       >
-        <Heading className="h-4 w-4" />
+        <StretchHorizontal className="h-4 w-4" />
       </button>
     </>
   ) : null;

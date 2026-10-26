@@ -34,10 +34,23 @@ type Slot = { key: string; id: string };
 export function PhoneGathering({
   gatheringId,
   view,
+  fromLink = false,
 }: {
   gatheringId: string;
   view: "sets" | "phone";
+  /** Opened from the live link's menu: no Back, no Delete, no tab bar, and in
+   *  the link's own light or dark. */
+  fromLink?: boolean;
 }) {
+  useEffect(() => {
+    if (!fromLink) return;
+    const html = document.documentElement;
+    const was = html.classList.contains("dark");
+    html.classList.toggle("dark", loadPrefs().isDark);
+    return () => {
+      html.classList.toggle("dark", was);
+    };
+  }, [fromLink]);
   const navigate = useNavigate();
   const g = useLibrary((s) => s.gatherings[gatheringId]);
   const sets = useLibrary((s) => s.sets ?? NO_SETS);
@@ -121,11 +134,14 @@ export function PhoneGathering({
       .slice(0, 8);
   }, [order, sets, query]);
 
-  const here = `/present?gathering=${encodeURIComponent(gatheringId)}${view === "phone" ? "&view=mobile" : ""}`;
+  const here = `/present?gathering=${encodeURIComponent(gatheringId)}${view === "phone" ? "&view=mobile" : ""}${fromLink ? "&link=true" : ""}`;
 
   if (!g) {
     return (
-      <PhoneScreen tab="gatherings" header={<PhoneBackHeader back="/" title={null} />}>
+      <PhoneScreen
+        tab={fromLink ? undefined : "gatherings"}
+        header={<PhoneBackHeader back="/" title={null} />}
+      >
         <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
           Gathering not found.
         </p>
@@ -140,8 +156,11 @@ export function PhoneGathering({
   const setView = (v: "sets" | "phone") =>
     navigate({
       to: "/present",
-      search:
-        v === "phone" ? { gathering: gatheringId, view: "mobile" } : { gathering: gatheringId },
+      search: {
+        gathering: gatheringId,
+        ...(v === "phone" ? { view: "mobile" as const } : {}),
+        ...(fromLink ? { link: true } : {}),
+      },
       replace: true,
     });
   const viewSwitch = (
@@ -162,7 +181,7 @@ export function PhoneGathering({
 
   const header = (
     <PhoneBackHeader
-      back="/"
+      back={fromLink ? null : "/"}
       title={
         // The name is always editable, like a text field that looks like a title.
         <input
@@ -179,7 +198,7 @@ export function PhoneGathering({
 
   if (view === "phone") {
     return (
-      <PhoneScreen tab="gatherings" scroll={false} header={header}>
+      <PhoneScreen tab={fromLink ? undefined : "gatherings"} scroll={false} header={header}>
         {phoneSets.length === 0 ? (
           <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
             Gathering is empty. Add a set to preview the phone view.
@@ -212,7 +231,7 @@ export function PhoneGathering({
   }
 
   return (
-    <PhoneScreen tab="gatherings" header={header}>
+    <PhoneScreen tab={fromLink ? undefined : "gatherings"} header={header}>
       <div className="px-5 pb-10 pt-5">
         {slots.length === 0 ? (
           <p className="mono uppercase rounded-2xl border border-dashed border-muted-foreground p-4 text-center text-xs text-muted-foreground">
@@ -314,7 +333,7 @@ export function PhoneGathering({
           )}
         </div>
 
-        {canDelete && (
+        {canDelete && !fromLink && (
           <button
             onClick={() => setConfirmDelete(true)}
             className="mono mt-10 flex w-full items-center justify-center gap-2 rounded-full border border-[var(--brand-red)] py-3 text-xs uppercase tracking-wider text-[var(--brand-red)] active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"

@@ -1,6 +1,6 @@
 import { Link, Navigate } from "@tanstack/react-router";
 import { ArrowUpLeft, ChevronDown, Layers, Library, Settings } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { PhoneTab } from "@/lib/phone-layout";
 import { useAuthStore } from "@/lib/authStore";
 
@@ -75,8 +75,9 @@ export function PhoneBackHeader({
   actions,
   border = true,
 }: {
-  /** Where Back goes (a path with its search, e.g. "/?tab=catalogue"). */
-  back: string;
+  /** Where Back goes (a path with its search, e.g. "/?tab=catalogue");
+   *  null for no Back. */
+  back: string | null;
   title: ReactNode;
   actions?: ReactNode;
   border?: boolean;
@@ -87,14 +88,16 @@ export function PhoneBackHeader({
         border ? "border-b border-foreground" : ""
       }`}
     >
-      <Link
-        to={back}
-        className="pill flex h-9 w-9 shrink-0 items-center justify-center bg-foreground text-background transition active:opacity-80"
-        title="Back"
-        aria-label="Back"
-      >
-        <ArrowUpLeft className="h-5 w-5" />
-      </Link>
+      {back !== null && (
+        <Link
+          to={back}
+          className="pill flex h-9 w-9 shrink-0 items-center justify-center bg-foreground text-background transition active:opacity-80"
+          title="Back"
+          aria-label="Back"
+        >
+          <ArrowUpLeft className="h-5 w-5" />
+        </Link>
+      )}
       <div className="min-w-0 flex-1">{title}</div>
       {actions && <div className="flex shrink-0 items-center gap-0.5">{actions}</div>}
     </header>
@@ -175,6 +178,28 @@ export function PhoneFold({
   );
 }
 
+/** How much of the layout viewport the on-screen keyboard covers (px; 0 when
+ *  it's down), from the visual viewport. */
+function useKeyboardInset(): number {
+  const [inset, setInset] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const covered = window.innerHeight - (vv.height + vv.offsetTop);
+      setInset(covered > 80 ? Math.round(covered) : 0);
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+  return inset;
+}
+
 /**
  * A phone editor's secondary bar: its add buttons as icons, in the top half
  * of a rounded rectangle sitting on the editor tabs (not full width). It
@@ -189,8 +214,14 @@ export function PhoneDock({
   children?: ReactNode;
   slotRef?: (el: HTMLDivElement | null) => void;
 }) {
+  const keyboard = useKeyboardInset();
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center">
+    <div
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center"
+      // With the keyboard up, ride on top of it (and its arrows bar) instead
+      // of staying behind it at the bottom of the page.
+      style={keyboard > 0 ? { position: "fixed", bottom: keyboard } : undefined}
+    >
       <div
         ref={slotRef}
         className="pointer-events-auto flex items-center gap-0.5 rounded-t-2xl border border-b-0 border-foreground/30 bg-background px-2 pt-1 empty:hidden"

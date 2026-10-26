@@ -418,7 +418,10 @@ export function ShareGatheringDialog({
       className={`mono flex aspect-square w-full ${size} items-center justify-center rounded-full border border-[var(--brand-red)] text-sm uppercase tracking-wider transition-colors hover:animate-pulse hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)] ${
         goingLive
           ? "animate-pulse bg-[var(--brand-red)] text-[var(--brand-white)]"
-          : "text-[var(--brand-red)]"
+          : phone
+            ? // Phone: no hover to fill it, so it's red from the start.
+              "bg-[var(--brand-red)] text-[var(--brand-white)]"
+            : "text-[var(--brand-red)]"
       }`}
     >
       {goingLive ? "Going Live..." : "Go Live"}

@@ -113,6 +113,17 @@ export function LangPickerMenu({
       ?.scrollIntoView?.({ block: "nearest" });
   }, [active]);
 
+  // A tap anywhere else closes it (the phone menu holds no focus to blur).
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [open]);
+
   const pick = (code: LangCode) => {
     onAdd(code);
     setOpen(false);
@@ -120,6 +131,7 @@ export function LangPickerMenu({
 
   return (
     <div
+      ref={rootRef}
       className="relative"
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);

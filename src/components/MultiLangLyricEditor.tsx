@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PHONE_DOCK_ICON, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock";
-import { Heading, SeparatorHorizontal } from "lucide-react";
+import { SeparatorHorizontal, StretchHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
 import { createPortal } from "react-dom";
@@ -661,8 +661,15 @@ export function MultiLangLyricEditor({
       <button
         type="button"
         onClick={() => {
-          addLineAtEnd();
-          scrollEditorToEnd();
+          // Under the line being typed in; at the end when none is.
+          const at = focusRowRef.current;
+          if (at !== null && rows[at]?.kind === "line") {
+            insertLineAfter(at, focusLangRef.current ?? langs[0]);
+            focusRowRef.current = at + 1;
+          } else {
+            addLineAtEnd();
+            scrollEditorToEnd();
+          }
         }}
         onMouseDown={keepFocus}
         className={PHONE_DOCK_ICON}
@@ -704,7 +711,7 @@ export function MultiLangLyricEditor({
         title="Add a section"
         aria-label="Add a section"
       >
-        <Heading className="h-4 w-4" />
+        <StretchHorizontal className="h-4 w-4" />
       </button>
     </>
   );

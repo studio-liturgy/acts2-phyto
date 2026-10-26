@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { touchReorder } from "@/lib/touch-reorder";
 import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
 import { Maximize2, Minimize2, Plus, Trash2 } from "lucide-react";
 import { DotsGrip } from "@/components/DragBits";
@@ -150,7 +151,10 @@ export function MessageBlockEditor({
   // direction of travel, and never twice within a short cooldown.
   const lastMoveAt = useRef(0);
   const pulledId = useRef<string | null>(null);
-  const dragOver = (i: number, e?: React.DragEvent) => {
+  const dragOver = (
+    i: number,
+    e?: { currentTarget: Element; clientX: number; clientY: number },
+  ) => {
     // An image dragged out of its run over another block leaves the run and
     // becomes a block of its own, placed next to that block; from here on it
     // moves like any block (and joins another run if dropped beside images).
@@ -362,6 +366,24 @@ export function MessageBlockEditor({
     },
   });
 
+  // A block's grip: HTML drag for the mouse, a finger drag on touch screens.
+  const gripProps = (i: number) => ({
+    onDragStart: dragProps(i).onDragStart,
+    onDragEnd: commitOrder,
+    touch: touchReorder({
+      attr: "msg-block",
+      onStart: () => {
+        dragFrom.current = i;
+        lastMoveAt.current = 0;
+      },
+      onOver: (to, row, y) => {
+        const r = row.getBoundingClientRect();
+        dragOver(to, { currentTarget: row, clientX: r.left + r.width / 2, clientY: y });
+      },
+      onEnd: commitOrder,
+    }),
+  });
+
   // Render the blocks in order. A run of images is one block: a frame with the
   // grip (drags the whole run) and the delete (removes the whole run), holding
   // a 2-up grid of 16:9 thumbnails that reorder among themselves.
@@ -369,9 +391,14 @@ export function MessageBlockEditor({
   for (let i = 0; i < blocks.length; i += 1) {
     const b = blocks[i];
     if (b.kind === "images") {
-      const grip = <Grip onDragStart={dragProps(i).onDragStart} onDragEnd={commitOrder} />;
+      const grip = <Grip {...gripProps(i)} />;
       rows.push(
-        <div key={b.key} onDragOver={dragProps(i).onDragOver} onDrop={dragProps(i).onDrop}>
+        <div
+          key={b.key}
+          data-msg-block={i}
+          onDragOver={dragProps(i).onDragOver}
+          onDrop={dragProps(i).onDrop}
+        >
           <BlockFrame
             label="Images"
             grip={grip}
@@ -449,9 +476,14 @@ export function MessageBlockEditor({
       continue;
     }
 
-    const grip = <Grip onDragStart={dragProps(i).onDragStart} onDragEnd={commitOrder} />;
+    const grip = <Grip {...gripProps(i)} />;
     rows.push(
-      <div key={b.key} onDragOver={dragProps(i).onDragOver} onDrop={dragProps(i).onDrop}>
+      <div
+        key={b.key}
+        data-msg-block={i}
+        onDragOver={dragProps(i).onDragOver}
+        onDrop={dragProps(i).onDrop}
+      >
         {b.kind === "import" ? (
           <ImportBlock
             versions={versions}
@@ -665,16 +697,19 @@ export function MessageBlockEditor({
 function Grip({
   onDragStart,
   onDragEnd,
+  touch,
 }: {
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
+  touch?: ReturnType<typeof touchReorder>;
 }) {
   return (
     <span
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className="flex cursor-grab items-center"
+      {...touch}
+      className="flex cursor-grab touch-none items-center"
       title="Drag to reorder this block"
     >
       <DotsGrip className="opacity-40" size={12} />

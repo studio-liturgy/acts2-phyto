@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ChordLine } from "@/components/ChordLine";
 import { guessKey, KEYS, transposeLyrics, type SongChords } from "@/lib/chords";
@@ -100,6 +100,7 @@ export function PhoneViewer({
   prefs: controlledPrefs,
   onPrefsChange,
   onAddSet,
+  menuExtra,
   bare = false,
 }: {
   /** One set with no tab bar and no menu (the set editor's Phone tab). */
@@ -107,6 +108,8 @@ export function PhoneViewer({
   /** The leader's own live gathering, signed in: a + after the last tab adds
    *  a set on the fly. */
   onAddSet?: () => void;
+  /** More of the phone menu, under QR Code (the live link: account, Edit). */
+  menuExtra?: ReactNode;
   sets: PhoneSet[];
   /** Stable section keys hidden by the leader, keyed by set id. Those sections
    *  are dropped from the rendered content — the same hiding the presenter does. */
@@ -417,6 +420,7 @@ export function PhoneViewer({
                   >
                     QR Code
                   </button>
+                  {menuExtra}
                 </div>
               )}
             </div>

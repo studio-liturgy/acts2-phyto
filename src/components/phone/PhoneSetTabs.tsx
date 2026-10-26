@@ -43,8 +43,15 @@ export function PhoneSetTabs({
   return (
     <PhoneScreen scroll={false} header={header}>
       <div className="flex h-full flex-col">
-        <div className="min-h-0 flex-1">
-          <div className={`h-full ${tab === "editor" ? "" : "hidden"}`}>{editor}</div>
+        <div className="relative min-h-0 flex-1">
+          {/* Kept laid out while another tab shows (invisible, not display:
+              none), so the grid's measured rows are there the moment you
+              come back instead of re-measuring from zero. */}
+          <div
+            className={`h-full ${tab === "editor" ? "" : "pointer-events-none invisible absolute inset-0"}`}
+          >
+            {editor}
+          </div>
           {tab === "phone" &&
             (set.slides.length === 0 ? (
               <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
