@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { noteUserSignOut } from "./session-lost";
 
 export async function signInWithEmail(email: string) {
   return supabase.auth.signInWithOtp({ email });
@@ -14,6 +15,8 @@ export async function signOut() {
   // successful auth-server round-trip to revoke every session — if that call
   // fails (expired/revoked token, network trouble), the local session never
   // clears, SIGNED_OUT never fires, and the user is stuck signed in.
+  // Mark it as chosen, so the "You've been signed out" dialog stays away.
+  if (typeof window !== "undefined") noteUserSignOut(window.localStorage, Date.now());
   try {
     return await supabase.auth.signOut({ scope: "local" });
   } catch (e) {

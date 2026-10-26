@@ -4,7 +4,10 @@ import {
   isApiAuthFailure,
   MAX_FUTILE_RENEWALS,
   RENEW_COOLDOWN_MS,
+  noteUserSignOut,
   safeNextPath,
+  USER_SIGN_OUT_WINDOW_MS,
+  wasUserSignOut,
   type RenewOutcome,
 } from "../session-lost";
 
@@ -128,5 +131,44 @@ describe("safeNextPath", () => {
     expect(safeNextPath("https://evil.com")).toBeNull();
     expect(safeNextPath("/login")).toBeNull();
     expect(safeNextPath(undefined)).toBeNull();
+  });
+});
+
+describe("wasUserSignOut", () => {
+  function mem() {
+    const m = new Map<string, string>();
+    return {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, v),
+    };
+  }
+
+  it("is false when nothing was noted (phyto lost the login)", () => {
+    expect(wasUserSignOut(mem(), 1_000)).toBe(false);
+  });
+
+  it("is true right after the user signs out, in any tab sharing the storage", () => {
+    const store = mem();
+    noteUserSignOut(store, 1_000);
+    expect(wasUserSignOut(store, 1_200)).toBe(true);
+  });
+
+  it("expires, so a later lost login still shows the dialog", () => {
+    const store = mem();
+    noteUserSignOut(store, 1_000);
+    expect(wasUserSignOut(store, 1_000 + USER_SIGN_OUT_WINDOW_MS)).toBe(false);
+  });
+
+  it("treats blocked storage as not chosen", () => {
+    const blocked = {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+    };
+    expect(() => noteUserSignOut(blocked, 1)).not.toThrow();
+    expect(wasUserSignOut(blocked, 1)).toBe(false);
   });
 });

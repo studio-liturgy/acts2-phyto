@@ -21,7 +21,7 @@ const favicon32 = isTest ? "/favicon-32-or.png" : "/favicon-32.png";
 const faviconAny = isTest ? "/favicon-or.png" : "/favicon.png";
 const appleTouchIcon = isTest ? "/apple-touch-icon-or.png" : "/apple-touch-icon.png";
 import { authGuard, supabase } from "@/lib/supabase";
-import { safeNextPath, useSessionLost } from "@/lib/session-lost";
+import { safeNextPath, useSessionLost, wasUserSignOut } from "@/lib/session-lost";
 import { SignedOutDialog } from "@/components/SignedOutDialog";
 import { getSession } from "@/lib/auth";
 import { useAuthStore } from "@/lib/authStore";
@@ -422,6 +422,10 @@ function RootComponent() {
     } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (event === "SIGNED_OUT") {
+        // Not the user's own Sign out: phyto lost the login (expired, revoked).
+        if (!wasUserSignOut(window.localStorage, Date.now())) {
+          useSessionLost.getState().markLost();
+        }
         diffRanThisSession = false;
         // No local truth for live status while signed out.
         nullLocalLiveState();

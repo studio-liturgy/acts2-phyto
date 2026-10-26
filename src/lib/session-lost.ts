@@ -120,6 +120,35 @@ export const useSessionLost = create<SessionLostStore>((set) => ({
   clear: () => set({ lost: false, dialogOpen: false }),
 }));
 
+// Sign-outs the user chose (the Sign out button, deleting the account) go
+// through lib/auth's signOut, which stamps this key first. Any other SIGNED_OUT
+// (a refused refresh, a session cleared on load, another tab's expiry) is phyto
+// losing the login, so the signed-out dialog shows. Kept in localStorage so a
+// sign-out in one tab doesn't pop the dialog in the others.
+const USER_SIGN_OUT_KEY = "phyto-user-signout";
+export const USER_SIGN_OUT_WINDOW_MS = 15_000;
+
+type KeyStore = Pick<Storage, "getItem" | "setItem">;
+
+export function noteUserSignOut(storage: KeyStore, now: number): void {
+  try {
+    storage.setItem(USER_SIGN_OUT_KEY, String(now));
+  } catch {
+    // Storage full or blocked: worst case the dialog shows after a chosen sign-out.
+  }
+}
+
+export function wasUserSignOut(storage: KeyStore, now: number): boolean {
+  let raw: string | null = null;
+  try {
+    raw = storage.getItem(USER_SIGN_OUT_KEY);
+  } catch {
+    return false;
+  }
+  const t = Number(raw);
+  return raw !== null && Number.isFinite(t) && now - t >= 0 && now - t < USER_SIGN_OUT_WINDOW_MS;
+}
+
 /** Only same-site paths are allowed as the post-login destination. */
 export function safeNextPath(next: unknown): string | null {
   if (typeof next !== "string") return null;
