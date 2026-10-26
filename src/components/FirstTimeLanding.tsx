@@ -13,6 +13,7 @@ import type { SetKind } from "@/lib/types";
 import type { SyncState } from "@/hooks/use-sync-status";
 import wordmark from "@/assets/wordmark.svg";
 import wordmarkTest from "@/assets/wordmark-test.svg";
+import { PHONE_UI } from "@/lib/phone-layout";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
 const aboutBg = "/about-bg.jpg";
@@ -569,7 +570,7 @@ export function FirstTimeLanding({
             {!isSignedIn && !isEmpty && (
               <Link
                 to="/login"
-                className="pill mono uppercase hidden border border-[var(--brand-white)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)] md:inline-block"
+                className={`pill mono uppercase border border-[var(--brand-white)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)] ${PHONE_UI ? "inline-block" : "hidden md:inline-block"}`}
               >
                 Sign in
               </Link>
@@ -644,7 +645,9 @@ export function FirstTimeLanding({
           </p>
         </div>
 
-        <div className="mt-10 hidden flex-wrap items-center justify-center gap-3 md:flex">
+        <div
+          className={`mt-10 flex-wrap items-center justify-center gap-3 ${PHONE_UI ? "flex" : "hidden md:flex"}`}
+        >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="pill mono uppercase flex items-center gap-2 bg-foreground px-6 py-3 text-sm tracking-wider text-background transition hover:opacity-90">
@@ -714,7 +717,7 @@ export function FirstTimeLanding({
           background instead of the page's actual blue — recoloring it to match
           the page is what actually fixes the white safe-area bar, not fighting
           Safari's heuristic. ── */}
-      {!popupDismissed && (
+      {!popupDismissed && !PHONE_UI && (
         <div className="sticky top-4 z-50 mx-4 mt-6 md:hidden">
           <div className="relative rounded-3xl border border-[var(--brand-white)] bg-[var(--brand-blue)] p-5 text-center text-[var(--brand-white)]">
             <button
