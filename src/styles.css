@@ -354,3 +354,8 @@ input[type="range"].phone-range::-moz-range-thumb {
     margin-top: 1.25rem;
   }
 }
+
+/* Phone editors: room under the last line for the floating dock (PhoneDock). */
+.has-dock [data-editor-scroll] {
+  padding-bottom: 3.5rem;
+}

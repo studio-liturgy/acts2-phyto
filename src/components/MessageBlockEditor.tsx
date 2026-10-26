@@ -622,6 +622,7 @@ export function MessageBlockEditor({
         tileDrag.current = null;
         commitOrder();
       }}
+      data-editor-scroll
       className="flex min-h-0 flex-1 flex-col overflow-y-auto"
     >
       {/* Frozen: nothing in a message can be edited, deleted or reordered

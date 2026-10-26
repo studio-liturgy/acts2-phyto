@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { FoldCard } from "@/components/FoldCard";
@@ -12,9 +13,21 @@ const LABEL = "mono mb-2 text-[10px] uppercase tracking-wider text-muted-foregro
  * screen's shape, from watch's Edit Background. Lives in the presenter.
  * Changes apply as they're made: no Apply step.
  */
-export function BackgroundEditor({ phone = false }: { phone?: boolean } = {}) {
+export function BackgroundEditor({
+  phone = false,
+  open,
+  onOpenChange,
+  preview,
+}: {
+  phone?: boolean;
+  /** The phone's Settings: one card open at a time, a sample slide on top. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  preview?: ReactNode;
+} = {}) {
   return (
-    <FoldCard title="Background" ariaLabel="the background">
+    <FoldCard title="Background" ariaLabel="the background" open={open} onOpenChange={onOpenChange}>
+      {preview}
       <BackgroundControls phone={phone} />
     </FoldCard>
   );

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useLibrary } from "@/lib/store";
 import { FoldCard } from "@/components/FoldCard";
 
@@ -8,7 +9,16 @@ const FONT_OPTIONS: { label: string; value: string }[] = [
 ];
 
 /** Changes apply as they're made: no Apply step. */
-export function SongTemplateEditor() {
+export function SongTemplateEditor({
+  open,
+  onOpenChange,
+  preview,
+}: {
+  /** The phone's Settings: one card open at a time, a sample slide on top. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  preview?: ReactNode;
+} = {}) {
   const songTemplate = useLibrary((s) => s.songTemplate);
   const setSongTemplate = useLibrary((s) => s.setSongTemplate);
   const t = {
@@ -20,7 +30,13 @@ export function SongTemplateEditor() {
   const update = (patch: Partial<typeof t>) => setSongTemplate(patch);
 
   return (
-    <FoldCard title="Song Template" ariaLabel="the song template">
+    <FoldCard
+      title="Song Template"
+      ariaLabel="the song template"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      {preview}
       <div className="space-y-4 text-sm">
         <div>
           <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">

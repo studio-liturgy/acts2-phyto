@@ -2574,7 +2574,9 @@ function Importers({
 
   if (kind === "song") {
     return (
-      <div className="flex h-full flex-col gap-0 overflow-hidden">
+      <div
+        className={`flex h-full flex-col gap-0 overflow-hidden ${phone ? "has-dock relative" : ""}`}
+      >
         {/* Search bar */}
         <div ref={searchBoxRef} className="shrink-0 border-b border-foreground/20 p-4">
           <PhoneFold
@@ -2748,125 +2750,129 @@ function Importers({
                 })}
               </div>
             )}
-          </PhoneFold>
 
-          {/* Lines per slide, with the chord key and palette below while chords
+            {/* Lines per slide, with the chord key and palette below while chords
               are on. A Multilanguage song is one line per slide, typed in its
               grid, so it has neither. */}
-          {songLayout !== "multilang" ? (
-            <ChordControls
-              setId={setId}
-              lyrics={lyrics}
-              onLyricsChange={(next) => {
-                pushHistory();
-                setLyrics(next);
-              }}
-              onInsertChord={
-                songLayout === "response"
-                  ? (chord) => postGridChord({ kind: "insert", chord })
-                  : insertChord
-              }
-              onClearLine={
-                songLayout === "response" ? () => postGridChord({ kind: "clear" }) : clearLineChords
-              }
-            >
-              <span className="inline-flex shrink-0 items-center gap-2">
-                <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
-                  {phone ? "L/S" : "Lines per slide"}
+            {songLayout !== "multilang" ? (
+              <ChordControls
+                setId={setId}
+                lyrics={lyrics}
+                onLyricsChange={(next) => {
+                  pushHistory();
+                  setLyrics(next);
+                }}
+                onInsertChord={
+                  songLayout === "response"
+                    ? (chord) => postGridChord({ kind: "insert", chord })
+                    : insertChord
+                }
+                onClearLine={
+                  songLayout === "response"
+                    ? () => postGridChord({ kind: "clear" })
+                    : clearLineChords
+                }
+              >
+                <span className="inline-flex shrink-0 items-center gap-2">
+                  <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
+                    {phone ? "L/S" : "Lines per slide"}
+                  </span>
+                  <NumberStepper
+                    value={linesPer}
+                    onChange={requestLinesPerChange}
+                    format={(n) => (customBreaks ? "C" : String(n))}
+                    min={1}
+                    max={8}
+                    decrementLabel="Fewer lines per slide"
+                    incrementLabel="More lines per slide"
+                  />
                 </span>
-                <NumberStepper
-                  value={linesPer}
-                  onChange={requestLinesPerChange}
-                  format={(n) => (customBreaks ? "C" : String(n))}
-                  min={1}
-                  max={8}
-                  decrementLabel="Fewer lines per slide"
-                  incrementLabel="More lines per slide"
-                />
-              </span>
-              {songToggles}
-              {songLayout === "response" && !phone && (
-                <div ref={setToolbarSlot} className="contents" />
-              )}
-            </ChordControls>
-          ) : (
-            // Multilanguage: lines of each language per slide (1 or 2), and the
-            // chord key, with chords typed in the grid's first column.
-            <ChordControls
-              setId={setId}
-              lyrics={multiChordText}
-              onLyricsChange={() => {}}
-              onInsertChord={(chord) => postGridChord({ kind: "insert", chord })}
-              onClearLine={() => postGridChord({ kind: "clear" })}
-              onTranspose={(fromKey, toKey) => {
-                const set = useLibrary.getState().sets[setId];
-                const first = set?.langs?.[0];
-                if (!set || !first) return;
-                updateSet(setId, {
-                  slides: transposeLangColumn(
-                    set.slides,
-                    first,
-                    (line) => transposeLyrics(line, fromKey, toKey),
-                    shownLangs(set.langs ?? [], set.langsShown),
-                  ),
-                });
-                setGridKey((k) => k + 1);
-              }}
-            >
-              <span className="inline-flex shrink-0 items-center gap-2">
-                <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
-                  {phone ? "L/S" : "Lines per slide"}
+                {songToggles}
+                {songLayout === "response" && !phone && (
+                  <div ref={setToolbarSlot} className="contents" />
+                )}
+              </ChordControls>
+            ) : (
+              // Multilanguage: lines of each language per slide (1 or 2), and the
+              // chord key, with chords typed in the grid's first column.
+              <ChordControls
+                setId={setId}
+                lyrics={multiChordText}
+                onLyricsChange={() => {}}
+                onInsertChord={(chord) => postGridChord({ kind: "insert", chord })}
+                onClearLine={() => postGridChord({ kind: "clear" })}
+                onTranspose={(fromKey, toKey) => {
+                  const set = useLibrary.getState().sets[setId];
+                  const first = set?.langs?.[0];
+                  if (!set || !first) return;
+                  updateSet(setId, {
+                    slides: transposeLangColumn(
+                      set.slides,
+                      first,
+                      (line) => transposeLyrics(line, fromKey, toKey),
+                      shownLangs(set.langs ?? [], set.langsShown),
+                    ),
+                  });
+                  setGridKey((k) => k + 1);
+                }}
+              >
+                <span className="inline-flex shrink-0 items-center gap-2">
+                  <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
+                    {phone ? "L/S" : "Lines per slide"}
+                  </span>
+                  <NumberStepper
+                    value={multiPer}
+                    format={(n) => (customBreaks ? "C" : String(n))}
+                    onChange={(n) => {
+                      const next = Math.min(MAX_LANG_LINES_PER, Math.max(1, Math.round(n)));
+                      // From C, re-dividing replaces the hand-placed breaks: ask.
+                      if (customBreaks) setPendingLinesPerConfirm(next);
+                      else updateSet(setId, { langLinesPer: next });
+                    }}
+                    min={1}
+                    max={MAX_LANG_LINES_PER}
+                    decrementLabel="Fewer lines per slide"
+                    incrementLabel="More lines per slide"
+                  />
                 </span>
-                <NumberStepper
-                  value={multiPer}
-                  format={(n) => (customBreaks ? "C" : String(n))}
-                  onChange={(n) => {
-                    const next = Math.min(MAX_LANG_LINES_PER, Math.max(1, Math.round(n)));
-                    // From C, re-dividing replaces the hand-placed breaks: ask.
-                    if (customBreaks) setPendingLinesPerConfirm(next);
-                    else updateSet(setId, { langLinesPer: next });
-                  }}
-                  min={1}
-                  max={MAX_LANG_LINES_PER}
-                  decrementLabel="Fewer lines per slide"
-                  incrementLabel="More lines per slide"
-                />
-              </span>
-              {songToggles}
-              {!phone && <div ref={setToolbarSlot} className="contents" />}
-            </ChordControls>
-          )}
+                {songToggles}
+                {!phone && <div ref={setToolbarSlot} className="contents" />}
+              </ChordControls>
+            )}
+            {songLayout === "multilang" && phone && (
+              // Two languages at a time: tap one to swap it in for the one shown
+              // longest. + adds a language; the chips scroll sideways in one row.
+              <div className="-mx-4 -mb-4 mt-3 flex items-center gap-1.5 border-t border-foreground/20 py-2.5 pl-4">
+                <div ref={setLangAddSlot} className="contents" />
+                <div className="catalogue-scroll flex min-w-0 flex-1 gap-1.5 overflow-x-auto pr-4">
+                  {(songLangCols ?? []).map((code) => {
+                    const on = langPair.includes(code);
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() =>
+                          setPickedLangs((p) => tapPairLang(songLangCols ?? [], p, code))
+                        }
+                        className="mono flex h-7 shrink-0 items-center rounded-full border px-3 text-xs uppercase tracking-wider transition"
+                        style={{
+                          borderColor: langColor(code),
+                          backgroundColor: on ? langColor(code) : "transparent",
+                          color: on ? "var(--brand-white)" : undefined,
+                        }}
+                        aria-pressed={on}
+                        title={langDef(code).label}
+                      >
+                        {langDef(code).short}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </PhoneFold>
         </div>
 
-        {songLayout === "multilang" && phone && (
-          // Two languages at a time: tap one to swap it in for the one shown
-          // longest. + adds a language; the chips scroll sideways in one row.
-          <div className="flex shrink-0 items-center gap-1.5 border-b border-foreground/20 py-2.5 pl-4">
-            <div ref={setLangAddSlot} className="contents" />
-            <div className="catalogue-scroll flex min-w-0 flex-1 gap-1.5 overflow-x-auto pr-4">
-              {(songLangCols ?? []).map((code) => {
-                const on = langPair.includes(code);
-                return (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => setPickedLangs((p) => tapPairLang(songLangCols ?? [], p, code))}
-                    className="mono flex h-7 shrink-0 items-center rounded-full border px-3 text-xs uppercase tracking-wider transition"
-                    style={{
-                      borderColor: langColor(code),
-                      backgroundColor: on ? langColor(code) : "transparent",
-                      color: on ? "var(--brand-white)" : undefined,
-                    }}
-                    aria-pressed={on}
-                    title={langDef(code).label}
-                  >
-                    {langDef(code).short}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
         {songLayout === "multilang" && (
           <div className="min-h-0 flex-1 overflow-hidden">
             <MultiLangLyricEditor
@@ -3074,7 +3080,7 @@ function Importers({
 
   if (kind === "scripture" || kind === "message") {
     return (
-      <div className="flex h-full flex-col overflow-hidden">
+      <div className={`flex h-full flex-col overflow-hidden ${phone ? "has-dock relative" : ""}`}>
         {/* API lookup section — persistent, above the verse/block editor, so you
             can import more passages while adding points and images. */}
         <div className="relative z-20 shrink-0 border-b border-foreground/20 p-4">
@@ -3375,7 +3381,7 @@ function Importers({
             onManualVerse={scripture.frozen ? undefined : scripture.addManualVerse}
           />
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div data-editor-scroll className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             {(manualText.trim() || manualText2.trim()) &&
               (scripture.boxMode ? (
                 <ScriptureVerseEditor

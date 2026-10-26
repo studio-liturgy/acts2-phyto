@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PHONE_DOCK_ICON } from "@/components/phone/PhoneChrome";
+import { PHONE_DOCK_ICON, scrollEditorToEnd } from "@/lib/phone-dock";
 import { AlignLeft, Image as ImageIcon, Maximize2, Minimize2, Pencil, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
@@ -72,6 +72,7 @@ export function AddElementBar({
       if (img) {
         addSlide(setId, { kind: "image", imageUrl: img.url, lines: [] });
         becomeMessage();
+        if (icons) scrollEditorToEnd();
       } else {
         setErr((e) => e ?? "That image could not be read.");
       }
@@ -89,6 +90,7 @@ export function AddElementBar({
           : { kind: "point", pointType: "statement", lines: [""] };
     addSlide(setId, base);
     becomeMessage();
+    if (icons) scrollEditorToEnd();
   };
 
   const ICON = `${PHONE_DOCK_ICON} cursor-pointer`;
@@ -131,7 +133,10 @@ export function AddElementBar({
           {onManualVerse && (
             <button
               type="button"
-              onClick={onManualVerse}
+              onClick={() => {
+                onManualVerse();
+                scrollEditorToEnd();
+              }}
               className={ICON}
               title="Manual verse"
               aria-label="Manual verse"

@@ -40,14 +40,14 @@ import {
   saveSharedSet,
   removeSharedSet,
   fetchGroupInvites,
-  createGroup,
   acceptGroupInvite,
   declineGroupInvite,
   type InboxShare,
   type GroupInvite,
 } from "@/lib/sync";
 import { NO_GATHERINGS, NO_IDS, NO_SETS, phoneKindBg, type PhoneTab } from "@/lib/phone-layout";
-import type { Set as PhytoSet, SetKind } from "@/lib/types";
+import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
+import { SlideView } from "@/components/SlideView";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,7 +68,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { BackgroundEditor } from "@/components/BackgroundEditor";
-import { fetchWorkspaceSettings, saveWorkspaceSettings } from "@/lib/workspace-settings";
 import { clearBackToSettings, markBackToSettings } from "@/hooks/use-back-home";
 import { VersionWarning } from "@/components/VersionWarning";
 import { PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
@@ -755,7 +754,7 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
                   );
                 })}
               </span>
-              <span className="mono text-xs uppercase tracking-wider">
+              <span className="mono text-[10px] uppercase tracking-wider">
                 {filterName(kindFilter)}
               </span>
             </div>
@@ -901,33 +900,16 @@ function SettingsTab({
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [manage, setManage] = useState(false);
 
-  // New group, as on the desktop home: name it, then invite people.
-  const [showNewGroup, setShowNewGroup] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
-  const [creatingGroup, setCreatingGroup] = useState(false);
-  const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
-  const inviteGroup = groups.find((g) => g.id === inviteGroupId);
-  const handleCreateGroup = async () => {
-    const name = newGroupName.trim();
-    if (!name || creatingGroup || groups.length >= MAX_GROUPS) return;
-    setCreatingGroup(true);
-    const id = await createGroup(name);
-    setCreatingGroup(false);
-    setShowNewGroup(false);
-    setNewGroupName("");
-    if (id) {
-      const personal = await fetchWorkspaceSettings({ groupId: null });
-      if (personal) await saveWorkspaceSettings({ groupId: id }, personal.settings);
-      await loadGroups();
-      await setActiveWorkspace(id);
-      setInviteGroupId(id);
-    }
-  };
-
-  const ROW = "flex items-center justify-between border-b border-foreground/15 py-4";
   const LABEL = "mono text-xs uppercase tracking-wider";
-  const SECTION = "border-b border-foreground/15 py-4";
-  const HEADING = `${LABEL} mb-3 text-muted-foreground`;
+  const SECTION = "py-4";
+  // Section titles in the page's small mono, quieter than the controls.
+  const HEADING = "mono mb-3 text-[10px] uppercase tracking-wider text-foreground/40";
+  // One of Song Template, Scripture Template and Background open at a time.
+  const [openCard, setOpenCard] = useState<"song" | "scripture" | "background" | null>(null);
+  const cardProps = (card: "song" | "scripture" | "background") => ({
+    open: openCard === card,
+    onOpenChange: (o: boolean) => setOpenCard(o ? card : null),
+  });
   // Settings' pills in the small mono of the Song Template card's title.
   const SMALL = "!py-[7px] !text-[10px] leading-5";
   const S_OUTLINE = `${PILL_OUTLINE} ${SMALL}`;
@@ -953,64 +935,67 @@ function SettingsTab({
   };
 
   return (
-    <PhoneScreen tab="settings" header={<PhoneTitleHeader title="Settings" />}>
+    <PhoneScreen
+      tab="settings"
+      header={<PhoneTitleHeader title="Settings" actions={<ThemeToggle />} />}
+    >
       <div className="px-5 pb-10">
+        {/* As on the desktop header: the group switcher (and Manage in a
+            group), then the sync dot beside the email. */}
         {isSignedIn ? (
-          <div className={ROW}>
-            <span className="mono min-w-0 truncate text-xs uppercase tracking-wider text-foreground/70">
-              {userEmail}
-            </span>
-            {syncStatus !== "offline" && (
-              <span
-                data-sync={syncStatus}
-                className={`h-4 w-4 shrink-0 rounded-full ${syncStatus === "syncing" ? "bg-[var(--brand-orange)]" : "bg-[var(--brand-green)]"}`}
-                title={syncStatus === "syncing" ? "Syncing…" : "Synced"}
-              />
-            )}
-          </div>
-        ) : (
-          <div className={ROW}>
-            <span className={LABEL}>Not signed in</span>
-            <Link to="/login" className={PILL_FILLED}>
-              Sign in
-            </Link>
-          </div>
-        )}
-
-        {/* Groups: switch, manage, create, and invites waiting to be joined. */}
-        {isSignedIn && (
-          <div className={SECTION}>
-            <div className={HEADING}>Groups</div>
-            <div className="flex flex-wrap gap-2">
-              {[{ id: "personal", name: "Personal" }, ...groups].map((g) => (
-                <button
-                  key={g.id}
-                  onClick={() => setActiveWorkspace(g.id)}
-                  className={`${g.id === activeWorkspace ? S_FILLED : S_OUTLINE} ${g.id === "personal" ? "" : "normal-case"}`}
-                >
-                  {g.name}
-                </button>
-              ))}
-              {groups.length < MAX_GROUPS && (
-                <button
-                  onClick={() => setShowNewGroup(true)}
-                  className={`${S_OUTLINE} border-dashed text-muted-foreground`}
-                >
-                  <Plus className="h-3 w-3" /> New group
+          <div className="space-y-3 py-2">
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className={`${S_OUTLINE} gap-1.5`} title="Switch group">
+                    <span className={activeWorkspace === "personal" ? "" : "normal-case"}>
+                      {activeGroup?.name ?? "Personal"}
+                    </span>
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem
+                    onClick={() => setActiveWorkspace("personal")}
+                    className="mono uppercase text-xs tracking-wider"
+                  >
+                    Personal
+                  </DropdownMenuItem>
+                  {groups.map((g) => (
+                    <DropdownMenuItem
+                      key={g.id}
+                      onClick={() => setActiveWorkspace(g.id)}
+                      className="mono text-xs tracking-wider"
+                    >
+                      {g.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {activeGroup && (
+                <button onClick={() => setManage(true)} className={S_OUTLINE}>
+                  Manage
                 </button>
               )}
             </div>
-            {activeGroup && (
-              <button onClick={() => setManage(true)} className={`${S_OUTLINE} mt-3`}>
-                Manage <span className="normal-case">{activeGroup.name}</span>
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {syncStatus !== "offline" && (
+                <span
+                  data-sync={syncStatus}
+                  className={`h-3 w-3 shrink-0 rounded-full ${syncStatus === "syncing" ? "bg-[var(--brand-orange)]" : "bg-[var(--brand-green)]"}`}
+                  title={syncStatus === "syncing" ? "Syncing…" : "Synced"}
+                />
+              )}
+              <span className="mono min-w-0 truncate text-[10px] uppercase tracking-wider text-foreground/60">
+                {userEmail}
+              </span>
+            </div>
             {groupInvites.map((inv) => (
               <div
                 key={inv.inviteId}
-                className="mt-3 flex items-center gap-2 rounded-3xl border border-foreground px-4 py-3"
+                className="flex items-center gap-2 rounded-3xl border border-foreground px-4 py-2"
               >
-                <span className="mono min-w-0 flex-1 text-xs uppercase tracking-wider">
+                <span className="mono min-w-0 flex-1 text-[10px] uppercase tracking-wider">
                   Join <span className="normal-case">{inv.groupName}</span>?
                 </span>
                 <button onClick={() => onAcceptInvite(inv)} className={S_FILLED}>
@@ -1027,22 +1012,31 @@ function SettingsTab({
               </div>
             ))}
           </div>
+        ) : (
+          <div className="flex items-center justify-between py-4">
+            <span className={LABEL}>Not signed in</span>
+            <Link to="/login" className={S_FILLED}>
+              Sign in
+            </Link>
+          </div>
         )}
 
         {/* Slide settings: the presenter's Song Template, Scripture Template
-            and Background cards. */}
+            and Background cards, one open at a time, each over a sample slide. */}
         <div className={SECTION}>
           <div className={HEADING}>Slide settings</div>
           <div className="space-y-3">
-            <SongTemplateEditor />
-            <ScriptureTemplateEditor />
-            <BackgroundEditor phone />
+            <SongTemplateEditor {...cardProps("song")} preview={<SamplePreview kind="song" />} />
+            <ScriptureTemplateEditor
+              {...cardProps("scripture")}
+              preview={<SamplePreview kind="scripture" />}
+            />
+            <BackgroundEditor
+              phone
+              {...cardProps("background")}
+              preview={<SamplePreview kind="song" />}
+            />
           </div>
-        </div>
-
-        <div className={ROW}>
-          <span className={LABEL}>Dark mode</span>
-          <ThemeToggle />
         </div>
 
         {/* The footer's links as pill clusters, grouped like the sections above.
@@ -1213,43 +1207,6 @@ function SettingsTab({
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog
-        open={showNewGroup}
-        onOpenChange={(o) => {
-          if (!o) {
-            setShowNewGroup(false);
-            setNewGroupName("");
-          }
-        }}
-      >
-        <DialogContent className="gap-0 rounded-3xl p-8" aria-describedby={undefined}>
-          <DialogTitle className="text-2xl font-normal leading-tight">New group</DialogTitle>
-          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            Invite people into a group and edit together.
-          </p>
-          <div className="mt-6 flex items-center gap-2">
-            <input
-              autoFocus
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void handleCreateGroup();
-              }}
-              placeholder="Group name"
-              className="mono min-w-0 flex-1 rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
-            />
-            <button
-              type="button"
-              onClick={() => void handleCreateGroup()}
-              disabled={!newGroupName.trim() || creatingGroup}
-              className="mono uppercase rounded-full bg-foreground px-4 py-2 text-xs tracking-wider text-background disabled:opacity-40"
-            >
-              {creatingGroup ? "Creating…" : "Create"}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {activeGroup && (
         <GroupPanelDialog
           open={manage}
@@ -1258,15 +1215,42 @@ function SettingsTab({
           onChanged={loadGroups}
         />
       )}
-      {inviteGroup && (
-        <GroupPanelDialog
-          open={inviteGroupId !== null}
-          onOpenChange={(o) => !o && setInviteGroupId(null)}
-          group={inviteGroup}
-          onChanged={loadGroups}
-          mode="invite"
-        />
-      )}
     </PhoneScreen>
+  );
+}
+
+/* ── Settings' sample slides ───────────────────────────────────────────── */
+
+const SAMPLE_SONG: Slide = {
+  id: "sample-song",
+  kind: "lyric",
+  lines: [
+    "How great is our God",
+    "Sing with me how great is our God",
+    "And all will see how great",
+    "How great is our God",
+  ],
+};
+const SAMPLE_SCRIPTURE: Slide = {
+  id: "sample-scripture",
+  kind: "scripture",
+  lines: [
+    "\u201cFor God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.\u201d",
+  ],
+  reference: "John 3:16 NIV",
+};
+
+/** A sample slide in the template's current look, above its controls. */
+function SamplePreview({ kind }: { kind: "song" | "scripture" }) {
+  const songTemplate = useLibrary((s) => s.songTemplate);
+  const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
+  return (
+    <div className="mb-4 overflow-hidden rounded-lg border border-foreground/20">
+      <SlideView
+        slide={kind === "song" ? SAMPLE_SONG : SAMPLE_SCRIPTURE}
+        template={kind === "song" ? songTemplate : scriptureTemplate}
+        variant="thumb"
+      />
+    </div>
   );
 }

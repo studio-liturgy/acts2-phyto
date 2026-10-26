@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { PHONE_DOCK_ICON } from "@/components/phone/PhoneChrome";
+import { PHONE_DOCK_ICON, scrollEditorToEnd } from "@/lib/phone-dock";
 import { Scissors, SeparatorHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
@@ -660,7 +660,10 @@ export function MultiLangLyricEditor({
     <>
       <button
         type="button"
-        onClick={addLineAtEnd}
+        onClick={() => {
+          addLineAtEnd();
+          scrollEditorToEnd();
+        }}
         className={PHONE_DOCK_ICON}
         title="Add a line"
         aria-label="Add a line"
@@ -681,7 +684,11 @@ export function MultiLangLyricEditor({
       </button>
       <button
         type="button"
-        onClick={addSection}
+        onClick={() => {
+          const atEnd = focusRowRef.current === null;
+          addSection();
+          if (atEnd) scrollEditorToEnd();
+        }}
         className={PHONE_DOCK_ICON}
         title="Add a section"
         aria-label="Add a section"
@@ -763,7 +770,7 @@ export function MultiLangLyricEditor({
           : toolbar}
       {visibleLangs && langAddSlot && phoneLangAdd && createPortal(phoneLangAdd, langAddSlot)}
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto border-t">
+      <div ref={scrollRef} data-editor-scroll className="min-h-0 flex-1 overflow-auto border-t">
         <div className="grid" style={{ gridTemplateColumns: gridCols }}>
           <div className="sticky left-0 top-0 z-20 border-b border-r bg-background" />
           {cols.map((code) => (

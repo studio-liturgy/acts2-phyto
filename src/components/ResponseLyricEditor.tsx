@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PHONE_DOCK_ICON } from "@/components/phone/PhoneChrome";
+import { PHONE_DOCK_ICON, scrollEditorToEnd } from "@/lib/phone-dock";
 import { Scissors, SeparatorHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { createPortal } from "react-dom";
@@ -286,7 +286,10 @@ export function ResponseLyricEditor({
     <>
       <button
         type="button"
-        onClick={addLineAtEnd}
+        onClick={() => {
+          addLineAtEnd();
+          scrollEditorToEnd();
+        }}
         className={PHONE_DOCK_ICON}
         title="Add a line"
         aria-label="Add a line"
@@ -307,7 +310,11 @@ export function ResponseLyricEditor({
       </button>
       <button
         type="button"
-        onClick={onAddSection}
+        onClick={() => {
+          const atEnd = focusIndex.current === null;
+          onAddSection();
+          if (atEnd) scrollEditorToEnd();
+        }}
         className={PHONE_DOCK_ICON}
         title="Add a section"
         aria-label="Add a section"
@@ -335,7 +342,7 @@ export function ResponseLyricEditor({
     <div className="flex h-full flex-col">
       {toolbarSlot ? createPortal(phoneButtons ?? sectionButton, toolbarSlot) : sectionButton}
 
-      <div className="catalogue-scroll min-h-0 flex-1 overflow-auto border-t">
+      <div data-editor-scroll className="catalogue-scroll min-h-0 flex-1 overflow-auto border-t">
         <div className="grid" style={{ gridTemplateColumns: `${FIRST_COL} minmax(0, 1fr)` }}>
           {rows.map((row) => {
             if (row.kind === "section") {

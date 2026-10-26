@@ -10,13 +10,24 @@ export function FoldCard({
   title,
   ariaLabel,
   children,
+  open: openProp,
+  onOpenChange,
 }: {
+  /** Controlled: a group of cards where one opens at a time. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   title: ReactNode;
   /** What the bar does, read out with "Show" / "Hide" in front. */
   ariaLabel: string;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openSelf, setOpenSelf] = useState(false);
+  const open = openProp ?? openSelf;
+  const setOpen = (fn: (o: boolean) => boolean) => {
+    const next = fn(open);
+    if (onOpenChange) onOpenChange(next);
+    else setOpenSelf(next);
+  };
   return (
     // Folded, it's a pill the size of the importer's search bar (40px tall,
     // text 16px in); open, it rounds like the Chord Sheet.

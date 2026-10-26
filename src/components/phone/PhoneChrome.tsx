@@ -177,8 +177,10 @@ export function PhoneFold({
 
 /**
  * A phone editor's secondary bar: its add buttons as icons, in the top half
- * of a rounded rectangle sitting on the editor tabs (not full width).
- * `slotRef` lets an editor portal its own buttons in.
+ * of a rounded rectangle sitting on the editor tabs (not full width). It
+ * floats over the editor, so only the rounded tab shows; the editor's
+ * scroller (data-editor-scroll) gets room beneath via `.has-dock` (styles.css).
+ * Put `has-dock relative` on the editor. `slotRef` lets an editor portal in.
  */
 export function PhoneDock({
   children,
@@ -188,17 +190,13 @@ export function PhoneDock({
   slotRef?: (el: HTMLDivElement | null) => void;
 }) {
   return (
-    <div className="flex shrink-0 justify-center pt-2">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center">
       <div
         ref={slotRef}
-        className="flex items-center gap-0.5 rounded-t-2xl border border-b-0 border-foreground/30 px-2 pt-1 empty:hidden"
+        className="pointer-events-auto flex items-center gap-0.5 rounded-t-2xl border border-b-0 border-foreground/30 bg-background px-2 pt-1 empty:hidden"
       >
         {children}
       </div>
     </div>
   );
 }
-
-/** A button in the PhoneDock. */
-export const PHONE_DOCK_ICON =
-  "pill flex h-9 w-9 shrink-0 items-center justify-center transition active:bg-foreground/15 disabled:opacity-40";

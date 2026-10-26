@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useLibrary } from "@/lib/store";
 import { FoldCard } from "@/components/FoldCard";
 
@@ -8,7 +9,16 @@ const FONT_OPTIONS: { label: string; value: string }[] = [
 ];
 
 /** Changes apply as they're made: no Apply step. */
-export function ScriptureTemplateEditor() {
+export function ScriptureTemplateEditor({
+  open,
+  onOpenChange,
+  preview,
+}: {
+  /** The phone's Settings: one card open at a time, a sample slide on top. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  preview?: ReactNode;
+} = {}) {
   const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
   const setScriptureTemplate = useLibrary((s) => s.setScriptureTemplate);
   const t = {
@@ -20,7 +30,13 @@ export function ScriptureTemplateEditor() {
   const update = (patch: Partial<typeof t>) => setScriptureTemplate(patch);
 
   return (
-    <FoldCard title="Scripture Template" ariaLabel="the scripture template">
+    <FoldCard
+      title="Scripture Template"
+      ariaLabel="the scripture template"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      {preview}
       <div className="space-y-4 text-sm">
         {/* Font size */}
         <div>
