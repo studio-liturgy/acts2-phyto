@@ -648,7 +648,23 @@ export function MultiLangLyricEditor({
   );
   // Phone: + Section alone in the toolbar; + (a language) opens beside the
   // language chips, which live in their own scrolling row.
-  const phoneToolbar = sectionButton;
+  const phoneToolbar = (
+    <>
+      {sectionButton}
+      <button
+        type="button"
+        onClick={() => {
+          const at = focusRowRef.current ?? 0;
+          if (at > 0 && rows[at - 1]?.kind !== "break") splitAbove(at);
+        }}
+        className="mono flex h-7 shrink-0 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        title="Start a new slide above the line your cursor is on"
+      >
+        <Plus className="h-3 w-3" />
+        Slide break
+      </button>
+    </>
+  );
   const phoneLangAdd =
     available.length > 0 ? (
       <LangPicker available={available} onAdd={(c) => setLangs([...langs, c])} label="" />
@@ -906,7 +922,8 @@ export function MultiLangLyricEditor({
             style={{ gridColumn: "1 / -1" }}
             className="mono flex items-center justify-center gap-1 border-t py-2 text-xs uppercase tracking-wider opacity-50 hover:opacity-100"
           >
-            <span className="sticky left-1/2 flex items-center gap-1">
+            {/* Centred in view: its left edge held at the middle, then pulled back half its width. */}
+            <span className="sticky left-1/2 flex -translate-x-1/2 items-center gap-1">
               <Plus className="h-3 w-3" /> Line
             </span>
           </button>

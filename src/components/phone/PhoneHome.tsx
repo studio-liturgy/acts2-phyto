@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
+import { useAccountSlug } from "@/hooks/use-account-slug";
 import { deleteAccount } from "@/lib/account";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useSyncStatus } from "@/hooks/use-sync-status";
@@ -263,9 +264,16 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
     [gatheringOrder, gatherings],
   );
   const primary = order.length ? gatherings[order[0]] : null;
+  // Look the share link up now, so the Share sheet opens with it ready
+  // instead of fetching on the first tap.
+  useAccountSlug({
+    scope: { groupId: primary?.group_id ?? null },
+    seed: primary?.share_token ?? "",
+    enabled: false,
+  });
 
   // Each gathering's card: its name, Edit, Go live (or End Session), sets.
-  const renderCard = (id: string) => {
+  const renderCard = (id: string, small = false) => {
     const g = gatherings[id];
     if (!g) return null;
     const live = g.is_live === null ? false : isLiveNow(g);
@@ -275,7 +283,7 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
           <Link
             to="/present"
             search={{ gathering: id }}
-            className="mr-0.5 min-w-0 flex-1 truncate text-2xl"
+            className={`mr-0.5 min-w-0 flex-1 truncate tracking-[-0.045em] ${small ? "text-lg" : "text-2xl"}`}
           >
             {g.name}
           </Link>
@@ -379,22 +387,34 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
           (auto margins centre without cutting off the top once it grows). */}
         <div className={`space-y-2 px-5 pb-8 ${liveIds.length > 0 ? "my-auto" : ""}`}>
           {order.length === 0 ? (
-            <div className="mono uppercase rounded-3xl border border-foreground p-8 text-center text-sm text-muted-foreground">
+            <div className="mono uppercase rounded-3xl border border-foreground p-8 text-center text-xs tracking-wider text-muted-foreground">
               No gatherings yet. Tap New to plan a gathering!
             </div>
           ) : (
             <>
-              {liveIds.map(renderCard)}
+              {liveIds.map((id) => renderCard(id))}
               {/* While one is live, the rest wait behind one row. */}
               {liveIds.length > 0 && otherIds.length > 0 && (
                 <>
                   <button
                     type="button"
-                    onClick={() => setOthersOpen((o) => !o)}
+                    onClick={(e) => {
+                      const opening = !othersOpen;
+                      setOthersOpen(opening);
+                      // Opening: glide down with the cards as they splay out,
+                      // so this row lands at the top with the first one below.
+                      if (opening) {
+                        const row = e.currentTarget;
+                        setTimeout(
+                          () => row.scrollIntoView({ behavior: "smooth", block: "start" }),
+                          120,
+                        );
+                      }
+                    }}
                     aria-expanded={othersOpen}
                     className="mono flex w-full items-center justify-center gap-2 py-3 text-xs uppercase tracking-wider"
                   >
-                    <span>Other gatherings ({otherIds.length})</span>
+                    <span>Other gatherings</span>
                     <ChevronDown
                       className={`h-4 w-4 transition-transform duration-300 ${othersOpen ? "rotate-180" : ""}`}
                     />
@@ -416,14 +436,14 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
                             transitionDelay: othersOpen ? `${80 + k * 60}ms` : "0ms",
                           }}
                         >
-                          {renderCard(id)}
+                          {renderCard(id, true)}
                         </div>
                       ))}
                     </div>
                   </div>
                 </>
               )}
-              {liveIds.length === 0 && otherIds.map(renderCard)}
+              {liveIds.length === 0 && otherIds.map((id) => renderCard(id))}
             </>
           )}
         </div>
@@ -744,7 +764,7 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
     >
       <div className="px-5 pb-8">
         {rows.length === 0 ? (
-          <div className="mono uppercase rounded-3xl border border-foreground p-8 text-center text-sm text-muted-foreground">
+          <div className="mono uppercase rounded-3xl border border-foreground p-8 text-center text-xs tracking-wider text-muted-foreground">
             {query.trim() ? `Nothing matches "${query}"` : EMPTY_LABEL[kindFilter]}
           </div>
         ) : (
@@ -1015,7 +1035,7 @@ function SettingsTab({
           <div className="space-y-3">
             <SongTemplateEditor />
             <ScriptureTemplateEditor />
-            <BackgroundEditor />
+            <BackgroundEditor phone />
           </div>
         </div>
 
@@ -1106,7 +1126,7 @@ function SettingsTab({
                 setDeleteError(null);
                 setConfirmDelete(true);
               }}
-              className={`${S_OUTLINE} mt-2 w-full justify-center border-[var(--brand-red)] text-[var(--brand-red)] active:bg-[var(--brand-red)] active:text-[var(--brand-white)]`}
+              className={`${S_OUTLINE} mt-2 w-full justify-center !border-[var(--brand-red)] text-[var(--brand-red)] active:bg-[var(--brand-red)] active:text-[var(--brand-white)]`}
             >
               Delete Account
             </button>
@@ -1129,7 +1149,7 @@ function SettingsTab({
             value={confirmEmail}
             onChange={(e) => setConfirmEmail(e.target.value)}
             placeholder={userEmail ?? "your email"}
-            className="mono mt-4 w-full rounded-full border border-foreground bg-background px-4 py-2 text-[16px] outline-none"
+            className="mono mt-4 w-full rounded-full border border-foreground bg-background px-4 py-2 text-xs outline-none"
           />
           {deleteError && (
             <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">

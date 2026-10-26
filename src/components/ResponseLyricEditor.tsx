@@ -65,6 +65,7 @@ export function ResponseLyricEditor({
   chords,
   onCommit,
   toolbarSlot,
+  phone = false,
   onUndo,
   onRedo,
 }: {
@@ -80,6 +81,8 @@ export function ResponseLyricEditor({
   ) => void;
   /** Where + Section goes (the Lines per slide row, after Align). */
   toolbarSlot?: HTMLElement | null;
+  /** Phone: + Slide break joins + Section (the seams above lines need a hover). */
+  phone?: boolean;
   onUndo: () => void;
   onRedo: () => void;
 }) {
@@ -275,6 +278,24 @@ export function ResponseLyricEditor({
     </button>
   );
 
+  const phoneButtons = phone ? (
+    <>
+      {sectionButton}
+      <button
+        type="button"
+        onClick={() => {
+          const at = focusIndex.current ?? 0;
+          if (at > 0) commit(breakBefore(doc(), at), undefined, false, true);
+        }}
+        className="mono flex h-7 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        title="Start a new slide above the line your cursor is on"
+      >
+        <Plus className="h-3 w-3" />
+        Slide break
+      </button>
+    </>
+  ) : null;
+
   if (rows.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
@@ -291,7 +312,7 @@ export function ResponseLyricEditor({
 
   return (
     <div className="flex h-full flex-col">
-      {toolbarSlot ? createPortal(sectionButton, toolbarSlot) : sectionButton}
+      {toolbarSlot ? createPortal(phoneButtons ?? sectionButton, toolbarSlot) : sectionButton}
 
       <div className="catalogue-scroll min-h-0 flex-1 overflow-auto border-t">
         <div className="grid" style={{ gridTemplateColumns: `${FIRST_COL} minmax(0, 1fr)` }}>

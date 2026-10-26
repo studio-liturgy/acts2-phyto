@@ -1,5 +1,5 @@
 import { Link, Navigate } from "@tanstack/react-router";
-import { ArrowUpLeft, Layers, Library, Settings } from "lucide-react";
+import { ArrowUpLeft, ChevronDown, Layers, Library, Settings } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import type { PhoneTab } from "@/lib/phone-layout";
 import { useAuthStore } from "@/lib/authStore";
@@ -126,5 +126,51 @@ export function PhoneTabBar({ tab }: { tab: PhoneTab }) {
         </Link>
       ))}
     </nav>
+  );
+}
+
+/**
+ * A phone editor's importer that folds away, like the Song Template and
+ * Background cards: a title row with a chevron, and the body sliding open or
+ * shut beneath it (pushing the editor below up or down). Sits inside the
+ * importer's own padded box. Clips only while shut, so the importer's
+ * dropdowns can spill out while it's open.
+ */
+export function PhoneFold({
+  enabled = true,
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  /** False (the desktop): just the children, no fold. */
+  enabled?: boolean;
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  if (!enabled) return <>{children}</>;
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={`mono flex w-full items-center justify-between text-[10px] uppercase leading-5 tracking-wider text-muted-foreground transition-[padding] duration-200 ${open ? "pb-2" : ""}`}
+      >
+        <span>{title}</span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className={`min-h-0 ${open ? "" : "overflow-hidden"}`}>{children}</div>
+      </div>
+    </div>
   );
 }

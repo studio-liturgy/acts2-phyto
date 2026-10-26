@@ -49,7 +49,7 @@ export function PhoneAddSetSheet({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search"
-              className="mono uppercase min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground"
+              className="mono uppercase min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
             />
             {query && (
               <button

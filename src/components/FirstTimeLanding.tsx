@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Plus, ArrowUpRight, ArrowDown, X } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDown, ArrowLeft, X } from "lucide-react";
 import { Fragment, forwardRef, useEffect, useRef, useState } from "react";
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import wordmark from "@/assets/wordmark.svg";
 import wordmarkTest from "@/assets/wordmark-test.svg";
 import { PHONE_UI } from "@/lib/phone-layout";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
+import { usePhoneLayout } from "@/hooks/use-phone-layout";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
 const aboutBg = "/about-bg.jpg";
@@ -271,6 +272,8 @@ export function FirstTimeLanding({
   usePageBackgroundColor("var(--brand-blue)");
   // Opened from the phone's Settings tab: Back returns there.
   const backSearch = useBackHomeSearch();
+  // Phone: Updates' plain Back, no account chrome, back to top in the footer.
+  const phone = usePhoneLayout() === true;
 
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -565,7 +568,16 @@ export function FirstTimeLanding({
             button gives the normal header, so the pills sit at the identical position. */}
         <div className="absolute inset-x-0 top-0">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 pt-6 md:pt-10">
-            {!isEmpty && !signInOnly && (
+            {!isEmpty && !signInOnly && phone && (
+              <Link
+                to="/"
+                search={backSearch}
+                className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--brand-white)] opacity-80 transition-opacity hover:opacity-60"
+              >
+                <ArrowLeft className="h-3 w-3" /> BACK
+              </Link>
+            )}
+            {!isEmpty && !signInOnly && !phone && (
               <Link
                 to="/"
                 search={backSearch}
@@ -582,7 +594,7 @@ export function FirstTimeLanding({
                 Sign in
               </Link>
             )}
-            {isSignedIn && (
+            {isSignedIn && !phone && (
               <button
                 onClick={onSignOut}
                 className="pill mono uppercase border border-[var(--brand-white)] px-4 py-1.5 text-xs tracking-wider text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"
@@ -590,12 +602,12 @@ export function FirstTimeLanding({
                 Sign out
               </button>
             )}
-            {isSignedIn && syncStatus !== "offline" && userEmail && (
+            {isSignedIn && !phone && syncStatus !== "offline" && userEmail && (
               <span className="mono text-xs uppercase tracking-wider text-[var(--brand-white)]/70">
                 {userEmail}
               </span>
             )}
-            {isSignedIn && syncStatus !== "offline" && (
+            {isSignedIn && !phone && syncStatus !== "offline" && (
               <span
                 data-sync={syncStatus}
                 className={`h-4 w-4 rounded-full ${syncStatus === "syncing" ? "bg-[var(--brand-orange)]" : "bg-[var(--brand-green)]"}`}
@@ -1156,7 +1168,7 @@ export function FirstTimeLanding({
           </Link>
           .
         </p>
-        <BackToTop />
+        {!phone && <BackToTop />}
       </div>
 
       {/* ── Partnership band + slim footer (one continuous blue band) ── */}
@@ -1195,32 +1207,56 @@ export function FirstTimeLanding({
           </div>
         </div>
 
-        {/* slim footer row */}
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-10 py-8 md:flex-row md:items-center md:justify-between md:px-6">
-          <nav className="flex items-center gap-6 text-xs">
-            <Link to="/feedback" className={linkCls}>
-              Feedback
-            </Link>
-            {!isTest && (
-              <Link to="/updates" className={linkCls}>
-                Updates
+        {/* slim footer row; the phone's is one row, then back to top. */}
+        {phone ? (
+          <div className="flex flex-col items-center gap-6 px-6 pb-10 pt-8">
+            <nav className="flex items-center justify-center gap-6 text-xs">
+              <Link to="/feedback" className={linkCls}>
+                Feedback
               </Link>
-            )}
-          </nav>
-          <nav className="flex items-center gap-6 text-xs">
-            <Link to="/legal" className={`${linkCls} whitespace-nowrap`}>
-              Legal
-            </Link>
-            <a
-              href="https://github.com/studio-liturgy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${linkCls} whitespace-nowrap`}
-            >
-              Source
-            </a>
-          </nav>
-        </div>
+              <Link to="/legal" className={`${linkCls} whitespace-nowrap`}>
+                Legal
+              </Link>
+              <a
+                href="https://github.com/studio-liturgy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${linkCls} whitespace-nowrap`}
+              >
+                Source
+              </a>
+            </nav>
+            <BackToTop />
+          </div>
+        ) : (
+          <>
+            <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-10 py-8 md:flex-row md:items-center md:justify-between md:px-6">
+              <nav className="flex items-center gap-6 text-xs">
+                <Link to="/feedback" className={linkCls}>
+                  Feedback
+                </Link>
+                {!isTest && (
+                  <Link to="/updates" className={linkCls}>
+                    Updates
+                  </Link>
+                )}
+              </nav>
+              <nav className="flex items-center gap-6 text-xs">
+                <Link to="/legal" className={`${linkCls} whitespace-nowrap`}>
+                  Legal
+                </Link>
+                <a
+                  href="https://github.com/studio-liturgy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${linkCls} whitespace-nowrap`}
+                >
+                  Source
+                </a>
+              </nav>
+            </div>
+          </>
+        )}
       </section>
     </main>
   );

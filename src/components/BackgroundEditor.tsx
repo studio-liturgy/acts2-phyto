@@ -12,17 +12,22 @@ const LABEL = "mono mb-2 text-[10px] uppercase tracking-wider text-muted-foregro
  * screen's shape, from watch's Edit Background. Lives in the presenter.
  * Changes apply as they're made: no Apply step.
  */
-export function BackgroundEditor() {
+export function BackgroundEditor({ phone = false }: { phone?: boolean } = {}) {
   return (
     <FoldCard title="Background" ariaLabel="the background">
-      <BackgroundControls />
+      <BackgroundControls phone={phone} />
     </FoldCard>
   );
 }
 
 /** The Background card's controls, also in the export dialog. They edit the
  *  same setting wherever they're shown. */
-export function BackgroundControls() {
+export function BackgroundControls({
+  phone = false,
+}: {
+  /** The phone's Settings: the card's title already says Background. */
+  phone?: boolean;
+} = {}) {
   const background = useLibrary((s) => s.background);
   const setBackground = useLibrary((s) => s.setBackground);
   // With an image behind the slide the solid colour is hidden, so the same
@@ -49,7 +54,9 @@ export function BackgroundControls() {
   return (
     <div className="space-y-4 text-sm">
       <div>
-        <div className={LABEL}>{hasImage ? "Font colour" : "Background"}</div>
+        {(hasImage || !phone) && (
+          <div className={LABEL}>{hasImage ? "Font colour" : "Background"}</div>
+        )}
         <div className="grid grid-cols-2 gap-2">
           {hasImage ? (
             <>

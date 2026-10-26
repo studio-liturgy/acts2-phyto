@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { touchReorder } from "@/lib/touch-reorder";
+import { PhoneFold } from "@/components/phone/PhoneChrome";
 import { DotsGrip } from "@/components/DragBits";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
@@ -1357,7 +1358,10 @@ function PillInput({
   onChange,
   placeholder,
   onEnter,
+  small = false,
 }: {
+  /** The phone's search size (text-xs, like every phone search bar). */
+  small?: boolean;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
@@ -1369,7 +1373,7 @@ function PillInput({
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => e.key === "Enter" && onEnter?.()}
       placeholder={placeholder}
-      className="pill mono uppercase w-full border border-foreground bg-background px-4 py-1.5 text-sm outline-none focus:ring-1 focus:ring-foreground"
+      className={`pill mono uppercase w-full border border-foreground bg-background px-4 outline-none focus:ring-1 focus:ring-foreground ${small ? "py-2 text-xs" : "py-1.5 text-sm"}`}
     />
   );
 }
@@ -1493,7 +1497,8 @@ function SlideGrid({
       },
       onOver: (idx, row, y) => {
         const target = displaySlides[idx];
-        if (!target || target.id === s.id) return;
+        // The dragged slide, not this grip's: callbacks refresh from any tile.
+        if (!target || target.id === draggingId) return;
         const rect = row.getBoundingClientRect();
         previewAt(target, y > rect.top + rect.height / 2);
       },
@@ -1929,6 +1934,8 @@ function Importers({
    *  from a chip bar above the grid. */
   phone?: boolean;
 }) {
+  // Phone: the importer folds away (song search, scripture lookup).
+  const [importOpen, setImportOpen] = useState(true);
   const { addSlide, updateSet } = useLibrary();
   const songLangCols = useLibrary((s) => s.sets[setId]?.langs);
   const [pickedLangs, setPickedLangs] = useState<LangCode[]>([]);
@@ -2183,9 +2190,7 @@ function Importers({
           },
         }),
       )}
-      {/* Phone: + Section (portalled in by the grid editors), then the
-          song's mode as its pattern. */}
-      {phone && songLayout !== "standard" && <div ref={setToolbarSlot} className="contents" />}
+      {/* Phone: the song's mode, as its pattern, after C. */}
       {phone && <SongModePicker setId={setId} compact />}
       {songLayout === "response" && (
         <>
@@ -2571,167 +2576,178 @@ function Importers({
       <div className="flex h-full flex-col gap-0 overflow-hidden">
         {/* Search bar */}
         <div ref={searchBoxRef} className="shrink-0 border-b border-foreground/20 p-4">
-          <form onSubmit={runSongSearch} className="flex gap-2">
-            <div className="pill relative flex flex-1 items-center gap-2 border border-foreground bg-background px-4 py-2">
-              <input
-                value={songQuery}
-                onChange={(e) => setSongQuery(e.target.value)}
-                onFocus={() => {
-                  // Refocusing shows the same results again without re-searching.
-                  if (songResults.length > 0 || songErr) setResultsOpen(true);
-                }}
-                aria-label="Search for a song"
-                className="mono uppercase w-full bg-transparent text-sm outline-none"
-              />
-              {/* A single native placeholder can't crossfade between two strings,
+          <PhoneFold
+            enabled={!!phone}
+            title="Import"
+            open={importOpen}
+            onToggle={() => setImportOpen((o) => !o)}
+          >
+            <form onSubmit={runSongSearch} className="flex gap-2">
+              <div className="pill relative flex flex-1 items-center gap-2 border border-foreground bg-background px-4 py-2">
+                <input
+                  value={songQuery}
+                  onChange={(e) => setSongQuery(e.target.value)}
+                  onFocus={() => {
+                    // Refocusing shows the same results again without re-searching.
+                    if (songResults.length > 0 || songErr) setResultsOpen(true);
+                  }}
+                  aria-label="Search for a song"
+                  className={`mono uppercase w-full bg-transparent outline-none ${phone ? "text-xs" : "text-sm"}`}
+                />
+                {/* A single native placeholder can't crossfade between two strings,
                   so it's faked: two stacked labels trading opacity, hidden the
                   moment there's real input. pointer-events-none keeps clicks
                   landing on the input underneath. */}
-              {!songQuery && (
-                <div className="pointer-events-none absolute inset-y-0 left-4 right-4 flex items-center overflow-hidden">
-                  {SEARCH_PLACEHOLDERS.map((text, i) => (
-                    <span
-                      key={text}
-                      className={`mono uppercase absolute truncate text-sm text-muted-foreground transition-opacity duration-700 ${
-                        i === placeholderIdx ? "opacity-100" : "opacity-0"
-                      }`}
-                    >
-                      {text}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button
-              type="submit"
-              disabled={songSearching || !songQuery.trim()}
-              className="pill flex h-10 w-10 items-center justify-center bg-foreground text-background transition hover:opacity-90 disabled:opacity-50"
-              aria-label="Search"
-            >
-              {songSearching ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-            </button>
-          </form>
-          <SongModeDialog
-            question={modeQuestion}
-            onCancel={() => setModeQuestion(null)}
-            onAnswer={(next, lang) => {
-              setModeQuestion(null);
-              switchLayout(next, lang);
-            }}
-          />
-          {songErr && resultsOpen && (
-            <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
-              {songErr}
-            </p>
-          )}
-          {songResults.length > 0 && resultsOpen && (
-            <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-2xl border border-foreground bg-background p-1">
-              {songResults.map((s, idx) => {
-                // Thin blue line at the boundary between local DB results and
-                // online results (only when there are local results above).
-                const showDivider =
-                  s.source === "online" && songResults[idx - 1]?.source === "local";
-                return (
-                  <Fragment key={`${s.title}-${s.artist}-${idx}`}>
-                    {showDivider && <div className="mx-2 my-1 h-px bg-[var(--brand-blue)]" />}
-                    <button
-                      onClick={() => {
-                        // Bumping the sequence retires the online half of the
-                        // search that is still in flight. Without it, results
-                        // arriving after the click paint back over the song
-                        // the user already picked.
-                        searchSeq.current++;
-                        setSongSearching(false);
-                        setSongErr(null);
-                        const imported = applyDividers(s.lyrics, linesPer);
-                        const open = useLibrary.getState().sets[setId];
-                        if (open?.customBreaks) updateSet(setId, { customBreaks: undefined });
-                        if (open && songLayoutOf(open) === "multilang") {
-                          // Into the grid's first column, one line per slide.
-                          // English if the song has an English column.
-                          const first = open.langs?.includes("en")
-                            ? "en"
-                            : (open.langs?.[0] ?? "en");
-                          // The other columns keep their words, line by line.
-                          const langs = open.langs?.length ? open.langs : [first];
-                          updateSet(setId, {
-                            langs,
-                            slides: rowsToSlides(
-                              returnToMultilang(
-                                { kept: first, langs, rows: slidesToRows(open.slides) },
-                                lyricsToSlides(imported),
+                {!songQuery && (
+                  <div className="pointer-events-none absolute inset-y-0 left-4 right-4 flex items-center overflow-hidden">
+                    {SEARCH_PLACEHOLDERS.map((text, i) => (
+                      <span
+                        key={text}
+                        className={`mono uppercase absolute truncate text-muted-foreground transition-opacity duration-700 ${phone ? "text-xs" : "text-sm"} ${
+                          i === placeholderIdx ? "opacity-100" : "opacity-0"
+                        }`}
+                      >
+                        {text}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                type="submit"
+                disabled={songSearching || !songQuery.trim()}
+                className="pill flex h-10 w-10 items-center justify-center bg-foreground text-background transition hover:opacity-90 disabled:opacity-50"
+                aria-label="Search"
+              >
+                {songSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+              </button>
+            </form>
+            <SongModeDialog
+              question={modeQuestion}
+              onCancel={() => setModeQuestion(null)}
+              onAnswer={(next, lang) => {
+                setModeQuestion(null);
+                switchLayout(next, lang);
+              }}
+            />
+            {songErr && resultsOpen && (
+              <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+                {songErr}
+              </p>
+            )}
+            {songResults.length > 0 && resultsOpen && (
+              <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-2xl border border-foreground bg-background p-1">
+                {songResults.map((s, idx) => {
+                  // Thin blue line at the boundary between local DB results and
+                  // online results (only when there are local results above).
+                  const showDivider =
+                    s.source === "online" && songResults[idx - 1]?.source === "local";
+                  return (
+                    <Fragment key={`${s.title}-${s.artist}-${idx}`}>
+                      {showDivider && <div className="mx-2 my-1 h-px bg-[var(--brand-blue)]" />}
+                      <button
+                        onClick={() => {
+                          // Bumping the sequence retires the online half of the
+                          // search that is still in flight. Without it, results
+                          // arriving after the click paint back over the song
+                          // the user already picked.
+                          searchSeq.current++;
+                          setSongSearching(false);
+                          setSongErr(null);
+                          const imported = applyDividers(s.lyrics, linesPer);
+                          const open = useLibrary.getState().sets[setId];
+                          if (open?.customBreaks) updateSet(setId, { customBreaks: undefined });
+                          if (open && songLayoutOf(open) === "multilang") {
+                            // Into the grid's first column, one line per slide.
+                            // English if the song has an English column.
+                            const first = open.langs?.includes("en")
+                              ? "en"
+                              : (open.langs?.[0] ?? "en");
+                            // The other columns keep their words, line by line.
+                            const langs = open.langs?.length ? open.langs : [first];
+                            updateSet(setId, {
+                              langs,
+                              slides: rowsToSlides(
+                                returnToMultilang(
+                                  { kept: first, langs, rows: slidesToRows(open.slides) },
+                                  lyricsToSlides(imported),
+                                ),
+                                shownLangs(langs, open.langsShown),
                               ),
-                              shownLangs(langs, open.langsShown),
-                            ),
+                            });
+                            setGridKey((k) => k + 1);
+                          }
+                          setRoles([]);
+                          setLyrics(imported);
+                          setSongResults([]);
+                          setPreview(null);
+                          // The toggle's own state is preserved exactly — picking
+                          // a search result isn't the same as pasting a chord
+                          // sheet, so it never switches chords on by itself.
+                          //
+                          // The KEY is recorded either way, though. The library
+                          // ships the key the song was actually published in for
+                          // all but a handful of its chorded songs, and that tag
+                          // is the real answer: throwing it away because the
+                          // toggle happened to be off meant turning chords on
+                          // later had nothing left to go on and fell back to
+                          // guessing from the chords. On a song that doesn't open
+                          // on its tonic that guess is simply wrong — 10,000
+                          // Reasons opens "Bless the (C)Lord" but is published in
+                          // G, so it came out a fourth off.
+                          const currentChords = useLibrary.getState().sets[setId]?.chords;
+                          const chordsCurrentlyOn = !!currentChords && !currentChords.hidden;
+                          const importedKey =
+                            (s.key ? normaliseKeyTag(s.key) : null) ?? guessKey(imported);
+                          updateSet(setId, {
+                            name: s.title,
+                            ...(hasChords(imported) && importedKey
+                              ? {
+                                  chords: {
+                                    key: importedKey,
+                                    display: currentChords?.display ?? "letters",
+                                    hidden: !chordsCurrentlyOn,
+                                  },
+                                }
+                              : {}),
                           });
-                          setGridKey((k) => k + 1);
+                        }}
+                        onMouseEnter={(e) =>
+                          setPreview({
+                            text: chordFreePreview(s.lyrics),
+                            x: e.clientX,
+                            y: e.clientY,
+                          })
                         }
-                        setRoles([]);
-                        setLyrics(imported);
-                        setSongResults([]);
-                        setPreview(null);
-                        // The toggle's own state is preserved exactly — picking
-                        // a search result isn't the same as pasting a chord
-                        // sheet, so it never switches chords on by itself.
-                        //
-                        // The KEY is recorded either way, though. The library
-                        // ships the key the song was actually published in for
-                        // all but a handful of its chorded songs, and that tag
-                        // is the real answer: throwing it away because the
-                        // toggle happened to be off meant turning chords on
-                        // later had nothing left to go on and fell back to
-                        // guessing from the chords. On a song that doesn't open
-                        // on its tonic that guess is simply wrong — 10,000
-                        // Reasons opens "Bless the (C)Lord" but is published in
-                        // G, so it came out a fourth off.
-                        const currentChords = useLibrary.getState().sets[setId]?.chords;
-                        const chordsCurrentlyOn = !!currentChords && !currentChords.hidden;
-                        const importedKey =
-                          (s.key ? normaliseKeyTag(s.key) : null) ?? guessKey(imported);
-                        updateSet(setId, {
-                          name: s.title,
-                          ...(hasChords(imported) && importedKey
-                            ? {
-                                chords: {
-                                  key: importedKey,
-                                  display: currentChords?.display ?? "letters",
-                                  hidden: !chordsCurrentlyOn,
-                                },
-                              }
-                            : {}),
-                        });
-                      }}
-                      onMouseEnter={(e) =>
-                        setPreview({ text: chordFreePreview(s.lyrics), x: e.clientX, y: e.clientY })
-                      }
-                      onMouseMove={(e) =>
-                        setPreview((p) =>
-                          p
-                            ? { ...p, x: e.clientX, y: e.clientY }
-                            : { text: chordFreePreview(s.lyrics), x: e.clientX, y: e.clientY },
-                        )
-                      }
-                      onMouseLeave={() => setPreview(null)}
-                      className="group flex w-full items-center gap-2 rounded-xl p-2 text-left text-sm transition hover:bg-muted"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-bold">{s.title}</div>
-                        <div className="mono uppercase truncate text-xs text-muted-foreground">
-                          {s.artist}
-                          {s.album ? ` · ${s.album}` : ""}
+                        onMouseMove={(e) =>
+                          setPreview((p) =>
+                            p
+                              ? { ...p, x: e.clientX, y: e.clientY }
+                              : { text: chordFreePreview(s.lyrics), x: e.clientX, y: e.clientY },
+                          )
+                        }
+                        onMouseLeave={() => setPreview(null)}
+                        className="group flex w-full items-center gap-2 rounded-xl p-2 text-left text-sm transition hover:bg-muted"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-bold">{s.title}</div>
+                          <div className="mono uppercase truncate text-xs text-muted-foreground">
+                            {s.artist}
+                            {s.album ? ` · ${s.album}` : ""}
+                          </div>
                         </div>
-                      </div>
-                      <Plus className="h-4 w-4 opacity-40 group-hover:opacity-100" />
-                    </button>
-                  </Fragment>
-                );
-              })}
-            </div>
-          )}
+                        <Plus className="h-4 w-4 opacity-40 group-hover:opacity-100" />
+                      </button>
+                    </Fragment>
+                  );
+                })}
+              </div>
+            )}
+          </PhoneFold>
 
           {/* Lines per slide, with the chord key and palette below while chords
               are on. A Multilanguage song is one line per slide, typed in its
@@ -2868,6 +2884,7 @@ function Importers({
               roles={roles}
               chords={chordCfg && !chordCfg.hidden ? chordCfg : undefined}
               toolbarSlot={toolbarSlot}
+              phone={!!phone}
               onCommit={(text, nextRoles, { typing, breaks } = {}) => {
                 if (breaks) markCustomBreaks();
                 if (typing) pushHistory();
@@ -2882,6 +2899,14 @@ function Importers({
               onRedo={redoLyrics}
             />
           </div>
+        )}
+        {/* Phone: + Section and + Slide break along the bottom, above the
+            tabs (portalled in by the grid editors). */}
+        {phone && songLayout !== "standard" && (
+          <div
+            ref={setToolbarSlot}
+            className="flex shrink-0 items-center justify-center gap-2 border-t border-foreground/20 px-4 py-2"
+          />
         )}
         {/* Lyrics textarea — fills remaining height */}
         <div
@@ -3057,287 +3082,295 @@ function Importers({
         {/* API lookup section — persistent, above the verse/block editor, so you
             can import more passages while adding points and images. */}
         <div className="relative z-20 shrink-0 border-b border-foreground/20 p-4">
-          {/* While the set's versions don't match the workspace, importing more
+          <PhoneFold
+            enabled={!!phone}
+            title="Import"
+            open={importOpen}
+            onToggle={() => setImportOpen((o) => !o)}
+          >
+            {/* While the set's versions don't match the workspace, importing more
               is frozen (greyed, inert) until it's resolved: UPDATE below, or
               delete the verses. */}
-          <div className={scripture.frozen ? "hidden" : ""}>
-            <div className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <PillInput
-                  value={ref}
-                  onChange={setRef}
-                  placeholder={
-                    phone ? "e.g. John 3:16-18" : "e.g. John 3, John 3:16-18, John 3:21-John 4:2"
-                  }
-                  onEnter={() => {
-                    if (ref.trim() && !busy && !scripture.frozen) importScripture();
-                  }}
-                />
+            <div className={scripture.frozen ? "hidden" : ""}>
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <PillInput
+                    small={!!phone}
+                    value={ref}
+                    onChange={setRef}
+                    placeholder={
+                      phone ? "e.g. John 3:16-18" : "e.g. John 3, John 3:16-18, John 3:21-John 4:2"
+                    }
+                    onEnter={() => {
+                      if (ref.trim() && !busy && !scripture.frozen) importScripture();
+                    }}
+                  />
+                </div>
+                {/* Phone: one version sits beside the search; two get their own row. */}
+                {phone && !scripture.twoVersions && (
+                  <div className="w-24 shrink-0">
+                    <VersionPicker
+                      compact
+                      label="Version"
+                      value={translation}
+                      open={versionOpen}
+                      setOpen={setVersionOpen}
+                      onPick={setTranslation}
+                      exclude=""
+                      groups={scripture.versionGroups}
+                      recent={scripture.recentVersions}
+                    />
+                  </div>
+                )}
+                {!phone && (
+                  <button
+                    type="button"
+                    onClick={() => setSettingsOpen(true)}
+                    className="pill mono uppercase shrink-0 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                  >
+                    Settings
+                  </button>
+                )}
               </div>
-              {/* Phone: one version sits beside the search; two get their own row. */}
-              {phone && !scripture.twoVersions && (
-                <div className="w-24 shrink-0">
+              <ScriptureSettingsDialog
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                twoVersions={scripture.twoVersions}
+                setTwoVersions={scripture.setTwoVersions}
+                busy={busy}
+                versesPer={versesPer}
+                setVersesPer={setVersesPer}
+                maxVerses={scripture.bilingual ? 2 : 3}
+                keepLineBreaks={keepLineBreaks}
+                setKeepLineBreaks={setKeepLineBreaks}
+                versionRefs={scripture.versionRefs}
+                setVersionRefs={scripture.setVersionRefs}
+                refPerSlide={scripture.refPerSlide}
+                setRefPerSlide={(on) => void scripture.setRefPerSlide(on)}
+              />
+              {/* Phone, two versions: 1st, a swap arrow, 2nd, on one row. */}
+              {phone && scripture.twoVersions && (
+                <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-1.5">
                   <VersionPicker
-                    compact
-                    label="Version"
+                    label="1st"
                     value={translation}
                     open={versionOpen}
                     setOpen={setVersionOpen}
                     onPick={setTranslation}
-                    exclude=""
+                    exclude={translation2}
+                    groups={scripture.versionGroups}
+                    recent={scripture.recentVersions}
+                  />
+                  <button
+                    type="button"
+                    onClick={scripture.swapVersions}
+                    disabled={!scripture.bilingual}
+                    className="pill flex h-9 w-9 items-center justify-center transition active:bg-foreground/15 disabled:opacity-30"
+                    title="Swap versions"
+                    aria-label="Swap versions"
+                  >
+                    <ArrowLeftRight className="h-4 w-4" />
+                  </button>
+                  <VersionPicker
+                    label="2nd"
+                    value={translation2}
+                    placeholder="Choose"
+                    open={version2Open}
+                    setOpen={setVersion2Open}
+                    onPick={setTranslation2}
+                    exclude={translation}
                     groups={scripture.versionGroups}
                     recent={scripture.recentVersions}
                   />
                 </div>
               )}
-              {!phone && (
-                <button
-                  type="button"
-                  onClick={() => setSettingsOpen(true)}
-                  className="pill mono uppercase shrink-0 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-                >
-                  Settings
-                </button>
-              )}
-            </div>
-            <ScriptureSettingsDialog
-              open={settingsOpen}
-              onOpenChange={setSettingsOpen}
-              twoVersions={scripture.twoVersions}
-              setTwoVersions={scripture.setTwoVersions}
-              busy={busy}
-              versesPer={versesPer}
-              setVersesPer={setVersesPer}
-              maxVerses={scripture.bilingual ? 2 : 3}
-              keepLineBreaks={keepLineBreaks}
-              setKeepLineBreaks={setKeepLineBreaks}
-              versionRefs={scripture.versionRefs}
-              setVersionRefs={scripture.setVersionRefs}
-              refPerSlide={scripture.refPerSlide}
-              setRefPerSlide={(on) => void scripture.setRefPerSlide(on)}
-            />
-            {/* Phone, two versions: 1st, a swap arrow, 2nd, on one row. */}
-            {phone && scripture.twoVersions && (
-              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-1.5">
-                <VersionPicker
-                  label="1st"
-                  value={translation}
-                  open={versionOpen}
-                  setOpen={setVersionOpen}
-                  onPick={setTranslation}
-                  exclude={translation2}
-                  groups={scripture.versionGroups}
-                  recent={scripture.recentVersions}
-                />
-                <button
-                  type="button"
-                  onClick={scripture.swapVersions}
-                  disabled={!scripture.bilingual}
-                  className="pill flex h-9 w-9 items-center justify-center transition active:bg-foreground/15 disabled:opacity-30"
-                  title="Swap versions"
-                  aria-label="Swap versions"
-                >
-                  <ArrowLeftRight className="h-4 w-4" />
-                </button>
-                <VersionPicker
-                  label="2nd"
-                  value={translation2}
-                  placeholder="Choose"
-                  open={version2Open}
-                  setOpen={setVersion2Open}
-                  onPick={setTranslation2}
-                  exclude={translation}
-                  groups={scripture.versionGroups}
-                  recent={scripture.recentVersions}
-                />
-              </div>
-            )}
-            <div className={`mt-3 grid grid-cols-2 gap-3 ${phone ? "hidden" : ""}`}>
-              <div className={scripture.twoVersions ? "" : "col-span-2"}>
-                <VersionPicker
-                  label={scripture.twoVersions ? "1st version" : "Version"}
-                  value={translation}
-                  open={versionOpen}
-                  setOpen={setVersionOpen}
-                  onPick={setTranslation}
-                  exclude={scripture.twoVersions ? translation2 : ""}
-                  groups={scripture.versionGroups}
-                  recent={scripture.recentVersions}
-                />
-              </div>
-              {scripture.twoVersions && (
-                <VersionPicker
-                  label="2nd version"
-                  value={translation2}
-                  placeholder="Choose a version"
-                  open={version2Open}
-                  setOpen={setVersion2Open}
-                  onPick={setTranslation2}
-                  exclude={translation}
-                  groups={scripture.versionGroups}
-                  recent={scripture.recentVersions}
-                />
-              )}
-            </div>
-            {scripture.bilingual && !phone && (
-              <button
-                type="button"
-                onClick={scripture.swapVersions}
-                className="mono mt-2 flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeftRight className="h-3 w-3" /> Swap versions
-              </button>
-            )}
-            {alignNote && (
-              <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                {alignNote}
-              </p>
-            )}
-          </div>
-          {scripture.versionsMismatch && (
-            <div className="mono flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-foreground/30 px-4 py-2 text-[10px] uppercase tracking-wider">
-              <span className="text-muted-foreground">
-                This set is in {languagesOfVersions(scripture.storedVersions)}.
-              </span>
-              <span className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => openUpdateVersions("reimport")}
-                  className="rounded-full bg-foreground px-3 py-1 uppercase text-background transition hover:opacity-90 disabled:opacity-40"
-                >
-                  Re-import
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => openUpdateVersions("duplicate")}
-                  className="rounded-full border border-foreground px-3 py-1 uppercase transition hover:bg-foreground hover:text-background disabled:opacity-40"
-                >
-                  Duplicate
-                </button>
-              </span>
-            </div>
-          )}
-          <AlertDialog open={showUpdateVersions} onOpenChange={setShowUpdateVersions}>
-            <AlertDialogContent className="gap-0 rounded-3xl p-8">
-              <AlertDialogTitle className="text-2xl font-normal leading-tight">
-                {updateMode === "duplicate" ? "Duplicate?" : "Re-import?"}
-              </AlertDialogTitle>
-              <AlertDialogDescription className="mt-4 text-base text-foreground">
-                {updateMode === "duplicate"
-                  ? "A copy of this set is made with every passage fetched in these bible versions. This set stays as it is."
-                  : "Every passage in this set is fetched again in these bible versions."}
-              </AlertDialogDescription>
-              {/* Who else sees the change: each group and person the set is
-                  shared with (or its owner), with their workspace languages.
-                  A duplicate changes nothing for them. */}
-              {updateMode === "reimport" &&
-                (updateAudience.owner ||
-                  updateAudience.groups.length > 0 ||
-                  updateAudience.people.length > 0) && (
-                  <div className="mono mt-5 text-[10px] uppercase tracking-wider">
-                    <div className="text-muted-foreground">Changes affect</div>
-                    <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-6 gap-y-0.5">
-                      {[
-                        ...(updateAudience.owner ? [updateAudience.owner] : []),
-                        ...updateAudience.groups,
-                        ...updateAudience.people,
-                      ].map((name) => (
-                        <Fragment key={name}>
-                          {/* Group names keep their case; emails read in caps. */}
-                          <span
-                            className={`min-w-0 truncate ${updateAudience.groups.includes(name) ? "normal-case" : ""}`}
-                          >
-                            {name}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {updateAudience.languages[name] ?? ""}
-                          </span>
-                        </Fragment>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              <div
-                className={`mt-6 grid gap-3 ${scripture.bilingual ? "grid-cols-2" : "grid-cols-1"}`}
-              >
-                <VersionPicker
-                  label={scripture.bilingual ? "1st version" : "Version"}
-                  value={updateV1}
-                  open={updateV1Open}
-                  setOpen={setUpdateV1Open}
-                  onPick={setUpdateV1}
-                  exclude={updateV2}
-                  groups={scripture.versionGroups}
-                  recent={scripture.recentVersions}
-                />
-                {scripture.bilingual && (
+              <div className={`mt-3 grid grid-cols-2 gap-3 ${phone ? "hidden" : ""}`}>
+                <div className={scripture.twoVersions ? "" : "col-span-2"}>
+                  <VersionPicker
+                    label={scripture.twoVersions ? "1st version" : "Version"}
+                    value={translation}
+                    open={versionOpen}
+                    setOpen={setVersionOpen}
+                    onPick={setTranslation}
+                    exclude={scripture.twoVersions ? translation2 : ""}
+                    groups={scripture.versionGroups}
+                    recent={scripture.recentVersions}
+                  />
+                </div>
+                {scripture.twoVersions && (
                   <VersionPicker
                     label="2nd version"
-                    value={updateV2}
-                    placeholder="None"
-                    open={updateV2Open}
-                    setOpen={setUpdateV2Open}
-                    onPick={setUpdateV2}
-                    onClear={() => setUpdateV2("")}
-                    exclude={updateV1}
+                    value={translation2}
+                    placeholder="Choose a version"
+                    open={version2Open}
+                    setOpen={setVersion2Open}
+                    onPick={setTranslation2}
+                    exclude={translation}
                     groups={scripture.versionGroups}
                     recent={scripture.recentVersions}
                   />
                 )}
               </div>
-              <div className="mt-8 flex gap-3">
+              {scripture.bilingual && !phone && (
                 <button
                   type="button"
-                  disabled={!updateV1}
-                  onClick={() => {
-                    setShowUpdateVersions(false);
-                    if (updateMode === "duplicate") {
-                      void scripture.duplicateToVersions(updateV1, updateV2).then((id) => {
-                        if (id) navigate({ to: "/set/$setId", params: { setId: id } });
-                      });
-                    } else {
-                      void scripture.updateVersionsToWorkspace(updateV1, updateV2);
-                    }
-                  }}
-                  className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
+                  onClick={scripture.swapVersions}
+                  className="mono mt-2 flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
                 >
-                  {updateMode === "duplicate" ? "Duplicate" : "Re-import"}
+                  <ArrowLeftRight className="h-3 w-3" /> Swap versions
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setShowUpdateVersions(false)}
-                  className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
-                >
-                  Cancel
-                </button>
-              </div>
-            </AlertDialogContent>
-          </AlertDialog>
-          {err && (
-            <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
-              {err}
-            </p>
-          )}
-          {/* Phone: Import, then the point / image / verse icons on its right. */}
-          {!scripture.frozen && (
-            <div className={phone ? "mt-3 flex items-center gap-1.5" : ""}>
-              <button
-                onClick={importScripture}
-                disabled={!ref.trim() || busy}
-                className={`mono uppercase pill bg-foreground text-background transition hover:opacity-90 disabled:opacity-50 ${phone ? "min-w-0 flex-1 py-2 text-xs tracking-wider" : "mt-3 w-full py-2.5 text-sm"}`}
-              >
-                {busy ? "Fetching…" : "Import"}
-              </button>
-              {phone && (
-                <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} icons />
+              )}
+              {alignNote && (
+                <p className="mono mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {alignNote}
+                </p>
               )}
             </div>
-          )}
-          {!scripture.frozen && !phone && (
-            <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} />
-          )}
+            {scripture.versionsMismatch && (
+              <div className="mono flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-foreground/30 px-4 py-2 text-[10px] uppercase tracking-wider">
+                <span className="text-muted-foreground">
+                  This set is in {languagesOfVersions(scripture.storedVersions)}.
+                </span>
+                <span className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => openUpdateVersions("reimport")}
+                    className="rounded-full bg-foreground px-3 py-1 uppercase text-background transition hover:opacity-90 disabled:opacity-40"
+                  >
+                    Re-import
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => openUpdateVersions("duplicate")}
+                    className="rounded-full border border-foreground px-3 py-1 uppercase transition hover:bg-foreground hover:text-background disabled:opacity-40"
+                  >
+                    Duplicate
+                  </button>
+                </span>
+              </div>
+            )}
+            <AlertDialog open={showUpdateVersions} onOpenChange={setShowUpdateVersions}>
+              <AlertDialogContent className="gap-0 rounded-3xl p-8">
+                <AlertDialogTitle className="text-2xl font-normal leading-tight">
+                  {updateMode === "duplicate" ? "Duplicate?" : "Re-import?"}
+                </AlertDialogTitle>
+                <AlertDialogDescription className="mt-4 text-base text-foreground">
+                  {updateMode === "duplicate"
+                    ? "A copy of this set is made with every passage fetched in these bible versions. This set stays as it is."
+                    : "Every passage in this set is fetched again in these bible versions."}
+                </AlertDialogDescription>
+                {/* Who else sees the change: each group and person the set is
+                  shared with (or its owner), with their workspace languages.
+                  A duplicate changes nothing for them. */}
+                {updateMode === "reimport" &&
+                  (updateAudience.owner ||
+                    updateAudience.groups.length > 0 ||
+                    updateAudience.people.length > 0) && (
+                    <div className="mono mt-5 text-[10px] uppercase tracking-wider">
+                      <div className="text-muted-foreground">Changes affect</div>
+                      <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-6 gap-y-0.5">
+                        {[
+                          ...(updateAudience.owner ? [updateAudience.owner] : []),
+                          ...updateAudience.groups,
+                          ...updateAudience.people,
+                        ].map((name) => (
+                          <Fragment key={name}>
+                            {/* Group names keep their case; emails read in caps. */}
+                            <span
+                              className={`min-w-0 truncate ${updateAudience.groups.includes(name) ? "normal-case" : ""}`}
+                            >
+                              {name}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {updateAudience.languages[name] ?? ""}
+                            </span>
+                          </Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                <div
+                  className={`mt-6 grid gap-3 ${scripture.bilingual ? "grid-cols-2" : "grid-cols-1"}`}
+                >
+                  <VersionPicker
+                    label={scripture.bilingual ? "1st version" : "Version"}
+                    value={updateV1}
+                    open={updateV1Open}
+                    setOpen={setUpdateV1Open}
+                    onPick={setUpdateV1}
+                    exclude={updateV2}
+                    groups={scripture.versionGroups}
+                    recent={scripture.recentVersions}
+                  />
+                  {scripture.bilingual && (
+                    <VersionPicker
+                      label="2nd version"
+                      value={updateV2}
+                      placeholder="None"
+                      open={updateV2Open}
+                      setOpen={setUpdateV2Open}
+                      onPick={setUpdateV2}
+                      onClear={() => setUpdateV2("")}
+                      exclude={updateV1}
+                      groups={scripture.versionGroups}
+                      recent={scripture.recentVersions}
+                    />
+                  )}
+                </div>
+                <div className="mt-8 flex gap-3">
+                  <button
+                    type="button"
+                    disabled={!updateV1}
+                    onClick={() => {
+                      setShowUpdateVersions(false);
+                      if (updateMode === "duplicate") {
+                        void scripture.duplicateToVersions(updateV1, updateV2).then((id) => {
+                          if (id) navigate({ to: "/set/$setId", params: { setId: id } });
+                        });
+                      } else {
+                        void scripture.updateVersionsToWorkspace(updateV1, updateV2);
+                      }
+                    }}
+                    className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition hover:opacity-90"
+                  >
+                    {updateMode === "duplicate" ? "Duplicate" : "Re-import"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowUpdateVersions(false)}
+                    className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </AlertDialogContent>
+            </AlertDialog>
+            {err && (
+              <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+                {err}
+              </p>
+            )}
+            {/* Phone: Import, then the point / image / verse icons on its right. */}
+            {!scripture.frozen && (
+              <div className={phone ? "mt-3 flex items-center gap-1.5" : ""}>
+                <button
+                  onClick={importScripture}
+                  disabled={!ref.trim() || busy}
+                  className={`mono uppercase pill bg-foreground text-background transition hover:opacity-90 disabled:opacity-50 ${phone ? "min-w-0 flex-1 py-2 text-xs tracking-wider" : "mt-3 w-full py-2.5 text-sm"}`}
+                >
+                  {busy ? "Fetching…" : "Import"}
+                </button>
+                {phone && (
+                  <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} icons />
+                )}
+              </div>
+            )}
+            {!scripture.frozen && !phone && (
+              <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} />
+            )}
+          </PhoneFold>
         </div>
 
         {/* Body: a message owns its slides (draggable block editor); a plain
