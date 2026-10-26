@@ -14,20 +14,15 @@ export function useGatheringPhoneSets(gatheringId: string): PhoneSet[] {
       (setIds ?? [])
         .map((id) => sets[id])
         .filter((d): d is PhytoSet => !!d)
-        .map(toPhoneSet),
+        .map((d) => ({
+          id: d.id,
+          title: d.name,
+          type: d.kind,
+          slides: d.slides,
+          chords: d.chords,
+          versions: visibleVersions(d),
+          ...(songLangs(d).length ? { langs: songLangs(d), langsShown: d.langsShown } : {}),
+        })),
     [setIds, sets],
   );
-}
-
-/** One set as the phone view gets it. */
-export function toPhoneSet(d: PhytoSet): PhoneSet {
-  return {
-    id: d.id,
-    title: d.name,
-    type: d.kind,
-    slides: d.slides,
-    chords: d.chords,
-    versions: visibleVersions(d),
-    ...(songLangs(d).length ? { langs: songLangs(d), langsShown: d.langsShown } : {}),
-  };
 }

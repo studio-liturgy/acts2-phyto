@@ -12,10 +12,6 @@ import {
   type ShareSetRow,
 } from "@/lib/share-view";
 import { nextPollDelay } from "@/lib/share-poll";
-import { useLibrary } from "@/lib/store";
-import { useIsSignedIn } from "@/lib/authStore";
-import { NO_GATHERINGS, ownLiveGathering, PHONE_UI } from "@/lib/phone-layout";
-import { PhoneAddSetSheet } from "@/components/phone/PhoneAddSetSheet";
 
 // Per-gathering share view — private, ephemeral links. Keep out of search.
 
@@ -88,45 +84,6 @@ function GatheringViewer() {
   const [arrangementsBySet, setArrangementsBySet] = useState<Record<string, string[]>>({});
   const prevLiveRef = useRef<boolean | null>(null);
   const stoppedRef = useRef(false);
-
-  // The leader's own live gathering, signed in on this device: a + after the
-  // tabs adds a set on the fly (test builds, with the phone layout).
-  const isSignedIn = useIsSignedIn();
-  const localGatherings = useLibrary((s) => s.gatherings ?? NO_GATHERINGS);
-  const addSetToGathering = useLibrary((s) => s.addSetToGathering);
-  const [addOpen, setAddOpen] = useState(false);
-  const ownId =
-    PHONE_UI && isSignedIn && status === "live" && gatheringName !== null
-      ? ownLiveGathering(
-          localGatherings,
-          (id) => isLiveNow(localGatherings[id]),
-          gatheringName,
-          sets.map((s) => s.id),
-        )
-      : null;
-  const addSet = (setId: string) => {
-    if (!ownId) return;
-    const d = useLibrary.getState().sets[setId];
-    if (!d) return;
-    addSetToGathering(ownId, setId);
-    // Shown at once; the next poll brings the server's copy once it's pushed.
-    setSets((prev) => [
-      ...prev,
-      {
-        id: d.id,
-        title: d.name,
-        type: d.kind,
-        content: {
-          slides: d.slides as ShareSetRow["content"]["slides"],
-          chords: d.chords,
-          versions: d.versions,
-          songLayout: d.songLayout,
-          langs: d.langs,
-          langsShown: d.langsShown,
-        },
-      },
-    ]);
-  };
 
   useEffect(() => {
     document.title = gatheringName || "Gathering";
@@ -264,14 +221,10 @@ function GatheringViewer() {
 
   // Live
   return (
-    <>
-      <PhoneViewer
-        sets={sets.map(toPhoneSet)}
-        hiddenBySet={hiddenBySet}
-        arrangementsBySet={arrangementsBySet}
-        onAddSet={ownId ? () => setAddOpen(true) : undefined}
-      />
-      {ownId && <PhoneAddSetSheet open={addOpen} onOpenChange={setAddOpen} onPick={addSet} />}
-    </>
+    <PhoneViewer
+      sets={sets.map(toPhoneSet)}
+      hiddenBySet={hiddenBySet}
+      arrangementsBySet={arrangementsBySet}
+    />
   );
 }

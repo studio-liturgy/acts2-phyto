@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Pencil, Plus, X } from "lucide-react";
+import { ChevronDown, Pencil, X } from "lucide-react";
 import {
   loadPrefs,
   centeredTabScroll,
@@ -99,11 +99,7 @@ export function PhoneViewer({
   onEditSet,
   prefs: controlledPrefs,
   onPrefsChange,
-  onAddSet,
 }: {
-  /** The leader's own live gathering, signed in: a + after the last tab adds
-   *  a set on the fly. */
-  onAddSet?: () => void;
   sets: PhoneSet[];
   /** Stable section keys hidden by the leader, keyed by set id. Those sections
    *  are dropped from the rendered content — the same hiding the presenter does. */
@@ -448,16 +444,6 @@ export function PhoneViewer({
               {s.title}
             </button>
           ))}
-          {onAddSet && (
-            <button
-              onClick={onAddSet}
-              className={`flex shrink-0 items-center px-4 py-3 ${mutedClass}`}
-              aria-label="Add a set"
-              title="Add a set"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </div>
 

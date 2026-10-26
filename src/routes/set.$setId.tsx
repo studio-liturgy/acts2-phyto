@@ -27,8 +27,6 @@ import {
   slidesToScriptureText,
 } from "@/lib/slide-text";
 import { SlideView } from "@/components/SlideView";
-import { PhoneSetTabs } from "@/components/phone/PhoneSetTabs";
-import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import { ExportGatheringButton } from "@/components/ExportGatheringButton";
 import { AddElementBar, MessageElements } from "@/components/MessageElements";
 import { MessageBlockEditor } from "@/components/MessageBlockEditor";
@@ -64,8 +62,7 @@ import {
   standardToRows,
   transposeLangColumn,
 } from "@/lib/multiling";
-import { langColor, langDef, type LangCode } from "@/lib/langs";
-import { phoneLangPair, tapPairLang } from "@/lib/phone-layout";
+import type { LangCode } from "@/lib/langs";
 import { VersionWarning } from "@/components/VersionWarning";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -194,11 +191,7 @@ function SetHeader({
   updateSet,
   navigate,
   deleteSet,
-  phone = false,
 }: {
-  /** The phone layout's header: Back, the name, Delete and Share, then the
-   *  kind, song mode and Add to a gathering on a row under it. */
-  phone?: boolean;
   phytoSet: {
     id: string;
     name: string;
@@ -253,144 +246,6 @@ function SetHeader({
   // Opened from the presenter — Back returns there, and we hide Present so the
   // only way out is Back (to wherever they came from).
   const fromPresenter = !!redirectTo?.startsWith("/present");
-  const deleteDialog = (
-    <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
-      <AlertDialogContent className="gap-0 rounded-3xl p-8">
-        <AlertDialogTitle className="text-2xl font-normal leading-tight">
-          {removeMode === "remove-shared"
-            ? "Remove this shared set?"
-            : removeMode === "remove-group" || removeMode === "remove-group-admin"
-              ? "Remove this set from the group?"
-              : "Delete this set?"}
-        </AlertDialogTitle>
-        <AlertDialogDescription className="mt-4 text-base text-foreground">
-          {removeMode === "remove-shared"
-            ? `This removes you from “${phytoSet.name}” completely. You'll lose access, and it won't come back unless the owner shares it with you again.`
-            : removeMode === "remove-group"
-              ? "Remove the set out of the group and its gatherings. It stays in your personal catalogue."
-              : removeMode === "remove-group-admin"
-                ? "This takes the set out of the group and its gatherings. It stays in its owner's personal catalogue."
-                : "This cannot be undone."}
-        </AlertDialogDescription>
-        <div className="mt-8 flex gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              if (removeMode === "remove-group" || removeMode === "remove-group-admin") {
-                unshareSetFromGroup(phytoSet.id, activeWorkspace);
-              } else {
-                deleteSet(phytoSet.id);
-              }
-              navigate({ to: redirectTo ?? "/" });
-            }}
-            className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
-          >
-            {removeLabel}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowDeleteSetDialog(false)}
-            className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
-          >
-            Cancel
-          </button>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-  const shareDialog = showShareDialog && (
-    <ShareSetDialog
-      open={showShareDialog}
-      onOpenChange={setShowShareDialog}
-      setId={phytoSet.id}
-      setName={phytoSet.name}
-      groups={groups}
-    />
-  );
-  const titleEl = editingName ? (
-    <Input
-      autoFocus
-      value={blankDefault ? "" : phytoSet.name}
-      placeholder={blankDefault ? phytoSet.name : "Set name"}
-      onChange={(e) => {
-        setBlankDefault(false);
-        updateSet(phytoSet.id, { name: e.target.value });
-      }}
-      onBlur={commitName}
-      onKeyDown={(e) => e.key === "Enter" && commitName()}
-      className="h-9 w-56 border-foreground text-base shadow-none focus-visible:ring-0"
-    />
-  ) : (
-    <h1
-      onClick={() => {
-        nameBeforeEditRef.current = phytoSet.name;
-        setBlankDefault(DEFAULT_SET_NAMES.has(phytoSet.name.trim()));
-        setEditingName(true);
-      }}
-      className="cursor-text truncate text-base text-muted-foreground"
-      title="Click to rename"
-    >
-      {phytoSet.name}
-    </h1>
-  );
-  if (phone) {
-    return (
-      <header className="shrink-0 border-b border-foreground px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <div className="flex items-center gap-3">
-          <Link
-            to={redirectTo ?? "/?tab=catalogue"}
-            className="pill flex h-9 w-9 shrink-0 items-center justify-center bg-foreground text-background transition active:opacity-80"
-            title="Back"
-            aria-label="Back"
-          >
-            <ArrowUpLeft className="h-5 w-5" />
-          </Link>
-          <div className="flex min-w-0 flex-1 items-center">{titleEl}</div>
-          <div className="flex shrink-0 items-center gap-0.5">
-            {removeMode && (
-              <button
-                onClick={() => setShowDeleteSetDialog(true)}
-                className="pill flex h-10 w-10 shrink-0 items-center justify-center transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
-                title={removeLabel}
-                aria-label={removeLabel}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-            {deleteDialog}
-            {isSignedIn && !phytoSet.shared && (
-              <button
-                onClick={() => setShowShareDialog(true)}
-                className="pill flex h-10 w-10 shrink-0 items-center justify-center transition active:bg-foreground/15"
-                title="Share set"
-                aria-label="Share set"
-              >
-                <Share2 className="h-4 w-4" />
-              </button>
-            )}
-            {shareDialog}
-          </div>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span
-            className={`pill mono shrink-0 px-2.5 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(phytoSet.kind)}`}
-          >
-            {phytoSet.kind}
-          </span>
-          {phytoSet.kind === "song" && <SongModePicker setId={phytoSet.id} />}
-          <VersionWarning set={phytoSet} hint="Re-import or duplicate to unfreeze." />
-          <div className="ml-auto">
-            <AddToGathering setId={phytoSet.id} />
-          </div>
-        </div>
-        {phytoSet.shared && (
-          <p className="mono mt-2 truncate text-[10px] uppercase tracking-wider text-muted-foreground">
-            Shared by {phytoSet.shared_by ?? "someone"}
-          </p>
-        )}
-      </header>
-    );
-  }
   return (
     <header className="flex shrink-0 items-center gap-3 border-b border-foreground px-6 py-4">
       {/* Back */}
@@ -405,7 +260,32 @@ function SetHeader({
 
       {/* Title + badge */}
       <div className="flex min-w-0 items-center gap-2">
-        {titleEl}
+        {editingName ? (
+          <Input
+            autoFocus
+            value={blankDefault ? "" : phytoSet.name}
+            placeholder={blankDefault ? phytoSet.name : "Set name"}
+            onChange={(e) => {
+              setBlankDefault(false);
+              updateSet(phytoSet.id, { name: e.target.value });
+            }}
+            onBlur={commitName}
+            onKeyDown={(e) => e.key === "Enter" && commitName()}
+            className="h-9 w-56 border-foreground text-base shadow-none focus-visible:ring-0"
+          />
+        ) : (
+          <h1
+            onClick={() => {
+              nameBeforeEditRef.current = phytoSet.name;
+              setBlankDefault(DEFAULT_SET_NAMES.has(phytoSet.name.trim()));
+              setEditingName(true);
+            }}
+            className="cursor-text truncate text-base text-muted-foreground"
+            title="Click to rename"
+          >
+            {phytoSet.name}
+          </h1>
+        )}
 
         <span
           className={`pill mono shrink-0 px-2.5 py-0.5 text-[10px] uppercase tracking-wider ${kindBadgeBg(phytoSet.kind)}`}
@@ -459,7 +339,49 @@ function SetHeader({
             <Trash2 className="h-4 w-4" />
           </button>
         )}
-        {deleteDialog}
+        <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
+          <AlertDialogContent className="gap-0 rounded-3xl p-8">
+            <AlertDialogTitle className="text-2xl font-normal leading-tight">
+              {removeMode === "remove-shared"
+                ? "Remove this shared set?"
+                : removeMode === "remove-group" || removeMode === "remove-group-admin"
+                  ? "Remove this set from the group?"
+                  : "Delete this set?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="mt-4 text-base text-foreground">
+              {removeMode === "remove-shared"
+                ? `This removes you from “${phytoSet.name}” completely. You'll lose access, and it won't come back unless the owner shares it with you again.`
+                : removeMode === "remove-group"
+                  ? "Remove the set out of the group and its gatherings. It stays in your personal catalogue."
+                  : removeMode === "remove-group-admin"
+                    ? "This takes the set out of the group and its gatherings. It stays in its owner's personal catalogue."
+                    : "This cannot be undone."}
+            </AlertDialogDescription>
+            <div className="mt-8 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (removeMode === "remove-group" || removeMode === "remove-group-admin") {
+                    unshareSetFromGroup(phytoSet.id, activeWorkspace);
+                  } else {
+                    deleteSet(phytoSet.id);
+                  }
+                  navigate({ to: redirectTo ?? "/" });
+                }}
+                className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90"
+              >
+                {removeLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteSetDialog(false)}
+                className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+              >
+                Cancel
+              </button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
         {isSignedIn && !phytoSet.shared && (
           <button
             onClick={() => setShowShareDialog(true)}
@@ -470,7 +392,15 @@ function SetHeader({
             <Share2 className="h-4 w-4" />
           </button>
         )}
-        {shareDialog}
+        {showShareDialog && (
+          <ShareSetDialog
+            open={showShareDialog}
+            onOpenChange={setShowShareDialog}
+            setId={phytoSet.id}
+            setName={phytoSet.name}
+            groups={groups}
+          />
+        )}
         {/* Export this set as PDF or PPTX (the gathering export's dialog). */}
         <ExportGatheringButton setId={phytoSet.id} />
       </div>
@@ -493,7 +423,6 @@ function SetHeader({
 }
 
 function SetEditor() {
-  const phone = usePhoneLayout();
   const { setId } = Route.useParams();
   const { redirectTo } = Route.useSearch();
   const navigate = useNavigate();
@@ -609,83 +538,6 @@ function SetEditor() {
 
   // Song: full-page two-column layout
   if (phytoSet.kind === "song") {
-    const songSlides =
-      phytoSet.slides.length === 0 ? (
-        <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
-          Slides will appear here as you type
-        </p>
-      ) : (
-        (() => {
-          const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
-          const groups: { label: string | undefined; slides: Slide[] }[] = [];
-          for (const s of phytoSet.slides) {
-            const last = groups[groups.length - 1];
-            if (!last || s.section !== last.label) {
-              groups.push({ label: s.section, slides: [s] });
-            } else {
-              last.slides.push(s);
-            }
-          }
-          return (
-            <div className="space-y-4">
-              {groups.map((g, gi) => (
-                <div key={gi}>
-                  {g.label && (
-                    <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-                      {g.label}
-                    </div>
-                  )}
-                  <div
-                    className="rounded-xl p-2"
-                    style={{
-                      backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 45%, transparent)`,
-                    }}
-                  >
-                    {/* Multilanguage (1/4 width, as on watch): one slide per
-                      row, numbered like the grid. */}
-                    <div
-                      className={`grid ${phytoSet.songLayout === "multilang" ? "grid-cols-1" : "grid-cols-2"} gap-2`}
-                    >
-                      {g.slides.map((s) => (
-                        <div key={s.id} className="relative overflow-hidden rounded-md">
-                          {phytoSet.songLayout === "multilang" && (
-                            <span className="mono absolute left-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[10px] tabular-nums text-white">
-                              {phytoSet.slides.findIndex((x) => x.id === s.id) + 1}
-                            </span>
-                          )}
-                          <SlideView slide={s} variant="thumb" template={effectiveTemplate} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        })()
-      );
-    if (phone) {
-      return (
-        <PhoneSetTabs
-          set={phytoSet}
-          header={<SetHeader {...headerProps} phone />}
-          editor={<Importers key={phytoSet.id} setId={phytoSet.id} kind={phytoSet.kind} phone />}
-          slides={
-            <>
-              {phytoSet.songLayout === "multilang" && (phytoSet.langs?.length ?? 0) > 0 && (
-                <div className="mb-4">
-                  <div className="mono mb-2 text-[10px] uppercase tracking-wider opacity-60">
-                    Languages on slide
-                  </div>
-                  <SongLanguageBar set={phytoSet} />
-                </div>
-              )}
-              {songSlides}
-            </>
-          }
-        />
-      );
-    }
     return (
       <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
         <SetHeader {...headerProps} />
@@ -722,7 +574,60 @@ function SetEditor() {
                 <SongTemplateEditor />
               </div>
             )}
-            {songSlides}
+            {phytoSet.slides.length === 0 ? (
+              <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
+                Slides will appear here as you type
+              </p>
+            ) : (
+              (() => {
+                const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+                const groups: { label: string | undefined; slides: Slide[] }[] = [];
+                for (const s of phytoSet.slides) {
+                  const last = groups[groups.length - 1];
+                  if (!last || s.section !== last.label) {
+                    groups.push({ label: s.section, slides: [s] });
+                  } else {
+                    last.slides.push(s);
+                  }
+                }
+                return (
+                  <div className="space-y-4">
+                    {groups.map((g, gi) => (
+                      <div key={gi}>
+                        {g.label && (
+                          <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            {g.label}
+                          </div>
+                        )}
+                        <div
+                          className="rounded-xl p-2"
+                          style={{
+                            backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 45%, transparent)`,
+                          }}
+                        >
+                          {/* Multilanguage (1/4 width, as on watch): one slide per
+                              row, numbered like the grid. */}
+                          <div
+                            className={`grid ${phytoSet.songLayout === "multilang" ? "grid-cols-1" : "grid-cols-2"} gap-2`}
+                          >
+                            {g.slides.map((s) => (
+                              <div key={s.id} className="relative overflow-hidden rounded-md">
+                                {phytoSet.songLayout === "multilang" && (
+                                  <span className="mono absolute left-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[10px] tabular-nums text-white">
+                                    {phytoSet.slides.findIndex((x) => x.id === s.id) + 1}
+                                  </span>
+                                )}
+                                <SlideView slide={s} variant="thumb" template={effectiveTemplate} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
+            )}
           </div>
         </div>
       </div>
@@ -732,82 +637,6 @@ function SetEditor() {
   // Scripture / message: full-page two-column layout (mirrors song layout). A
   // message is a scripture set that also carries images and points.
   if (phytoSet.kind === "scripture" || phytoSet.kind === "message") {
-    const scriptureSlides =
-      phytoSet.slides.length === 0 ? (
-        <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
-          Slides will appear here
-        </p>
-      ) : (
-        (() => {
-          const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
-          // One coloured group per block, matching the editor: each scripture
-          // section is its own group; a run of consecutive points is one group
-          // and a run of consecutive images is a separate group.
-          const groups: { label: string | undefined; slides: Slide[] }[] = [];
-          let lastKey: string | undefined;
-          for (const s of phytoSet.slides) {
-            // A scripture group is one IMPORT (the same passage imported
-            // twice is two groups, as on the left), not one reference.
-            const key =
-              s.kind === "image"
-                ? "images"
-                : s.kind === "point"
-                  ? "points"
-                  : s.kind === "scripture" && s.importIndex !== undefined
-                    ? `import:${s.importIndex}`
-                    : (s.section ?? "");
-            const last = groups[groups.length - 1];
-            if (!last || key !== lastKey) {
-              groups.push({ label: s.reference ?? s.section, slides: [s] });
-            } else {
-              last.slides.push(s);
-            }
-            lastKey = key;
-          }
-          return (
-            <div className="space-y-4">
-              {groups.map((g, gi) => (
-                <div key={gi}>
-                  {g.label && (
-                    <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-                      {g.label}
-                    </div>
-                  )}
-                  <div
-                    className="rounded-xl p-2"
-                    style={{
-                      backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 45%, transparent)`,
-                    }}
-                  >
-                    <div className="grid grid-cols-2 gap-2">
-                      {g.slides.map((s) => (
-                        <div key={s.id} className="overflow-hidden rounded-md">
-                          <SlideView
-                            slide={s}
-                            versions={visibleVersions(phytoSet)}
-                            variant="thumb"
-                            template={effectiveScriptureTemplate}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        })()
-      );
-    if (phone) {
-      return (
-        <PhoneSetTabs
-          set={phytoSet}
-          header={<SetHeader {...headerProps} phone />}
-          editor={<Importers key={phytoSet.id} setId={phytoSet.id} kind={phytoSet.kind} phone />}
-          slides={scriptureSlides}
-        />
-      );
-    }
     return (
       <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
         <SetHeader {...headerProps} />
@@ -826,7 +655,71 @@ function SetEditor() {
                 <ScriptureTemplateEditor />
               </div>
             )}
-            {scriptureSlides}
+            {phytoSet.slides.length === 0 ? (
+              <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
+                Slides will appear here
+              </p>
+            ) : (
+              (() => {
+                const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+                // One coloured group per block, matching the editor: each scripture
+                // section is its own group; a run of consecutive points is one group
+                // and a run of consecutive images is a separate group.
+                const groups: { label: string | undefined; slides: Slide[] }[] = [];
+                let lastKey: string | undefined;
+                for (const s of phytoSet.slides) {
+                  // A scripture group is one IMPORT (the same passage imported
+                  // twice is two groups, as on the left), not one reference.
+                  const key =
+                    s.kind === "image"
+                      ? "images"
+                      : s.kind === "point"
+                        ? "points"
+                        : s.kind === "scripture" && s.importIndex !== undefined
+                          ? `import:${s.importIndex}`
+                          : (s.section ?? "");
+                  const last = groups[groups.length - 1];
+                  if (!last || key !== lastKey) {
+                    groups.push({ label: s.reference ?? s.section, slides: [s] });
+                  } else {
+                    last.slides.push(s);
+                  }
+                  lastKey = key;
+                }
+                return (
+                  <div className="space-y-4">
+                    {groups.map((g, gi) => (
+                      <div key={gi}>
+                        {g.label && (
+                          <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            {g.label}
+                          </div>
+                        )}
+                        <div
+                          className="rounded-xl p-2"
+                          style={{
+                            backgroundColor: `color-mix(in oklab, ${TINTS[gi % 3]} 45%, transparent)`,
+                          }}
+                        >
+                          <div className="grid grid-cols-2 gap-2">
+                            {g.slides.map((s) => (
+                              <div key={s.id} className="overflow-hidden rounded-md">
+                                <SlideView
+                                  slide={s}
+                                  versions={visibleVersions(phytoSet)}
+                                  variant="thumb"
+                                  template={effectiveScriptureTemplate}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
+            )}
           </div>
         </div>
       </div>
@@ -951,227 +844,265 @@ function SetEditor() {
     }
   };
 
-  /* Left (1/2): import controls, then the slides grid. Mirrors the song and
-          scripture editors — a shrink-0 controls header over a scrollable body,
-          no rounded panel. The whole column is the drop target. */
-  const mediaLeft = (
-    <div
-      className={`flex ${phone ? "h-full w-full" : "w-1/2"} min-h-0 flex-col overflow-hidden transition ${
-        fileOver ? "ring-2 ring-inset ring-foreground" : ""
-      }`}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes("Files")) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "copy";
-          setFileOver(true);
-        }
-      }}
-      onDragLeave={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setFileOver(false);
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        setFileOver(false);
-        if (e.dataTransfer.files?.length) handleMediaFiles(e.dataTransfer.files);
-      }}
-    >
-      <div className="shrink-0 border-b border-foreground/20 p-4">
-        <div className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-1.5">
-          <input
-            value={videoLink}
-            onChange={(e) => setVideoLink(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addVideoLink();
-              }
-            }}
-            placeholder="PASTE A YOUTUBE OR VIDEO LINK"
-            className="mono w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-          />
-          <button
-            onClick={addVideoLink}
-            disabled={!videoLink.trim()}
-            className="flex items-center transition disabled:opacity-20"
-            aria-label="Add video link"
-          >
-            <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
-          </button>
-        </div>
-        {videoErr && (
-          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
-            {videoErr}
-          </p>
-        )}
-      </div>
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+      <SetHeader {...headerProps} />
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {phytoSet.slides.length === 0 ? (
-          <label
-            className={`mono flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-xs uppercase tracking-wider transition ${
-              converting || uploading
-                ? "cursor-wait border-foreground/30 text-muted-foreground"
-                : fileOver
-                  ? "border-foreground bg-foreground/5"
-                  : "border-foreground/60 text-muted-foreground hover:border-foreground"
-            }`}
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Uploading…
-              </>
-            ) : converting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Converting…
-              </>
-            ) : fileOver ? (
-              "Drop to upload"
-            ) : (
-              "Drop images, PDFs or videos here or click to browse"
-            )}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm"
-              multiple
-              disabled={converting || uploading}
-              className="hidden"
-              onChange={(e) => handleMediaFiles(e.target.files)}
-            />
-          </label>
-        ) : (
-          <>
-            {(fileOver || uploading) && (
-              <p className="mono mb-3 text-center text-xs uppercase tracking-wider text-muted-foreground">
-                {uploading ? "Uploading…" : "Drop to add media"}
-              </p>
-            )}
-            <div className="mb-3 flex justify-end gap-2">
-              {/* Fit for EVERY image at once: fills the frame unless they all
-                  already do, in which case it fits them instead. */}
-              {phytoSet.slides.some((sl) => sl.kind === "image") &&
-                (() => {
-                  const images = phytoSet.slides.filter((sl) => sl.kind === "image");
-                  const allCover = images.every((sl) => sl.imageFit === "cover");
-                  const nextFit = allCover ? "contain" : "cover";
-                  return (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateSet(phytoSet.id, {
-                          slides: phytoSet.slides.map((sl) =>
-                            sl.kind === "image" ? { ...sl, imageFit: nextFit } : sl,
-                          ),
-                        })
-                      }
-                      className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
-                      title={allCover ? "Fit every image" : "Fill the frame with every image"}
-                    >
-                      {allCover ? "Fit image" : "Fill frame"}
-                    </button>
-                  );
-                })()}
-              <button
-                type="button"
-                onClick={() => mediaFileRef.current?.click()}
-                disabled={converting || uploading}
-                className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background disabled:opacity-50"
-              >
-                Add image
-              </button>
+      <div className="flex min-h-0 flex-1 divide-x divide-foreground">
+        {/* Left (1/2): import controls, then the slides grid. Mirrors the song and
+            scripture editors — a shrink-0 controls header over a scrollable body,
+            no rounded panel. The whole column is the drop target. */}
+        <div
+          className={`flex w-1/2 min-h-0 flex-col overflow-hidden transition ${
+            fileOver ? "ring-2 ring-inset ring-foreground" : ""
+          }`}
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes("Files")) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "copy";
+              setFileOver(true);
+            }
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) setFileOver(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setFileOver(false);
+            if (e.dataTransfer.files?.length) handleMediaFiles(e.dataTransfer.files);
+          }}
+        >
+          <div className="shrink-0 border-b border-foreground/20 p-4">
+            <div className="pill flex items-center gap-2 border border-foreground bg-background px-3 py-1.5">
               <input
-                ref={mediaFileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm"
-                multiple
-                disabled={converting || uploading}
-                className="hidden"
-                onChange={(e) => {
-                  handleMediaFiles(e.target.files);
-                  e.target.value = "";
+                value={videoLink}
+                onChange={(e) => setVideoLink(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addVideoLink();
+                  }
                 }}
+                placeholder="PASTE A YOUTUBE OR VIDEO LINK"
+                className="mono w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
               />
               <button
-                type="button"
-                onClick={() => {
-                  // The selected slide (or the last one) opens the new section:
-                  // the divider goes on the slide before it. The first slide
-                  // already opens the first section; on a set with no sections
-                  // yet, that makes the whole set one (named) section.
-                  const slides = phytoSet.slides;
-                  const at = selected
-                    ? slides.findIndex((sl) => sl.id === selected.id)
-                    : slides.length - 1;
-                  if (at < 0) return;
-                  if (at === 0) {
-                    if (slides[0].sectionBefore === undefined) {
-                      updateSet(phytoSet.id, {
-                        slides: slides.map((sl, i) =>
-                          i === 0 ? { ...sl, sectionBefore: "" } : sl,
-                        ),
-                      });
-                    }
-                    return;
-                  }
-                  const before = slides[at - 1];
-                  if (before.sectionAfter !== undefined) return;
-                  updateSet(phytoSet.id, {
-                    slides: slides.map((sl) =>
-                      sl.id === before.id ? { ...sl, sectionAfter: "" } : sl,
-                    ),
-                  });
-                }}
-                className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                onClick={addVideoLink}
+                disabled={!videoLink.trim()}
+                className="flex items-center transition disabled:opacity-20"
+                aria-label="Add video link"
               >
-                Add section
+                <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
               </button>
             </div>
-            <SlideGrid
-              slides={phytoSet.slides}
-              selectedId={selected?.id ?? null}
-              multiSel={multiSel}
-              onSelect={handleSelect}
-              onRemove={(id) => removeSlide(phytoSet.id, id)}
-              onReorder={(ids, drop) => reorderSlides(phytoSet.id, ids, drop)}
-              onToggleFit={(id) =>
-                updateSet(phytoSet.id, {
-                  slides: phytoSet.slides.map((sl) =>
-                    sl.id === id
-                      ? { ...sl, imageFit: sl.imageFit === "cover" ? "contain" : "cover" }
-                      : sl,
-                  ),
-                })
-              }
-              onRenameDivider={(id, name) =>
-                updateSet(phytoSet.id, {
-                  slides: phytoSet.slides.map((sl) =>
-                    sl.id === id ? { ...sl, sectionAfter: name } : sl,
-                  ),
-                })
-              }
-              onRemoveDivider={(id) =>
-                updateSet(phytoSet.id, {
-                  slides: phytoSet.slides.map((sl) =>
-                    sl.id === id ? { ...sl, sectionAfter: undefined } : sl,
-                  ),
-                })
-              }
-              onRenameFirst={(name) =>
-                updateSet(phytoSet.id, {
-                  slides: phytoSet.slides.map((sl, i) =>
-                    i === 0 ? { ...sl, sectionBefore: name } : sl,
-                  ),
-                })
-              }
-              dense={dense}
-              kind={phytoSet.kind}
-            />
-          </>
-        )}
+            {videoErr && (
+              <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+                {videoErr}
+              </p>
+            )}
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            {phytoSet.slides.length === 0 ? (
+              <label
+                className={`mono flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-xs uppercase tracking-wider transition ${
+                  converting || uploading
+                    ? "cursor-wait border-foreground/30 text-muted-foreground"
+                    : fileOver
+                      ? "border-foreground bg-foreground/5"
+                      : "border-foreground/60 text-muted-foreground hover:border-foreground"
+                }`}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Uploading…
+                  </>
+                ) : converting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Converting…
+                  </>
+                ) : fileOver ? (
+                  "Drop to upload"
+                ) : (
+                  "Drop images, PDFs or videos here or click to browse"
+                )}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm"
+                  multiple
+                  disabled={converting || uploading}
+                  className="hidden"
+                  onChange={(e) => handleMediaFiles(e.target.files)}
+                />
+              </label>
+            ) : (
+              <>
+                {(fileOver || uploading) && (
+                  <p className="mono mb-3 text-center text-xs uppercase tracking-wider text-muted-foreground">
+                    {uploading ? "Uploading…" : "Drop to add media"}
+                  </p>
+                )}
+                <div className="mb-3 flex justify-end gap-2">
+                  {/* Fit for EVERY image at once: fills the frame unless they all
+                      already do, in which case it fits them instead. */}
+                  {phytoSet.slides.some((sl) => sl.kind === "image") &&
+                    (() => {
+                      const images = phytoSet.slides.filter((sl) => sl.kind === "image");
+                      const allCover = images.every((sl) => sl.imageFit === "cover");
+                      const nextFit = allCover ? "contain" : "cover";
+                      return (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSet(phytoSet.id, {
+                              slides: phytoSet.slides.map((sl) =>
+                                sl.kind === "image" ? { ...sl, imageFit: nextFit } : sl,
+                              ),
+                            })
+                          }
+                          className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                          title={allCover ? "Fit every image" : "Fill the frame with every image"}
+                        >
+                          {allCover ? "Fit image" : "Fill frame"}
+                        </button>
+                      );
+                    })()}
+                  <button
+                    type="button"
+                    onClick={() => mediaFileRef.current?.click()}
+                    disabled={converting || uploading}
+                    className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background disabled:opacity-50"
+                  >
+                    Add image
+                  </button>
+                  <input
+                    ref={mediaFileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm"
+                    multiple
+                    disabled={converting || uploading}
+                    className="hidden"
+                    onChange={(e) => {
+                      handleMediaFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // The selected slide (or the last one) opens the new section:
+                      // the divider goes on the slide before it. The first slide
+                      // already opens the first section; on a set with no sections
+                      // yet, that makes the whole set one (named) section.
+                      const slides = phytoSet.slides;
+                      const at = selected
+                        ? slides.findIndex((sl) => sl.id === selected.id)
+                        : slides.length - 1;
+                      if (at < 0) return;
+                      if (at === 0) {
+                        if (slides[0].sectionBefore === undefined) {
+                          updateSet(phytoSet.id, {
+                            slides: slides.map((sl, i) =>
+                              i === 0 ? { ...sl, sectionBefore: "" } : sl,
+                            ),
+                          });
+                        }
+                        return;
+                      }
+                      const before = slides[at - 1];
+                      if (before.sectionAfter !== undefined) return;
+                      updateSet(phytoSet.id, {
+                        slides: slides.map((sl) =>
+                          sl.id === before.id ? { ...sl, sectionAfter: "" } : sl,
+                        ),
+                      });
+                    }}
+                    className="mono uppercase pill flex items-center gap-2 border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+                  >
+                    Add section
+                  </button>
+                </div>
+                <SlideGrid
+                  slides={phytoSet.slides}
+                  selectedId={selected?.id ?? null}
+                  multiSel={multiSel}
+                  onSelect={handleSelect}
+                  onRemove={(id) => removeSlide(phytoSet.id, id)}
+                  onReorder={(ids, drop) => reorderSlides(phytoSet.id, ids, drop)}
+                  onToggleFit={(id) =>
+                    updateSet(phytoSet.id, {
+                      slides: phytoSet.slides.map((sl) =>
+                        sl.id === id
+                          ? { ...sl, imageFit: sl.imageFit === "cover" ? "contain" : "cover" }
+                          : sl,
+                      ),
+                    })
+                  }
+                  onRenameDivider={(id, name) =>
+                    updateSet(phytoSet.id, {
+                      slides: phytoSet.slides.map((sl) =>
+                        sl.id === id ? { ...sl, sectionAfter: name } : sl,
+                      ),
+                    })
+                  }
+                  onRemoveDivider={(id) =>
+                    updateSet(phytoSet.id, {
+                      slides: phytoSet.slides.map((sl) =>
+                        sl.id === id ? { ...sl, sectionAfter: undefined } : sl,
+                      ),
+                    })
+                  }
+                  onRenameFirst={(name) =>
+                    updateSet(phytoSet.id, {
+                      slides: phytoSet.slides.map((sl, i) =>
+                        i === 0 ? { ...sl, sectionBefore: name } : sl,
+                      ),
+                    })
+                  }
+                  dense={dense}
+                  kind={phytoSet.kind}
+                />
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Right (1/2): the preview of the selected slide, or a placeholder while
+            the set is still empty (matching the other editors). */}
+        <div className="w-1/2 overflow-y-auto p-6">
+          {phytoSet.slides.length > 0 && (
+            <div className="mb-4">
+              <MediaTemplateEditor setId={phytoSet.id} />
+            </div>
+          )}
+          {selected ? (
+            <>
+              <div className="overflow-hidden rounded-lg bg-[var(--brand-black)]">
+                <SlideView slide={selected} variant="preview" />
+              </div>
+              {selected.kind === "video" && (
+                <div className="mt-3 flex items-center justify-between gap-2 text-xs">
+                  <span className="mono uppercase tracking-wider text-muted-foreground">
+                    Autoplay when live
+                  </span>
+                  <PillSwitch
+                    label="Autoplay when live"
+                    checked={!!selected.autoplay}
+                    onCheckedChange={(on) =>
+                      updateSlide(phytoSet.id, selected.id, { autoplay: on })
+                    }
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
+              Slides will appear here as you add media
+            </p>
+          )}
+        </div>
       </div>
-    </div>
-  );
-  const mediaDialogs = (
-    <>
+
       <AlertDialog open={showFileSizeDialog} onOpenChange={setShowFileSizeDialog}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">
@@ -1213,67 +1144,6 @@ function SetEditor() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
-    </>
-  );
-  const mediaPreview = selected ? (
-    <>
-      <div className="overflow-hidden rounded-lg bg-[var(--brand-black)]">
-        <SlideView slide={selected} variant="preview" />
-      </div>
-      {selected.kind === "video" && (
-        <div className="mt-3 flex items-center justify-between gap-2 text-xs">
-          <span className="mono uppercase tracking-wider text-muted-foreground">
-            Autoplay when live
-          </span>
-          <PillSwitch
-            label="Autoplay when live"
-            checked={!!selected.autoplay}
-            onCheckedChange={(on) => updateSlide(phytoSet.id, selected.id, { autoplay: on })}
-          />
-        </div>
-      )}
-    </>
-  ) : (
-    <p className="mono uppercase py-16 text-center text-xs tracking-wider text-muted-foreground">
-      Slides will appear here as you add media
-    </p>
-  );
-  if (phone) {
-    return (
-      <PhoneSetTabs
-        set={phytoSet}
-        header={<SetHeader {...headerProps} phone />}
-        editor={
-          <>
-            {mediaLeft}
-            {mediaDialogs}
-          </>
-        }
-        slides={mediaPreview}
-      />
-    );
-  }
-
-  return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-      <SetHeader {...headerProps} />
-
-      <div className="flex min-h-0 flex-1 divide-x divide-foreground">
-        {mediaLeft}
-
-        {/* Right (1/2): the preview of the selected slide, or a placeholder while
-            the set is still empty (matching the other editors). */}
-        <div className="w-1/2 overflow-y-auto p-6">
-          {phytoSet.slides.length > 0 && (
-            <div className="mb-4">
-              <MediaTemplateEditor setId={phytoSet.id} />
-            </div>
-          )}
-          {mediaPreview}
-        </div>
-      </div>
-
-      {mediaDialogs}
     </div>
   );
 }
@@ -1798,24 +1668,8 @@ function chordFreePreview(lyrics: string): string {
   return songPreview(lyrics.split("\n").map(stripChords).join("\n"));
 }
 
-function Importers({
-  setId,
-  kind,
-  phone = false,
-}: {
-  setId: string;
-  kind: SetKind;
-  /** The phone layout: Multi-Language shows two languages at a time, picked
-   *  from a chip bar above the grid. */
-  phone?: boolean;
-}) {
+function Importers({ setId, kind }: { setId: string; kind: SetKind }) {
   const { addSlide, updateSet } = useLibrary();
-  const songLangCols = useLibrary((s) => s.sets[setId]?.langs);
-  const [pickedLangs, setPickedLangs] = useState<LangCode[]>([]);
-  const langPair = useMemo(
-    () => phoneLangPair(songLangCols ?? [], pickedLangs),
-    [songLangCols, pickedLangs],
-  );
   const navigate = useNavigate();
 
   const [linesPer, setLinesPer] = useState<number>(() => {
@@ -2667,39 +2521,9 @@ function Importers({
           )}
         </div>
 
-        {songLayout === "multilang" && phone && (songLangCols?.length ?? 0) > 2 && (
-          // Two languages at a time: tap one to swap it in for the one shown longest.
-          <div className="catalogue-scroll flex shrink-0 gap-1.5 overflow-x-auto border-b border-foreground/20 px-4 py-2.5">
-            {(songLangCols ?? []).map((code) => {
-              const on = langPair.includes(code);
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => setPickedLangs((p) => tapPairLang(songLangCols ?? [], p, code))}
-                  className="mono flex h-7 shrink-0 items-center rounded-full border px-3 text-xs uppercase tracking-wider transition"
-                  style={{
-                    borderColor: langColor(code),
-                    backgroundColor: on ? langColor(code) : "transparent",
-                    color: on ? "var(--brand-white)" : undefined,
-                  }}
-                  aria-pressed={on}
-                  title={langDef(code).label}
-                >
-                  {langDef(code).short}
-                </button>
-              );
-            })}
-          </div>
-        )}
         {songLayout === "multilang" && (
           <div className="min-h-0 flex-1 overflow-hidden">
-            <MultiLangLyricEditor
-              key={gridKey}
-              setId={setId}
-              toolbarSlot={toolbarSlot}
-              visibleLangs={phone ? langPair : undefined}
-            />
+            <MultiLangLyricEditor key={gridKey} setId={setId} toolbarSlot={toolbarSlot} />
           </div>
         )}
         {songLayout === "response" && (
