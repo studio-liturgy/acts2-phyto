@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { PHONE_DOCK_ICON } from "@/components/phone/PhoneChrome";
+import { Scissors, SeparatorHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
 import { createPortal } from "react-dom";
@@ -648,27 +650,57 @@ export function MultiLangLyricEditor({
   );
   // Phone: + Section alone in the toolbar; + (a language) opens beside the
   // language chips, which live in their own scrolling row.
+  const addLineAtEnd = () => {
+    pendingFocus.current = { line: lineNo(rows, rows.length), lang: langs[0] };
+    setRows((rs) => [...rs, { kind: "line", byLang: {} }]);
+  };
+  // Phone: the dock's icons. + Line, Slide break (above the line you're on),
+  // Section (above the line you're on).
   const phoneToolbar = (
     <>
-      {sectionButton}
+      <button
+        type="button"
+        onClick={addLineAtEnd}
+        className={PHONE_DOCK_ICON}
+        title="Add a line"
+        aria-label="Add a line"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
       <button
         type="button"
         onClick={() => {
           const at = focusRowRef.current ?? 0;
           if (at > 0 && rows[at - 1]?.kind !== "break") splitAbove(at);
         }}
-        className="mono flex h-7 shrink-0 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
-        title="Start a new slide above the line your cursor is on"
+        className={PHONE_DOCK_ICON}
+        title="Slide break"
+        aria-label="Slide break"
       >
-        <Plus className="h-3 w-3" />
-        Slide break
+        <Scissors className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={addSection}
+        className={PHONE_DOCK_ICON}
+        title="Add a section"
+        aria-label="Add a section"
+      >
+        <SeparatorHorizontal className="h-4 w-4" />
       </button>
     </>
   );
-  const phoneLangAdd =
-    available.length > 0 ? (
-      <LangPicker available={available} onAdd={(c) => setLangs([...langs, c])} label="" />
-    ) : null;
+  // Phone: + opens the Languages menu: the song's languages (x removes a
+  // column, keeping its words), then the search to add one.
+  const phoneLangAdd = (
+    <LangPickerMenu
+      available={available}
+      onAdd={(c) => setLangs([...langs, c])}
+      current={langs.map((c) => langDef(c))}
+      onRemove={(c) => setLangs(langs.filter((x) => x !== c))}
+      label=""
+    />
+  );
 
   const toolbar = (
     // Column languages for THIS song, coloured and drag-reorderable.
@@ -912,15 +944,12 @@ export function MultiLangLyricEditor({
           })}
 
           {/* Under the last line, inside the container (spans every column so it
-              stays put whether the grid fits or scrolls). */}
+              stays put whether the grid fits or scrolls). The phone's is in the dock. */}
           <button
             type="button"
-            onClick={() => {
-              pendingFocus.current = { line: lineNo(rows, rows.length), lang: langs[0] };
-              setRows((rs) => [...rs, { kind: "line", byLang: {} }]);
-            }}
+            onClick={addLineAtEnd}
             style={{ gridColumn: "1 / -1" }}
-            className="mono flex items-center justify-center gap-1 border-t py-2 text-xs uppercase tracking-wider opacity-50 hover:opacity-100"
+            className={`mono ${visibleLangs ? "hidden" : "flex"} items-center justify-center gap-1 border-t py-2 text-xs uppercase tracking-wider opacity-50 hover:opacity-100`}
           >
             {/* Centred in view: its left edge held at the middle, then pulled back half its width. */}
             <span className="sticky left-1/2 flex -translate-x-1/2 items-center gap-1">

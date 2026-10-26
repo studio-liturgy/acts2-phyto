@@ -174,3 +174,31 @@ export function PhoneFold({
     </div>
   );
 }
+
+/**
+ * A phone editor's secondary bar: its add buttons as icons, in the top half
+ * of a rounded rectangle sitting on the editor tabs (not full width).
+ * `slotRef` lets an editor portal its own buttons in.
+ */
+export function PhoneDock({
+  children,
+  slotRef,
+}: {
+  children?: ReactNode;
+  slotRef?: (el: HTMLDivElement | null) => void;
+}) {
+  return (
+    <div className="flex shrink-0 justify-center pt-2">
+      <div
+        ref={slotRef}
+        className="flex items-center gap-0.5 rounded-t-2xl border border-b-0 border-foreground/30 px-2 pt-1 empty:hidden"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** A button in the PhoneDock. */
+export const PHONE_DOCK_ICON =
+  "pill flex h-9 w-9 shrink-0 items-center justify-center transition active:bg-foreground/15 disabled:opacity-40";

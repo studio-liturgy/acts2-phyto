@@ -278,8 +278,9 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
     if (!g) return null;
     const live = g.is_live === null ? false : isLiveNow(g);
     return (
-      <div key={id} className="rounded-3xl border border-foreground p-4">
-        <div className="mb-3 flex items-center gap-0.5">
+      // Tight above the title: the row's 40px buttons already pad it.
+      <div key={id} className="rounded-3xl border border-foreground px-4 pb-4 pt-2">
+        <div className="mb-2 flex items-center gap-0.5">
           <Link
             to="/present"
             search={{ gathering: id }}

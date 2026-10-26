@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { touchReorder } from "@/lib/touch-reorder";
-import { PhoneFold } from "@/components/phone/PhoneChrome";
+import { PhoneDock, PhoneFold } from "@/components/phone/PhoneChrome";
 import { DotsGrip } from "@/components/DragBits";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
@@ -1070,10 +1070,20 @@ function SetEditor() {
               <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
             </button>
           </div>
-          {/* Phone: Fit, Add image and Section as icons on the link's row. */}
+          {/* Phone: Add image (outlined, right of the link), Fit and Section on the link's row. */}
           {phone && (
             <>
               <span className="w-1.5 shrink-0" />
+              <button
+                type="button"
+                onClick={() => mediaFileRef.current?.click()}
+                disabled={converting || uploading}
+                className={`${ICONBTN} border border-foreground`}
+                title="Add image"
+                aria-label="Add image"
+              >
+                <ImagePlus className="h-4 w-4" />
+              </button>
               {hasImages && (
                 <button
                   type="button"
@@ -1085,16 +1095,6 @@ function SetEditor() {
                   {allCover ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => mediaFileRef.current?.click()}
-                disabled={converting || uploading}
-                className={ICONBTN}
-                title="Add image"
-                aria-label="Add image"
-              >
-                <ImagePlus className="h-4 w-4" />
-              </button>
               {phytoSet.slides.length > 0 && (
                 <button
                   type="button"
@@ -1131,7 +1131,7 @@ function SetEditor() {
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {phytoSet.slides.length === 0 ? (
           <label
-            className={`mono flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-xs uppercase tracking-wider transition ${
+            className={`mono flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 text-center text-xs uppercase leading-relaxed tracking-wider transition ${
               converting || uploading
                 ? "cursor-wait border-foreground/30 text-muted-foreground"
                 : fileOver
@@ -2193,7 +2193,8 @@ function Importers({
       {/* Phone: the song's mode, as its pattern, after C. */}
       {phone && <SongModePicker setId={setId} compact />}
       {songLayout === "response" && (
-        <>
+        // Phone: Role and Align together on their own row.
+        <span className={phone ? "flex w-full items-center gap-4" : "contents"}>
           {toggle(phone ? "Role" : "Show role", showRoles, (on) =>
             updateSet(setId, { showRoles: on || undefined }),
           )}
@@ -2224,7 +2225,7 @@ function Importers({
               ))}
             </div>
           </span>
-        </>
+        </span>
       )}
     </>
   );
@@ -2902,12 +2903,7 @@ function Importers({
         )}
         {/* Phone: + Section and + Slide break along the bottom, above the
             tabs (portalled in by the grid editors). */}
-        {phone && songLayout !== "standard" && (
-          <div
-            ref={setToolbarSlot}
-            className="flex shrink-0 items-center justify-center gap-2 border-t border-foreground/20 px-4 py-2"
-          />
-        )}
+        {phone && songLayout !== "standard" && <PhoneDock slotRef={setToolbarSlot} />}
         {/* Lyrics textarea — fills remaining height */}
         <div
           className={`relative min-h-0 flex-1 overflow-hidden ${songLayout === "standard" ? "" : "hidden"}`}
@@ -3352,20 +3348,14 @@ function Importers({
                 {err}
               </p>
             )}
-            {/* Phone: Import, then the point / image / verse icons on its right. */}
             {!scripture.frozen && (
-              <div className={phone ? "mt-3 flex items-center gap-1.5" : ""}>
-                <button
-                  onClick={importScripture}
-                  disabled={!ref.trim() || busy}
-                  className={`mono uppercase pill bg-foreground text-background transition hover:opacity-90 disabled:opacity-50 ${phone ? "min-w-0 flex-1 py-2 text-xs tracking-wider" : "mt-3 w-full py-2.5 text-sm"}`}
-                >
-                  {busy ? "Fetching…" : "Import"}
-                </button>
-                {phone && (
-                  <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} icons />
-                )}
-              </div>
+              <button
+                onClick={importScripture}
+                disabled={!ref.trim() || busy}
+                className={`mono uppercase pill mt-3 w-full bg-foreground text-background transition hover:opacity-90 disabled:opacity-50 ${phone ? "py-2 text-xs tracking-wider" : "py-2.5 text-sm"}`}
+              >
+                {busy ? "Fetching…" : "Import"}
+              </button>
             )}
             {!scripture.frozen && !phone && (
               <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} />
@@ -3410,6 +3400,12 @@ function Importers({
               <MessageElements hasVerses={!!(manualText.trim() || manualText2.trim())} />
             )}
           </div>
+        )}
+        {/* Phone: add a point, an image or a verse from the dock. */}
+        {phone && !scripture.frozen && (
+          <PhoneDock>
+            <AddElementBar setId={setId} onManualVerse={scripture.addManualVerse} icons />
+          </PhoneDock>
         )}
       </div>
     );

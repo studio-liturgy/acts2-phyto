@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { PHONE_DOCK_ICON } from "@/components/phone/PhoneChrome";
+import { Scissors, SeparatorHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { createPortal } from "react-dom";
 import { EditorBar } from "@/components/EditorBar";
@@ -278,20 +280,39 @@ export function ResponseLyricEditor({
     </button>
   );
 
+  // Phone: the dock's icons. + Line, Slide break and Section (both above the
+  // line you're on).
   const phoneButtons = phone ? (
     <>
-      {sectionButton}
+      <button
+        type="button"
+        onClick={addLineAtEnd}
+        className={PHONE_DOCK_ICON}
+        title="Add a line"
+        aria-label="Add a line"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
       <button
         type="button"
         onClick={() => {
           const at = focusIndex.current ?? 0;
           if (at > 0) commit(breakBefore(doc(), at), undefined, false, true);
         }}
-        className="mono flex h-7 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
-        title="Start a new slide above the line your cursor is on"
+        className={PHONE_DOCK_ICON}
+        title="Slide break"
+        aria-label="Slide break"
       >
-        <Plus className="h-3 w-3" />
-        Slide break
+        <Scissors className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={onAddSection}
+        className={PHONE_DOCK_ICON}
+        title="Add a section"
+        aria-label="Add a section"
+      >
+        <SeparatorHorizontal className="h-4 w-4" />
       </button>
     </>
   ) : null;
@@ -553,7 +574,7 @@ export function ResponseLyricEditor({
             type="button"
             onClick={addLineAtEnd}
             style={{ gridColumn: "1 / -1" }}
-            className="mono flex items-center justify-center gap-1 border-t py-2 text-xs uppercase tracking-wider opacity-50 hover:opacity-100"
+            className={`mono ${phone ? "hidden" : "flex"} items-center justify-center gap-1 border-t py-2 text-xs uppercase tracking-wider opacity-50 hover:opacity-100`}
           >
             <Plus className="h-3 w-3" /> Line
           </button>

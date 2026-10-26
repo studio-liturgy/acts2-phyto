@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { langColor, langMatches, pickerOrder, type LangCode, type LangDef } from "@/lib/langs";
 
 /**
@@ -75,7 +75,13 @@ export function LangPickerMenu({
   onAdd,
   label,
   align = "left",
+  current,
+  onRemove,
 }: {
+  /** The phone's Languages menu: the song's languages above the search, each
+   *  with an x (kept to at least one). */
+  current?: readonly LangDef[];
+  onRemove?: (code: LangCode) => void;
   available: readonly LangDef[];
   onAdd: (code: LangCode) => void;
   label: string;
@@ -96,7 +102,10 @@ export function LangPickerMenu({
     if (!open) return;
     setQuery("");
     setActive(-1);
-    inputRef.current?.focus();
+    // The phone menu opens on its list, not the keyboard.
+    if (!current) inputRef.current?.focus();
+    // Only on opening; which menu this is never changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   useEffect(() => {
     listRef.current
@@ -132,6 +141,37 @@ export function LangPickerMenu({
           }}
           className={`catalogue-scroll absolute ${align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"} z-50 mt-1 max-h-60 w-64 overflow-auto rounded-2xl border border-foreground bg-popover shadow-md animate-in fade-in-0 zoom-in-95 slide-in-from-top-2`}
         >
+          {current && current.length > 0 && (
+            <div className="border-b border-foreground/20 py-1">
+              <div className="mono px-3 pb-1 pt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                In this song
+              </div>
+              {current.map((l) => (
+                <div key={l.code} className="flex items-center justify-between gap-3 px-3 py-1.5">
+                  <span className="mono flex shrink-0 items-center gap-2 text-xs uppercase">
+                    <span
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: langColor(l.code) }}
+                    />
+                    {l.short}
+                  </span>
+                  <span className="mono min-w-0 flex-1 truncate text-right text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {l.label}
+                  </span>
+                  {onRemove && current.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => onRemove(l.code)}
+                      aria-label={`Remove ${l.label} column (keeps its words)`}
+                      className="-mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-foreground/15"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="sticky top-0 z-10 border-b border-foreground/20 bg-popover">
             <input
               ref={inputRef}

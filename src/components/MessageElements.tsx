@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { PHONE_DOCK_ICON } from "@/components/phone/PhoneChrome";
 import { AlignLeft, Image as ImageIcon, Maximize2, Minimize2, Pencil, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
@@ -90,8 +91,7 @@ export function AddElementBar({
     becomeMessage();
   };
 
-  const ICON =
-    "pill flex h-10 w-10 cursor-pointer items-center justify-center transition active:bg-foreground/15";
+  const ICON = `${PHONE_DOCK_ICON} cursor-pointer`;
   if (icons) {
     return (
       <>
