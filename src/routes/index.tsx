@@ -45,6 +45,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { markGatheringEditReturn, takeGatheringEditReturn } from "@/lib/gathering-edit-return";
 import type { Set as PhytoSet, SetKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
+import { PhoneHome } from "@/components/phone/PhoneHome";
+import { usePhoneLayout } from "@/hooks/use-phone-layout";
+import { parsePhoneTab, type PhoneTab } from "@/lib/phone-layout";
 import { FirstTimeLanding } from "@/components/FirstTimeLanding";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { ExportGatheringButton } from "@/components/ExportGatheringButton";
@@ -93,8 +96,12 @@ const KIND_COLOR: Record<string, string> = {
 export const Route = createFileRoute("/")({
   // `?intro` forces the first-time landing to render even when the catalogue
   // has content, so signed-in users can revisit it from the home header.
-  validateSearch: (search: Record<string, unknown>): { intro?: boolean } => ({
+  // `?tab` picks the phone layout's bottom tab (Catalogue, Account).
+  validateSearch: (search: Record<string, unknown>): { intro?: boolean; tab?: PhoneTab } => ({
     ...(search.intro === true || search.intro === "true" ? { intro: true } : {}),
+    ...(parsePhoneTab(search.tab) && search.tab !== "gatherings"
+      ? { tab: parsePhoneTab(search.tab) }
+      : {}),
   }),
   head: () => ({
     meta: [
@@ -150,8 +157,27 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  component: Library,
+  component: Home,
 });
+
+/** Phone-sized screens get the phone home (when this build has it); the
+ *  landing and the first account download stay the shared ones. */
+function Home() {
+  const phone = usePhoneLayout();
+  const { intro, tab } = Route.useSearch();
+  const order = useLibrary((s) => s.order) ?? [];
+  const gatheringOrder = useLibrary((s) => s.gatheringOrder) ?? [];
+  const activeWorkspace = useLibrary((s) => s.activeWorkspace) ?? "personal";
+  const groups = useLibrary((s) => s.groups) ?? [];
+  const isSignedIn = useIsSignedIn();
+  const accountPull = useAccountPull();
+  const isEmpty = gatheringOrder.length === 0 && order.length === 0;
+  const landing = !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
+  const pulling = isSignedIn && isEmpty && !!accountPull;
+  if (phone && !landing && !pulling) return <PhoneHome tab={tab ?? "gatherings"} />;
+  if (phone === null && !landing) return <div className="min-h-screen bg-background" />;
+  return <Library />;
+}
 
 const SET_DRAG_TYPE = "application/x-stage-set-id";
 
