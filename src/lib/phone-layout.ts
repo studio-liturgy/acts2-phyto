@@ -60,3 +60,58 @@ export function phoneKindBg(kind: SetKind | string): string {
   if (kind === "media") return "bg-[var(--brand-orange)] text-[var(--brand-white)]";
   return "bg-muted text-foreground";
 }
+
+/**
+ * Multi-Language on a phone: the (at most two) language columns the grid
+ * shows. Keeps the picked languages that still exist, in the song's column
+ * order, and fills up to two from the song's first columns.
+ */
+export function phoneLangPair<T extends string>(langs: readonly T[], picked: readonly T[]): T[] {
+  const want = Math.min(2, langs.length);
+  const kept = langs.filter((c) => picked.includes(c)).slice(0, want);
+  for (const c of langs) {
+    if (kept.length >= want) break;
+    if (!kept.includes(c)) kept.push(c);
+  }
+  return langs.filter((c) => kept.includes(c));
+}
+
+/**
+ * Tapping a language chip: an unshown language replaces the one picked
+ * longest ago, so two always show; a shown one stays. `picked` is in the
+ * order the languages were picked (oldest first).
+ */
+export function tapPairLang<T extends string>(
+  langs: readonly T[],
+  picked: readonly T[],
+  code: T,
+): T[] {
+  const shown = phoneLangPair(langs, picked);
+  // Oldest first: the picked ones in picked order, then any filled in.
+  const order = [
+    ...picked.filter((c) => shown.includes(c)),
+    ...shown.filter((c) => !picked.includes(c)),
+  ];
+  if (shown.includes(code)) return order;
+  const next = [...order, code];
+  return next.length > 2 ? next.slice(next.length - 2) : next;
+}
+
+/**
+ * The phone view (/g) of a live gathering: which of this device's own
+ * gatherings it is, so a signed-in leader can add sets to it on the fly. The
+ * share view carries no gathering id, so it's the local live gathering with
+ * the same name holding every set the page shows. Null = not yours.
+ */
+export function ownLiveGathering(
+  gatherings: Record<string, Pick<Gathering, "id" | "name" | "setIds">>,
+  isLive: (id: string) => boolean,
+  title: string,
+  shownSetIds: readonly string[],
+): string | null {
+  for (const g of Object.values(gatherings)) {
+    if (!g || g.name !== title || !isLive(g.id)) continue;
+    if (shownSetIds.every((id) => g.setIds.includes(id))) return g.id;
+  }
+  return null;
+}

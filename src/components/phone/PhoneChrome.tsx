@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowUpLeft, CalendarDays, CircleUser, Library } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useLibrary } from "@/lib/store";
 import { isLiveNow } from "@/lib/live-session";
 import type { PhoneTab } from "@/lib/phone-layout";
@@ -25,6 +25,7 @@ export function PhoneScreen({
   tab?: PhoneTab;
   bodyClassName?: string;
 }) {
+  useNoInputZoom();
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
       {header}
@@ -36,6 +37,23 @@ export function PhoneScreen({
       {tab && <PhoneTabBar tab={tab} />}
     </div>
   );
+}
+
+/**
+ * iPhones zoom the page into any text box under 16px when it's tapped, and
+ * the editors' boxes are smaller than that. A maximum scale stops the jump
+ * (pinch zoom still works on iOS). iOS only: on Android it would block
+ * pinch zoom, and Android doesn't jump anyway.
+ */
+function useNoInputZoom() {
+  useEffect(() => {
+    if (!/iPhone|iPad|iPod/.test(navigator.userAgent)) return;
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+    const prev = meta.getAttribute("content") ?? "";
+    if (!prev.includes("maximum-scale")) meta.setAttribute("content", `${prev}, maximum-scale=1`);
+    return () => meta.setAttribute("content", prev);
+  }, []);
 }
 
 /** A main screen's header: the big title like the desktop home, actions on the right. */
