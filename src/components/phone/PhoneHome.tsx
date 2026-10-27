@@ -53,6 +53,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -1022,6 +1023,7 @@ function SettingsTab({
   const SMALL = "!py-[7px] !text-[10px] leading-5";
   const S_OUTLINE = `${PILL_OUTLINE} ${SMALL}`;
   const S_FILLED = `${PILL_FILLED} ${SMALL}`;
+  const MENU_ITEM = "mono uppercase text-[10px] tracking-wider";
   const TEXT_LINK = "mono text-[10px] uppercase tracking-wider transition active:opacity-50";
 
   // Delete account, as in the desktop's Account Settings: type the email.
@@ -1076,37 +1078,43 @@ function SettingsTab({
                     <ChevronDown className="h-3 w-3 shrink-0" />
                   </button>
                 </DropdownMenuTrigger>
+                {/* As the group pill's own size: Manage first (in a group),
+                    then the other workspaces (not the one you're in), then
+                    + New group. */}
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => setActiveWorkspace("personal")}
-                    className="mono uppercase text-xs tracking-wider"
-                  >
-                    Personal
-                  </DropdownMenuItem>
-                  {groups.map((g) => (
+                  {activeGroup && (
+                    <>
+                      <DropdownMenuItem onClick={() => setManage(true)} className={MENU_ITEM}>
+                        Manage
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  {activeWorkspace !== "personal" && (
                     <DropdownMenuItem
-                      key={g.id}
-                      onClick={() => setActiveWorkspace(g.id)}
-                      className="mono text-xs tracking-wider"
+                      onClick={() => setActiveWorkspace("personal")}
+                      className={MENU_ITEM}
                     >
-                      {g.name}
+                      Personal
                     </DropdownMenuItem>
-                  ))}
+                  )}
+                  {groups
+                    .filter((g) => g.id !== activeWorkspace)
+                    .map((g) => (
+                      <DropdownMenuItem
+                        key={g.id}
+                        onClick={() => setActiveWorkspace(g.id)}
+                        className={`${MENU_ITEM} normal-case`}
+                      >
+                        {g.name}
+                      </DropdownMenuItem>
+                    ))}
                   {groups.length < MAX_GROUPS && (
                     <DropdownMenuItem
                       onClick={() => setShowNewGroup(true)}
-                      className="mono uppercase text-xs tracking-wider text-muted-foreground"
+                      className={`${MENU_ITEM} text-muted-foreground`}
                     >
                       + New group
-                    </DropdownMenuItem>
-                  )}
-                  {/* In a group: its Manage panel (the desktop's Manage pill). */}
-                  {activeGroup && (
-                    <DropdownMenuItem
-                      onClick={() => setManage(true)}
-                      className="mono uppercase text-xs tracking-wider text-muted-foreground"
-                    >
-                      Manage
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
