@@ -19,7 +19,10 @@ export function NumberStepper({
   decrementLabel,
   incrementLabel,
   boxClassName = "w-6",
+  small = false,
 }: {
+  /** The phone's height: 24px, the same as a PillSwitch beside it. */
+  small?: boolean;
   value: number;
   onChange: (next: number) => void;
   min?: number;
@@ -38,13 +41,15 @@ export function NumberStepper({
     Number(Math.min(max, Math.max(min, Number.isFinite(n) ? n : min)).toFixed(decimals));
 
   return (
-    <div className="pill flex h-7 items-stretch overflow-hidden border border-foreground bg-background">
+    <div
+      className={`pill flex items-stretch overflow-hidden border border-foreground bg-background ${small ? "h-6" : "h-7"}`}
+    >
       <button
         type="button"
         onClick={() => onChange(clamp(value - step))}
         disabled={value <= min}
         aria-label={decrementLabel}
-        className="flex w-6 items-center justify-center transition hover:bg-foreground hover:text-background disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-inherit"
+        className={`flex items-center justify-center transition hover:bg-foreground hover:text-background disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-inherit ${small ? "w-5" : "w-6"}`}
       >
         <Minus className="h-3 w-3" />
       </button>
@@ -55,14 +60,14 @@ export function NumberStepper({
         // Typed text is filtered rather than validated: the box may be showing a
         // word like "OFF", and stripping to digits means typing over it just works.
         onChange={(e) => onChange(clamp(Number(e.target.value.replace(/[^\d.]/g, ""))))}
-        className={`mono border-x border-foreground bg-transparent text-center text-xs outline-none ${boxClassName}`}
+        className={`mono min-h-0 appearance-none border-x border-foreground bg-transparent p-0 text-center outline-none ${small ? "h-full text-[10px] leading-none" : "text-xs"} ${boxClassName}`}
       />
       <button
         type="button"
         onClick={() => onChange(clamp(value + step))}
         disabled={value >= max}
         aria-label={incrementLabel}
-        className="flex w-6 items-center justify-center transition hover:bg-foreground hover:text-background disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-inherit"
+        className={`flex items-center justify-center transition hover:bg-foreground hover:text-background disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-inherit ${small ? "w-5" : "w-6"}`}
       >
         <Plus className="h-3 w-3" />
       </button>

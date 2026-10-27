@@ -65,7 +65,8 @@ export function SongModePicker({
           // Same height and type as the top bar's buttons on the right.
           className={
             compact
-              ? "pill inline-flex shrink-0 items-center gap-1 py-2 pl-1 pr-1.5"
+              ? // The phone: as tall as the C switch beside it.
+                "pill inline-flex h-6 shrink-0 items-center gap-1 pl-0.5 pr-1"
               : "pill mono inline-flex w-auto shrink-0 items-center gap-2 border border-foreground bg-background px-4 py-2 text-xs uppercase tracking-wider transition hover:bg-muted"
           }
         >

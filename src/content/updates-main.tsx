@@ -24,7 +24,8 @@ export default function UpdatesMain() {
         >
           <ArrowLeft className="h-3 w-3" /> BACK
         </Link>
-        <ul className="mt-8 space-y-12">
+        {/* No rule above the latest update: the lines only divide entries. */}
+        <ul className="mt-8 space-y-12 [&>li:first-child]:border-t-0 [&>li:first-child]:pt-0">
           <SongModesEntry />
           <ArrangementsEntry />
           <LiveGatheringsEntry />

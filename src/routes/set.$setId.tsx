@@ -2791,6 +2791,7 @@ function Importers({
                     format={(n) => (customBreaks ? "C" : String(n))}
                     min={1}
                     max={8}
+                    small={!!phone}
                     decrementLabel="Fewer lines per slide"
                     incrementLabel="More lines per slide"
                   />
@@ -2842,6 +2843,7 @@ function Importers({
                     }}
                     min={1}
                     max={MAX_LANG_LINES_PER}
+                    small={!!phone}
                     decrementLabel="Fewer lines per slide"
                     incrementLabel="More lines per slide"
                   />

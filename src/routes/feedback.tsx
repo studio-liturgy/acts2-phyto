@@ -126,8 +126,7 @@ function FeedbackPage() {
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
-        <h1 className="text-5xl md:text-6xl leading-none">Submit Feedback</h1>
-        <p className="mt-4 text-base text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           Pick a category and let us know what's on your mind. We read every message.
         </p>
 
@@ -172,7 +171,7 @@ function FeedbackPage() {
               placeholder="you@example.com"
               maxLength={255}
               autoComplete="email"
-              className="w-full rounded-full border border-foreground bg-background px-6 py-3 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
+              className="mono w-full rounded-full border border-foreground bg-background px-6 py-3 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
             />
             {!emailValid && (
               <p className="mono text-xs uppercase tracking-wider text-[var(--brand-red)]">
@@ -196,7 +195,7 @@ function FeedbackPage() {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="pill mono bg-foreground px-6 py-2.5 text-sm uppercase tracking-wider text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="pill mono bg-foreground px-4 py-1.5 text-xs uppercase tracking-wider text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {status === "submitting" ? "Sending..." : "Send Feedback"}
             </button>
