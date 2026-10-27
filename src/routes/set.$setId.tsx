@@ -2274,7 +2274,9 @@ function Importers({
                   type="button"
                   onClick={() => updateSet(setId, { roleAlign: value })}
                   aria-pressed={roleAlign === value}
-                  className={`pill mono h-full px-2.5 text-[10px] uppercase tracking-wider transition ${
+                  // flex + leading-none: the letter sits in the middle of the
+                  // phone's short pill, not on the text's baseline box.
+                  className={`pill mono flex h-full items-center px-2.5 text-[10px] uppercase leading-none tracking-wider transition ${
                     roleAlign === value ? "bg-foreground text-background" : "hover:bg-muted"
                   }`}
                 >

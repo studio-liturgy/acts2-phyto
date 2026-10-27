@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { List, Monitor, Search, Smartphone, X } from "lucide-react";
+import { ArrowUp, List, Monitor, Search, Smartphone, X } from "lucide-react";
+import { songPatternStyle, songPatterns } from "@/lib/song-layout";
 import { arrangedEntries, effectiveArrangement, sectionOptions } from "@/lib/arrangements";
 import { PhoneArrangeButton } from "@/components/phone/PhoneArrangeButton";
 import { SlideView } from "@/components/SlideView";
@@ -129,21 +130,17 @@ export function PhoneGathering({
   const phoneSets = useGatheringPhoneSets(gatheringId);
   const hidden = useGatheringSections((s) => s.hidden[gatheringId]) ?? NONE;
   const arranged = useGatheringSections((s) => s.arranged[gatheringId]) ?? NONE;
-  // Desktop view: the set nearest the top of the screen, for the arrangement button.
-  const [inView, setInView] = useState<string | null>(null);
+  // Desktop view: a back-to-top button once it's scrolled down a little.
+  const slidesTop = useRef<HTMLDivElement | null>(null);
+  const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     if (view !== "slides") return;
-    const pick = () => {
-      const rows = Array.from(document.querySelectorAll<HTMLElement>("[data-arr-set]"));
-      if (rows.length === 0) return;
-      const top = (rows[0].offsetParent as HTMLElement | null)?.getBoundingClientRect().top ?? 0;
-      let cur = rows[0];
-      for (const r of rows) if (r.getBoundingClientRect().top <= top + 120) cur = r;
-      setInView(cur.dataset.arrSet ?? null);
-    };
-    pick();
-    document.addEventListener("scroll", pick, { capture: true, passive: true });
-    return () => document.removeEventListener("scroll", pick, { capture: true });
+    const scroller = slidesTop.current?.parentElement;
+    if (!scroller) return;
+    const on = () => setScrolled(scroller.scrollTop > 200);
+    on();
+    scroller.addEventListener("scroll", on, { passive: true });
+    return () => scroller.removeEventListener("scroll", on);
   }, [view, gatheringId]);
   const [prefs, setPrefs] = useState<ViewerPrefs>(() => loadPrefs());
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -247,10 +244,22 @@ export function PhoneGathering({
         tab={fromLink ? undefined : "gatherings"}
         header={header}
         overlay={
-          <PhoneArrangeButton gatheringId={gatheringId} set={sets[inView ?? g.setIds[0] ?? ""]} />
+          <button
+            type="button"
+            onClick={() =>
+              slidesTop.current?.parentElement?.scrollTo({ top: 0, behavior: "smooth" })
+            }
+            className={`pill absolute bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center border border-foreground bg-background transition-all duration-300 active:opacity-80 ${
+              scrolled ? "opacity-100" : "pointer-events-none translate-y-2 opacity-0"
+            }`}
+            title="Back to top"
+            aria-label="Back to top"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </button>
         }
       >
-        <div className="relative space-y-6 px-5 pb-24 pt-5">
+        <div ref={slidesTop} className="relative space-y-6 px-5 pb-24 pt-5">
           {g.setIds.length === 0 && (
             <p className="mono py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
               Gathering is empty. Add a set to see its slides.
@@ -266,7 +275,7 @@ export function PhoneGathering({
             const labels = new Map(sectionOptions(d.slides).map((o) => [o.key, o]));
             const named = order.some(({ group }) => !!group.section);
             return (
-              <section key={`${id}#${i}`} data-arr-set={id}>
+              <section key={`${id}#${i}`}>
                 <div className="mb-2 flex items-center gap-2">
                   <span className="mono text-[10px] text-muted-foreground">{i + 1}.</span>
                   <span className="min-w-0 truncate text-base">{d.name}</span>
@@ -372,12 +381,15 @@ export function PhoneGathering({
               return (
                 <li
                   key={slot.key}
-                  className={`pill flex items-center gap-3 text-sm ${phoneKindBg(d?.kind ?? "mixed")} ${
+                  className={`pill flex items-center gap-2.5 text-sm ${phoneKindBg(d?.kind ?? "mixed")} ${
                     held ? "ring-2 ring-foreground" : ""
                   }`}
+                  // The set's mode pattern, as in the catalogue.
+                  style={d ? songPatternStyle(songPatterns(d), 9, 0.07) : undefined}
                 >
+                  {/* The grip lines up with the search bar's magnifier below. */}
                   <span
-                    className="flex h-10 w-9 shrink-0 touch-none items-center justify-end [-webkit-touch-callout:none]"
+                    className="flex h-10 shrink-0 touch-none items-center pl-[18px] [-webkit-touch-callout:none]"
                     onPointerDown={(e) => {
                       e.preventDefault();
                       startDrag(slots, i);

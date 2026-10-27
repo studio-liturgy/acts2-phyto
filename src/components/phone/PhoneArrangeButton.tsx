@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ListOrdered, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ListOrdered } from "lucide-react";
 import { ArrangementRow } from "@/components/ArrangementRow";
 import {
   effectiveArrangement,
@@ -17,7 +17,7 @@ const NONE: Record<string, string[]> = {};
 const TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
 
 /**
- * The gathering editor's arrangement button (Phone and Desktop views), fixed
+ * The gathering editor's arrangement button (the Phone view), fixed
  * bottom right, for the set being viewed. Faint until that set plays
  * differently from how it's written. Tapped, its sections splay out above it
  * as pills, top to bottom: a song's can be removed and any section added
@@ -39,6 +39,21 @@ export function PhoneArrangeButton({
   const pushHiddenSections = useLibrary((s) => s.pushHiddenSections);
   const pushArrangements = useLibrary((s) => s.pushArrangements);
   const [blocked, setBlocked] = useState(false);
+  const wrap = useRef<HTMLDivElement | null>(null);
+
+  // Tapping anywhere else folds the pills back (the "+" menu, which lives
+  // outside this box, counts as inside).
+  useEffect(() => {
+    if (!open) return;
+    const off = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (!t || wrap.current?.contains(t)) return;
+      if (t.closest("[data-radix-popper-content-wrapper], [role='menu']")) return;
+      setOpen(false);
+    };
+    document.addEventListener("pointerdown", off, true);
+    return () => document.removeEventListener("pointerdown", off, true);
+  }, [open]);
 
   // A different set in view folds the pills away.
   const setId = set?.id ?? null;
@@ -72,16 +87,20 @@ export function PhoneArrangeButton({
   };
 
   return (
-    <div className="pointer-events-none absolute bottom-4 right-4 z-20 flex max-h-[calc(100%-2rem)] flex-col items-end gap-2">
+    <div
+      ref={wrap}
+      className="pointer-events-none absolute bottom-4 right-4 z-20 flex max-h-[calc(100%-2rem)] flex-col items-end gap-2"
+    >
       <div
-        className={`catalogue-scroll min-h-0 origin-bottom-right overflow-y-auto transition-all duration-300 ${
+        // Splays up out of the button, and shrinks back into it.
+        className={`catalogue-scroll min-h-0 origin-bottom-right overflow-y-auto transition-all duration-300 ease-out ${
           open
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
-            : "translate-y-3 scale-95 opacity-0"
+            : "translate-y-6 scale-50 opacity-0"
         }`}
         aria-hidden={!open}
       >
-        {open && (
+        {
           <ArrangementRow
             column
             solid
@@ -92,7 +111,7 @@ export function PhoneArrangeButton({
             onChange={change}
             onBlocked={() => setBlocked(true)}
           />
-        )}
+        }
       </div>
       {blocked && (
         <p className="mono pointer-events-none rounded-full bg-background px-3 py-1 text-[10px] uppercase tracking-wider">
@@ -109,7 +128,7 @@ export function PhoneArrangeButton({
         aria-label={open ? "Done arranging" : "Arrange sections"}
         aria-pressed={open}
       >
-        {open ? <X className="h-4 w-4" /> : <ListOrdered className="h-4 w-4" />}
+        <ListOrdered className="h-4 w-4" />
       </button>
     </div>
   );

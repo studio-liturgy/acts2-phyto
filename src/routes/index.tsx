@@ -2238,6 +2238,8 @@ function GatheringCard({
                   className={`pill flex items-center gap-3 px-4 py-1.5 text-sm transition ${kindBg(d?.kind ?? "mixed")} ${
                     isDragging ? "ring-2 ring-foreground" : ""
                   }`}
+                  // The set's mode pattern, as in the catalogue.
+                  style={d ? songPatternStyle(songPatterns(d), 9, 0.07) : undefined}
                 >
                   {editMode && <DotsGrip className="cursor-grab opacity-80" />}
                   <span draggable={false} className="flex-1 truncate">

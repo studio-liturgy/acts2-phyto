@@ -7,6 +7,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { hideDragGhost } from "@/lib/drag-ghost";
+import { touchReorder } from "@/lib/touch-reorder";
+import { DotsGrip } from "@/components/DragBits";
 import { addEntry, removeEntry, type Arrangement, type SectionOption } from "@/lib/arrangements";
 
 /**
@@ -37,7 +39,8 @@ export function ArrangementRow({
   /** Scripture and message: sections can only be taken out and put back (in
    *  their written place), not moved or repeated. */
   removeOnly?: boolean;
-  /** Pills on an opaque fill, for floating over slides. */
+  /** The phone's version: pills on an opaque fill (they float over slides),
+   *  all one width, each with a grip to drag by touch; "+" opens to its left. */
   solid?: boolean;
 }) {
   const byKey = new Map(options.map((o) => [o.key, o]));
@@ -54,6 +57,19 @@ export function ArrangementRow({
   const dragIndex = useRef<number | null>(null);
   const [dragUiIndex, setDragUiIndex] = useState<number | null>(null);
 
+  // Moves the dragged pill to slot `i` (HTML drag over a pill, or a finger).
+  const moveTo = (i: number) => {
+    const from = dragIndex.current;
+    if (from === null || from === i) return;
+    const next = [...(liveRef.current ?? slotsOf(arrangement))];
+    const [moved] = next.splice(from, 1);
+    next.splice(i, 0, moved);
+    dragIndex.current = i;
+    setDragUiIndex(i);
+    liveRef.current = next;
+    setLiveOrder(next);
+  };
+
   // Called from onDrop and onDragEnd (fallback); the ref makes the second a no-op.
   const commit = () => {
     if (liveRef.current) {
@@ -69,7 +85,9 @@ export function ArrangementRow({
   return (
     <div
       className={
-        column ? "flex flex-col items-end gap-1.5" : "mb-2 flex flex-wrap items-center gap-1.5"
+        column
+          ? `flex flex-col gap-1.5 ${solid ? "items-stretch" : "items-end"}`
+          : "mb-2 flex flex-wrap items-center gap-1.5"
       }
     >
       {(liveOrder ?? slotsOf(arrangement)).map(({ slot, key }, i) => {
@@ -91,28 +109,39 @@ export function ArrangementRow({
               if (from === null) return;
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";
-              if (from === i) return;
-              const next = [...(liveOrder ?? slotsOf(arrangement))];
-              const [moved] = next.splice(from, 1);
-              next.splice(i, 0, moved);
-              dragIndex.current = i;
-              setDragUiIndex(i);
-              liveRef.current = next;
-              setLiveOrder(next);
+              moveTo(i);
             }}
             onDrop={(e) => {
               e.preventDefault();
               commit();
             }}
             onDragEnd={commit}
-            className={`pill mono flex h-7 items-center gap-1 pl-3 pr-1.5 text-[10px] uppercase tracking-wider ${
-              removeOnly ? "" : "cursor-grab active:cursor-grabbing"
-            } ${dragUiIndex === i ? "opacity-50" : ""}`}
+            data-arr-pill={i}
+            className={`pill mono flex h-7 items-center gap-1 pr-1.5 text-[10px] uppercase tracking-wider ${
+              solid && !removeOnly ? "pl-1" : "pl-3"
+            } ${removeOnly ? "" : "cursor-grab active:cursor-grabbing"} ${dragUiIndex === i ? "opacity-50" : ""}`}
             style={{
               backgroundColor: `color-mix(in oklab, ${tint} 45%, ${solid ? "var(--background)" : "transparent"})`,
             }}
           >
-            <span className="max-w-[9rem] truncate">{opt.label}</span>
+            {solid && !removeOnly && (
+              <span
+                className="flex h-full w-6 shrink-0 touch-none items-center justify-center [-webkit-touch-callout:none]"
+                aria-label="Drag to reorder"
+                {...touchReorder({
+                  attr: "arr-pill",
+                  onStart: () => {
+                    dragIndex.current = i;
+                    setDragUiIndex(i);
+                  },
+                  onOver: (idx) => moveTo(idx),
+                  onEnd: commit,
+                })}
+              >
+                <DotsGrip className="opacity-70" size={12} />
+              </span>
+            )}
+            <span className={`max-w-[9rem] truncate ${solid ? "flex-1" : ""}`}>{opt.label}</span>
             <button
               type="button"
               onClick={(e) => {
@@ -134,14 +163,19 @@ export function ArrangementRow({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background ${solid ? "bg-background" : ""}`}
+              className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background ${solid ? "self-end bg-background" : ""}`}
               title="Add section"
               aria-label="Add section"
             >
               <Plus className="h-3.5 w-3.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align={column ? "end" : "start"} className="w-max min-w-0">
+          <DropdownMenuContent
+            side={solid ? "left" : "bottom"}
+            align={column ? "end" : "start"}
+            sideOffset={8}
+            className="w-max min-w-0"
+          >
             {addable.map((o) => (
               <DropdownMenuItem
                 key={o.key}

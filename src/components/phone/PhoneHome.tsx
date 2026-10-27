@@ -333,6 +333,7 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
                   <li
                     key={`${sid}#${i}`}
                     className={`pill flex items-center gap-3 px-4 py-1.5 text-sm ${phoneKindBg(d?.kind ?? "mixed")}`}
+                    style={d ? songPatternStyle(songPatterns(d), 9, 0.07) : undefined}
                   >
                     <span className="flex-1 truncate">{d?.name ?? "(missing)"}</span>
                     <span className="mono text-[10px] uppercase tracking-wider opacity-90">
