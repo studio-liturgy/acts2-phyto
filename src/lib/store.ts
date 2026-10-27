@@ -1,4 +1,5 @@
 import { refreshAfterGo } from "./live-refresh";
+import { liveIsStale } from "./live-stale";
 import { create } from "zustand";
 import { nanoid } from "nanoid";
 import type {
@@ -1525,9 +1526,19 @@ function videoCmdForSlide(
   return { action, nonce: prevNonce + 1 };
 }
 
+// When the live slide last changed, so a presenter opened after a long break
+// starts fresh (lib/live-stale.ts).
+const CHANGED_AT_KEY = "stage-live-changed-at";
+
 function readInitial(): LiveState {
   if (typeof window === "undefined") return defaultLive();
   try {
+    const at = Number(localStorage.getItem(CHANGED_AT_KEY));
+    if (liveIsStale(at > 0 ? at : null, Date.now())) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultLive()));
+      localStorage.removeItem(CHANGED_AT_KEY);
+      return defaultLive();
+    }
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return { ...defaultLive(), ...JSON.parse(raw) };
   } catch {}
@@ -1544,7 +1555,16 @@ function getChannel() {
 export const useLive = create<LiveStore>((set, get) => ({
   ...readInitial(),
   setLive: (patch) => {
+    const prev = get();
     set(patch);
+    if (
+      typeof window !== "undefined" &&
+      (get().setId !== prev.setId || get().slideId !== prev.slideId)
+    ) {
+      try {
+        localStorage.setItem(CHANGED_AT_KEY, String(Date.now()));
+      } catch {}
+    }
     const snapshot = liveSnapshot(get());
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));

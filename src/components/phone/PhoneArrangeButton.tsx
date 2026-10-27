@@ -92,25 +92,25 @@ export function PhoneArrangeButton({
       className="pointer-events-none absolute bottom-4 right-4 z-20 flex max-h-[calc(100%-2rem)] flex-col items-end gap-2"
     >
       <div
-        // Unfolds upward out of the button and folds back down into it: the
-        // height eases open (like the fold cards), quickly, with a fade.
-        className={`grid min-h-0 justify-items-end transition-[grid-template-rows,opacity] duration-200 ease-out ${
-          open ? "pointer-events-auto grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        // Grows up out of the button (the first version's motion), and folds
+        // back down into it the same way in reverse: the pills stay mounted.
+        className={`catalogue-scroll min-h-0 origin-bottom-right overflow-y-auto transition-all duration-300 ${
+          open
+            ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+            : "translate-y-3 scale-95 opacity-0"
         }`}
         aria-hidden={!open}
       >
-        <div className={`catalogue-scroll min-h-0 ${open ? "overflow-y-auto" : "overflow-hidden"}`}>
-          <ArrangementRow
-            column
-            solid
-            removeOnly={!song}
-            options={sectionOptions(set.slides)}
-            arrangement={arrangement}
-            tints={TINTS}
-            onChange={change}
-            onBlocked={() => setBlocked(true)}
-          />
-        </div>
+        <ArrangementRow
+          column
+          solid
+          removeOnly={!song}
+          options={sectionOptions(set.slides)}
+          arrangement={arrangement}
+          tints={TINTS}
+          onChange={change}
+          onBlocked={() => setBlocked(true)}
+        />
       </div>
       {blocked && (
         <p className="mono pointer-events-none rounded-full bg-background px-3 py-1 text-[10px] uppercase tracking-wider">

@@ -32,7 +32,9 @@ export function PhoneScreen({
   const signedOut = useAuthStore((s) => !s.isLoading && s.session === null);
   if (signedOut) return <Navigate to="/" search={{}} replace />;
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
+    // --vvh: the part of the screen above the keyboard, while typing in an
+    // editor (useKeyboardInset).
+    <div className="flex h-[var(--vvh,100dvh)] flex-col overflow-hidden bg-background text-foreground">
       {header}
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div
@@ -187,12 +189,13 @@ export function PhoneFold({
 /**
  * How much of the screen the on-screen keyboard covers (px; 0 when it's down).
  *
- * iOS shows a focused box by scrolling the whole page up under the keyboard,
- * and how far depends on where the box sits (the Settings fold being open or
- * shut moves it). Fixed things then land in different places each time. So
- * while typing in an editor the page is held at the top, the editor's own
- * scroller gets room for the keyboard (--kb, styles.css) and scrolls the box
- * into view itself, and the keyboard's height is read every frame.
+ * iOS shows a focused box by sliding the whole page up under the keyboard.
+ * Pulling it back every frame fought that slide (the page jumped down and back
+ * on each tap, and juddered at the bottom of a grid). Instead, while typing in
+ * an editor the screen itself shrinks to the part above the keyboard (--vvh on
+ * <html>, read by PhoneScreen; the editor tabs hide via data-kb), so every
+ * line is reachable by the editor's own scrolling and iOS has nothing to
+ * slide. The page is only put back at the top if iOS slid it anyway.
  */
 function useKeyboardInset(): number {
   const [inset, setInset] = useState(0);
@@ -224,18 +227,32 @@ function useKeyboardInset(): number {
       if (r.bottom > bottom) box.scrollTop += r.bottom - bottom;
       else if (r.top < b.top + 8) box.scrollTop -= b.top + 8 - r.top;
     };
+    let lastH = -1;
     const read = () => {
       const el = typingIn();
-      // Hold the page at the top while typing in an editor.
-      if (el && (window.scrollY !== 0 || vv.offsetTop !== 0)) window.scrollTo(0, 0);
-      const covered = window.innerHeight - (vv.height + vv.offsetTop);
+      const covered = window.innerHeight - vv.height;
       const next = el && covered > 80 ? Math.round(covered) : 0;
+      const h = next > 0 ? Math.round(vv.height) : 0;
+      if (h !== lastH) {
+        lastH = h;
+        if (h > 0) {
+          root.style.setProperty("--vvh", `${h}px`);
+          root.setAttribute("data-kb", "");
+        } else {
+          root.style.removeProperty("--vvh");
+          root.removeAttribute("data-kb");
+        }
+      }
       if (next !== last) {
         last = next;
         setInset(next);
-        root.style.setProperty("--kb", `${next}px`);
         if (next > 0) requestAnimationFrame(reveal);
       }
+    };
+    // If iOS slid the page anyway, settle it back once (not every frame).
+    const onScroll = () => {
+      if (typingIn() && (window.scrollY !== 0 || vv.offsetTop !== 0)) window.scrollTo(0, 0);
+      start();
     };
     const loop = () => {
       read();
@@ -251,18 +268,19 @@ function useKeyboardInset(): number {
     };
     read();
     vv.addEventListener("resize", start);
-    vv.addEventListener("scroll", start);
-    window.addEventListener("scroll", start, { passive: true });
+    vv.addEventListener("scroll", onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("focusin", onFocus);
     document.addEventListener("focusout", start);
     return () => {
       if (frame) cancelAnimationFrame(frame);
       vv.removeEventListener("resize", start);
-      vv.removeEventListener("scroll", start);
-      window.removeEventListener("scroll", start);
+      vv.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll", onScroll);
       document.removeEventListener("focusin", onFocus);
       document.removeEventListener("focusout", start);
-      root.style.removeProperty("--kb");
+      root.style.removeProperty("--vvh");
+      root.removeAttribute("data-kb");
     };
   }, []);
   return inset;
@@ -282,14 +300,11 @@ export function PhoneDock({
   children?: ReactNode;
   slotRef?: (el: HTMLDivElement | null) => void;
 }) {
-  const keyboard = useKeyboardInset();
+  // With the keyboard up the screen ends at the keyboard (and the editor tabs
+  // hide), so the dock's spot at the editor's foot sits right on top of it.
+  useKeyboardInset();
   return (
-    <div
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center"
-      // With the keyboard up, ride on top of it (and its arrows bar) instead
-      // of staying behind it at the bottom of the page.
-      style={keyboard > 0 ? { position: "fixed", bottom: keyboard } : undefined}
-    >
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center">
       <div
         ref={slotRef}
         className="pointer-events-auto flex items-center gap-0.5 rounded-t-2xl border border-b-0 border-foreground/30 bg-background px-2 pt-1 empty:hidden"

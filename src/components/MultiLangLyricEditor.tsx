@@ -959,6 +959,7 @@ export function MultiLangLyricEditor({
                 cellsRef={cells}
                 cellKey={key}
                 autosize={autosize}
+                wrapOnFocus={!!visibleLangs}
                 onDragOverRow={() => dragSecRow.current !== null && dragSectionOver(i)}
                 dragRow={i}
                 onFocusRow={() => (focusRowRef.current = i)}
@@ -1025,6 +1026,7 @@ function Row({
   cellsRef,
   cellKey,
   autosize,
+  wrapOnFocus = false,
   onDragOverRow,
   dragRow,
   onFocusRow,
@@ -1058,6 +1060,9 @@ function Row({
   cellsRef: React.MutableRefObject<Map<string, HTMLTextAreaElement>>;
   cellKey: (row: number, lang: LangCode) => string;
   autosize: (el: HTMLTextAreaElement | null) => void;
+  /** Phone: a line wraps to show all of itself while it's being typed in,
+   *  and goes back to one line (scrolled to its start) when you leave it. */
+  wrapOnFocus?: boolean;
   onDragOverRow: () => void;
   /** This line's row, for a touch drag passing over it. */
   dragRow: number;
@@ -1162,7 +1167,20 @@ function Row({
               dir={def.dir}
               value={stripChordsRaw(row.byLang[code] ?? "")}
               onMouseDown={() => onCellMouseDown(code, index)}
-              onFocus={onFocusRow}
+              onFocus={(e) => {
+                // Not under a chord row: the chords sit over one unwrapped line.
+                if (wrapOnFocus && !(code === chordLang && chords)) {
+                  e.currentTarget.wrap = "soft";
+                  autosize(e.currentTarget);
+                }
+                onFocusRow();
+              }}
+              onBlur={(e) => {
+                if (!wrapOnFocus || e.currentTarget.wrap === "off") return;
+                e.currentTarget.wrap = "off";
+                e.currentTarget.scrollLeft = 0;
+                autosize(e.currentTarget);
+              }}
               onSelect={(e) => onCaret(index, code, e.currentTarget.selectionStart)}
               onDragOver={(e) => {
                 e.preventDefault();

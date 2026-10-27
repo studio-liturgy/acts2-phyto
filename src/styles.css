@@ -386,3 +386,13 @@ html[data-phone-ui] body {
     width: 2.25rem;
   }
 }
+
+/* Phone: no page rubber-band (it pulled the editor's grid around), and the
+   set editor's tabs step aside while the keyboard is up (useKeyboardInset). */
+html[data-phone-ui],
+html[data-phone-ui] body {
+  overscroll-behavior: none;
+}
+html[data-kb] .phone-editor-tabs {
+  display: none;
+}

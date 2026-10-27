@@ -97,7 +97,7 @@ export function PhoneSetTabs({
           )}
         </div>
         {/* Across the full width, lit like the home tab bar. */}
-        <nav className="flex shrink-0 border-t border-foreground/15 bg-background px-1.5 pb-[env(safe-area-inset-bottom)]">
+        <nav className="phone-editor-tabs flex shrink-0 border-t border-foreground/15 bg-background px-1.5 pb-[env(safe-area-inset-bottom)]">
           {TABS.filter((t) => t.tab !== "slides" || slides !== undefined).map(
             ({ tab: t, label, Icon }) => (
               <button
