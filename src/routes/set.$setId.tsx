@@ -1754,7 +1754,7 @@ function ChordControls({
               key={d}
               type="button"
               onClick={() => updateSet(setId, { chords: { ...chords, display: d } })}
-              className={`pill mono h-7 border border-foreground uppercase transition ${phone ? "px-2.5 text-[10px] tracking-wider" : "px-3 text-xs"} ${
+              className={`pill mono border border-foreground uppercase transition ${phone ? "h-6 px-2.5 text-[10px] tracking-wider" : "h-7 px-3 text-xs"} ${
                 chords.display === d
                   ? "bg-foreground text-background"
                   : "bg-background hover:bg-muted"
@@ -1779,7 +1779,9 @@ function ChordControls({
                         render the lowercase b in Db/Eb/Ab/Bb as a capital B —
                         indistinguishable from the note B. KEYS is already
                         correctly cased. */}
-                  <button className="pill mono flex h-7 items-center gap-1.5 border border-foreground bg-background pl-3 pr-2.5 text-xs tracking-wider transition hover:bg-muted">
+                  <button
+                    className={`pill mono flex items-center gap-1.5 border border-foreground bg-background tracking-wider transition hover:bg-muted ${phone ? "h-6 pl-2.5 pr-2 text-[10px]" : "h-7 pl-3 pr-2.5 text-xs"}`}
+                  >
                     {chords.key}
                     <ChevronDown className="h-3 w-3 shrink-0" />
                   </button>
@@ -2256,7 +2258,9 @@ function Importers({
               Align
             </span>
             {/* Phone: L / M / R. */}
-            <div className="pill flex h-7 items-center border border-foreground p-0.5">
+            <div
+              className={`pill flex items-center border border-foreground p-0.5 ${phone ? "h-5" : "h-7"}`}
+            >
               {(
                 [
                   ["left", phone ? "L" : "Left"],
@@ -2904,7 +2908,7 @@ function Importers({
             {songLayout === "multilang" && phone && (
               // Two languages at a time: tap one to swap it in for the one shown
               // longest. + adds a language; the chips scroll sideways in one row.
-              <div className="-mx-4 -mb-4 mt-3 flex items-center gap-1.5 border-t border-foreground/20 py-2.5 pl-4">
+              <div className="-mx-4 -mb-4 mt-1 flex items-center gap-1.5 py-2.5 pl-4">
                 <div ref={setLangAddSlot} className="contents" />
                 <div className="catalogue-scroll flex min-w-0 flex-1 gap-1.5 overflow-x-auto pr-4">
                   {(songLangCols ?? []).map((code) => {

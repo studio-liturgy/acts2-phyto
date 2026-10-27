@@ -30,11 +30,12 @@ export function PillSwitch({
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       // Off reads dimmer than on, so the state is legible without a label.
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-current/40 bg-transparent transition-opacity duration-200 hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 ${checked || !dimWhenOff ? "" : "opacity-50"} ${className}`}
+      // pill-switch: the phone layout draws it smaller (styles.css).
+      className={`pill-switch relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-current/40 bg-transparent transition-opacity duration-200 hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 ${checked || !dimWhenOff ? "" : "opacity-50"} ${className}`}
     >
       <span
-        className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-current transition-all duration-200"
-        style={{ left: checked ? "calc(100% - 1.25rem - 2px)" : "2px" }}
+        className="pill-switch-knob absolute top-1/2 h-[var(--knob,1.25rem)] w-[var(--knob,1.25rem)] -translate-y-1/2 rounded-full bg-current transition-all duration-200"
+        style={{ left: checked ? "calc(100% - var(--knob, 1.25rem) - 2px)" : "2px" }}
       />
     </button>
   );

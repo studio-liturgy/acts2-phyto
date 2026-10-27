@@ -367,3 +367,13 @@ html[data-phone-ui],
 html[data-phone-ui] body {
   overscroll-behavior: none;
 }
+
+/* Phone layout: every on/off switch in the smaller size, and the controls
+   that sit beside one (the L/S stepper, the song mode pill) match it. */
+@media (max-width: 767px) {
+  html[data-phone-ui] .pill-switch {
+    --knob: 1rem;
+    height: 1.25rem;
+    width: 2.25rem;
+  }
+}

@@ -22,11 +22,12 @@ const LAYOUT_PATTERN: Record<SongLayout, SongPattern[]> = {
 };
 
 /** The mode's pattern on the song blue, as the catalogue pill shows it. */
-function Swatch({ layout }: { layout: SongLayout }) {
+function Swatch({ layout, compact = false }: { layout: SongLayout; compact?: boolean }) {
   return (
     <span
       aria-hidden
-      className="inline-block h-4 w-7 shrink-0 rounded-full"
+      // Compact (the phone): the pill is the swatch, the size of a switch.
+      className={`inline-block shrink-0 rounded-full ${compact ? "h-5 w-9" : "h-4 w-7"}`}
       style={{
         backgroundColor: "var(--brand-blue)",
         ...songPatternStyle(LAYOUT_PATTERN[layout], 4, 0.35),
@@ -66,11 +67,11 @@ export function SongModePicker({
           className={
             compact
               ? // The phone: as tall as the C switch beside it.
-                "pill inline-flex h-6 shrink-0 items-center gap-1 pl-0.5 pr-1"
+                "pill inline-flex h-5 shrink-0 items-center gap-1"
               : "pill mono inline-flex w-auto shrink-0 items-center gap-2 border border-foreground bg-background px-4 py-2 text-xs uppercase tracking-wider transition hover:bg-muted"
           }
         >
-          <Swatch layout={layout} />
+          <Swatch layout={layout} compact={compact} />
           {!compact && current.label}
           {/* Nudged down: the caps sit low in Space Mono, so a centred icon reads high. */}
           <ChevronDown className="relative top-px h-3 w-3 shrink-0" />

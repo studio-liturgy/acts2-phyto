@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { PHONE_DOCK_ICON, scrollEditorToEnd } from "@/lib/phone-dock";
 import {
   AlignLeft,
@@ -403,12 +403,15 @@ export function ElementCard({
               placeholder="Heading (optional)"
             />
           </div>
-          <RichText
-            cellId={`${slide.id}:text`}
-            value={(slide.lines ?? []).join("\n")}
-            onChange={(v) => onChange({ lines: v.split("\n") }, "text")}
-            placeholder="One bullet per line"
-          />
+          {/* The dots or numbers beside each line, as the slide shows them. */}
+          <BulletGutter numbered={numbered}>
+            <RichText
+              cellId={`${slide.id}:text`}
+              value={(slide.lines ?? []).join("\n")}
+              onChange={(v) => onChange({ lines: v.split("\n") }, "text")}
+              placeholder="One bullet per line"
+            />
+          </BulletGutter>
         </>
       ) : (
         <RichText
@@ -419,5 +422,78 @@ export function ElementCard({
         />
       )}
     </BlockFrame>
+  );
+}
+
+/**
+ * A bullet list's markers in the editor: a dot, or the line's number, level
+ * with the start of each line of the text box beside it (blank lines get none
+ * and aren't counted, as on the slide). The box is one editable block, so the
+ * line starts are measured, and re-measured as it changes or rewraps.
+ */
+function BulletGutter({ numbered, children }: { numbered: boolean; children: ReactNode }) {
+  const wrap = useRef<HTMLDivElement | null>(null);
+  const [marks, setMarks] = useState<{ top: number; label: string }[]>([]);
+  useLayoutEffect(() => {
+    const host = wrap.current;
+    const el = host?.querySelector<HTMLElement>("[contenteditable]");
+    if (!host || !el) return;
+    const measure = () => {
+      const base = host.getBoundingClientRect().top;
+      // The text box's lines: the nodes between <br>s.
+      const lines: Node[][] = [[]];
+      const walk = (n: Node) => {
+        for (const c of Array.from(n.childNodes)) {
+          if (c.nodeName === "BR") lines.push([]);
+          else if (c.nodeType === Node.TEXT_NODE) lines[lines.length - 1].push(c);
+          else walk(c);
+        }
+      };
+      walk(el);
+      const next: { top: number; label: string }[] = [];
+      let n = 0;
+      for (const line of lines) {
+        const text = line.find((t) => (t.textContent ?? "").trim());
+        if (!text) continue;
+        const first = line.find((t) => (t.textContent ?? "").length > 0) ?? text;
+        const r = document.createRange();
+        r.setStart(first, 0);
+        r.setEnd(first, Math.min(1, (first.textContent ?? "").length));
+        const rect = r.getBoundingClientRect();
+        n += 1;
+        next.push({ top: rect.top - base, label: numbered ? `${n}.` : "\u2022" });
+      }
+      setMarks((prev) =>
+        prev.length === next.length &&
+        prev.every((m, i) => m.top === next[i].top && m.label === next[i].label)
+          ? prev
+          : next,
+      );
+    };
+    measure();
+    const mo = new MutationObserver(measure);
+    mo.observe(el, { childList: true, subtree: true, characterData: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      mo.disconnect();
+      ro.disconnect();
+    };
+  }, [numbered]);
+  return (
+    <div ref={wrap} className="relative flex">
+      <div aria-hidden className="relative w-6 shrink-0">
+        {marks.map((m, i) => (
+          <span
+            key={i}
+            className="mono absolute right-0 text-xs leading-[inherit] opacity-50"
+            style={{ top: m.top }}
+          >
+            {m.label}
+          </span>
+        ))}
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
   );
 }

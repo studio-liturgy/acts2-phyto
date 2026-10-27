@@ -171,7 +171,7 @@ function FeedbackPage() {
               placeholder="you@example.com"
               maxLength={255}
               autoComplete="email"
-              className="mono w-full rounded-full border border-foreground bg-background px-6 py-3 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
+              className="mono w-full rounded-full border border-foreground bg-background px-6 py-3 text-sm uppercase outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
             />
             {!emailValid && (
               <p className="mono text-xs uppercase tracking-wider text-[var(--brand-red)]">

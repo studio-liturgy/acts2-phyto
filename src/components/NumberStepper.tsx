@@ -42,7 +42,7 @@ export function NumberStepper({
 
   return (
     <div
-      className={`pill flex items-stretch overflow-hidden border border-foreground bg-background ${small ? "h-6" : "h-7"}`}
+      className={`pill flex items-stretch overflow-hidden border border-foreground bg-background ${small ? "h-5" : "h-7"}`}
     >
       <button
         type="button"
