@@ -396,3 +396,10 @@ html[data-phone-ui] body {
 html[data-kb] .phone-editor-tabs {
   display: none;
 }
+/* While typing, the page itself can't scroll (iOS scrolled it to show a
+   tapped line low on the screen, and it jumped back). */
+html[data-kb] body {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}

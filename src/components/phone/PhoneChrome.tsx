@@ -34,7 +34,7 @@ export function PhoneScreen({
   return (
     // --vvh: the part of the screen above the keyboard, while typing in an
     // editor (useKeyboardInset).
-    <div className="flex h-[var(--vvh,100dvh)] flex-col overflow-hidden bg-background text-foreground">
+    <div className="flex h-[var(--vvh,100dvh)] translate-y-[var(--vvt,0px)] flex-col overflow-hidden bg-background text-foreground">
       {header}
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div
@@ -233,6 +233,9 @@ function useKeyboardInset(): number {
       const covered = window.innerHeight - vv.height;
       const next = el && covered > 80 ? Math.round(covered) : 0;
       const h = next > 0 ? Math.round(vv.height) : 0;
+      // Wherever iOS pans the view to show the tapped line, the screen moves
+      // with it, so nothing on it appears to jump.
+      root.style.setProperty("--vvt", `${h > 0 ? Math.round(vv.offsetTop) : 0}px`);
       if (h !== lastH) {
         lastH = h;
         if (h > 0) {
@@ -251,7 +254,7 @@ function useKeyboardInset(): number {
     };
     // If iOS slid the page anyway, settle it back once (not every frame).
     const onScroll = () => {
-      if (typingIn() && (window.scrollY !== 0 || vv.offsetTop !== 0)) window.scrollTo(0, 0);
+      if (typingIn() && window.scrollY !== 0) window.scrollTo(0, 0);
       start();
     };
     const loop = () => {
@@ -280,6 +283,7 @@ function useKeyboardInset(): number {
       document.removeEventListener("focusin", onFocus);
       document.removeEventListener("focusout", start);
       root.style.removeProperty("--vvh");
+      root.style.removeProperty("--vvt");
       root.removeAttribute("data-kb");
     };
   }, []);
