@@ -164,6 +164,8 @@ export function PhoneViewer({
   >({});
   const menuRef = useRef<HTMLDivElement>(null);
   const tabBarRef = useRef<HTMLDivElement>(null);
+  // The set's words scroll on their own; a new set starts at its top.
+  const contentRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
@@ -295,6 +297,10 @@ export function PhoneViewer({
 
   const activeIdx = sets.findIndex((s) => s.id === activeSetId);
   const activeSet = sets[activeIdx] ?? sets[0] ?? null;
+  const shownSetId = activeSet?.id ?? null;
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [shownSetId]);
 
   // Multilanguage songs: this phone's own choice of languages, per song, for
   // this visit. Until it picks, it reads what the leader shows.
@@ -358,7 +364,9 @@ export function PhoneViewer({
 
   return (
     <div
-      className={`flex flex-col ${embedded ? "h-full" : "min-h-screen"} ${themeClasses}`}
+      // The visible screen exactly (100dvh, not 100vh, which on a phone runs
+      // under the browser's bar): a short set has nothing to scroll.
+      className={`flex flex-col ${embedded ? "h-full" : "h-[100dvh]"} ${themeClasses}`}
       style={{
         fontFamily: FONT_FAMILY_CSS[prefs.fontFamily],
         fontSize: `${prefs.fontSize * BASE_FONT_REM}rem`,
@@ -624,7 +632,7 @@ export function PhoneViewer({
             <Pencil className="h-4 w-4" />
           </button>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {activeSet && (
             <SetContent
               set={phoneSetForLangs(activeSet, langChoice[activeSet.id])}

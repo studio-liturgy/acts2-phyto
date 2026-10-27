@@ -178,54 +178,85 @@ export function PhoneFold({
   );
 }
 
-/** How much of the layout viewport the on-screen keyboard covers (px; 0 when
- *  it's down), from the visual viewport. iOS moves things in steps (keyboard
- *  animating, the page nudged to show the caret, switching boxes) and doesn't
- *  report every one, so while a box has focus it's read every frame. */
+/**
+ * How much of the screen the on-screen keyboard covers (px; 0 when it's down).
+ *
+ * iOS shows a focused box by scrolling the whole page up under the keyboard,
+ * and how far depends on where the box sits (the Settings fold being open or
+ * shut moves it). Fixed things then land in different places each time. So
+ * while typing in an editor the page is held at the top, the editor's own
+ * scroller gets room for the keyboard (--kb, styles.css) and scrolls the box
+ * into view itself, and the keyboard's height is read every frame.
+ */
 function useKeyboardInset(): number {
   const [inset, setInset] = useState(0);
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
+    const root = document.documentElement;
     let last = -1;
     let frame = 0;
-    const read = () => {
-      const covered = window.innerHeight - (vv.height + vv.offsetTop);
-      const next = covered > 80 ? Math.round(covered) : 0;
-      if (next !== last) {
-        last = next;
-        setInset(next);
-      }
-    };
-    const typing = () => {
+    const typingIn = (): HTMLElement | null => {
       const el = document.activeElement;
-      return (
+      if (
         el instanceof HTMLTextAreaElement ||
         (el instanceof HTMLInputElement && el.type !== "checkbox") ||
         (el instanceof HTMLElement && el.isContentEditable)
-      );
+      ) {
+        return el.closest(".has-dock") ? (el as HTMLElement) : null;
+      }
+      return null;
+    };
+    // The focused box above the keyboard and the dock, by its own scroller.
+    const reveal = () => {
+      const el = typingIn();
+      const box = el?.closest<HTMLElement>("[data-editor-scroll]");
+      if (!el || !box) return;
+      const r = el.getBoundingClientRect();
+      const b = box.getBoundingClientRect();
+      const bottom = Math.min(b.bottom, vv.height) - 64;
+      if (r.bottom > bottom) box.scrollTop += r.bottom - bottom;
+      else if (r.top < b.top + 8) box.scrollTop -= b.top + 8 - r.top;
+    };
+    const read = () => {
+      const el = typingIn();
+      // Hold the page at the top while typing in an editor.
+      if (el && (window.scrollY !== 0 || vv.offsetTop !== 0)) window.scrollTo(0, 0);
+      const covered = window.innerHeight - (vv.height + vv.offsetTop);
+      const next = el && covered > 80 ? Math.round(covered) : 0;
+      if (next !== last) {
+        last = next;
+        setInset(next);
+        root.style.setProperty("--kb", `${next}px`);
+        if (next > 0) requestAnimationFrame(reveal);
+      }
     };
     const loop = () => {
       read();
-      // Keep following while typing, and for a moment after (keyboard closing).
-      frame = typing() || last > 0 ? requestAnimationFrame(loop) : 0;
+      frame = typingIn() || last > 0 ? requestAnimationFrame(loop) : 0;
     };
     const start = () => {
       if (!frame) frame = requestAnimationFrame(loop);
+    };
+    const onFocus = () => {
+      start();
+      // Switching boxes with the keyboard already up.
+      setTimeout(reveal, 60);
     };
     read();
     vv.addEventListener("resize", start);
     vv.addEventListener("scroll", start);
     window.addEventListener("scroll", start, { passive: true });
-    document.addEventListener("focusin", start);
+    document.addEventListener("focusin", onFocus);
     document.addEventListener("focusout", start);
     return () => {
       if (frame) cancelAnimationFrame(frame);
       vv.removeEventListener("resize", start);
       vv.removeEventListener("scroll", start);
       window.removeEventListener("scroll", start);
-      document.removeEventListener("focusin", start);
+      document.removeEventListener("focusin", onFocus);
       document.removeEventListener("focusout", start);
+      root.style.removeProperty("--kb");
     };
   }, []);
   return inset;

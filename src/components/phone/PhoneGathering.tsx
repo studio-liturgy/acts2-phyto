@@ -42,6 +42,16 @@ export function PhoneGathering({
    *  the link's own light or dark. */
   fromLink?: boolean;
 }) {
+  // From the link: the back arrow returns to it (saved when Edit was tapped).
+  const [linkBack, setLinkBack] = useState<string | null>(null);
+  useEffect(() => {
+    if (!fromLink) return;
+    try {
+      setLinkBack(sessionStorage.getItem("phyto:link-back"));
+    } catch {
+      setLinkBack(null);
+    }
+  }, [fromLink]);
   useEffect(() => {
     if (!fromLink) return;
     const html = document.documentElement;
@@ -181,7 +191,7 @@ export function PhoneGathering({
 
   const header = (
     <PhoneBackHeader
-      back={fromLink ? null : "/"}
+      back={fromLink ? linkBack : "/"}
       title={
         // The name is always editable, like a text field that looks like a title.
         <input

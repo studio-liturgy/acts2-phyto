@@ -357,7 +357,8 @@ input[type="range"].phone-range::-moz-range-thumb {
 
 /* Phone editors: room under the last line for the floating dock (PhoneDock). */
 .has-dock [data-editor-scroll] {
-  padding-bottom: 3.5rem;
+  /* Plus the keyboard while it's up (--kb, set by PhoneDock). */
+  padding-bottom: calc(3.5rem + var(--kb, 0px));
 }
 
 /* Phone layout: the page itself never rubber-bands; each screen scrolls its

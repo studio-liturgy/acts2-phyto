@@ -2197,8 +2197,6 @@ function Importers({
           },
         }),
       )}
-      {/* Phone: the song's mode, as its pattern, after C. */}
-      {phone && <SongModePicker setId={setId} compact />}
       {songLayout === "response" && (
         // Phone: Role and Align together on their own row.
         <span className={phone ? "flex w-full items-center gap-4" : "contents"}>
@@ -2781,6 +2779,8 @@ function Importers({
                     : clearLineChords
                 }
               >
+                {/* Phone: the song's mode first, as its pattern. */}
+                {phone && <SongModePicker setId={setId} compact />}
                 <span className="inline-flex shrink-0 items-center gap-2">
                   <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
                     {phone ? "L/S" : "Lines per slide"}
@@ -2825,6 +2825,8 @@ function Importers({
                   setGridKey((k) => k + 1);
                 }}
               >
+                {/* Phone: the song's mode first, as its pattern. */}
+                {phone && <SongModePicker setId={setId} compact />}
                 <span className="inline-flex shrink-0 items-center gap-2">
                   <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
                     {phone ? "L/S" : "Lines per slide"}

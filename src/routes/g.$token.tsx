@@ -273,7 +273,15 @@ function LinkAccountMenu({ ownId }: { ownId: string | null }) {
     return (
       <button
         type="button"
-        onClick={() => navigate({ to: "/present", search: { gathering: ownId, link: true } })}
+        onClick={() => {
+          // The edit page's back arrow returns here.
+          try {
+            sessionStorage.setItem("phyto:link-back", here);
+          } catch {
+            // No storage: the edit page simply has no back arrow.
+          }
+          navigate({ to: "/present", search: { gathering: ownId, link: true } });
+        }}
         className={BTN}
         style={MONO}
       >
