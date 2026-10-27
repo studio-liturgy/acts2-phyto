@@ -206,3 +206,40 @@ export function isWrittenOrder(slides: SectionSlide[], arrangement: Arrangement)
   const all = groupSlides(slides).map((g) => g.key);
   return all.length === arrangement.length && all.every((k, i) => k === arrangement[i]);
 }
+
+/** Scripture and message sets aren't reordered in a gathering, only trimmed:
+ *  their "arrangement" is the written sections minus the hidden ones. */
+export function visibleSections(slides: SectionSlide[], hiddenKeys: string[] = []): Arrangement {
+  const hidden = new Set(hiddenKeys);
+  return groupSlides(slides)
+    .map((g) => g.key)
+    .filter((k) => !hidden.has(k));
+}
+
+/** The hidden keys that leave just `visible` showing. */
+export function hiddenFromVisible(slides: SectionSlide[], visible: Arrangement): string[] {
+  const keep = new Set(visible);
+  return groupSlides(slides)
+    .map((g) => g.key)
+    .filter((k) => !keep.has(k));
+}
+
+/** True when a set plays differently in this gathering from how it's written:
+ *  a song's arrangement (sections hidden with the old eye count, as they seed
+ *  it), or a scripture or message with a section taken out. */
+export function isAdjusted(
+  kind: string,
+  slides: SectionSlide[],
+  stored: Arrangement | undefined,
+  hiddenKeys: string[] = [],
+): boolean {
+  if (kind === "song") {
+    if (groupSlides(slides).length === 0) return false;
+    return !isWrittenOrder(slides, effectiveArrangement(slides, stored, hiddenKeys));
+  }
+  if (kind === "scripture" || kind === "message") {
+    const keys = new Set(groupSlides(slides).map((g) => g.key));
+    return hiddenKeys.some((k) => keys.has(k));
+  }
+  return false;
+}

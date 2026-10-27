@@ -15,7 +15,10 @@ export function PhoneScreen({
   tab,
   bodyClassName = "",
   scroll = true,
+  overlay,
 }: {
+  /** Floats over the body, fixed while it scrolls (the arrangement button). */
+  overlay?: ReactNode;
   /** False: the body fills the space without scrolling (a view that scrolls itself). */
   scroll?: boolean;
   header?: ReactNode;
@@ -31,10 +34,13 @@ export function PhoneScreen({
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
       {header}
-      <div
-        className={`min-h-0 flex-1 ${scroll ? "overflow-y-auto overscroll-contain" : "overflow-hidden"} ${bodyClassName}`}
-      >
-        {children}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <div
+          className={`min-h-0 flex-1 ${scroll ? "overflow-y-auto overscroll-contain" : "overflow-hidden"} ${bodyClassName}`}
+        >
+          {children}
+        </div>
+        {overlay}
       </div>
       {tab && <PhoneTabBar tab={tab} />}
     </div>

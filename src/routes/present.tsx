@@ -82,7 +82,10 @@ import {
   arrangedSequence,
   effectiveArrangement,
   storedArrangement,
+  hiddenFromVisible,
+  isAdjusted,
   sectionOptions,
+  visibleSections,
   stepArranged,
 } from "@/lib/arrangements";
 import { ArrangementRow } from "@/components/ArrangementRow";
@@ -277,7 +280,6 @@ function Presenter() {
   const createGathering = useLibrary((s) => s.createGathering);
   const pushHiddenSections = useLibrary((s) => s.pushHiddenSections);
   const pushArrangements = useLibrary((s) => s.pushArrangements);
-  const arrangementsOn = useLibrary((s) => s.workspaceSettings.arrangements);
   const updateSet = useLibrary((s) => s.updateSet);
   const goLive = useLibrary((s) => s.goLive);
   const endSession = useLibrary((s) => s.endSession);
@@ -423,7 +425,8 @@ function Presenter() {
   // order minus hidden sections).
   const arrangeBySet = useGatheringSections((s) => s.arranged[sectionsGid]) ?? NO_SECTIONS;
   const setArrangementFor = useGatheringSections((s) => s.setArrangement);
-  const arrangesSongs = arrangementsOn && !!activeGathering;
+  // Always on inside a gathering (no setting any more).
+  const arrangesSongs = !!activeGathering;
   const arrangementFor = (d: PhytoSet | null | undefined): string[] | null =>
     arrangesSongs && d?.kind === "song"
       ? effectiveArrangement(d.slides, arrangeBySet[d.id], hiddenBySet[d.id])
@@ -435,6 +438,13 @@ function Presenter() {
       setArrangementFor(activeGathering.id, setId, stored);
       pushArrangements(activeGathering.id, { ...arrangeBySet, [setId]: stored });
     }
+  };
+  // A scripture or message's pills: store what's left out as hidden sections.
+  const changeVisible = (setId: string, visible: string[]) => {
+    if (!activeGathering) return;
+    const next = hiddenFromVisible(sets[setId]?.slides ?? [], visible);
+    setHiddenFor(activeGathering.id, setId, next);
+    pushHiddenSections(activeGathering.id, { ...hiddenBySet, [setId]: next });
   };
   const blockRemove = (clientX: number, clientY: number) => {
     if (hideWarningTimer.current) clearTimeout(hideWarningTimer.current);
@@ -1370,50 +1380,25 @@ function Presenter() {
                       />
                     </div>
                   )}
-                  {((activeSet?.kind === "song" && !arrangesSongs) ||
-                    activeSet?.kind === "scripture" ||
-                    activeSet?.kind === "message") &&
-                    (() => {
-                      const groups = groupSlides(activeSet.slides);
-                      // No visibility toggles with a single section: hiding the
-                      // only section is disallowed anyway, so the button is moot.
-                      if (groups.length <= 1) return null;
-                      const hidden = new Set(hiddenBySet[activeSet.id] ?? []);
-                      return (
-                        <div
-                          className="catalogue-scroll absolute top-1/2 flex max-h-full -translate-x-full -translate-y-1/2 flex-col items-end gap-1.5 overflow-auto py-1 pr-4"
-                          // Right edge of the gutter sits just left of the phone
-                          // (phone is 380px wide, centered → its left edge is at
-                          // 50% − 190px).
-                          style={{ left: "calc(50% - 190px)" }}
-                        >
-                          {groups.map((g) => {
-                            const isHidden = hidden.has(g.key);
-                            const label = g.section ?? "Untitled";
-                            return (
-                              <button
-                                key={g.key}
-                                onClick={(e) =>
-                                  toggleSection(activeSet.id, g.key, e.clientX, e.clientY)
-                                }
-                                className={`pill mono flex items-center gap-2 border border-foreground px-3 py-1.5 text-[10px] uppercase tracking-wider transition hover:bg-foreground hover:text-background ${
-                                  isHidden ? "opacity-50" : ""
-                                }`}
-                                title={isHidden ? `Show ${label}` : `Hide ${label}`}
-                                aria-pressed={isHidden}
-                              >
-                                {isHidden ? (
-                                  <EyeOff className="h-3.5 w-3.5 shrink-0" />
-                                ) : (
-                                  <Eye className="h-3.5 w-3.5 shrink-0" />
-                                )}
-                                <span className="max-w-[9rem] truncate">{label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
+                  {/* Scriptures and messages: the same pills, take out or put back. */}
+                  {activeGathering &&
+                    (activeSet?.kind === "scripture" || activeSet?.kind === "message") &&
+                    groupSlides(activeSet.slides).length > 1 && (
+                      <div
+                        className="catalogue-scroll absolute top-1/2 flex max-h-full -translate-x-full -translate-y-1/2 flex-col items-end overflow-auto py-1 pr-4"
+                        style={{ left: "calc(50% - 190px)" }}
+                      >
+                        <ArrangementRow
+                          column
+                          removeOnly
+                          options={sectionOptions(activeSet.slides)}
+                          arrangement={visibleSections(activeSet.slides, hiddenBySet[activeSet.id])}
+                          tints={TINTS}
+                          onChange={(next) => changeVisible(activeSet.id, next)}
+                          onBlocked={blockRemove}
+                        />
+                      </div>
+                    )}
                   <div
                     className="absolute bottom-0 left-1/2 top-0 -translate-x-1/2 overflow-hidden rounded-[2rem] border border-foreground/25 bg-black"
                     style={{ width: 380 }}
@@ -1497,24 +1482,16 @@ function Presenter() {
                   // With Arrangements on, a song gets the arrange button in place
                   // of the eye (even with one section: it can still repeat).
                   const arrangement = arrangementFor(d);
-                  // Songs, scriptures and messages can hide sections in a gathering.
-                  // A set with a single section has nothing to hide (hiding the only
-                  // section is disallowed), so no visibility icon shows.
-                  const canHide =
+                  // Scriptures and messages can only take sections out (and put
+                  // them back), through the same button and pill row.
+                  const trims =
                     !arrangement &&
-                    (d.kind === "song" || d.kind === "scripture" || d.kind === "message") &&
+                    !!activeGathering &&
+                    (d.kind === "scripture" || d.kind === "message") &&
                     sectionGroups.length > 1;
                   const hiddenKeys = hiddenBySet[id] ?? [];
-                  // Count only keys that still match a current section group, so a
-                  // stale key left over from a prior edit never shows a phantom
-                  // "hidden" badge.
-                  const activeHiddenCount = canHide
-                    ? (() => {
-                        const groupKeys = new Set(sectionGroups.map((g) => g.key));
-                        return hiddenKeys.filter((k) => groupKeys.has(k)).length;
-                      })()
-                    : 0;
-                  const hasHidden = activeHiddenCount > 0;
+                  // Faint until the set plays differently from how it's written.
+                  const adjusted = isAdjusted(d.kind, d.slides, arrangeBySet[id], hiddenKeys);
                   const managing = manageSet === id;
                   return (
                     <section key={id} id={`set-section-${id}`}>
@@ -1536,40 +1513,13 @@ function Presenter() {
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Link>
-                          {canHide && (
+                          {(arrangement || trims) && (
                             <button
                               onClick={() => setManageSet((prev) => (prev === id ? null : id))}
                               className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition ${
                                 managing
                                   ? "bg-foreground text-background"
-                                  : "hover:bg-foreground hover:text-background"
-                              }`}
-                              title={
-                                managing
-                                  ? "Done hiding sections"
-                                  : hasHidden
-                                    ? `Sections hidden (${activeHiddenCount}): click to manage`
-                                    : "Hide sections"
-                              }
-                              aria-label={managing ? "Done hiding sections" : "Hide sections"}
-                              aria-pressed={managing}
-                            >
-                              {managing ? (
-                                <Check className="h-3.5 w-3.5" />
-                              ) : hasHidden ? (
-                                <EyeOff className="h-3.5 w-3.5" />
-                              ) : (
-                                <Eye className="h-3.5 w-3.5" />
-                              )}
-                            </button>
-                          )}
-                          {arrangement && (
-                            <button
-                              onClick={() => setManageSet((prev) => (prev === id ? null : id))}
-                              className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition ${
-                                managing
-                                  ? "bg-foreground text-background"
-                                  : "hover:bg-foreground hover:text-background"
+                                  : `hover:bg-foreground hover:text-background hover:opacity-100 ${adjusted ? "" : "opacity-40"}`
                               }`}
                               title={managing ? "Done arranging" : "Arrange sections"}
                               aria-label={managing ? "Done arranging" : "Arrange sections"}
@@ -1611,6 +1561,25 @@ function Presenter() {
                             live={live}
                             slideW={slideW}
                             arrangement={arrangement}
+                          />
+                        </>
+                      ) : trims ? (
+                        <>
+                          {managing && (
+                            <ArrangementRow
+                              removeOnly
+                              options={sectionOptions(d.slides)}
+                              arrangement={visibleSections(d.slides, hiddenKeys)}
+                              tints={TINTS}
+                              onChange={(next) => changeVisible(id, next)}
+                              onBlocked={blockRemove}
+                            />
+                          )}
+                          <SlideGridForPresenter
+                            phytoSet={d}
+                            live={live}
+                            slideW={slideW}
+                            hiddenKeys={hiddenKeys}
                           />
                         </>
                       ) : (

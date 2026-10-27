@@ -348,7 +348,8 @@ function SetHeader({
     </h1>
   );
   if (phone) {
-    const ICON = "pill flex h-10 w-10 shrink-0 items-center justify-center transition";
+    // h-9, the Back button's size, so this bar is as tall as the gathering's.
+    const ICON = "pill flex h-9 w-9 shrink-0 items-center justify-center transition";
     return (
       <header className="shrink-0 border-b border-foreground px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="flex items-center gap-3">

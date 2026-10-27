@@ -1,7 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { List, Monitor, Search, Smartphone, X } from "lucide-react";
-import { arrangedEntries, effectiveArrangement } from "@/lib/arrangements";
+import { arrangedEntries, effectiveArrangement, sectionOptions } from "@/lib/arrangements";
+import { PhoneArrangeButton } from "@/components/phone/PhoneArrangeButton";
 import { SlideView } from "@/components/SlideView";
 import {
   gatheringSectionsReady,
@@ -24,6 +25,7 @@ import { PhoneViewer } from "@/components/PhoneViewer";
 import { PhoneBackHeader, PhoneScreen } from "@/components/phone/PhoneChrome";
 
 const NONE: Record<string, string[]> = {};
+const SECTION_TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
 
 type Slot = { key: string; id: string };
 
@@ -127,7 +129,22 @@ export function PhoneGathering({
   const phoneSets = useGatheringPhoneSets(gatheringId);
   const hidden = useGatheringSections((s) => s.hidden[gatheringId]) ?? NONE;
   const arranged = useGatheringSections((s) => s.arranged[gatheringId]) ?? NONE;
-  const arrangementsOn = useLibrary((s) => s.workspaceSettings.arrangements);
+  // Desktop view: the set nearest the top of the screen, for the arrangement button.
+  const [inView, setInView] = useState<string | null>(null);
+  useEffect(() => {
+    if (view !== "slides") return;
+    const pick = () => {
+      const rows = Array.from(document.querySelectorAll<HTMLElement>("[data-arr-set]"));
+      if (rows.length === 0) return;
+      const top = (rows[0].offsetParent as HTMLElement | null)?.getBoundingClientRect().top ?? 0;
+      let cur = rows[0];
+      for (const r of rows) if (r.getBoundingClientRect().top <= top + 120) cur = r;
+      setInView(cur.dataset.arrSet ?? null);
+    };
+    pick();
+    document.addEventListener("scroll", pick, { capture: true, passive: true });
+    return () => document.removeEventListener("scroll", pick, { capture: true });
+  }, [view, gatheringId]);
   const [prefs, setPrefs] = useState<ViewerPrefs>(() => loadPrefs());
   const [activeId, setActiveId] = useState<string | null>(null);
   useEffect(() => {
@@ -145,7 +162,7 @@ export function PhoneGathering({
       .slice(0, 8);
   }, [order, sets, query]);
 
-  const here = `/present?gathering=${encodeURIComponent(gatheringId)}${view === "phone" ? "&view=mobile" : ""}${fromLink ? "&link=true" : ""}`;
+  const here = `/present?gathering=${encodeURIComponent(gatheringId)}${view === "phone" ? "&view=mobile" : view === "slides" ? "&view=slides" : ""}${fromLink ? "&link=true" : ""}`;
 
   if (!g) {
     return (
@@ -223,10 +240,17 @@ export function PhoneGathering({
 
   if (view === "slides") {
     // Desktop: every set's slides as they'll project, in play order (with this
-    // gathering's arrangements and hidden sections), one per row.
+    // gathering's arrangements and hidden sections), each section on its
+    // colour with its name, like the presenter's slide grid.
     return (
-      <PhoneScreen tab={fromLink ? undefined : "gatherings"} header={header}>
-        <div className="space-y-6 px-5 pb-10 pt-5">
+      <PhoneScreen
+        tab={fromLink ? undefined : "gatherings"}
+        header={header}
+        overlay={
+          <PhoneArrangeButton gatheringId={gatheringId} set={sets[inView ?? g.setIds[0] ?? ""]} />
+        }
+      >
+        <div className="relative space-y-6 px-5 pb-24 pt-5">
           {g.setIds.length === 0 && (
             <p className="mono py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
               Gathering is empty. Add a set to see its slides.
@@ -239,8 +263,10 @@ export function PhoneGathering({
               d.slides,
               effectiveArrangement(d.slides, arranged[id], hidden[id]),
             );
+            const labels = new Map(sectionOptions(d.slides).map((o) => [o.key, o]));
+            const named = order.some(({ group }) => !!group.section);
             return (
-              <section key={`${id}#${i}`}>
+              <section key={`${id}#${i}`} data-arr-set={id}>
                 <div className="mb-2 flex items-center gap-2">
                   <span className="mono text-[10px] text-muted-foreground">{i + 1}.</span>
                   <span className="min-w-0 truncate text-base">{d.name}</span>
@@ -251,16 +277,32 @@ export function PhoneGathering({
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {order.flatMap(({ group, entryKey }) =>
-                      group.items.map(({ slide }) => (
+                    {order.map(({ group, entryKey }) => {
+                      const opt = labels.get(group.key);
+                      const tint = SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
+                      return (
                         <div
-                          key={`${entryKey}:${slide.id}`}
-                          className="overflow-hidden rounded-md border border-foreground/10"
+                          key={entryKey}
+                          className={named ? "space-y-2 rounded-xl p-2" : "space-y-2"}
+                          style={
+                            named
+                              ? { backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }
+                              : undefined
+                          }
                         >
-                          <SlideView slide={slide} versions={d.versions} variant="thumb" />
+                          {named && (
+                            <p className="mono px-1 text-[10px] uppercase tracking-wider">
+                              {opt?.label ?? "Untitled"}
+                            </p>
+                          )}
+                          {group.items.map(({ slide }) => (
+                            <div key={slide.id} className="relative overflow-hidden rounded-md">
+                              <SlideView slide={slide} versions={d.versions} variant="thumb" />
+                            </div>
+                          ))}
                         </div>
-                      )),
-                    )}
+                      );
+                    })}
                   </div>
                 )}
               </section>
@@ -273,7 +315,17 @@ export function PhoneGathering({
 
   if (view === "phone") {
     return (
-      <PhoneScreen tab={fromLink ? undefined : "gatherings"} scroll={false} header={header}>
+      <PhoneScreen
+        tab={fromLink ? undefined : "gatherings"}
+        scroll={false}
+        header={header}
+        overlay={
+          <PhoneArrangeButton
+            gatheringId={gatheringId}
+            set={sets[activeId ?? phoneSets[0]?.id ?? ""]}
+          />
+        }
+      >
         {phoneSets.length === 0 ? (
           <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
             Gathering is empty. Add a set to preview the phone view.
@@ -283,7 +335,7 @@ export function PhoneGathering({
             <PhoneViewer
               sets={phoneSets}
               hiddenBySet={hidden}
-              arrangementsBySet={arrangementsOn ? arranged : undefined}
+              arrangementsBySet={arranged}
               embedded
               showSettings={false}
               prefs={prefs}

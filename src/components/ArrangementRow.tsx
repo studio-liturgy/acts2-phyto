@@ -24,6 +24,8 @@ export function ArrangementRow({
   onChange,
   onBlocked,
   column = false,
+  removeOnly = false,
+  solid = false,
 }: {
   options: SectionOption[];
   arrangement: Arrangement;
@@ -32,8 +34,15 @@ export function ArrangementRow({
   onBlocked: (clientX: number, clientY: number) => void;
   /** Stacked down the gutter beside the phone preview instead of a row. */
   column?: boolean;
+  /** Scripture and message: sections can only be taken out and put back (in
+   *  their written place), not moved or repeated. */
+  removeOnly?: boolean;
+  /** Pills on an opaque fill, for floating over slides. */
+  solid?: boolean;
 }) {
   const byKey = new Map(options.map((o) => [o.key, o]));
+  // What "+" offers: any section (repeats allowed), or only the ones taken out.
+  const addable = removeOnly ? options.filter((o) => !arrangement.includes(o.key)) : options;
   // Drag to reorder, the same way as the sets in a gathering: no browser
   // ghost; the pills reorder live under the pointer (the dragged one dimmed)
   // and the order commits on drop. Slots carry a stable key so the dragged
@@ -70,7 +79,7 @@ export function ArrangementRow({
         return (
           <div
             key={slot}
-            draggable
+            draggable={!removeOnly}
             onDragStart={(e) => {
               e.dataTransfer.effectAllowed = "move";
               hideDragGhost(e);
@@ -96,10 +105,12 @@ export function ArrangementRow({
               commit();
             }}
             onDragEnd={commit}
-            className={`pill mono flex h-7 cursor-grab items-center gap-1 pl-3 pr-1.5 text-[10px] uppercase tracking-wider active:cursor-grabbing ${
-              dragUiIndex === i ? "opacity-50" : ""
-            }`}
-            style={{ backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }}
+            className={`pill mono flex h-7 items-center gap-1 pl-3 pr-1.5 text-[10px] uppercase tracking-wider ${
+              removeOnly ? "" : "cursor-grab active:cursor-grabbing"
+            } ${dragUiIndex === i ? "opacity-50" : ""}`}
+            style={{
+              backgroundColor: `color-mix(in oklab, ${tint} 45%, ${solid ? "var(--background)" : "transparent"})`,
+            }}
           >
             <span className="max-w-[9rem] truncate">{opt.label}</span>
             <button
@@ -118,31 +129,41 @@ export function ArrangementRow({
           </div>
         );
       })}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background"
-            title="Add section"
-            aria-label="Add section"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align={column ? "end" : "start"} className="w-max min-w-0">
-          {options.map((o) => (
-            <DropdownMenuItem
-              key={o.key}
-              onClick={() => onChange(addEntry(arrangement, o.key))}
-              className={`mono uppercase text-[10px] tracking-wider focus:bg-foreground focus:text-background ${
-                column ? "justify-end text-right" : ""
-              }`}
+      {addable.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={`pill flex h-7 w-7 shrink-0 items-center justify-center border border-foreground transition hover:bg-foreground hover:text-background ${solid ? "bg-background" : ""}`}
+              title="Add section"
+              aria-label="Add section"
             >
-              {o.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align={column ? "end" : "start"} className="w-max min-w-0">
+            {addable.map((o) => (
+              <DropdownMenuItem
+                key={o.key}
+                onClick={() =>
+                  onChange(
+                    removeOnly
+                      ? options
+                          .filter((x) => x.key === o.key || arrangement.includes(x.key))
+                          .map((x) => x.key)
+                      : addEntry(arrangement, o.key),
+                  )
+                }
+                className={`mono uppercase text-[10px] tracking-wider focus:bg-foreground focus:text-background ${
+                  column ? "justify-end text-right" : ""
+                }`}
+              >
+                {o.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }

@@ -21,7 +21,6 @@ export function GatheringPhonePreview({ gatheringId }: { gatheringId: string }) 
   const phoneSets = useGatheringPhoneSets(gatheringId);
   const hidden = useGatheringSections((s) => s.hidden[gatheringId]) ?? NONE;
   const arranged = useGatheringSections((s) => s.arranged[gatheringId]) ?? NONE;
-  const arrangementsOn = useLibrary((s) => s.workspaceSettings.arrangements);
   const [prefs, setPrefs] = useState<ViewerPrefs>(() => loadPrefs());
   const [activeId, setActiveId] = useState<string | null>(phoneSets[0]?.id ?? null);
   const hasChords = phoneSets.some(phoneSetHasChords);
@@ -66,7 +65,7 @@ export function GatheringPhonePreview({ gatheringId }: { gatheringId: string }) 
         <PhoneViewer
           sets={phoneSets}
           hiddenBySet={hidden}
-          arrangementsBySet={arrangementsOn ? arranged : undefined}
+          arrangementsBySet={arranged}
           embedded
           showSettings={false}
           prefs={prefs}

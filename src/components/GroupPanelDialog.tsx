@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuthStore } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
 import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
-import { ArrangementsSettingRow } from "@/components/ArrangementsSettingRow";
 import { ToggleAddButton } from "@/components/ToggleAddButton";
 import {
   fetchGroupMembers,
@@ -209,7 +208,6 @@ export function GroupPanelDialog({
         {isOwner && !isInvite && (
           <div className="mt-6 border-b border-foreground/15 pb-4">
             <WorkspaceSettingsRows />
-            <ArrangementsSettingRow />
           </div>
         )}
 

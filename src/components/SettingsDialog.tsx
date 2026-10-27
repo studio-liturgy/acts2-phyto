@@ -3,7 +3,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
-import { ArrangementsSettingRow } from "@/components/ArrangementsSettingRow";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
 import { deleteAccount, fetchStorageUsage, formatBytes, type StorageUsage } from "@/lib/account";
@@ -72,7 +71,6 @@ export function SettingsDialog({
             The setting rows share one height, so they're evenly spaced. */}
         <div className="mt-4">
           <WorkspaceSettingsRows />
-          <ArrangementsSettingRow />
           <div className={SETTING_ROW}>
             <div className={LABEL}>Light / dark mode</div>
             <ThemeToggle />

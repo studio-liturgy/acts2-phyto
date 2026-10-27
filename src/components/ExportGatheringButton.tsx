@@ -51,7 +51,7 @@ async function exportSlidesFor(gatheringId: string): Promise<ExportSlide[]> {
     sets: lib.sets,
     songTemplate: lib.songTemplate,
     scriptureTemplate: lib.scriptureTemplate,
-    arrangementsOn: lib.workspaceSettings.arrangements,
+    arrangementsOn: true,
     arranged: sections.arranged[gatheringId] ?? {},
     hidden: sections.hidden[gatheringId] ?? {},
   });
