@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { touchReorder } from "@/lib/touch-reorder";
+import { createPortal } from "react-dom";
 import { PhoneDock, PhoneFold } from "@/components/phone/PhoneChrome";
 import { DotsGrip } from "@/components/DragBits";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
@@ -1692,8 +1693,16 @@ function ChordControls({
   onTranspose,
   noPalette = false,
   phone = false,
+  chordSlot = null,
+  chordsOpen = true,
+  onChordsToggle,
   children,
 }: {
+  /** Phone: the chord panel goes here, as its own fold ("Chords") beside
+   *  Settings, one of the two open at a time. */
+  chordSlot?: HTMLElement | null;
+  chordsOpen?: boolean;
+  onChordsToggle?: () => void;
   /** Phone: the rows spread across the width, smaller Numbers / Letters. */
   phone?: boolean;
   setId: string;
@@ -1732,6 +1741,101 @@ function ChordControls({
   // from the stored slides, so an effect would fire on mount and write to the
   // set just for opening the editor — the phantom-conflict bug fixed in 01dff4e.
 
+  const chordPanel =
+    shown && chords ? (
+      // Key and the palette share a row when there's room; otherwise the
+      // palette drops to the next row as one group.
+      <div
+        className={`${phone ? "" : "mt-3 border-t border-foreground/15 pt-3"} flex flex-wrap items-center gap-x-6 gap-y-3`}
+      >
+        <div className={`flex items-center gap-2 ${phone ? "w-full" : "shrink-0"}`}>
+          {(["numbers", "letters"] as const).map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => updateSet(setId, { chords: { ...chords, display: d } })}
+              className={`pill mono h-7 border border-foreground uppercase transition ${phone ? "px-2.5 text-[10px] tracking-wider" : "px-3 text-xs"} ${
+                chords.display === d
+                  ? "bg-foreground text-background"
+                  : "bg-background hover:bg-muted"
+              }`}
+            >
+              {d}
+            </button>
+          ))}
+
+          {chords.display === "letters" && (
+            <>
+              <span
+                className={`mono shrink-0 text-[10px] uppercase tracking-wider ${phone ? "ml-auto" : "ml-1"}`}
+              >
+                Key
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  {/* pr sits wider than pl so the chevron tucks in from the
+                        pill's right edge rather than hugging it. */}
+                  {/* No `uppercase` here: it's a CSS transform, and it would
+                        render the lowercase b in Db/Eb/Ab/Bb as a capital B —
+                        indistinguishable from the note B. KEYS is already
+                        correctly cased. */}
+                  <button className="pill mono flex h-7 items-center gap-1.5 border border-foreground bg-background pl-3 pr-2.5 text-xs tracking-wider transition hover:bg-muted">
+                    {chords.key}
+                    <ChevronDown className="h-3 w-3 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-0">
+                  {KEYS.map((k) => (
+                    <DropdownMenuItem
+                      key={k}
+                      onClick={() => changeKey(k)}
+                      className="mono text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
+                    >
+                      {k}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+        </div>
+
+        {/* The seven chords of the key. Click to drop one in at the caret;
+              mousedown is swallowed so the textarea keeps focus and the caret
+              stays where the user left it. */}
+        <div className={`flex shrink-0 items-center gap-1.5 ${noPalette ? "hidden" : ""}`}>
+          {diatonicChords(chords.key).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onInsertChord(c)}
+              title={`Insert ${c}`}
+              className="mono flex h-9 w-9 items-center justify-center rounded-full border border-foreground text-[10px] tracking-tight transition hover:bg-foreground hover:text-background"
+            >
+              {renderChord(c, chords)}
+            </button>
+          ))}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onClearLine}
+            title="Clear chords on this line"
+            aria-label="Clear chords on this line"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--brand-red)] text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {!detected && (
+          <p className="mono basis-full uppercase text-[10px] leading-relaxed text-muted-foreground">
+            No chords in the lyrics yet.
+          </p>
+        )}
+      </div>
+    ) : null;
+
   // The Chords switch sits beside Lines per slide (the caller's children).
   return (
     <div className="mt-3">
@@ -1739,97 +1843,18 @@ function ChordControls({
           left under Lines per slide. */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">{children}</div>
 
-      {shown && chords && (
-        // Key and the palette share a row when there's room; otherwise the
-        // palette drops to the next row as one group.
-        <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-foreground/15 pt-3">
-          <div className={`flex items-center gap-2 ${phone ? "w-full" : "shrink-0"}`}>
-            {(["numbers", "letters"] as const).map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => updateSet(setId, { chords: { ...chords, display: d } })}
-                className={`pill mono h-7 border border-foreground uppercase transition ${phone ? "px-2.5 text-[10px] tracking-wider" : "px-3 text-xs"} ${
-                  chords.display === d
-                    ? "bg-foreground text-background"
-                    : "bg-background hover:bg-muted"
-                }`}
-              >
-                {d}
-              </button>
-            ))}
-
-            {chords.display === "letters" && (
-              <>
-                <span
-                  className={`mono shrink-0 text-[10px] uppercase tracking-wider ${phone ? "ml-auto" : "ml-1"}`}
-                >
-                  Key
-                </span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    {/* pr sits wider than pl so the chevron tucks in from the
-                        pill's right edge rather than hugging it. */}
-                    {/* No `uppercase` here: it's a CSS transform, and it would
-                        render the lowercase b in Db/Eb/Ab/Bb as a capital B —
-                        indistinguishable from the note B. KEYS is already
-                        correctly cased. */}
-                    <button className="pill mono flex h-7 items-center gap-1.5 border border-foreground bg-background pl-3 pr-2.5 text-xs tracking-wider transition hover:bg-muted">
-                      {chords.key}
-                      <ChevronDown className="h-3 w-3 shrink-0" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="min-w-0">
-                    {KEYS.map((k) => (
-                      <DropdownMenuItem
-                        key={k}
-                        onClick={() => changeKey(k)}
-                        className="mono text-xs tracking-wider focus:bg-[var(--brand-blue)] focus:text-[var(--brand-white)]"
-                      >
-                        {k}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            )}
-          </div>
-
-          {/* The seven chords of the key. Click to drop one in at the caret;
-              mousedown is swallowed so the textarea keeps focus and the caret
-              stays where the user left it. */}
-          <div className={`flex shrink-0 items-center gap-1.5 ${noPalette ? "hidden" : ""}`}>
-            {diatonicChords(chords.key).map((c) => (
-              <button
-                key={c}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => onInsertChord(c)}
-                title={`Insert ${c}`}
-                className="mono flex h-9 w-9 items-center justify-center rounded-full border border-foreground text-[10px] tracking-tight transition hover:bg-foreground hover:text-background"
-              >
-                {renderChord(c, chords)}
-              </button>
-            ))}
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={onClearLine}
-              title="Clear chords on this line"
-              aria-label="Clear chords on this line"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--brand-red)] text-[var(--brand-red)] transition hover:bg-[var(--brand-red)] hover:text-[var(--brand-white)]"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          {!detected && (
-            <p className="mono basis-full uppercase text-[10px] leading-relaxed text-muted-foreground">
-              No chords in the lyrics yet.
-            </p>
-          )}
-        </div>
-      )}
+      {shown &&
+        chords &&
+        (phone && chordSlot
+          ? createPortal(
+              <div className="mt-3 border-t border-foreground/15 pt-3">
+                <PhoneFold title="Chords" open={chordsOpen} onToggle={() => onChordsToggle?.()}>
+                  {chordPanel}
+                </PhoneFold>
+              </div>,
+              chordSlot,
+            )
+          : chordPanel)}
     </div>
   );
 }
@@ -1943,6 +1968,17 @@ function Importers({
 }) {
   // Phone: the importer folds away (song search, scripture lookup).
   const [importOpen, setImportOpen] = useState(true);
+  // The song editor on a phone: Settings and Chords fold, one open at a time.
+  const [chordsOpen, setChordsOpen] = useState(false);
+  const [chordSlot, setChordSlot] = useState<HTMLDivElement | null>(null);
+  const toggleSettings = () => {
+    setImportOpen((o) => !o);
+    setChordsOpen(false);
+  };
+  const toggleChords = () => {
+    setChordsOpen((o) => !o);
+    setImportOpen(false);
+  };
   const { addSlide, updateSet } = useLibrary();
   const songLangCols = useLibrary((s) => s.sets[setId]?.langs);
   const [pickedLangs, setPickedLangs] = useState<LangCode[]>([]);
@@ -2051,6 +2087,18 @@ function Importers({
   // `!!chordCfg?.hidden` alone treated "never configured" as "not hidden", so
   // the box rendered chord rows for a song whose switch plainly reads off.
   const chordsHidden = !chordCfg || chordCfg.hidden === true;
+  // Phone: switching chords on folds Settings and opens Chords; off, the
+  // Chords fold goes (ChordControls only draws it while chords are on).
+  const chordsWereOn = useRef(!chordsHidden);
+  useEffect(() => {
+    const on = !chordsHidden;
+    if (phone && on && !chordsWereOn.current) {
+      setImportOpen(false);
+      setChordsOpen(true);
+    }
+    if (!on) setChordsOpen(false);
+    chordsWereOn.current = on;
+  }, [chordsHidden, phone]);
   const numbersMode = !!chordCfg && !chordCfg.hidden && chordCfg.display === "numbers";
   const chordKey = chordCfg?.key ?? "C";
   // Chords show as a row above the words they sit over, the way every chord
@@ -2584,12 +2632,7 @@ function Importers({
       >
         {/* Search bar */}
         <div ref={searchBoxRef} className="shrink-0 border-b border-foreground/20 p-4">
-          <PhoneFold
-            enabled={!!phone}
-            title="Settings"
-            open={importOpen}
-            onToggle={() => setImportOpen((o) => !o)}
-          >
+          <PhoneFold enabled={!!phone} title="Settings" open={importOpen} onToggle={toggleSettings}>
             <form onSubmit={runSongSearch} className="flex gap-2">
               <div className="pill relative flex flex-1 items-center gap-2 border border-foreground bg-background px-4 py-2">
                 <input
@@ -2762,6 +2805,9 @@ function Importers({
             {songLayout !== "multilang" ? (
               <ChordControls
                 phone={!!phone}
+                chordSlot={chordSlot}
+                chordsOpen={chordsOpen}
+                onChordsToggle={toggleChords}
                 setId={setId}
                 lyrics={lyrics}
                 onLyricsChange={(next) => {
@@ -2806,6 +2852,9 @@ function Importers({
               // chord key, with chords typed in the grid's first column.
               <ChordControls
                 phone={!!phone}
+                chordSlot={chordSlot}
+                chordsOpen={chordsOpen}
+                onChordsToggle={toggleChords}
                 setId={setId}
                 lyrics={multiChordText}
                 onLyricsChange={() => {}}
@@ -2884,6 +2933,7 @@ function Importers({
               </div>
             )}
           </PhoneFold>
+          {phone && <div ref={setChordSlot} />}
         </div>
 
         {songLayout === "multilang" && (
