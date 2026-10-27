@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Monitor, Pencil, Smartphone } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowUp, Monitor, Pencil, Smartphone } from "lucide-react";
 import { useLibrary } from "@/lib/store";
 import { toPhoneSet } from "@/lib/gathering-phone-sets";
 import { chordChangePatch } from "@/lib/chord-change";
@@ -17,6 +17,41 @@ const TABS: { tab: PhoneEditorTab; label: string; Icon: typeof Pencil }[] = [
   { tab: "phone", label: "Phone", Icon: Smartphone },
   { tab: "slides", label: "Slides", Icon: Monitor },
 ];
+
+/**
+ * The Slides tab's list, with the gathering Desktop view's back-to-top button
+ * (fades in once scrolled down a little).
+ */
+function SlidesScroller({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const on = () => setScrolled(el.scrollTop > 200);
+    on();
+    el.addEventListener("scroll", on, { passive: true });
+    return () => el.removeEventListener("scroll", on);
+  }, []);
+  return (
+    <div className="relative min-h-0 flex-1">
+      <div ref={ref} className="h-full overflow-y-auto overscroll-contain px-4 pb-10 pt-4">
+        {children}
+      </div>
+      <button
+        type="button"
+        onClick={() => ref.current?.scrollTo({ top: 0, behavior: "smooth" })}
+        className={`pill absolute bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center border border-foreground bg-background transition-all duration-300 active:opacity-80 ${
+          scrolled ? "opacity-100" : "pointer-events-none translate-y-2 opacity-0"
+        }`}
+        title="Back to top"
+        aria-label="Back to top"
+      >
+        <ArrowUp className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
 /**
  * The set editor on a phone: the header, the body, and Editor / Phone /
@@ -90,9 +125,7 @@ export function PhoneSetTabs({
           {tab === "slides" && (
             <div className="flex h-full flex-col">
               {roleRow}
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-10 pt-4">
-                {slides}
-              </div>
+              <SlidesScroller>{slides}</SlidesScroller>
             </div>
           )}
         </div>

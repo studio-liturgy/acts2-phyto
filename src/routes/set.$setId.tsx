@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { touchReorder } from "@/lib/touch-reorder";
 import { createPortal } from "react-dom";
-import { PhoneDock, PhoneFold } from "@/components/phone/PhoneChrome";
+import { PhoneDock, PhoneFold, PhoneFoldTabs } from "@/components/phone/PhoneChrome";
 import { DotsGrip } from "@/components/DragBits";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
@@ -379,6 +379,17 @@ function SetHeader({
                 <VersionWarning set={phytoSet} hint="Re-import or duplicate to unfreeze." />
               </div>
               <div className="flex shrink-0 items-center gap-0.5">
+                {/* Scripture and message: Settings sits left of Undo. */}
+                {(phytoSet.kind === "scripture" || phytoSet.kind === "message") && (
+                  <button
+                    onClick={() => setScriptureSettings(true)}
+                    className={`${ICON} active:bg-foreground/15`}
+                    title="Settings"
+                    aria-label="Settings"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
+                )}
                 {phoneUndo && (
                   <button
                     onClick={phoneUndo}
@@ -410,16 +421,6 @@ function SetHeader({
                     aria-label="Add to a gathering"
                   >
                     <Plus className="h-4 w-4" />
-                  </button>
-                )}
-                {(phytoSet.kind === "scripture" || phytoSet.kind === "message") && (
-                  <button
-                    onClick={() => setScriptureSettings(true)}
-                    className={`${ICON} active:bg-foreground/15`}
-                    title="Settings"
-                    aria-label="Settings"
-                  >
-                    <Settings className="h-4 w-4" />
                   </button>
                 )}
               </div>
@@ -1857,11 +1858,14 @@ function ChordControls({
         chords &&
         (phone && chordSlot
           ? createPortal(
-              <div className="mt-3 border-t border-foreground/15 pt-3">
-                <PhoneFold title="Chords" open={chordsOpen} onToggle={() => onChordsToggle?.()}>
-                  {chordPanel}
-                </PhoneFold>
-              </div>,
+              <PhoneFold
+                hideTitle
+                title="Chords"
+                open={chordsOpen}
+                onToggle={() => onChordsToggle?.()}
+              >
+                {chordPanel}
+              </PhoneFold>,
               chordSlot,
             )
           : chordPanel)}
@@ -1870,6 +1874,8 @@ function ChordControls({
 }
 
 const CHORD_SHEET_KEY = "phyto_chord_sheet_hidden";
+// Desktop: a Standard song edited as a table instead of the text box.
+const STANDARD_TABLE_KEY = "phyto_standard_table";
 
 /**
  * Mirrors what the phone view shows once someone turns chords on, so the leader
@@ -2137,6 +2143,20 @@ function Importers({
     const set = s.sets[setId];
     return set ? songLayoutOf(set) : "standard";
   });
+  // A Standard song as a table (the Call and Response grid without readers):
+  // always on a phone; on desktop by the Text / Table switch, kept per device.
+  const [tablePref, setTablePref] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem(STANDARD_TABLE_KEY) === "1",
+  );
+  const pickTable = (on: boolean) => {
+    setTablePref(on);
+    try {
+      localStorage.setItem(STANDARD_TABLE_KEY, on ? "1" : "0");
+    } catch {}
+  };
+  const standardTable = songLayout === "standard" && (!!phone || tablePref);
+  // The lyrics are edited in a grid (C+R, or a Standard table), not the box.
+  const gridLyrics = songLayout === "response" || standardTable;
   // Slide breaks placed by hand (Lines per slide shows C).
   const customBreaks = useLibrary((s) => !!s.sets[setId]?.customBreaks);
   const markCustomBreaks = () => {
@@ -2611,9 +2631,34 @@ function Importers({
       <div
         className={`flex h-full flex-col gap-0 overflow-hidden ${phone ? "has-dock relative" : ""}`}
       >
-        {/* Search bar */}
-        <div ref={searchBoxRef} className="shrink-0 border-b border-foreground/20 p-4">
-          <PhoneFold enabled={!!phone} title="Settings" open={importOpen} onToggle={toggleSettings}>
+        {/* Search bar. Phone: Settings and Chords titles side by side in a
+            short row, the open one's controls sliding out below at full
+            width. */}
+        <div
+          ref={searchBoxRef}
+          className={`shrink-0 border-b border-foreground/20 ${
+            phone
+              ? `px-4 transition-[padding] duration-200 ${importOpen || chordsOpen ? "pb-4 pt-1" : "py-1"}`
+              : "p-4"
+          }`}
+        >
+          {phone && (
+            <PhoneFoldTabs
+              tabs={[
+                { title: "Settings", open: importOpen, onToggle: toggleSettings },
+                ...(chordsHidden
+                  ? []
+                  : [{ title: "Chords", open: chordsOpen, onToggle: toggleChords }]),
+              ]}
+            />
+          )}
+          <PhoneFold
+            enabled={!!phone}
+            hideTitle
+            title="Settings"
+            open={importOpen}
+            onToggle={toggleSettings}
+          >
             <form onSubmit={runSongSearch} className="flex gap-2">
               <div className="pill relative flex flex-1 items-center gap-2 border border-foreground bg-background px-4 py-2">
                 <input
@@ -2796,18 +2841,37 @@ function Importers({
                   setLyrics(next);
                 }}
                 onInsertChord={
-                  songLayout === "response"
-                    ? (chord) => postGridChord({ kind: "insert", chord })
-                    : insertChord
+                  gridLyrics ? (chord) => postGridChord({ kind: "insert", chord }) : insertChord
                 }
-                onClearLine={
-                  songLayout === "response"
-                    ? () => postGridChord({ kind: "clear" })
-                    : clearLineChords
-                }
+                onClearLine={gridLyrics ? () => postGridChord({ kind: "clear" }) : clearLineChords}
               >
                 {/* Phone: the song's mode first, as its pattern. */}
                 {phone && <SongModePicker setId={setId} compact />}
+                {/* Desktop, Standard: edit in the text box or as a table. */}
+                {!phone && songLayout === "standard" && (
+                  <div className="inline-flex h-7 shrink-0 overflow-hidden rounded-full border border-foreground">
+                    {(
+                      [
+                        ["Text", false],
+                        ["Table", true],
+                      ] as const
+                    ).map(([label, on]) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => pickTable(on)}
+                        aria-pressed={tablePref === on}
+                        className={`mono flex h-full items-center px-3 text-xs uppercase leading-none tracking-wider transition ${
+                          tablePref === on
+                            ? "bg-foreground text-background"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <span className="inline-flex shrink-0 items-center gap-2">
                   <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
                     {phone ? "L/S" : "Lines per slide"}
@@ -2824,9 +2888,7 @@ function Importers({
                   />
                 </span>
                 {songToggles}
-                {songLayout === "response" && !phone && (
-                  <div ref={setToolbarSlot} className="contents" />
-                )}
+                {gridLyrics && !phone && <div ref={setToolbarSlot} className="contents" />}
               </ChordControls>
             ) : (
               // Multilanguage: lines of each language per slide (1 or 2), and the
@@ -2928,11 +2990,12 @@ function Importers({
             />
           </div>
         )}
-        {songLayout === "response" && (
+        {gridLyrics && (
           <div className="min-h-0 flex-1 overflow-hidden">
             <ResponseLyricEditor
               lyrics={lyrics}
               roles={roles}
+              noRoles={songLayout !== "response"}
               chords={chordCfg && !chordCfg.hidden ? chordCfg : undefined}
               toolbarSlot={toolbarSlot}
               phone={!!phone}
@@ -2953,10 +3016,12 @@ function Importers({
         )}
         {/* Phone: + Section and + Slide break along the bottom, above the
             tabs (portalled in by the grid editors). */}
-        {phone && songLayout !== "standard" && <PhoneDock slotRef={setToolbarSlot} />}
+        {phone && (songLayout !== "standard" || standardTable) && (
+          <PhoneDock slotRef={setToolbarSlot} />
+        )}
         {/* Lyrics textarea — fills remaining height */}
         <div
-          className={`relative min-h-0 flex-1 overflow-hidden ${songLayout === "standard" ? "" : "hidden"}`}
+          className={`relative min-h-0 flex-1 overflow-hidden ${songLayout === "standard" && !standardTable ? "" : "hidden"}`}
         >
           <Textarea
             ref={lyricsRef}
@@ -3602,7 +3667,8 @@ function PhoneAddToGathering({ setId, onClose }: { setId: string; onClose: () =>
   }, [query, gatherings, gatheringOrder]);
   return (
     <div className="relative flex min-w-0 flex-1 items-center gap-1">
-      <div className="pill flex min-w-0 flex-1 items-center gap-2 border border-foreground bg-background px-4 py-2">
+      {/* h-9, the header icons' height, so the bar doesn't grow. */}
+      <div className="pill flex h-9 min-w-0 flex-1 items-center gap-2 border border-foreground bg-background px-4">
         <Plus className="h-4 w-4 shrink-0" />
         <input
           autoFocus
@@ -3616,7 +3682,7 @@ function PhoneAddToGathering({ setId, onClose }: { setId: string; onClose: () =>
       <button
         onMouseDown={(e) => e.preventDefault()}
         onClick={onClose}
-        className="pill flex h-10 w-10 shrink-0 items-center justify-center active:bg-foreground/15"
+        className="pill flex h-9 w-9 shrink-0 items-center justify-center active:bg-foreground/15"
         aria-label="Close"
       >
         <X className="h-4 w-4" />

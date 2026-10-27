@@ -3,10 +3,24 @@ import {
   moveItem,
   ownLiveGathering,
   parsePhoneTab,
+  phoneHomeTab,
   phoneLangPair,
   reorderTarget,
   tapPairLang,
 } from "../phone-layout";
+
+describe("phoneHomeTab", () => {
+  it("starts an empty account on the Catalogue", () => {
+    expect(phoneHomeTab(undefined, true)).toBe("catalogue");
+  });
+  it("starts on Gatherings once there is anything", () => {
+    expect(phoneHomeTab(undefined, false)).toBe("gatherings");
+  });
+  it("keeps the tab asked for, Gatherings included, on an empty account", () => {
+    expect(phoneHomeTab("gatherings", true)).toBe("gatherings");
+    expect(phoneHomeTab("settings", true)).toBe("settings");
+  });
+});
 
 describe("reorderTarget", () => {
   // Four rows 40px tall: centres at 20, 60, 100, 140.

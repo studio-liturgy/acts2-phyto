@@ -24,6 +24,16 @@ export function parsePhoneTab(v: unknown): PhoneTab | undefined {
 }
 
 /**
+ * The phone home's tab: the one asked for, else Gatherings, except when the
+ * account has no gatherings and no sets, which starts on the Catalogue (the
+ * first thing to make is a set). The Gatherings tab asks by name, so it still
+ * opens on an empty account.
+ */
+export function phoneHomeTab(asked: PhoneTab | undefined, empty: boolean): PhoneTab {
+  return asked ?? (empty ? "catalogue" : "gatherings");
+}
+
+/**
  * Touch reorder: the position a dragged row lands at, from the vertical
  * centres of every row (in their current order) and the finger's y. The
  * dragged row's own centre is ignored; the row goes after every other row
@@ -36,6 +46,50 @@ export function reorderTarget(mids: number[], from: number, y: number): number {
     if (mids[i] < y) target++;
   }
   return target;
+}
+
+/**
+ * Touch drag in the song grids: where the dragged row goes, from the row
+ * under the finger. Past that row's middle it goes after it, above the middle
+ * before it, and within `slack` px of the middle it stays put. Returns the
+ * dragged row's new index (current indices), or null for no move.
+ *
+ * Taking "the row under the finger" as the new index made a thin row (a slide
+ * break, a section heading) flick back and forth: once it moved, the finger
+ * was over the row it had just swapped with, which sent it back.
+ */
+export function dragRowTarget(
+  from: number,
+  over: number,
+  clientY: number,
+  top: number,
+  height: number,
+  slack = 4,
+): number | null {
+  if (over === from) return null;
+  const slot = dragRowSlot(over, clientY, top, height, slack);
+  if (slot === null) return null;
+  const to = slot > from ? slot - 1 : slot;
+  return to === from ? null : to;
+}
+
+/**
+ * The same rule as `dragRowTarget`, as the index to insert BEFORE (the row
+ * under the finger, or the one after it once past its middle); null in the
+ * dead band. For grids whose move takes an insert-before index (Call and
+ * Response's `moveLine`).
+ */
+export function dragRowSlot(
+  over: number,
+  clientY: number,
+  top: number,
+  height: number,
+  slack = 4,
+): number | null {
+  const mid = top + height / 2;
+  if (clientY < mid - slack) return over;
+  if (clientY > mid + slack) return over + 1;
+  return null;
 }
 
 /** A copy of `list` with the item at `from` moved to `to`. */

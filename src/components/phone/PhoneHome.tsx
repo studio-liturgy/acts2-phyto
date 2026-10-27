@@ -13,10 +13,9 @@ import {
   Wifi,
   X,
 } from "lucide-react";
-import { useLibrary } from "@/lib/store";
-import { signOut } from "@/lib/auth";
+import { flushPushes, useLibrary } from "@/lib/store";
+import { deleteAccount, signOutAndClearDevice } from "@/lib/account";
 import { useAccountSlug } from "@/hooks/use-account-slug";
-import { deleteAccount } from "@/lib/account";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { isLiveNow } from "@/lib/live-session";
@@ -985,6 +984,7 @@ function SettingsTab({
   const setActiveWorkspace = useLibrary((s) => s.setActiveWorkspace);
   const activeGroup = groups.find((g) => g.id === activeWorkspace);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [unsynced, setUnsynced] = useState(false);
   const [manage, setManage] = useState(false);
 
   // New group, as on the desktop home: name it, then invite people.
@@ -1221,7 +1221,12 @@ function SettingsTab({
         {isSignedIn && (
           <>
             <button
-              onClick={() => setConfirmSignOut(true)}
+              onClick={() => {
+                setConfirmSignOut(true);
+                // Send waiting edits now; if they can't go, the confirm says so.
+                setUnsynced(false);
+                void flushPushes().then((ok) => setUnsynced(!ok));
+              }}
               className={`${S_OUTLINE} mt-6 w-full justify-center`}
             >
               Sign out
@@ -1293,6 +1298,7 @@ function SettingsTab({
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             Any live sessions you've started will remain live and accessible to viewers until you
             end them.
+            {unsynced && " Some changes haven't synced yet. Signing out will lose them."}
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
@@ -1300,8 +1306,11 @@ function SettingsTab({
               onClick={() => {
                 setConfirmSignOut(false);
                 clearBackToSettings();
-                // Out to the intro: nothing to see signed out.
-                void signOut().then(() => navigate({ to: "/", search: {}, replace: true }));
+                // Out to the intro, with this phone emptied: the next account
+                // starts fresh and downloads its own sets.
+                void signOutAndClearDevice().then(() =>
+                  navigate({ to: "/", search: {}, replace: true }),
+                );
               }}
               className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background"
             >

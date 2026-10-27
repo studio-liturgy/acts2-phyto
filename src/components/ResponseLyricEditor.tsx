@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { PHONE_DOCK_ICON, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock";
 import { SeparatorHorizontal, StretchHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
+import { dragRowSlot } from "@/lib/phone-layout";
 import { createPortal } from "react-dom";
 import { EditorBar } from "@/components/EditorBar";
 import { Plus, Trash2, X } from "lucide-react";
@@ -68,6 +69,7 @@ export function ResponseLyricEditor({
   onCommit,
   toolbarSlot,
   phone = false,
+  noRoles = false,
   onUndo,
   onRedo,
 }: {
@@ -85,6 +87,9 @@ export function ResponseLyricEditor({
   toolbarSlot?: HTMLElement | null;
   /** Phone: + Slide break joins + Section (the seams above lines need a hover). */
   phone?: boolean;
+  /** A Standard song shown as a table: no reader column. Stored roles still
+   *  travel with their lines, for a switch back to Call and Response. */
+  noRoles?: boolean;
   onUndo: () => void;
   onRedo: () => void;
 }) {
@@ -105,6 +110,12 @@ export function ResponseLyricEditor({
     if (from === null || from === to || from + 1 === to) return;
     commit(moveLine(doc(), from, to), undefined, true, dragIsBreak.current);
     dragFrom.current = to > from ? to - 1 : to;
+  };
+  // Touch: by the row's middle, so a thin break doesn't flick back and forth.
+  const touchDragOver = (over: number, row: HTMLElement, y: number) => {
+    const r = row.getBoundingClientRect();
+    const slot = dragRowSlot(over, y, r.top, r.height);
+    if (slot !== null) dragOver(slot);
   };
   // `breaks`: a slide break placed, moved or removed by hand (stepper: C).
   const commit = (
@@ -347,7 +358,9 @@ export function ResponseLyricEditor({
       <div className="flex h-full flex-col items-center justify-center gap-3">
         <button
           type="button"
-          onClick={() => commit({ lines: [" "], roles: ["leader"] }, { index: 0, caret: 0 })}
+          onClick={() =>
+            commit({ lines: [" "], roles: [noRoles ? null : "leader"] }, { index: 0, caret: 0 })
+          }
           className="mono flex h-7 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
         >
           <Plus className="h-3 w-3" /> Line
@@ -361,7 +374,12 @@ export function ResponseLyricEditor({
       {toolbarSlot ? createPortal(phoneButtons ?? sectionButton, toolbarSlot) : sectionButton}
 
       <div data-editor-scroll className="catalogue-scroll min-h-0 flex-1 overflow-auto border-t">
-        <div className="grid" style={{ gridTemplateColumns: `${FIRST_COL} minmax(0, 1fr)` }}>
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: noRoles ? "minmax(0, 1fr)" : `${FIRST_COL} minmax(0, 1fr)`,
+          }}
+        >
           {rows.map((row) => {
             if (row.kind === "section") {
               return (
@@ -392,7 +410,7 @@ export function ResponseLyricEditor({
                         dragFrom.current = row.index;
                         dragIsBreak.current = false;
                       },
-                      onOver: dragOver,
+                      onOver: touchDragOver,
                       onEnd: () => (dragFrom.current = null),
                     })}
                     className="flex shrink-0 cursor-grab touch-none items-center pl-2"
@@ -463,7 +481,7 @@ export function ResponseLyricEditor({
                         dragFrom.current = row.index;
                         dragIsBreak.current = true;
                       },
-                      onOver: dragOver,
+                      onOver: touchDragOver,
                       onEnd: () => (dragFrom.current = null),
                     })}
                     className="flex shrink-0 cursor-grab touch-none items-center px-2"
@@ -483,7 +501,7 @@ export function ResponseLyricEditor({
               );
             }
 
-            const role = roles[row.index] ?? null;
+            const role = noRoles ? null : (roles[row.index] ?? null);
             const tint = role ? ROLE_COLOR[role] : "transparent";
             const text = stripChordsRaw(row.text.trim() === "" ? "" : row.text);
             return (
@@ -492,6 +510,7 @@ export function ResponseLyricEditor({
                 index={row.index}
                 first={row.first}
                 onDragOverRow={() => dragOver(row.index)}
+                noRoles={noRoles}
                 role={role}
                 tint={tint}
                 text={text}
@@ -624,7 +643,7 @@ export function ResponseLyricEditor({
 
       <EditorBar
         hints={[
-          "Click a role to change it",
+          ...(noRoles ? [] : ["Click a role to change it"]),
           "Shift Enter: new line",
           "Cmd/Ctrl Enter: new slide",
           "Cmd/Ctrl Z: undo",
@@ -657,6 +676,7 @@ function Line({
   onType,
   onKey,
   onPasteLines,
+  noRoles = false,
 }: {
   index: number;
   first: boolean;
@@ -682,39 +702,44 @@ function Line({
   onType: (value: string) => void;
   onKey: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onPasteLines: (lines: string[], caret: number) => void;
+  /** No reader column (a Standard song as a table). */
+  noRoles?: boolean;
 }) {
   const bg = `color-mix(in oklab, ${tint} 8%, transparent)`;
   return (
     <>
       {/* The reader: the whole cell in its colour. Click to cycle. */}
-      <button
-        type="button"
-        onClick={onCycleRole}
-        onDragOver={(e) => {
-          e.preventDefault();
-          onDragOverRow();
-        }}
-        data-row={index}
-        data-drag-row={index}
-        title="Click to change who reads this line"
-        aria-label={`Reader: ${role ? ROLE_LABEL[role] : "none"}`}
-        className={`flex items-end border-b border-r px-2 pb-1.5 text-left transition ${
-          role
-            ? "text-[var(--brand-white)] hover:opacity-90"
-            : "text-muted-foreground hover:bg-muted"
-        }`}
-        style={role ? { backgroundColor: tint } : undefined}
-      >
-        {/* A line box the size of the lyric's (text-sm, leading-relaxed, same
+      {!noRoles && (
+        <button
+          type="button"
+          onClick={onCycleRole}
+          onDragOver={(e) => {
+            e.preventDefault();
+            onDragOverRow();
+          }}
+          data-row={index}
+          data-drag-row={index}
+          title="Click to change who reads this line"
+          aria-label={`Reader: ${role ? ROLE_LABEL[role] : "none"}`}
+          className={`flex items-end border-b border-r px-2 pb-1.5 text-left transition ${
+            role
+              ? "text-[var(--brand-white)] hover:opacity-90"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+          style={role ? { backgroundColor: tint } : undefined}
+        >
+          {/* A line box the size of the lyric's (text-sm, leading-relaxed, same
             padding), so the small label sits on the lyric's baseline. */}
-        <span className="text-sm leading-relaxed">
-          <span className="mono text-[10px] uppercase tracking-wider">
-            {role ? ROLE_LABEL[role] : "Role"}
+          <span className="text-sm leading-relaxed">
+            <span className="mono text-[10px] uppercase tracking-wider">
+              {role ? ROLE_LABEL[role] : "Role"}
+            </span>
           </span>
-        </span>
-      </button>
+        </button>
+      )}
       <div
         data-lyric-row={index}
+        data-drag-row={noRoles ? index : undefined}
         className="relative flex min-w-0 flex-col justify-end border-b"
         style={{
           backgroundColor: selected

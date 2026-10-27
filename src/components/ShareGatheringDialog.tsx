@@ -309,7 +309,7 @@ export function ShareGatheringDialog({
         <button
           type="button"
           onClick={() => downloadQr(`${gatheringName}-qr.png`)}
-          className="mono uppercase mt-2 self-center rounded-full border border-foreground px-4 py-1.5 text-xs tracking-wider transition hover:bg-foreground hover:text-background"
+          className={`mono uppercase mt-2 self-center rounded-full border border-foreground px-4 py-1.5 ${phone ? "text-[10px]" : "text-xs"} tracking-wider transition hover:bg-foreground hover:text-background`}
         >
           Download PNG
         </button>
@@ -343,7 +343,7 @@ export function ShareGatheringDialog({
               type="button"
               onClick={saveSlug}
               disabled={savingSlug}
-              className="mono uppercase flex h-10 items-center rounded-full bg-foreground px-5 text-xs tracking-wider text-background transition hover:opacity-90 disabled:opacity-50"
+              className={`mono uppercase flex h-10 items-center rounded-full bg-foreground px-5 ${phone ? "text-[10px]" : "text-xs"} tracking-wider text-background transition hover:opacity-90 disabled:opacity-50`}
             >
               {savingSlug ? "Saving" : "Save"}
             </button>

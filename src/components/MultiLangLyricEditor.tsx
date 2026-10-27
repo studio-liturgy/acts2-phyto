@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { PHONE_DOCK_ICON, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock";
 import { SeparatorHorizontal, StretchHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
+import { dragRowTarget } from "@/lib/phone-layout";
 import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
 import { createPortal } from "react-dom";
 import { EditorBar } from "@/components/EditorBar";
@@ -618,6 +619,15 @@ export function MultiLangLyricEditor({
     });
     dragSecRow.current = i;
   };
+  // Touch: by the row's middle, so a thin break or heading doesn't flick
+  // between two places (dragRowTarget).
+  const touchSectionOver = (over: number, row: HTMLElement, y: number) => {
+    const cur = dragSecRow.current;
+    if (cur === null) return;
+    const r = row.getBoundingClientRect();
+    const to = dragRowTarget(cur, over, y, r.top, r.height);
+    if (to !== null) dragSectionOver(to);
+  };
 
   if (langs.length === 0) {
     return (
@@ -838,7 +848,7 @@ export function MultiLangLyricEditor({
                       {...touchReorder({
                         attr: "drag-row",
                         onStart: () => (dragSecRow.current = i),
-                        onOver: dragSectionOver,
+                        onOver: touchSectionOver,
                         onEnd: () => (dragSecRow.current = null),
                       })}
                       className="flex shrink-0 cursor-grab touch-none items-center justify-start pl-2"
@@ -914,7 +924,7 @@ export function MultiLangLyricEditor({
                         dragSecRow.current = i;
                         markCustom();
                       },
-                      onOver: dragSectionOver,
+                      onOver: touchSectionOver,
                       onEnd: () => (dragSecRow.current = null),
                     })}
                     className="sticky left-0 z-[5] flex shrink-0 cursor-grab touch-none items-center px-2"

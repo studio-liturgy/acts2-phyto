@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { safeNextPath } from "@/lib/session-lost";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { APP_NAME } from "@/lib/appConfig";
+import { usePhoneLayout } from "@/hooks/use-phone-layout";
+import { PHONE_UI } from "@/lib/phone-layout";
 import wordmark from "@/assets/wordmark.svg";
 import wordmarkTestBlack from "@/assets/wordmark-test-black.svg";
 
@@ -34,6 +36,9 @@ function LoginPage() {
   const [subscribe, setSubscribe] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(callbackError ?? null);
+  // Phone: button words in the big button size (Delete gathering's).
+  const phone = usePhoneLayout() === true && PHONE_UI;
+  const btnText = phone ? "text-xs tracking-wider" : "text-sm";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,7 +136,7 @@ function LoginPage() {
                   <button
                     type="submit"
                     disabled={submitting || code.length !== 6}
-                    className={`mono uppercase text-sm w-full rounded-full px-6 py-3 transition hover:opacity-90 disabled:opacity-50 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
+                    className={`mono uppercase ${btnText} w-full rounded-full px-6 py-3 transition hover:opacity-90 disabled:opacity-50 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
                   >
                     {submitting ? "verifying…" : "sign in"}
                   </button>
@@ -181,7 +186,7 @@ function LoginPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className={`mono uppercase text-sm w-full rounded-full px-6 py-3 transition hover:opacity-90 disabled:opacity-50 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
+                    className={`mono uppercase ${btnText} w-full rounded-full px-6 py-3 transition hover:opacity-90 disabled:opacity-50 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
                   >
                     {submitting ? "sending…" : "continue"}
                   </button>
@@ -204,7 +209,7 @@ function LoginPage() {
                       options: { redirectTo: window.location.origin + "/auth/callback" },
                     });
                   }}
-                  className={`mono uppercase text-sm w-full rounded-full px-6 py-3 transition hover:opacity-90 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
+                  className={`mono uppercase ${btnText} w-full rounded-full px-6 py-3 transition hover:opacity-90 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
                 >
                   sign in with Google
                 </button>

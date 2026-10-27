@@ -5,6 +5,7 @@
 import { supabase } from "./supabase";
 import { db } from "./db";
 import { signOut } from "./auth";
+import { flushPushes, useLibrary } from "./store";
 
 async function accessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
@@ -55,6 +56,19 @@ export async function deleteAccount(confirmEmail: string): Promise<string | null
     // ignore
   }
   return null;
+}
+
+/**
+ * Phone sign out: send any waiting edits, sign out, then clear this device's
+ * sets and gatherings so the next account starts empty and downloads its own.
+ * Device preferences (templates, theme) stay.
+ */
+export async function signOutAndClearDevice(): Promise<void> {
+  await flushPushes();
+  await signOut();
+  await Promise.all([db.sets.clear(), db.gatherings.clear(), db.gathering_sets.clear()]);
+  useLibrary.setState({ sets: {}, order: [], gatherings: {}, gatheringOrder: [] });
+  await useLibrary.getState().loadFromDb();
 }
 
 export function formatBytes(n: number): string {

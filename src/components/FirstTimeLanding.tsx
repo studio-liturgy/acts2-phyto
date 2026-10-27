@@ -670,7 +670,7 @@ export function FirstTimeLanding({
           {signInOnly ? (
             <Link
               to="/login"
-              className="pill mono uppercase flex items-center gap-2 bg-foreground px-6 py-3 text-sm tracking-wider text-background transition hover:opacity-90"
+              className="pill mono uppercase flex items-center gap-2 bg-foreground px-6 py-3 text-xs tracking-wider text-background transition hover:opacity-90"
             >
               Sign In
             </Link>

@@ -46,7 +46,7 @@ import type { Set as PhytoSet, SetKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
 import { PhoneHome } from "@/components/phone/PhoneHome";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
-import { parsePhoneTab, type PhoneTab } from "@/lib/phone-layout";
+import { parsePhoneTab, phoneHomeTab, type PhoneTab } from "@/lib/phone-layout";
 import { FirstTimeLanding } from "@/components/FirstTimeLanding";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { ExportGatheringButton } from "@/components/ExportGatheringButton";
@@ -95,12 +95,11 @@ const KIND_COLOR: Record<string, string> = {
 export const Route = createFileRoute("/")({
   // `?intro` forces the first-time landing to render even when the catalogue
   // has content, so signed-in users can revisit it from the home header.
-  // `?tab` picks the phone layout's bottom tab (Catalogue, Account).
+  // `?tab` picks the phone layout's bottom tab (Gatherings, Catalogue,
+  // Settings); none = Gatherings, or Catalogue on an empty account.
   validateSearch: (search: Record<string, unknown>): { intro?: boolean; tab?: PhoneTab } => ({
     ...(search.intro === true || search.intro === "true" ? { intro: true } : {}),
-    ...(parsePhoneTab(search.tab) && search.tab !== "gatherings"
-      ? { tab: parsePhoneTab(search.tab) }
-      : {}),
+    ...(parsePhoneTab(search.tab) ? { tab: parsePhoneTab(search.tab) } : {}),
   }),
   head: () => ({
     meta: [
@@ -174,10 +173,16 @@ function Home() {
   const landing = !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
   const pulling = isSignedIn && isEmpty && !!accountPull;
   const authLoading = useAuthStore((s) => s.isLoading);
+  const libraryLoaded = useLibrary((s) => s.libraryLoaded);
   // Phone, signed out: only the intro, with Sign in. No library to browse.
   if (phone && authLoading) return <div className="min-h-screen bg-background" />;
   if (phone && !isSignedIn) return <Library signInOnly />;
-  if (phone && !landing && !pulling) return <PhoneHome tab={tab ?? "gatherings"} />;
+  // Not read from this device yet: blank, so an empty-looking library isn't
+  // taken for an empty account (which would open on the Catalogue).
+  if (phone && !libraryLoaded) return <div className="min-h-screen bg-background" />;
+  // Phone: an empty account starts on the Catalogue, not the desktop's
+  // first-time landing (that one only on ?intro).
+  if (phone && !intro && !pulling) return <PhoneHome tab={phoneHomeTab(tab, isEmpty)} />;
   if (phone === null && !landing) return <div className="min-h-screen bg-background" />;
   return <Library />;
 }

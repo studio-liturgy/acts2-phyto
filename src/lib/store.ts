@@ -172,6 +172,31 @@ function keepFirstSection(slides: Slide[], orphaned?: string): Slide[] {
 // (capped at a minute), for edits and retries alike, so a push that keeps
 // failing can't hammer the database. Reset by the first push that lands.
 let pushFailures = 0;
+// The push being sent right now (its rows are no longer in the dirty sets).
+let pushInFlight: Promise<boolean> | null = null;
+
+/**
+ * Send every waiting edit now (sign out on a phone, which then clears this
+ * device). True when nothing is left unsent; false when a push failed
+ * (offline), in which case the edits stay queued as before.
+ */
+export async function flushPushes(): Promise<boolean> {
+  if (pushInFlight && !(await pushInFlight)) return false;
+  if (dirtySetIds.size === 0 && dirtyGatheringIds.size === 0) return true;
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = null;
+  const setIds = [...dirtySetIds];
+  const gatheringIds = [...dirtyGatheringIds];
+  dirtySetIds.clear();
+  dirtyGatheringIds.clear();
+  const ok = await pushToSupabase({ setIds, gatheringIds });
+  if (!ok) {
+    setIds.forEach((id) => dirtySetIds.add(id));
+    gatheringIds.forEach((id) => dirtyGatheringIds.add(id));
+    schedulePush();
+  }
+  return ok;
+}
 
 function schedulePush(opts?: { set?: string; gathering?: string }) {
   if (opts?.set) dirtySetIds.add(opts.set);
@@ -183,7 +208,10 @@ function schedulePush(opts?: { set?: string; gathering?: string }) {
     const gatheringIds = [...dirtyGatheringIds];
     dirtySetIds.clear();
     dirtyGatheringIds.clear();
-    pushToSupabase({ setIds, gatheringIds }).then((ok) => {
+    const push = pushToSupabase({ setIds, gatheringIds });
+    pushInFlight = push;
+    push.then((ok) => {
+      if (pushInFlight === push) pushInFlight = null;
       if (ok) {
         pushFailures = 0;
         return;
@@ -290,6 +318,9 @@ interface LibraryState {
   order: string[];
   gatherings: Record<string, Gathering>;
   gatheringOrder: string[];
+  /** True once the library has been read from Dexie at least once, so an
+   *  empty library before then isn't taken for an empty account. */
+  libraryLoaded: boolean;
   /** Active workspace: "personal" (the owner's own library) or a group id. The
    *  library store is derived scoped to this — see buildLibraryState. */
   activeWorkspace: string;
@@ -417,6 +448,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
   order: [],
   gatherings: {},
   gatheringOrder: [],
+  libraryLoaded: false,
   activeWorkspace: typeof window !== "undefined" ? readActiveWorkspace() : "personal",
   activeWorkspaceName: typeof window !== "undefined" ? readActiveWorkspaceName() : "",
   groups: [],
@@ -434,7 +466,10 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       db.sets.toArray(),
       db.gatherings.toArray(),
     ]);
-    set(buildLibraryState(allSets, allGatherings, get().activeWorkspace));
+    set({
+      ...buildLibraryState(allSets, allGatherings, get().activeWorkspace),
+      libraryLoaded: true,
+    });
   },
 
   setActiveWorkspace: async (ws) => {

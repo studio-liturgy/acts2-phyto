@@ -2,6 +2,7 @@ import { Link, Navigate } from "@tanstack/react-router";
 import { ArrowUpLeft, ChevronDown, Layers, Library, Settings } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import type { PhoneTab } from "@/lib/phone-layout";
+import { caretAtPoint, revealDelta } from "@/lib/phone-dock";
 import { useAuthStore } from "@/lib/authStore";
 
 /**
@@ -126,7 +127,7 @@ export function PhoneTabBar({ tab }: { tab: PhoneTab }) {
         <Link
           key={t}
           to="/"
-          search={t === "gatherings" ? {} : { tab: t }}
+          search={{ tab: t }}
           className={`relative flex h-[54px] flex-1 items-center justify-center transition-colors ${
             tab === t ? "text-foreground" : "text-foreground/35"
           }`}
@@ -152,6 +153,7 @@ export function PhoneFold({
   title,
   open,
   onToggle,
+  hideTitle = false,
   children,
 }: {
   /** False (the desktop): just the children, no fold. */
@@ -159,22 +161,26 @@ export function PhoneFold({
   title: string;
   open: boolean;
   onToggle: () => void;
+  /** Its title lives in a PhoneFoldTabs row instead: only the body folds. */
+  hideTitle?: boolean;
   children: ReactNode;
 }) {
   if (!enabled) return <>{children}</>;
   return (
     <div>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className={`mono flex w-full items-center justify-between text-[10px] uppercase leading-5 tracking-wider text-muted-foreground transition-[padding] duration-200 ${open ? "pb-2" : ""}`}
-      >
-        <span>{title}</span>
-        <ChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        />
-      </button>
+      {!hideTitle && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className={`mono flex w-full items-center justify-between text-[10px] uppercase leading-5 tracking-wider text-muted-foreground transition-[padding] duration-200 ${open ? "pb-2" : ""}`}
+        >
+          <span>{title}</span>
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+      )}
       <div
         className={`grid transition-[grid-template-rows] duration-200 ease-out ${
           open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
@@ -185,6 +191,42 @@ export function PhoneFold({
     </div>
   );
 }
+
+/**
+ * Fold titles side by side (the song editor's Settings and Chords): each
+ * takes an equal share of the row, and the open one's body (a `PhoneFold
+ * hideTitle` below the row) slides out across the full width. One alone
+ * fills the row.
+ */
+export function PhoneFoldTabs({
+  tabs,
+}: {
+  tabs: { title: string; open: boolean; onToggle: () => void }[];
+}) {
+  const anyOpen = tabs.some((t) => t.open);
+  return (
+    <div className={`flex gap-x-5 transition-[padding] duration-200 ${anyOpen ? "pb-2" : ""}`}>
+      {tabs.map((t) => (
+        <button
+          key={t.title}
+          type="button"
+          onClick={t.onToggle}
+          aria-expanded={t.open}
+          className="mono flex min-w-0 flex-1 items-center justify-between text-[10px] uppercase leading-5 tracking-wider text-muted-foreground"
+        >
+          <span>{t.title}</span>
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform duration-200 ${t.open ? "rotate-180" : ""}`}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// The keyboard's height the last time it was up (0 until then): where it will
+// come up again, for placing a tapped line above it before it does.
+let lastKeyboard = 0;
 
 /**
  * How much of the screen the on-screen keyboard covers (px; 0 when it's down).
@@ -248,6 +290,7 @@ function useKeyboardInset(): number {
       }
       if (next !== last) {
         last = next;
+        if (next > 0) lastKeyboard = next;
         setInset(next);
         if (next > 0) requestAnimationFrame(reveal);
       }
@@ -270,13 +313,61 @@ function useKeyboardInset(): number {
       setTimeout(reveal, 60);
     };
     read();
+    // A tap on a line we place ourselves: no focus scroll from iOS. Scroll
+    // the editor first if the keyboard would cover the line (it then sits
+    // at the editor's top), then focus without scrolling and put the caret
+    // where the finger was. A long press or a drag is left to iOS.
+    let touch: { x: number; y: number; t: number } | null = null;
+    const tapTarget = (t: EventTarget | null) => {
+      if (!(t instanceof HTMLTextAreaElement || t instanceof HTMLInputElement)) return null;
+      if (t instanceof HTMLInputElement && t.type !== "text" && t.type !== "search") return null;
+      if (t.disabled || t.readOnly || t === document.activeElement) return null;
+      return t.closest(".has-dock [data-editor-scroll]") ? t : null;
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      const p = e.touches[0];
+      touch =
+        e.touches.length === 1 && tapTarget(e.target)
+          ? { x: p.clientX, y: p.clientY, t: Date.now() }
+          : null;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const t0 = touch;
+      touch = null;
+      const el = tapTarget(e.target);
+      const p = e.changedTouches[0];
+      if (!t0 || !el || !p) return;
+      if (Math.hypot(p.clientX - t0.x, p.clientY - t0.y) > 10) return;
+      if (Date.now() - t0.t > 450) return;
+      e.preventDefault();
+      const caret = caretAtPoint(el, p.clientX, p.clientY);
+      const box = el.closest<HTMLElement>("[data-editor-scroll]");
+      if (box) {
+        const up = last > 0;
+        const kb = up ? 0 : lastKeyboard || Math.round(window.innerHeight * 0.45);
+        const delta = revealDelta(
+          el.getBoundingClientRect(),
+          box.getBoundingClientRect().top,
+          up ? vv.height : window.innerHeight,
+          kb,
+        );
+        if (delta) box.scrollTop += delta;
+      }
+      el.focus({ preventScroll: true });
+      el.setSelectionRange(caret, caret);
+      start();
+    };
     vv.addEventListener("resize", start);
     vv.addEventListener("scroll", onScroll);
     window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("focusin", onFocus);
     document.addEventListener("focusout", start);
+    document.addEventListener("touchstart", onTouchStart, { capture: true, passive: true });
+    document.addEventListener("touchend", onTouchEnd, { capture: true, passive: false });
     return () => {
       if (frame) cancelAnimationFrame(frame);
+      document.removeEventListener("touchstart", onTouchStart, { capture: true });
+      document.removeEventListener("touchend", onTouchEnd, { capture: true });
       vv.removeEventListener("resize", start);
       vv.removeEventListener("scroll", onScroll);
       window.removeEventListener("scroll", onScroll);

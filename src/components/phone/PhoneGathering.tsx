@@ -26,6 +26,9 @@ import { PhoneViewer } from "@/components/PhoneViewer";
 import { PhoneBackHeader, PhoneScreen } from "@/components/phone/PhoneChrome";
 
 const NONE: Record<string, string[]> = {};
+// "Gathering is empty." in the Phone and Desktop views: one spot, one look.
+const EMPTY_NOTE =
+  "mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground";
 const SECTION_TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
 
 type Slot = { key: string; id: string };
@@ -259,10 +262,16 @@ export function PhoneGathering({
           </button>
         }
       >
-        <div ref={slidesTop} className="relative space-y-6 px-5 pb-24 pt-5">
+        <div
+          ref={slidesTop}
+          className={`relative space-y-6 ${g.setIds.length === 0 ? "" : "px-5 pb-24 pt-5"}`}
+        >
+          {/* The same spot and look as the Phone view's empty note. */}
           {g.setIds.length === 0 && (
-            <p className="mono py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
-              Gathering is empty. Add a set to see its slides.
+            <p className={EMPTY_NOTE}>
+              Gathering is empty.
+              <br />
+              Add a set to preview the slides view.
             </p>
           )}
           {g.setIds.map((id, i) => {
@@ -336,8 +345,10 @@ export function PhoneGathering({
         }
       >
         {phoneSets.length === 0 ? (
-          <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
-            Gathering is empty. Add a set to preview the phone view.
+          <p className={EMPTY_NOTE}>
+            Gathering is empty.
+            <br />
+            Add a set to preview the phone view.
           </p>
         ) : (
           <div className="relative h-full bg-black">
@@ -369,11 +380,7 @@ export function PhoneGathering({
   return (
     <PhoneScreen tab={fromLink ? undefined : "gatherings"} header={header}>
       <div className="px-5 pb-10 pt-5">
-        {slots.length === 0 ? (
-          <p className="mono uppercase rounded-2xl border border-dashed border-muted-foreground p-4 text-center text-xs text-muted-foreground">
-            Search below to add a set to this gathering
-          </p>
-        ) : (
+        {slots.length > 0 && (
           <ol ref={listRef} className="flex select-none flex-col gap-1">
             {slots.map((slot, i) => {
               const d = sets[slot.id];
@@ -436,7 +443,7 @@ export function PhoneGathering({
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => setSearching(true)}
               onBlur={() => setTimeout(() => setSearching(false), 150)}
-              placeholder="Search for a set and add more!"
+              placeholder="Search for a set to add"
               className="mono uppercase min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
             />
             {query && (
