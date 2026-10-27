@@ -32,6 +32,7 @@ export function FoldCard({
     // Folded, it's a pill the size of the importer's search bar (40px tall,
     // text 16px in); open, it rounds like the Chord Sheet.
     <div
+      data-fold-card
       className={`overflow-hidden border border-foreground transition-[border-radius] duration-200 ease-out ${open ? "rounded-2xl" : "rounded-[20px]"}`}
     >
       <button

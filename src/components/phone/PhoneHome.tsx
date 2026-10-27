@@ -1156,7 +1156,8 @@ function SettingsTab({
             and Background cards, one open at a time, each over a sample slide. */}
         <div className={SECTION}>
           <div className={HEADING}>Slide settings</div>
-          <div className="space-y-3">
+          {/* One rounded box around the three, a line between each. */}
+          <div className="overflow-hidden rounded-[20px] border border-foreground [&_[data-fold-card]]:rounded-none [&_[data-fold-card]]:border-0 [&_[data-fold-card]+[data-fold-card]]:border-t">
             <SongTemplateEditor {...cardProps("song")} preview={<SamplePreview kind="song" />} />
             <ScriptureTemplateEditor
               {...cardProps("scripture")}

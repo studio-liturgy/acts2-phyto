@@ -846,8 +846,11 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
             )}
 
             <div className="ml-auto flex flex-wrap items-center gap-4">
+              {/* Opens the live gathering, else the one at the top of the list,
+                  rather than wherever the presenter was last left. */}
               <Link
                 to="/present"
+                search={gatheringDisplayOrder[0] ? { gathering: gatheringDisplayOrder[0] } : {}}
                 className="pill flex items-center gap-3 border border-foreground px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-foreground transition hover:bg-foreground hover:text-background"
               >
                 Present <ArrowUpRight className="size-[1em]" />

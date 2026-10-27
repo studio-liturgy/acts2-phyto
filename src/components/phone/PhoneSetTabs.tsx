@@ -6,6 +6,8 @@ import { chordChangePatch } from "@/lib/chord-change";
 import { loadPrefs, type ViewerPrefs } from "@/lib/phone-viewer";
 import type { Set as PhytoSet } from "@/lib/types";
 import { PhoneViewer } from "@/components/PhoneViewer";
+import { RoleAlignRow } from "@/components/RoleAlignRow";
+import { songLayoutOf } from "@/lib/song-layout";
 import { PhoneScreen } from "@/components/phone/PhoneChrome";
 
 export type PhoneEditorTab = "editor" | "phone" | "slides";
@@ -39,6 +41,13 @@ export function PhoneSetTabs({
   const phoneSets = useMemo(() => [toPhoneSet(set)], [set]);
   // The song's chords switched off: no chord rows, no key or letters/numbers.
   const chordsOff = !set.chords || !!set.chords.hidden;
+  // Call and Response: Role and Align sit atop the Phone and Slides tabs.
+  const roleRow =
+    set.kind === "song" && songLayoutOf(set) === "response" ? (
+      <div className="shrink-0 border-b border-foreground/15 bg-background px-4 py-2.5">
+        <RoleAlignRow setId={set.id} phone />
+      </div>
+    ) : null;
 
   return (
     <PhoneScreen scroll={false} header={header}>
@@ -58,26 +67,32 @@ export function PhoneSetTabs({
                 Nothing to show yet
               </p>
             ) : (
-              <div className="relative h-full bg-black">
-                <PhoneViewer
-                  sets={phoneSets}
-                  embedded
-                  bare
-                  showSettings={false}
-                  prefs={chordsOff ? { ...prefs, showChords: false } : prefs}
-                  onPrefsChange={(p) =>
-                    setPrefs(chordsOff ? { ...p, showChords: prefs.showChords } : p)
-                  }
-                  onChordChange={(setId, patch) => {
-                    const p = chordChangePatch(set, patch);
-                    if (p) updateSet(setId, p);
-                  }}
-                />
+              <div className="flex h-full flex-col">
+                {roleRow}
+                <div className="relative min-h-0 flex-1 bg-black">
+                  <PhoneViewer
+                    sets={phoneSets}
+                    embedded
+                    bare
+                    showSettings={false}
+                    prefs={chordsOff ? { ...prefs, showChords: false } : prefs}
+                    onPrefsChange={(p) =>
+                      setPrefs(chordsOff ? { ...p, showChords: prefs.showChords } : p)
+                    }
+                    onChordChange={(setId, patch) => {
+                      const p = chordChangePatch(set, patch);
+                      if (p) updateSet(setId, p);
+                    }}
+                  />
+                </div>
               </div>
             ))}
           {tab === "slides" && (
-            <div className="h-full overflow-y-auto overscroll-contain px-4 pb-10 pt-4">
-              {slides}
+            <div className="flex h-full flex-col">
+              {roleRow}
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-10 pt-4">
+                {slides}
+              </div>
             </div>
           )}
         </div>

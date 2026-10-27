@@ -92,15 +92,14 @@ export function PhoneArrangeButton({
       className="pointer-events-none absolute bottom-4 right-4 z-20 flex max-h-[calc(100%-2rem)] flex-col items-end gap-2"
     >
       <div
-        // Splays up out of the button, and shrinks back into it.
-        className={`catalogue-scroll min-h-0 origin-bottom-right overflow-y-auto transition-all duration-300 ease-out ${
-          open
-            ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
-            : "translate-y-6 scale-50 opacity-0"
+        // Unfolds upward out of the button and folds back down into it: the
+        // height eases open (like the fold cards), quickly, with a fade.
+        className={`grid min-h-0 justify-items-end transition-[grid-template-rows,opacity] duration-200 ease-out ${
+          open ? "pointer-events-auto grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
         }`}
         aria-hidden={!open}
       >
-        {
+        <div className={`catalogue-scroll min-h-0 ${open ? "overflow-y-auto" : "overflow-hidden"}`}>
           <ArrangementRow
             column
             solid
@@ -111,7 +110,7 @@ export function PhoneArrangeButton({
             onChange={change}
             onBlocked={() => setBlocked(true)}
           />
-        }
+        </div>
       </div>
       {blocked && (
         <p className="mono pointer-events-none rounded-full bg-background px-3 py-1 text-[10px] uppercase tracking-wider">
