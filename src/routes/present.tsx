@@ -247,7 +247,7 @@ function PresentRoute() {
     return gathering ? (
       <PhoneGathering
         gatheringId={gathering}
-        view={view === "mobile" ? "phone" : "sets"}
+        view={view === "mobile" ? "phone" : view === "slides" ? "slides" : "sets"}
         fromLink={!!link}
       />
     ) : null;

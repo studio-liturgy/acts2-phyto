@@ -1,7 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { List, Search, Smartphone, X } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { List, Monitor, Search, Smartphone, X } from "lucide-react";
+import { arrangedEntries, effectiveArrangement } from "@/lib/arrangements";
+import { SlideView } from "@/components/SlideView";
 import {
   gatheringSectionsReady,
   loadGatheringSections,
@@ -37,7 +38,7 @@ export function PhoneGathering({
   fromLink = false,
 }: {
   gatheringId: string;
-  view: "sets" | "phone";
+  view: "sets" | "phone" | "slides";
   /** Opened from the live link's menu: no Back, no Delete, no tab bar, and in
    *  the link's own light or dark. */
   fromLink?: boolean;
@@ -162,30 +163,44 @@ export function PhoneGathering({
   const canDelete = !g.shared;
   const slots: Slot[] = drag?.order ?? g.setIds.map((id, i) => ({ key: `${id}#${i}`, id }));
 
-  // Sets / Phone, the presenter's Slides / Mobile switch: icons either side.
-  const setView = (v: "sets" | "phone") =>
+  // List / Phone / Desktop: the set list, the phone view, the slides.
+  const setView = (v: "sets" | "phone" | "slides") =>
     navigate({
       to: "/present",
       search: {
         gathering: gatheringId,
-        ...(v === "phone" ? { view: "mobile" as const } : {}),
+        ...(v === "phone"
+          ? { view: "mobile" as const }
+          : v === "slides"
+            ? { view: "slides" as const }
+            : {}),
         ...(fromLink ? { link: true } : {}),
       },
       replace: true,
     });
   const viewSwitch = (
-    <div className="flex items-center gap-2 pl-1">
-      <button type="button" onClick={() => setView("sets")} aria-label="Sets" title="Sets">
-        <List className={`h-4 w-4 ${view === "sets" ? "" : "text-muted-foreground"}`} />
-      </button>
-      <Switch
-        checked={view === "phone"}
-        onCheckedChange={(on) => setView(on ? "phone" : "sets")}
-        aria-label="Phone view"
-      />
-      <button type="button" onClick={() => setView("phone")} aria-label="Phone" title="Phone">
-        <Smartphone className={`h-4 w-4 ${view === "phone" ? "" : "text-muted-foreground"}`} />
-      </button>
+    <div className="flex h-8 items-center rounded-full border border-foreground p-0.5">
+      {(
+        [
+          ["sets", "List", List],
+          ["phone", "Phone", Smartphone],
+          ["slides", "Desktop", Monitor],
+        ] as const
+      ).map(([v, label, Icon]) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => setView(v)}
+          aria-label={label}
+          aria-pressed={view === v}
+          title={label}
+          className={`flex h-full w-8 items-center justify-center rounded-full transition ${
+            view === v ? "bg-foreground text-background" : "text-muted-foreground"
+          }`}
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </button>
+      ))}
     </div>
   );
 
@@ -205,6 +220,56 @@ export function PhoneGathering({
       actions={viewSwitch}
     />
   );
+
+  if (view === "slides") {
+    // Desktop: every set's slides as they'll project, in play order (with this
+    // gathering's arrangements and hidden sections), one per row.
+    return (
+      <PhoneScreen tab={fromLink ? undefined : "gatherings"} header={header}>
+        <div className="space-y-6 px-5 pb-10 pt-5">
+          {g.setIds.length === 0 && (
+            <p className="mono py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
+              Gathering is empty. Add a set to see its slides.
+            </p>
+          )}
+          {g.setIds.map((id, i) => {
+            const d = sets[id];
+            if (!d) return null;
+            const order = arrangedEntries(
+              d.slides,
+              effectiveArrangement(d.slides, arranged[id], hidden[id]),
+            );
+            return (
+              <section key={`${id}#${i}`}>
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="mono text-[10px] text-muted-foreground">{i + 1}.</span>
+                  <span className="min-w-0 truncate text-base">{d.name}</span>
+                </div>
+                {d.slides.length === 0 ? (
+                  <p className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    No slides
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {order.flatMap(({ group, entryKey }) =>
+                      group.items.map(({ slide }) => (
+                        <div
+                          key={`${entryKey}:${slide.id}`}
+                          className="overflow-hidden rounded-md border border-foreground/10"
+                        >
+                          <SlideView slide={slide} versions={d.versions} variant="thumb" />
+                        </div>
+                      )),
+                    )}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      </PhoneScreen>
+    );
+  }
 
   if (view === "phone") {
     return (
