@@ -1168,25 +1168,23 @@ function Row({
               value={stripChordsRaw(row.byLang[code] ?? "")}
               onMouseDown={() => onCellMouseDown(code, index)}
               onFocus={(e) => {
-                // Not under a chord row: the chords sit over one unwrapped line.
-                if (wrapOnFocus && !(code === chordLang && chords)) {
-                  e.currentTarget.wrap = "soft";
-                  autosize(e.currentTarget);
-                }
+                if (wrapOnFocus)
+                  fitFocused(e.currentTarget, !(code === chordLang && chords), autosize);
                 onFocusRow();
               }}
               onBlur={(e) => {
-                if (!wrapOnFocus || e.currentTarget.wrap === "off") return;
-                e.currentTarget.wrap = "off";
-                e.currentTarget.scrollLeft = 0;
-                autosize(e.currentTarget);
+                if (wrapOnFocus) unfit(e.currentTarget, autosize);
               }}
               onSelect={(e) => onCaret(index, code, e.currentTarget.selectionStart)}
               onDragOver={(e) => {
                 e.preventDefault();
                 onDragOverRow();
               }}
-              onInput={(e) => autosize(e.currentTarget)}
+              onInput={(e) => {
+                if (wrapOnFocus)
+                  fitFocused(e.currentTarget, !(code === chordLang && chords), autosize);
+                else autosize(e.currentTarget);
+              }}
               onChange={(e) => editCell(index, code, e.target.value)}
               onPaste={(e) => {
                 const text = e.clipboardData.getData("text");
@@ -1264,4 +1262,49 @@ function LangPicker(props: {
   align?: "left" | "right";
 }) {
   return <LangPickerMenu {...props} />;
+}
+
+/**
+ * Phone: the line being typed in shows all of itself. Too long for its
+ * column, it widens over the next column on the page's background, up to the
+ * grid's visible right edge; longer still, it wraps there (not under a chord
+ * row, whose chords sit over one unwrapped line). `unfit` puts it back.
+ */
+function fitFocused(
+  el: HTMLTextAreaElement,
+  canWrap: boolean,
+  autosize: (el: HTMLTextAreaElement | null) => void,
+) {
+  el.wrap = "off";
+  el.style.width = "";
+  const need = el.scrollWidth + 2;
+  if (need <= el.clientWidth + 1) {
+    clearFit(el);
+    autosize(el);
+    return;
+  }
+  const box = el.closest<HTMLElement>("[data-editor-scroll]");
+  const avail = box
+    ? box.getBoundingClientRect().right - el.getBoundingClientRect().left - 4
+    : need;
+  el.style.width = `${Math.max(el.clientWidth, Math.min(need, avail))}px`;
+  el.style.position = "relative";
+  el.style.zIndex = "20";
+  el.style.background = "var(--background)";
+  el.style.boxShadow = "0 0 0 1px color-mix(in oklab, var(--foreground) 25%, transparent)";
+  if (need > avail && canWrap) el.wrap = "soft";
+  autosize(el);
+}
+
+function clearFit(el: HTMLTextAreaElement) {
+  for (const k of ["width", "position", "zIndex", "background", "boxShadow"] as const) {
+    el.style[k] = "";
+  }
+}
+
+function unfit(el: HTMLTextAreaElement, autosize: (el: HTMLTextAreaElement | null) => void) {
+  clearFit(el);
+  el.wrap = "off";
+  el.scrollLeft = 0;
+  autosize(el);
 }

@@ -350,6 +350,8 @@ function SetHeader({
   );
   if (phone) {
     // h-9, the Back button's size, so this bar is as tall as the gathering's.
+    // Opened from a gathering's editor (its set list or views).
+    const fromGathering = !!redirectTo?.startsWith("/present");
     const ICON = "pill flex h-9 w-9 shrink-0 items-center justify-center transition";
     return (
       <header className="shrink-0 border-b border-foreground px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
@@ -387,7 +389,7 @@ function SetHeader({
                     <Undo2 className="h-4 w-4" />
                   </button>
                 )}
-                {removeMode && (
+                {removeMode && !fromGathering && (
                   <button
                     onClick={() => setShowDeleteSetDialog(true)}
                     className={`${ICON} active:bg-[var(--brand-red)] active:text-[var(--brand-white)]`}
@@ -398,14 +400,18 @@ function SetHeader({
                   </button>
                 )}
                 {/* No Share here on the phone: sets are shared from the catalogue. */}
-                <button
-                  onClick={() => setAddingTo(true)}
-                  className={`${ICON} active:bg-foreground/15`}
-                  title="Add to a gathering"
-                  aria-label="Add to a gathering"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
+                {/* Opened from a gathering's editor: no Delete or Add to a
+                    gathering (it's already in one). */}
+                {!fromGathering && (
+                  <button
+                    onClick={() => setAddingTo(true)}
+                    className={`${ICON} active:bg-foreground/15`}
+                    title="Add to a gathering"
+                    aria-label="Add to a gathering"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                )}
                 {(phytoSet.kind === "scripture" || phytoSet.kind === "message") && (
                   <button
                     onClick={() => setScriptureSettings(true)}
@@ -1971,7 +1977,10 @@ function Importers({
   phone?: boolean;
 }) {
   // Phone: the importer folds away (song search, scripture lookup).
-  const [importOpen, setImportOpen] = useState(true);
+  // A set that already has content opens with Settings (and Chords) folded.
+  const [importOpen, setImportOpen] = useState(
+    () => (useLibrary.getState().sets[setId]?.slides.length ?? 0) === 0,
+  );
   // The song editor on a phone: Settings and Chords fold, one open at a time.
   const [chordsOpen, setChordsOpen] = useState(false);
   const [chordSlot, setChordSlot] = useState<HTMLDivElement | null>(null);

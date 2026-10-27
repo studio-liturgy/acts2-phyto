@@ -89,7 +89,9 @@ export function PhoneArrangeButton({
   return (
     <div
       ref={wrap}
-      className="pointer-events-none absolute bottom-4 right-4 z-20 flex max-h-[calc(100%-2rem)] flex-col items-end gap-2"
+      // Always over the phone preview's black, so dark-mode colours in
+      // either theme.
+      className="dark pointer-events-none absolute bottom-4 right-4 z-20 flex max-h-[calc(100%-2rem)] flex-col items-end gap-2"
     >
       <div
         // Grows up out of the button (the first version's motion), and folds
@@ -120,7 +122,7 @@ export function PhoneArrangeButton({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`pill pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center border border-foreground bg-background transition active:opacity-80 ${
+        className={`pill pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center border border-foreground bg-black text-foreground transition active:opacity-80 ${
           open || adjusted ? "" : "opacity-40"
         }`}
         title={open ? "Done arranging" : "Arrange sections"}
