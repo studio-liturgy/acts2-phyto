@@ -403,3 +403,12 @@ html[data-kb] body {
   inset: 0;
   overflow: hidden;
 }
+
+/* Phone editors: room under the last line so the dock (the rounded tools
+   tab over the editor's foot) never covers it once scrolled to the end. */
+html[data-phone-ui] .has-dock [data-editor-scroll]::after {
+  content: "";
+  display: block;
+  height: 4.5rem;
+  flex-shrink: 0;
+}
