@@ -127,7 +127,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       {
         name: "viewport",
-        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+        // Test builds (phone layout): no zoom into a text box on tap, on any
+        // page (sign-in included). Pinch zoom still works on iOS.
+        content: PHONE_UI
+          ? "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
+          : "width=device-width, initial-scale=1, viewport-fit=cover",
       },
       // Baseline so the tag exists from first paint (matches --background) — pages that
       // tint via usePageBackgroundColor then update this element's content in place

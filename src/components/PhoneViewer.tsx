@@ -412,7 +412,7 @@ export function PhoneViewer({
                       menuTimer.current = setTimeout(() => setMenuOpen(false), QR_FADE_MS);
                     }}
                     style={{ fontFamily: FONT_FAMILY_CSS.mono }}
-                    className={`mt-4 w-full rounded-lg border px-3 py-1.5 text-center text-sm uppercase transition ${
+                    className={`mt-4 w-full rounded-lg border px-3 py-1.5 text-center text-[10px] uppercase tracking-wider transition ${
                       prefs.isDark
                         ? "border-white/40 hover:border-white"
                         : "border-black/40 hover:border-black"
@@ -584,7 +584,32 @@ export function PhoneViewer({
       )}
 
       {/* Set content */}
-      <div className="group relative min-h-0 flex-1">
+      {/* The swipe between sets works on the whole area, not only where the
+          set's words reach. */}
+      <div
+        className="group relative flex min-h-0 flex-1 flex-col"
+        onTouchStart={(e) => {
+          if (e.touches.length > 1) {
+            touchStartX.current = null;
+            return;
+          }
+          touchStartX.current = e.touches[0].clientX;
+        }}
+        onTouchMove={(e) => {
+          if (e.touches.length > 1) touchStartX.current = null;
+        }}
+        onTouchEnd={(e) => {
+          if (touchStartX.current === null) return;
+          const dx = e.changedTouches[0].clientX - touchStartX.current;
+          touchStartX.current = null;
+          if (Math.abs(dx) < 50) return;
+          if (dx < 0 && activeIdx < sets.length - 1) {
+            selectSet(sets[activeIdx + 1].id);
+          } else if (dx > 0 && activeIdx > 0) {
+            selectSet(sets[activeIdx - 1].id);
+          }
+        }}
+      >
         {onEditSet && activeSet && (
           <button
             onClick={() => onEditSet(activeSet.id)}
@@ -599,30 +624,7 @@ export function PhoneViewer({
             <Pencil className="h-4 w-4" />
           </button>
         )}
-        <div
-          className="h-full overflow-y-auto"
-          onTouchStart={(e) => {
-            if (e.touches.length > 1) {
-              touchStartX.current = null;
-              return;
-            }
-            touchStartX.current = e.touches[0].clientX;
-          }}
-          onTouchMove={(e) => {
-            if (e.touches.length > 1) touchStartX.current = null;
-          }}
-          onTouchEnd={(e) => {
-            if (touchStartX.current === null) return;
-            const dx = e.changedTouches[0].clientX - touchStartX.current;
-            touchStartX.current = null;
-            if (Math.abs(dx) < 50) return;
-            if (dx < 0 && activeIdx < sets.length - 1) {
-              selectSet(sets[activeIdx + 1].id);
-            } else if (dx > 0 && activeIdx > 0) {
-              selectSet(sets[activeIdx - 1].id);
-            }
-          }}
-        >
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {activeSet && (
             <SetContent
               set={phoneSetForLangs(activeSet, langChoice[activeSet.id])}

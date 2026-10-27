@@ -359,3 +359,10 @@ input[type="range"].phone-range::-moz-range-thumb {
 .has-dock [data-editor-scroll] {
   padding-bottom: 3.5rem;
 }
+
+/* Phone layout: the page itself never rubber-bands; each screen scrolls its
+   own body, so a short screen doesn't drag the whole page with a swipe. */
+html[data-phone-ui],
+html[data-phone-ui] body {
+  overscroll-behavior: none;
+}

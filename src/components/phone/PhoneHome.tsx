@@ -389,6 +389,18 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
     return () => ro.disconnect();
   }, [hasLive]);
 
+  // Gone live: back to the top, so the live gathering is what's there when
+  // the Share screen closes.
+  const firstLive = liveIds[0] ?? null;
+  const prevLive = useRef(firstLive);
+  useEffect(() => {
+    if (firstLive && firstLive !== prevLive.current) {
+      setOthersOpen(false);
+      scroller()?.scrollTo({ top: 0 });
+    }
+    prevLive.current = firstLive;
+  }, [firstLive]);
+
   const splayGestures = canSplay
     ? {
         onTouchStart: (e: React.TouchEvent) => {
@@ -447,7 +459,9 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
         />
       }
     >
-      <div ref={listRef} className="flex min-h-full flex-col" {...splayGestures}>
+      {/* A pixel taller than the screen, so the body always takes the swipe
+          (scrolling itself) rather than handing it to the page. */}
+      <div ref={listRef} className="flex min-h-[calc(100%+1px)] flex-col" {...splayGestures}>
         <div ref={arrivalsRef}>{arrivals}</div>
         {/* While one is live it sits mid-screen and stays put: Other
             gatherings open below it, extending the page downward. */}

@@ -90,7 +90,7 @@ function GatheringViewer() {
   const stoppedRef = useRef(false);
 
   // The leader's own live gathering, signed in on this device: the menu's
-  // Edit Gathering opens it (test builds, with the phone layout).
+  // Edit opens it (test builds, with the phone layout).
   const isSignedIn = useIsSignedIn();
   const localGatherings = useLibrary((s) => s.gatherings ?? NO_GATHERINGS);
   const ownId =
@@ -252,7 +252,7 @@ function GatheringViewer() {
 
 /**
  * The live link's menu, under QR Code (test builds): Sign in; or, signed in,
- * Edit Gathering when it's your live gathering, else which account you're in
+ * Edit when it's your live gathering, else which account you're in
  * and Sign out.
  */
 function LinkAccountMenu({ ownId }: { ownId: string | null }) {
@@ -260,7 +260,7 @@ function LinkAccountMenu({ ownId }: { ownId: string | null }) {
   const email = useUserEmail();
   const navigate = useNavigate();
   const BTN =
-    "mt-2 block w-full rounded-lg border border-current/40 px-3 py-1.5 text-center text-sm uppercase transition";
+    "mt-2 block w-full rounded-lg border border-current/40 px-3 py-1.5 text-center text-[10px] uppercase tracking-wider transition";
   const here = typeof window !== "undefined" ? window.location.pathname : "/";
   if (!isSignedIn) {
     return (
@@ -277,7 +277,7 @@ function LinkAccountMenu({ ownId }: { ownId: string | null }) {
         className={BTN}
         style={MONO}
       >
-        Edit Gathering
+        Edit
       </button>
     );
   }

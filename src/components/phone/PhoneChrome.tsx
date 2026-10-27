@@ -179,22 +179,53 @@ export function PhoneFold({
 }
 
 /** How much of the layout viewport the on-screen keyboard covers (px; 0 when
- *  it's down), from the visual viewport. */
+ *  it's down), from the visual viewport. iOS moves things in steps (keyboard
+ *  animating, the page nudged to show the caret, switching boxes) and doesn't
+ *  report every one, so while a box has focus it's read every frame. */
 function useKeyboardInset(): number {
   const [inset, setInset] = useState(0);
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
-    const update = () => {
+    let last = -1;
+    let frame = 0;
+    const read = () => {
       const covered = window.innerHeight - (vv.height + vv.offsetTop);
-      setInset(covered > 80 ? Math.round(covered) : 0);
+      const next = covered > 80 ? Math.round(covered) : 0;
+      if (next !== last) {
+        last = next;
+        setInset(next);
+      }
     };
-    update();
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
+    const typing = () => {
+      const el = document.activeElement;
+      return (
+        el instanceof HTMLTextAreaElement ||
+        (el instanceof HTMLInputElement && el.type !== "checkbox") ||
+        (el instanceof HTMLElement && el.isContentEditable)
+      );
+    };
+    const loop = () => {
+      read();
+      // Keep following while typing, and for a moment after (keyboard closing).
+      frame = typing() || last > 0 ? requestAnimationFrame(loop) : 0;
+    };
+    const start = () => {
+      if (!frame) frame = requestAnimationFrame(loop);
+    };
+    read();
+    vv.addEventListener("resize", start);
+    vv.addEventListener("scroll", start);
+    window.addEventListener("scroll", start, { passive: true });
+    document.addEventListener("focusin", start);
+    document.addEventListener("focusout", start);
     return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
+      if (frame) cancelAnimationFrame(frame);
+      vv.removeEventListener("resize", start);
+      vv.removeEventListener("scroll", start);
+      window.removeEventListener("scroll", start);
+      document.removeEventListener("focusin", start);
+      document.removeEventListener("focusout", start);
     };
   }, []);
   return inset;

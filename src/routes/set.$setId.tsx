@@ -1737,11 +1737,7 @@ function ChordControls({
     <div className="mt-3">
       {/* Column gap between groups, no margins: a wrapped group starts flush
           left under Lines per slide. */}
-      <div
-        className={`flex flex-wrap items-center gap-y-2 ${phone ? "justify-between gap-x-3" : "gap-x-5"}`}
-      >
-        {children}
-      </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">{children}</div>
 
       {shown && chords && (
         // Key and the palette share a row when there's room; otherwise the
