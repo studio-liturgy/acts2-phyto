@@ -1704,6 +1704,7 @@ function ChordControls({
   phone = false,
   chordSlot = null,
   chordsOpen = true,
+  chordsInstant = false,
   onChordsToggle,
   children,
 }: {
@@ -1711,6 +1712,8 @@ function ChordControls({
    *  Settings, one of the two open at a time. */
   chordSlot?: HTMLElement | null;
   chordsOpen?: boolean;
+  /** Shut at once (switching to Settings), not folded. */
+  chordsInstant?: boolean;
   onChordsToggle?: () => void;
   /** Phone: the rows spread across the width, smaller Numbers / Letters. */
   phone?: boolean;
@@ -1860,6 +1863,7 @@ function ChordControls({
           ? createPortal(
               <PhoneFold
                 hideTitle
+                instant={chordsInstant}
                 title="Chords"
                 open={chordsOpen}
                 onToggle={() => onChordsToggle?.()}
@@ -1990,11 +1994,16 @@ function Importers({
   // The song editor on a phone: Settings and Chords fold, one open at a time.
   const [chordsOpen, setChordsOpen] = useState(false);
   const [chordSlot, setChordSlot] = useState<HTMLDivElement | null>(null);
+  // Switching straight from one to the other: the one closing goes at once
+  // (no fold), so the one opening always unfolds downward from the tabs.
+  const [snapShut, setSnapShut] = useState<"settings" | "chords" | null>(null);
   const toggleSettings = () => {
+    setSnapShut(!importOpen && chordsOpen ? "chords" : null);
     setImportOpen((o) => !o);
     setChordsOpen(false);
   };
   const toggleChords = () => {
+    setSnapShut(!chordsOpen && importOpen ? "settings" : null);
     setChordsOpen((o) => !o);
     setImportOpen(false);
   };
@@ -2114,6 +2123,7 @@ function Importers({
   useEffect(() => {
     const on = !chordsHidden;
     if (phone && on && !chordsWereOn.current) {
+      setSnapShut("settings");
       setImportOpen(false);
       setChordsOpen(true);
     }
@@ -2657,6 +2667,7 @@ function Importers({
           <PhoneFold
             enabled={!!phone}
             hideTitle
+            instant={snapShut === "settings"}
             title="Settings"
             open={importOpen}
             onToggle={toggleSettings}
@@ -2835,6 +2846,7 @@ function Importers({
                 phone={!!phone}
                 chordSlot={chordSlot}
                 chordsOpen={chordsOpen}
+                chordsInstant={snapShut === "chords"}
                 onChordsToggle={toggleChords}
                 setId={setId}
                 lyrics={lyrics}
@@ -2899,6 +2911,7 @@ function Importers({
                 phone={!!phone}
                 chordSlot={chordSlot}
                 chordsOpen={chordsOpen}
+                chordsInstant={snapShut === "chords"}
                 onChordsToggle={toggleChords}
                 setId={setId}
                 lyrics={multiChordText}

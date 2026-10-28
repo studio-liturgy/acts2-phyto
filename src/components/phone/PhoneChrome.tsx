@@ -155,6 +155,7 @@ export function PhoneFold({
   open,
   onToggle,
   hideTitle = false,
+  instant = false,
   children,
 }: {
   /** False (the desktop): just the children, no fold. */
@@ -164,6 +165,9 @@ export function PhoneFold({
   onToggle: () => void;
   /** Its title lives in a PhoneFoldTabs row instead: only the body folds. */
   hideTitle?: boolean;
+  /** Open or shut at once, without the fold (the one closing when a
+   *  PhoneFoldTabs row switches straight to its sibling). */
+  instant?: boolean;
   children: ReactNode;
 }) {
   if (!enabled) return <>{children}</>;
@@ -186,7 +190,7 @@ export function PhoneFold({
           line inside (a song title in the search results) truncates instead
           of widening the whole box past the screen. */}
       <div
-        className={`grid grid-cols-[minmax(0,1fr)] transition-[grid-template-rows] duration-200 ease-out ${
+        className={`grid grid-cols-[minmax(0,1fr)] ${instant ? "" : "transition-[grid-template-rows] duration-200 ease-out"} ${
           open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
