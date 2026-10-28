@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { liveLinkUrl } from "@/lib/testers";
+import { liveLinkUrl, TESTERS_ONLY } from "@/lib/testers";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { useAuthStore, useIsSignedIn, useUserEmail } from "@/lib/authStore";
@@ -99,7 +99,8 @@ export const Route = createFileRoute("/")({
   // `?tab` picks the phone layout's bottom tab (Gatherings, Catalogue,
   // Settings); none = Gatherings, or Catalogue on an empty account.
   validateSearch: (search: Record<string, unknown>): { intro?: boolean; tab?: PhoneTab } => ({
-    ...(search.intro === true || search.intro === "true" ? { intro: true } : {}),
+    // phytoexp.live has no intro: ?intro is ignored there.
+    ...(!TESTERS_ONLY && (search.intro === true || search.intro === "true") ? { intro: true } : {}),
     ...(parsePhoneTab(search.tab) ? { tab: parsePhoneTab(search.tab) } : {}),
   }),
   head: () => ({
@@ -171,7 +172,9 @@ function Home() {
   const isSignedIn = useIsSignedIn();
   const accountPull = useAccountPull();
   const isEmpty = gatheringOrder.length === 0 && order.length === 0;
-  const landing = !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
+  const landing =
+    !TESTERS_ONLY &&
+    (!!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0));
   // A device downloading the account from nothing keeps the loading view
   // for the whole pull (gatherings can arrive before their sets).
   const pulling = isSignedIn && !!accountPull && (isEmpty || !!accountPull.fresh);
@@ -605,8 +608,11 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
   // someone who already belongs to a group — they aren't a brand-new user even
   // if their personal catalogue happens to be empty. The explicit Intro link
   // (?intro) still opens it for anyone.
+  // phytoexp.live never shows it: an empty account opens on the empty catalogue.
   const showLanding =
-    signInOnly || !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
+    signInOnly ||
+    (!TESTERS_ONLY &&
+      (!!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0)));
 
   // The live gathering always leads, regardless of creation order.
   const gatheringDisplayOrder = useMemo(

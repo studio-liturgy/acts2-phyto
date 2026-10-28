@@ -74,6 +74,7 @@ import { fetchWorkspaceSettings, saveWorkspaceSettings } from "@/lib/workspace-s
 import { VersionWarning } from "@/components/VersionWarning";
 import { PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
 import { PhoneShareSheet } from "@/components/phone/PhoneShareSheet";
+import { TESTERS_ONLY } from "@/lib/testers";
 
 const MAX_GROUPS = 3;
 
@@ -1177,7 +1178,8 @@ function SettingsTab({
           {(
             [
               [
-                { to: "/?intro=true", label: "Intro" },
+                // phytoexp.live has no intro.
+                ...(TESTERS_ONLY ? [] : [{ to: "/?intro=true", label: "Intro" }]),
                 { to: "/about", label: "About" },
                 { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
                 { href: "/donate", label: "Donate" },
