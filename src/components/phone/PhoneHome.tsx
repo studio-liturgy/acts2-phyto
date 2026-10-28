@@ -530,7 +530,7 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
                   </div>
                 </>
               )}
-              {liveIds.length === 0 && otherIds.map((id) => renderCard(id))}
+              {liveIds.length === 0 && otherIds.map((id) => renderCard(id, true))}
             </>
           )}
         </div>
