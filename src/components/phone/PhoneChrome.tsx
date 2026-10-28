@@ -270,8 +270,9 @@ function useKeyboardInset(): number {
       const r = el.getBoundingClientRect();
       const b = box.getBoundingClientRect();
       const bottom = Math.min(b.bottom, vv.height) - 64;
-      if (r.bottom > bottom) box.scrollTop += r.bottom - bottom;
-      else if (r.top < b.top + 8) box.scrollTop -= b.top + 8 - r.top;
+      // Glide, never snap (a snap reads as the whole screen jumping).
+      if (r.bottom > bottom) box.scrollBy({ top: r.bottom - bottom, behavior: "smooth" });
+      else if (r.top < b.top + 8) box.scrollBy({ top: r.top - (b.top + 8), behavior: "smooth" });
     };
     let lastH = -1;
     const read = () => {
@@ -357,7 +358,8 @@ function useKeyboardInset(): number {
           up ? vv.height : window.innerHeight,
           kb,
         );
-        if (delta) box.scrollTop += delta;
+        // A short glide, not a jump: the keyboard rises over the same time.
+        if (delta) box.scrollBy({ top: delta, behavior: "smooth" });
       }
       el.focus({ preventScroll: true });
       el.setSelectionRange(caret, caret);

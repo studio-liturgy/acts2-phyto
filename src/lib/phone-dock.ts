@@ -20,11 +20,11 @@ export const keepFocus = (e: { preventDefault: () => void }) => e.preventDefault
 
 /**
  * Tapping a line in a phone editor: how far to scroll the editor first so the
- * line sits above where the keyboard will be (0 when it already does). A line
- * that would be covered goes to the top of the editor, so iOS finds nothing to
- * reveal and doesn't slide the page (the jump down and back on every tap).
- * `keyboard` is the keyboard's height (0 when it's already up: the screen
- * then ends at it), `dock` the tools tab sitting on it.
+ * line sits just above where the keyboard and the tools tab will be (0 when
+ * it already does). Only as far as needed, so the lines glide a short way
+ * instead of the tapped one leaping to the top. `keyboard` is the keyboard's
+ * height (0 when it's already up: the screen then ends at it), `dock` the
+ * tools tab sitting on it.
  */
 export function revealDelta(
   line: { top: number; bottom: number },
@@ -32,10 +32,12 @@ export function revealDelta(
   screenHeight: number,
   keyboard: number,
   dock = 56,
+  gap = 12,
 ): number {
-  const visibleBottom = screenHeight - keyboard - dock;
+  const visibleBottom = screenHeight - keyboard - dock - gap;
   if (line.bottom <= visibleBottom) return 0;
-  return line.top - (editorTop + 8);
+  // Never past the editor's top, for a line taller than the room left.
+  return Math.min(line.bottom - visibleBottom, line.top - (editorTop + 8));
 }
 
 /**
