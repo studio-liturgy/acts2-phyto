@@ -2861,31 +2861,6 @@ function Importers({
               >
                 {/* Phone: the song's mode first, as its pattern. */}
                 {phone && <SongModePicker setId={setId} compact />}
-                {/* Desktop, Standard: edit in the text box or as a table. */}
-                {!phone && songLayout === "standard" && (
-                  <div className="inline-flex h-7 shrink-0 overflow-hidden rounded-full border border-foreground">
-                    {(
-                      [
-                        ["Text", false],
-                        ["Table", true],
-                      ] as const
-                    ).map(([label, on]) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => pickTable(on)}
-                        aria-pressed={tablePref === on}
-                        className={`mono flex h-full items-center px-3 text-xs uppercase leading-none tracking-wider transition ${
-                          tablePref === on
-                            ? "bg-foreground text-background"
-                            : "bg-background hover:bg-muted"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
                 <span className="inline-flex shrink-0 items-center gap-2">
                   <span className="mono whitespace-nowrap text-[10px] uppercase tracking-wider">
                     {phone ? "L/S" : "Lines per slide"}
@@ -2903,6 +2878,32 @@ function Importers({
                 </span>
                 {songToggles}
                 {gridLyrics && !phone && <div ref={setToolbarSlot} className="contents" />}
+                {/* Desktop, Standard: edit in the text box or as a table, at the
+                    row's right end (under the search button). */}
+                {!phone && songLayout === "standard" && (
+                  <div className="ml-auto inline-flex h-7 shrink-0 overflow-hidden rounded-full border border-foreground">
+                    {(
+                      [
+                        ["Text", false],
+                        ["Table", true],
+                      ] as const
+                    ).map(([label, on]) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => pickTable(on)}
+                        aria-pressed={tablePref === on}
+                        className={`mono flex h-full items-center px-3 text-[10px] uppercase leading-none tracking-wider transition ${
+                          tablePref === on
+                            ? "bg-foreground text-background"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </ChordControls>
             ) : (
               // Multilanguage: lines of each language per slide (1 or 2), and the

@@ -140,7 +140,7 @@ export function LangPickerMenu({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="mono flex h-7 items-center justify-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        className="mono flex h-7 items-center justify-center gap-1 rounded-full border border-dashed px-3 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
       >
         <Plus className="h-3 w-3" />
         {label}

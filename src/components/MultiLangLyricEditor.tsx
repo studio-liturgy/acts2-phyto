@@ -700,7 +700,7 @@ export function MultiLangLyricEditor({
     <button
       type="button"
       onClick={addSection}
-      className="mono flex h-7 shrink-0 items-center gap-1 rounded-full border border-dashed px-3 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+      className="mono flex h-7 shrink-0 items-center gap-1 rounded-full border border-dashed px-3 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
       title="Add a section above the line your cursor is on"
     >
       <Plus className="h-3 w-3" />
