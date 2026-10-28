@@ -20,6 +20,14 @@ import {
   saveAccountBackground,
   writeLocalBackground,
 } from "./background";
+import {
+  DEFAULT_SCRIPTURE_TEMPLATE,
+  DEFAULT_SONG_TEMPLATE,
+  fetchAccountSlideSettings,
+  planSlideSettingsSync,
+  saveAccountSlideSettings,
+  type SlideSettings,
+} from "./slide-settings";
 import { db } from "./db";
 import { liveQuery } from "dexie";
 import { supabase } from "./supabase";
@@ -57,24 +65,6 @@ import { pushRetryDelay } from "./push-retry";
 function uid() {
   return crypto.randomUUID();
 }
-
-// Shared slide-template defaults. Spread these (`{ ...DEFAULT_* }`) so each caller
-// gets a fresh object and never mutates the shared constant.
-const SLIDE_FONT_STACK = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-const DEFAULT_SONG_TEMPLATE: SetTemplate = {
-  fontScale: 1,
-  fontFamily: SLIDE_FONT_STACK,
-  bg: "black",
-  position: "centre",
-  textCase: "mixed",
-};
-const DEFAULT_SCRIPTURE_TEMPLATE: SetTemplate = {
-  fontScale: 1,
-  fontFamily: SLIDE_FONT_STACK,
-  bg: "black",
-  align: "left",
-  referencePosition: "below",
-};
 
 // --- Song template persistence + cross-window sync ---
 const TEMPLATE_KEY = "song-template-v1";
@@ -363,6 +353,8 @@ interface LibraryState {
   setBackground: (patch: Partial<Background>) => void;
   /** Adopt the account's saved background (another device's change). */
   refreshBackground: () => Promise<void>;
+  /** Adopt the account's saved templates and fade time (lib/slide-settings.ts). */
+  refreshSlideSettings: () => Promise<void>;
   /** Global slide crossfade duration in milliseconds (applies to all set types). */
   fadeMs: number;
   setFadeMs: (ms: number) => void;
@@ -434,6 +426,42 @@ function queueBackgroundSave(b: Background) {
     backgroundTimer = null;
     void saveAccountBackground(b);
   }, 500);
+}
+
+// The templates' and fade time's account write (lib/slide-settings.ts),
+// debounced like the background's. Only the fields changed since the last
+// save are sent.
+let slideSettingsEpoch = 0;
+let slideSettingsTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingSlideSettings: Partial<SlideSettings> = {};
+function queueSlideSettingsSave(patch: Partial<SlideSettings>) {
+  slideSettingsEpoch += 1;
+  if (!useAuthStore.getState().session) return;
+  pendingSlideSettings = { ...pendingSlideSettings, ...patch };
+  if (slideSettingsTimer) clearTimeout(slideSettingsTimer);
+  slideSettingsTimer = setTimeout(() => {
+    slideSettingsTimer = null;
+    const next = pendingSlideSettings;
+    pendingSlideSettings = {};
+    void saveAccountSlideSettings(next);
+  }, 500);
+}
+
+// This device's copy of each slide setting, mirrored to the other windows.
+function mirror(key: string, stored: string, message: unknown) {
+  try {
+    localStorage.setItem(key, stored);
+    new BroadcastChannel(key).postMessage(message);
+  } catch {}
+}
+function applySongTemplate(t: SetTemplate) {
+  mirror(TEMPLATE_KEY, JSON.stringify(t), t);
+}
+function applyScriptureTemplate(t: SetTemplate) {
+  mirror(SCRIPTURE_TEMPLATE_KEY, JSON.stringify(t), t);
+}
+function applyFadeMs(ms: number) {
+  mirror(FADE_KEY, String(ms), ms);
 }
 
 function applyBackground(next: Background) {
@@ -720,25 +748,39 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }
   },
 
-  setSongTemplate: (patch) =>
-    set((s) => {
-      const next = { ...s.songTemplate, ...patch };
-      try {
-        localStorage.setItem(TEMPLATE_KEY, JSON.stringify(next));
-        new BroadcastChannel(TEMPLATE_KEY).postMessage(next);
-      } catch {}
-      return { songTemplate: next };
-    }),
+  setSongTemplate: (patch) => {
+    const next = { ...get().songTemplate, ...patch };
+    set({ songTemplate: next });
+    applySongTemplate(next);
+    queueSlideSettingsSave({ songTemplate: next });
+  },
 
-  setScriptureTemplate: (patch) =>
-    set((s) => {
-      const next = { ...s.scriptureTemplate, ...patch };
-      try {
-        localStorage.setItem(SCRIPTURE_TEMPLATE_KEY, JSON.stringify(next));
-        new BroadcastChannel(SCRIPTURE_TEMPLATE_KEY).postMessage(next);
-      } catch {}
-      return { scriptureTemplate: next };
-    }),
+  setScriptureTemplate: (patch) => {
+    const next = { ...get().scriptureTemplate, ...patch };
+    set({ scriptureTemplate: next });
+    applyScriptureTemplate(next);
+    queueSlideSettingsSave({ scriptureTemplate: next });
+  },
+
+  refreshSlideSettings: async () => {
+    const epoch = slideSettingsEpoch;
+    const fetched = await fetchAccountSlideSettings();
+    // A read in flight when something was changed here would undo the change.
+    if (!fetched || epoch !== slideSettingsEpoch || slideSettingsTimer) return;
+    const { songTemplate, scriptureTemplate, fadeMs } = get();
+    const { adopt, upload } = planSlideSettingsSync(fetched, {
+      songTemplate,
+      scriptureTemplate,
+      fadeMs,
+    });
+    // The account has none yet: this device's choice becomes the account's.
+    if (Object.keys(upload).length) void saveAccountSlideSettings(upload);
+    if (!Object.keys(adopt).length) return;
+    set(adopt);
+    if (adopt.songTemplate) applySongTemplate(adopt.songTemplate);
+    if (adopt.scriptureTemplate) applyScriptureTemplate(adopt.scriptureTemplate);
+    if (adopt.fadeMs !== undefined) applyFadeMs(adopt.fadeMs);
+  },
 
   setBackground: (patch) => {
     const next = parseBackground({ ...get().background, ...patch }) ?? get().background;
@@ -764,14 +806,11 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     applyBackground(fetched.background);
   },
 
-  setFadeMs: (ms) =>
-    set(() => {
-      try {
-        localStorage.setItem(FADE_KEY, String(ms));
-        new BroadcastChannel(FADE_KEY).postMessage(ms);
-      } catch {}
-      return { fadeMs: ms };
-    }),
+  setFadeMs: (ms) => {
+    set({ fadeMs: ms });
+    applyFadeMs(ms);
+    queueSlideSettingsSave({ fadeMs: ms });
+  },
 
   createSet: (newSet) => {
     const id = uid();

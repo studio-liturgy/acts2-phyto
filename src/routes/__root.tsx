@@ -425,6 +425,7 @@ function RootComponent() {
     await useLibrary.getState().loadGroups();
     await useLibrary.getState().refreshWorkspaceSettings();
     await useLibrary.getState().refreshBackground();
+    await useLibrary.getState().refreshSlideSettings();
   };
 
   // Signed in at page load. Hydrate is_live from Supabase (source of truth) on
@@ -571,6 +572,8 @@ function RootComponent() {
         await useLibrary.getState().refreshWorkspaceSettings();
         // So does this account's background, changed on another device.
         await useLibrary.getState().refreshBackground();
+        // And its templates and fade time.
+        await useLibrary.getState().refreshSlideSettings();
       } catch {
         // Transient (offline/RLS) — the next tick retries.
       } finally {
