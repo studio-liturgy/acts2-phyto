@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { setMatchesSearch } from "@/lib/set-search";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUp, List, Monitor, Search, Smartphone, X } from "lucide-react";
 import { songPatternStyle, songPatterns } from "@/lib/song-layout";
@@ -158,7 +159,7 @@ export function PhoneGathering({
     if (!q) return [];
     return order
       .map((id) => sets[id])
-      .filter((d) => d && d.name.toLowerCase().includes(q))
+      .filter((d) => d && setMatchesSearch(d, q))
       .slice(0, 8);
   }, [order, sets, query]);
 

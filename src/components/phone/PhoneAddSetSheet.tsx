@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { setMatchesSearch } from "@/lib/set-search";
 import { Search, X } from "lucide-react";
 import { useLibrary } from "@/lib/store";
 import { NO_IDS, NO_SETS, phoneKindBg } from "@/lib/phone-layout";
@@ -25,7 +26,7 @@ export function PhoneAddSetSheet({
     const q = query.trim().toLowerCase();
     return order
       .map((id) => sets[id])
-      .filter((d) => d && (!q || d.name.toLowerCase().includes(q)))
+      .filter((d) => d && setMatchesSearch(d, q))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [order, sets, query]);
 
