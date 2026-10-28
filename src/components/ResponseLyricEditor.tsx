@@ -3,6 +3,9 @@ import { PHONE_DOCK_ICON, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock"
 import { SeparatorHorizontal, StretchHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { dragRowSlot } from "@/lib/phone-layout";
+import { copyText, moveRunEnd, runFrom } from "@/lib/line-select";
+import { usePhoneLineHold } from "@/hooks/use-phone-line-hold";
+import { PhoneLineSelection } from "@/components/phone/PhoneLineSelection";
 import { createPortal } from "react-dom";
 import { EditorBar } from "@/components/EditorBar";
 import { Plus, Trash2, X } from "lucide-react";
@@ -259,6 +262,40 @@ export function ResponseLyricEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineSel, lyrics, roles, chords]);
 
+  // Phone: press and hold a line to pick it, drag on (or by the handles) for
+  // more; Cut / Copy / Delete over the run (PhoneLineSelection).
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const holdAnchor = useRef<number | null>(null);
+  const lyricRowOf = (el: Element): number | null => {
+    const cell = el.closest?.("[data-lyric-row]");
+    const r = cell ? Number(cell.getAttribute("data-lyric-row")) : NaN;
+    return Number.isNaN(r) ? null : r;
+  };
+  usePhoneLineHold({
+    scroller: scrollEl,
+    enabled: phone,
+    onHold: (el) => {
+      const r = lyricRowOf(el);
+      if (r === null) return false;
+      holdAnchor.current = r;
+      setLineSel({ from: r, to: r });
+      return true;
+    },
+    onExtend: (el) => {
+      const r = lyricRowOf(el);
+      if (r !== null && holdAnchor.current !== null) setLineSel(runFrom(holdAnchor.current, r));
+    },
+  });
+  const lyricCell = (row: number) =>
+    scrollEl?.querySelector<HTMLElement>(`[data-lyric-row="${row}"]`) ?? null;
+  const takeLines = (copy: boolean, remove: boolean) => {
+    if (!lineSel) return;
+    const d = doc();
+    if (copy) copyText(lineSelectionText(d, lineSel.from, lineSel.to, !!chords));
+    setLineSel(null);
+    if (remove) commit(removeLyricLines(d, lineSel.from, lineSel.to));
+  };
+
   const cycleRole = (index: number) => {
     const d = doc();
     commit(setLine(d, index, d.lines[index], nextRole(d.roles[index])));
@@ -373,7 +410,11 @@ export function ResponseLyricEditor({
     <div className="flex h-full flex-col">
       {toolbarSlot ? createPortal(phoneButtons ?? sectionButton, toolbarSlot) : sectionButton}
 
-      <div data-editor-scroll className="catalogue-scroll min-h-0 flex-1 overflow-auto border-t">
+      <div
+        ref={setScrollEl}
+        data-editor-scroll
+        className="catalogue-scroll min-h-0 flex-1 overflow-auto border-t"
+      >
         <div
           className="grid"
           style={{
@@ -640,6 +681,22 @@ export function ResponseLyricEditor({
           </button>
         </div>
       </div>
+
+      {phone && lineSel && (
+        <PhoneLineSelection
+          scroller={scrollEl}
+          first={() => lyricCell(lineSel.from)}
+          last={() => lyricCell(lineSel.to)}
+          onHandle={(end, el) => {
+            const r = lyricRowOf(el);
+            if (r !== null) setLineSel((s) => (s ? moveRunEnd(s, end, r) : s));
+          }}
+          onCut={() => takeLines(true, true)}
+          onCopy={() => takeLines(true, false)}
+          onDelete={() => takeLines(false, true)}
+          onClear={() => setLineSel(null)}
+        />
+      )}
 
       <EditorBar
         hints={[

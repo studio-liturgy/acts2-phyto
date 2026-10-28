@@ -3,6 +3,7 @@ import { ArrowUpLeft, ChevronDown, Layers, Library, Settings } from "lucide-reac
 import { useEffect, useState, type ReactNode } from "react";
 import type { PhoneTab } from "@/lib/phone-layout";
 import { caretAtPoint, revealDelta } from "@/lib/phone-dock";
+import { lineHold } from "@/lib/line-select";
 import { useAuthStore } from "@/lib/authStore";
 
 /**
@@ -337,6 +338,8 @@ function useKeyboardInset(): number {
     const onTouchEnd = (e: TouchEvent) => {
       const t0 = touch;
       touch = null;
+      // The lift after a press-and-hold line pick isn't a tap on the line.
+      if (lineHold.active) return;
       const el = tapTarget(e.target);
       const p = e.changedTouches[0];
       if (!t0 || !el || !p) return;

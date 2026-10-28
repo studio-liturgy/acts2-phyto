@@ -3,6 +3,9 @@ import { PHONE_DOCK_ICON, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock"
 import { SeparatorHorizontal, StretchHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { dragRowTarget } from "@/lib/phone-layout";
+import { copyText, moveRunEnd, runFrom } from "@/lib/line-select";
+import { usePhoneLineHold } from "@/hooks/use-phone-line-hold";
+import { PhoneLineSelection } from "@/components/phone/PhoneLineSelection";
 import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
 import { createPortal } from "react-dom";
 import { EditorBar } from "@/components/EditorBar";
@@ -397,6 +400,52 @@ export function MultiLangLyricEditor({
       document.removeEventListener("keydown", onKey, true);
     };
   }, [setRows, colSel]);
+
+  // Phone: press and hold a line to pick it, drag on (or by the handles) for
+  // more of the same column; Cut / Copy / Delete over the run.
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const setScroller = useCallback((el: HTMLDivElement | null) => {
+    scrollRef.current = el;
+    setScrollEl(el);
+  }, []);
+  const holdAnchor = useRef<{ lang: LangCode; row: number } | null>(null);
+  const cellOf = (el: Element): { lang: LangCode; row: number } | null => {
+    const cell = el.closest?.("[data-cell-lang]");
+    if (!cell) return null;
+    const row = Number(cell.getAttribute("data-cell-row"));
+    return Number.isNaN(row)
+      ? null
+      : { lang: cell.getAttribute("data-cell-lang") as LangCode, row };
+  };
+  usePhoneLineHold({
+    scroller: scrollEl,
+    enabled: !!visibleLangs,
+    onHold: (el) => {
+      const c = cellOf(el);
+      if (!c) return false;
+      holdAnchor.current = c;
+      setColSel({ lang: c.lang, from: c.row, to: c.row });
+      return true;
+    },
+    onExtend: (el) => {
+      const c = cellOf(el);
+      const a = holdAnchor.current;
+      if (c && a && c.lang === a.lang) setColSel({ lang: a.lang, ...runFrom(a.row, c.row) });
+    },
+  });
+  const langCell = (lang: LangCode, row: number) =>
+    scrollEl?.querySelector<HTMLElement>(`[data-cell-lang="${lang}"][data-cell-row="${row}"]`) ??
+    null;
+  const takeCells = (copy: boolean, remove: boolean) => {
+    if (!colSel) return;
+    const { lang, from, to } = colSel;
+    if (copy) copyText(columnRangeText(rowsRef.current, lang, from, to, chordsOnRef.current));
+    setColSel(null);
+    if (remove) {
+      step();
+      setRows((rs) => clearColumnRange(rs, lang, from, to));
+    }
+  };
 
   // Cmd+Z / Cmd+Shift+Z (or Cmd+Y) anywhere in the editor.
   const rootRef = useRef<HTMLDivElement>(null);
@@ -798,7 +847,7 @@ export function MultiLangLyricEditor({
           : toolbar}
       {visibleLangs && langAddSlot && phoneLangAdd && createPortal(phoneLangAdd, langAddSlot)}
 
-      <div ref={scrollRef} data-editor-scroll className="min-h-0 flex-1 overflow-auto border-t">
+      <div ref={setScroller} data-editor-scroll className="min-h-0 flex-1 overflow-auto border-t">
         <div className="grid" style={{ gridTemplateColumns: gridCols }}>
           <div className="sticky left-0 top-0 z-20 border-b border-r bg-background" />
           {cols.map((code) => (
@@ -1016,6 +1065,23 @@ export function MultiLangLyricEditor({
           </button>
         </div>
       </div>
+
+      {visibleLangs && colSel && (
+        <PhoneLineSelection
+          scroller={scrollEl}
+          first={() => langCell(colSel.lang, colSel.from)}
+          last={() => langCell(colSel.lang, colSel.to)}
+          onHandle={(end, el) => {
+            const c = cellOf(el);
+            if (!c) return;
+            setColSel((s) => (s && c.lang === s.lang ? { ...s, ...moveRunEnd(s, end, c.row) } : s));
+          }}
+          onCut={() => takeCells(true, true)}
+          onCopy={() => takeCells(true, false)}
+          onDelete={() => takeCells(false, true)}
+          onClear={() => setColSel(null)}
+        />
+      )}
 
       <EditorBar
         hints={["Shift Enter: new line", "Cmd/Ctrl Enter: new slide", "Cmd/Ctrl Z: undo"]}
