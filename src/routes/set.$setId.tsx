@@ -2076,13 +2076,15 @@ function Importers({
   const searchBoxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!resultsOpen) return;
-    const onDown = (e: MouseEvent) => {
+    // pointerdown, not mousedown: on a phone the tap on a grid line is taken
+    // over at touchend (no mouse events follow), so mousedown never came.
+    const onDown = (e: PointerEvent) => {
       if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) {
         setResultsOpen(false);
       }
     };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
   }, [resultsOpen]);
   const lyricsRef = useRef<HTMLTextAreaElement>(null);
   // Undo/redo for the lyrics box. The browser's own undo can't be used here:

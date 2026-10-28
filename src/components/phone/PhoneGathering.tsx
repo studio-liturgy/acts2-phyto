@@ -1,7 +1,14 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { setMatchesSearch } from "@/lib/set-search";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, List, Monitor, Search, Smartphone, X } from "lucide-react";
+import { ArrowUp, List, Monitor, Plus, Search, Smartphone, X } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { SetKind } from "@/lib/types";
 import { songPatternStyle, songPatterns } from "@/lib/song-layout";
 import { arrangedEntries, effectiveArrangement, sectionOptions } from "@/lib/arrangements";
 import { PhoneArrangeButton } from "@/components/phone/PhoneArrangeButton";
@@ -83,6 +90,9 @@ export function PhoneGathering({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  // The "New set" menu under the search results (keeps them shown while open).
+  const [newOpen, setNewOpen] = useState(false);
+  const createSet = useLibrary((s) => s.createSet);
 
   // Touch reorder. The held row's order and index live in a ref as well as
   // state: finger moves arrive faster than renders, and each one must start
@@ -164,6 +174,16 @@ export function PhoneGathering({
   }, [order, sets, query]);
 
   const here = `/present?gathering=${encodeURIComponent(gatheringId)}${view === "phone" ? "&view=mobile" : view === "slides" ? "&view=slides" : ""}${fromLink ? "&link=true" : ""}`;
+
+  // A new set named as typed in the search, added to this gathering, then
+  // opened; its back arrow returns here.
+  const newSetHere = (kind: SetKind) => {
+    const id = createSet({ name: query.trim(), kind, slides: [] });
+    addSetToGathering(gatheringId, id);
+    setQuery("");
+    setNewOpen(false);
+    navigate({ to: "/set/$setId", params: { setId: id }, search: { redirectTo: here } });
+  };
 
   if (!g) {
     return (
@@ -458,7 +478,7 @@ export function PhoneGathering({
               </button>
             )}
           </div>
-          {searching && matches.length > 0 && (
+          {(searching || newOpen) && query.trim() !== "" && (
             <div className="mt-1 overflow-hidden rounded-2xl border border-foreground">
               {matches.map((m) => (
                 <button
@@ -476,6 +496,38 @@ export function PhoneGathering({
                   </span>
                 </button>
               ))}
+              {/* Always last: make a new set named as typed, added here,
+                  then opened in its editor (back returns to this gathering). */}
+              <DropdownMenu open={newOpen} onOpenChange={setNewOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    className={`mono flex w-full items-center gap-2 px-4 py-3 text-left text-xs uppercase tracking-wider active:bg-muted ${matches.length ? "border-t border-foreground/20" : ""}`}
+                  >
+                    <Plus className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0 truncate">
+                      New set <span className="normal-case">“{query.trim()}”</span>
+                    </span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {(
+                    [
+                      ["song", "New Song", "focus:bg-[var(--brand-blue)]"],
+                      ["scripture", "New Scripture", "focus:bg-[var(--brand-green)]"],
+                      ["media", "New Media", "focus:bg-[var(--brand-orange)]"],
+                    ] as const
+                  ).map(([kind, label, focusBg]) => (
+                    <DropdownMenuItem
+                      key={kind}
+                      onClick={() => newSetHere(kind)}
+                      className={`mono uppercase text-xs tracking-wider ${focusBg} focus:text-[var(--brand-white)]`}
+                    >
+                      {label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </div>
