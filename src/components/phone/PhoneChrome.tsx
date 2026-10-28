@@ -323,7 +323,17 @@ function useKeyboardInset(): number {
     // at the editor's top), then focus without scrolling and put the caret
     // where the finger was. A long press or a drag is left to iOS.
     let touch: { x: number; y: number; t: number } | null = null;
-    const tapTarget = (t: EventTarget | null) => {
+    const tapTarget = (target: EventTarget | null) => {
+      let t: EventTarget | null = target;
+      // A line not being typed in lets touches through to its cell (styles.css:
+      // no iOS press-and-hold on it), so a tap on the cell means its line.
+      if (
+        t instanceof HTMLElement &&
+        !(t instanceof HTMLTextAreaElement || t instanceof HTMLInputElement) &&
+        !t.closest("button, a, input, select, [contenteditable]")
+      ) {
+        t = t.closest("[data-lyric-row], [data-cell-lang]")?.querySelector("textarea") ?? null;
+      }
       if (!(t instanceof HTMLTextAreaElement || t instanceof HTMLInputElement)) return null;
       if (t instanceof HTMLInputElement && t.type !== "text" && t.type !== "search") return null;
       if (t.disabled || t.readOnly || t === document.activeElement) return null;

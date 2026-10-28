@@ -404,14 +404,36 @@ html[data-kb] body {
   overflow: hidden;
 }
 
-/* Phone editors: a line that isn't being typed in can't be word-picked by the
-   phone's own press-and-hold, so holding it picks whole lines instead
-   (usePhoneLineHold) and the two never show at once. Taps still focus it
-   (useKeyboardInset places the cursor). */
-html[data-phone-ui] .has-dock [data-editor-scroll] textarea:not(:focus) {
+/* Phone editors: a line that isn't being typed in takes no touches itself
+   (they land on its cell), so the phone's own press-and-hold (focus, word
+   pick, magnifier) can't start on it: holding picks whole lines instead
+   (usePhoneLineHold) and the two never show at once. A tap still opens the
+   line (useKeyboardInset maps the cell to its text box and places the
+   cursor). The line being typed in keeps all of iOS's own handling. */
+html[data-phone-ui]
+  .has-dock
+  [data-editor-scroll]
+  :is([data-lyric-row], [data-cell-lang])
+  textarea:not(:focus) {
+  pointer-events: none;
   -webkit-user-select: none;
   user-select: none;
+}
+html[data-phone-ui] .has-dock [data-editor-scroll] :is([data-lyric-row], [data-cell-lang]) {
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* ...but whatever is being typed in stays selectable and typeable (Safari
+   won't edit a box inside a user-select: none parent otherwise). */
+html[data-phone-ui]
+  .has-dock
+  [data-editor-scroll]
+  :is([data-lyric-row], [data-cell-lang])
+  :is(textarea, input):focus {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Phone editors: room under the last line so the dock (the rounded tools
