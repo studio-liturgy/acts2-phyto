@@ -96,6 +96,7 @@ export function ChordStrip({
 
   return (
     <div
+      data-chord-strip
       className="mono relative h-4 cursor-text text-[10px] leading-4 text-muted-foreground"
       onMouseDown={(e) => {
         // Don't start the column drag or move the cell's caret.

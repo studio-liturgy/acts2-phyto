@@ -37,10 +37,16 @@ export function usePhoneLineHold({
       // The line being typed in keeps the phone's own press-and-hold (move
       // the cursor, pick words); picking whole lines starts on the others.
       if (target.closest?.("textarea, input") === document.activeElement) return;
+      // Chords (and the strip above a line), role and delete buttons are
+      // taps, never the start of a pick.
+      if (target.closest?.("button, input, select, a, [contenteditable], [data-chord-strip]"))
+        return;
       start = { x: t.clientX, y: t.clientY };
       timer = window.setTimeout(() => {
         timer = 0;
-        if (!start || !cb.current.onHold(target)) return;
+        // A tap that re-rendered its row (a chord opening) leaves a detached
+        // target whose lift never reaches us: that was a tap, not a hold.
+        if (!start || !target.isConnected || !cb.current.onHold(target)) return;
         active = true;
         lineHold.active = true;
         // The keyboard and any word selection go: this is a line pick now.
@@ -68,14 +74,21 @@ export function usePhoneLineHold({
     const noMenu = (e: Event) => {
       if (active) e.preventDefault();
     };
+    // Anything taking focus while the finger is down (a chord box, a line
+    // opened by the tap) means it was a tap: no pick.
+    const onFocusIn = () => {
+      if (!active) cancel();
+    };
     scroller.addEventListener("touchstart", onStart, { passive: true });
     document.addEventListener("touchmove", onMove, { passive: false });
     scroller.addEventListener("touchend", onEnd, { passive: false });
     scroller.addEventListener("touchcancel", onEnd);
     scroller.addEventListener("contextmenu", noMenu);
+    document.addEventListener("focusin", onFocusIn);
     return () => {
       cancel();
       lineHold.active = false;
+      document.removeEventListener("focusin", onFocusIn);
       scroller.removeEventListener("touchstart", onStart);
       document.removeEventListener("touchmove", onMove);
       scroller.removeEventListener("touchend", onEnd);

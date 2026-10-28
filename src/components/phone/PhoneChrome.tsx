@@ -330,7 +330,7 @@ function useKeyboardInset(): number {
       if (
         t instanceof HTMLElement &&
         !(t instanceof HTMLTextAreaElement || t instanceof HTMLInputElement) &&
-        !t.closest("button, a, input, select, [contenteditable]")
+        !t.closest("button, a, input, select, [contenteditable], [data-chord-strip]")
       ) {
         t = t.closest("[data-lyric-row], [data-cell-lang]")?.querySelector("textarea") ?? null;
       }
