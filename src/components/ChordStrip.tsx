@@ -7,6 +7,7 @@ import {
   setChordAt,
   type SongChords,
 } from "@/lib/chords";
+import { focusLine } from "@/lib/phone-dock";
 
 /** The cell's text box: 14px text, 8px in from the left (pl-2). */
 const CELL_FONT_PX = 14;
@@ -89,7 +90,9 @@ export function ChordStrip({
   };
 
   useLayoutEffect(() => {
-    if (editing) input.current?.focus();
+    // No browser scroll-into-view in a phone editor (iOS slid the page down
+    // and back); the editor glides the box into view itself.
+    if (editing) focusLine(input.current);
   }, [editing]);
 
   const commit = () => {
