@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { moveRunEnd, runFrom } from "../line-select";
+import { holdDelay, moveRunEnd, runFrom } from "../line-select";
+
+describe("holdDelay", () => {
+  it("is longer while a line is being typed in, so taps between lines stay taps", () => {
+    expect(holdDelay()).toBe(500);
+    const box = document.createElement("textarea");
+    document.body.appendChild(box);
+    box.focus();
+    expect(holdDelay()).toBe(700);
+    box.remove();
+  });
+});
 
 describe("line runs on a phone", () => {
   it("held line to the line under the finger, either way", () => {

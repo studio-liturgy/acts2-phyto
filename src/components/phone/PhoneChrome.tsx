@@ -3,7 +3,7 @@ import { ArrowUpLeft, ChevronDown, Layers, Library, Settings } from "lucide-reac
 import { useEffect, useState, type ReactNode } from "react";
 import type { PhoneTab } from "@/lib/phone-layout";
 import { caretAtPoint, glideBy, revealDelta } from "@/lib/phone-dock";
-import { lineHold } from "@/lib/line-select";
+import { holdDelay, lineHold } from "@/lib/line-select";
 import { useAuthStore } from "@/lib/authStore";
 
 /**
@@ -322,7 +322,7 @@ function useKeyboardInset(): number {
     // the editor first if the keyboard would cover the line (it then sits
     // at the editor's top), then focus without scrolling and put the caret
     // where the finger was. A long press or a drag is left to iOS.
-    let touch: { x: number; y: number; t: number } | null = null;
+    let touch: { x: number; y: number; t: number; limit: number } | null = null;
     const tapTarget = (target: EventTarget | null) => {
       let t: EventTarget | null = target;
       // A line not being typed in lets touches through to its cell (styles.css:
@@ -343,7 +343,7 @@ function useKeyboardInset(): number {
       const p = e.touches[0];
       touch =
         e.touches.length === 1 && tapTarget(e.target)
-          ? { x: p.clientX, y: p.clientY, t: Date.now() }
+          ? { x: p.clientX, y: p.clientY, t: Date.now(), limit: holdDelay() }
           : null;
     };
     const onTouchEnd = (e: TouchEvent) => {
@@ -355,7 +355,8 @@ function useKeyboardInset(): number {
       const p = e.changedTouches[0];
       if (!t0 || !el || !p) return;
       if (Math.hypot(p.clientX - t0.x, p.clientY - t0.y) > 10) return;
-      if (Date.now() - t0.t > 450) return;
+      // Up to the line-pick hold time it's a tap (same figure, lib/line-select).
+      if (Date.now() - t0.t > t0.limit) return;
       e.preventDefault();
       const caret = caretAtPoint(el, p.clientX, p.clientY);
       const box = el.closest<HTMLElement>("[data-editor-scroll]");

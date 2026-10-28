@@ -1,7 +1,5 @@
 import { useEffect, useRef } from "react";
-import { lineHold } from "@/lib/line-select";
-
-const HOLD_MS = 450;
+import { holdDelay, lineHold } from "@/lib/line-select";
 
 /** Press and hold inside `scroller` (finger still) to start picking lines. */
 export function usePhoneLineHold({
@@ -52,7 +50,7 @@ export function usePhoneLineHold({
         // The keyboard and any word selection go: this is a line pick now.
         if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
         window.getSelection()?.removeAllRanges();
-      }, HOLD_MS);
+      }, holdDelay());
     };
     const onMove = (e: TouchEvent) => {
       const t = e.touches[0];
@@ -65,11 +63,16 @@ export function usePhoneLineHold({
       const el = document.elementFromPoint(start.x, t.clientY);
       if (el) cb.current.onExtend(el);
     };
+    // Any lift anywhere ends it (followed on the document: a tap that opened
+    // a line can re-render the touched cell, and its lift never bubbles to
+    // the editor). The "was a hold" flag clears a moment later, so the
+    // editors' tap handler, also on the document, still sees it.
     const onEnd = (e: TouchEvent) => {
       if (active) e.preventDefault();
+      const was = active;
       active = false;
-      lineHold.active = false;
       cancel();
+      if (was) setTimeout(() => (lineHold.active = false), 0);
     };
     const noMenu = (e: Event) => {
       if (active) e.preventDefault();
@@ -81,8 +84,8 @@ export function usePhoneLineHold({
     };
     scroller.addEventListener("touchstart", onStart, { passive: true });
     document.addEventListener("touchmove", onMove, { passive: false });
-    scroller.addEventListener("touchend", onEnd, { passive: false });
-    scroller.addEventListener("touchcancel", onEnd);
+    document.addEventListener("touchend", onEnd, { capture: true, passive: false });
+    document.addEventListener("touchcancel", onEnd, true);
     scroller.addEventListener("contextmenu", noMenu);
     document.addEventListener("focusin", onFocusIn);
     return () => {
@@ -91,8 +94,8 @@ export function usePhoneLineHold({
       document.removeEventListener("focusin", onFocusIn);
       scroller.removeEventListener("touchstart", onStart);
       document.removeEventListener("touchmove", onMove);
-      scroller.removeEventListener("touchend", onEnd);
-      scroller.removeEventListener("touchcancel", onEnd);
+      document.removeEventListener("touchend", onEnd, true);
+      document.removeEventListener("touchcancel", onEnd, true);
       scroller.removeEventListener("contextmenu", noMenu);
     };
   }, [scroller, enabled]);
