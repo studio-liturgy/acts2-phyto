@@ -17,6 +17,7 @@ import { useGatheringPhoneSets } from "@/lib/gathering-phone-sets";
 import { chordChangePatch } from "@/lib/chord-change";
 import { moveItem, NO_IDS, NO_SETS, phoneKindBg, reorderTarget } from "@/lib/phone-layout";
 import { loadPrefs, type ViewerPrefs } from "@/lib/phone-viewer";
+import { useLinkTheme } from "@/hooks/use-link-theme";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -61,15 +62,7 @@ export function PhoneGathering({
       setLinkBack(null);
     }
   }, [fromLink]);
-  useEffect(() => {
-    if (!fromLink) return;
-    const html = document.documentElement;
-    const was = html.classList.contains("dark");
-    html.classList.toggle("dark", loadPrefs().isDark);
-    return () => {
-      html.classList.toggle("dark", was);
-    };
-  }, [fromLink]);
+  useLinkTheme(fromLink);
   const navigate = useNavigate();
   const g = useLibrary((s) => s.gatherings[gatheringId]);
   const sets = useLibrary((s) => s.sets ?? NO_SETS);
@@ -503,8 +496,10 @@ export function PhoneGathering({
           )}
 
           {/* New sets straight into this gathering, named like the
-              catalogue's + New; each opens in its editor. */}
-          <div className="mt-3 grid grid-cols-3 gap-2">
+              catalogue's + New, each in its kind's colour (Song and
+              Scripture side by side, Media under them); each opens in its
+              editor. */}
+          <div className="mt-3 grid grid-cols-2 gap-2">
             {(
               [
                 ["song", "New Song"],
@@ -516,7 +511,7 @@ export function PhoneGathering({
                 key={kind}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => newSetHere(kind, name)}
-                className="pill mono flex min-w-0 items-center justify-center gap-1 border border-foreground px-2 py-[7px] text-[10px] uppercase leading-5 tracking-wider transition active:bg-foreground active:text-background"
+                className={`pill mono flex min-w-0 items-center justify-center gap-1 px-2 py-[7px] text-[10px] uppercase leading-5 tracking-wider transition active:opacity-80 ${phoneKindBg(kind)}`}
               >
                 <Plus className="h-3 w-3 shrink-0" />
                 <span className="truncate">{name}</span>

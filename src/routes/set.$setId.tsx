@@ -145,6 +145,7 @@ import type { Slide, SetKind } from "@/lib/types";
 import { z } from "zod";
 import { APP_NAME } from "@/lib/appConfig";
 import { resolveSetRekey } from "@/lib/set-rekey";
+import { useLinkTheme } from "@/hooks/use-link-theme";
 import { setRemoveMode } from "@/lib/group-catalogue";
 
 const searchSchema = z.object({
@@ -400,7 +401,7 @@ function SetHeader({
                     <Undo2 className="h-4 w-4" />
                   </button>
                 )}
-                {removeMode && !fromGathering && (
+                {removeMode && (
                   <button
                     onClick={() => setShowDeleteSetDialog(true)}
                     className={`${ICON} active:bg-[var(--brand-red)] active:text-[var(--brand-white)]`}
@@ -411,8 +412,8 @@ function SetHeader({
                   </button>
                 )}
                 {/* No Share here on the phone: sets are shared from the catalogue. */}
-                {/* Opened from a gathering's editor: no Delete or Add to a
-                    gathering (it's already in one). */}
+                {/* Opened from a gathering's editor: no Add to a gathering
+                    (it's already in one). Delete returns to the gathering. */}
                 {!fromGathering && (
                   <button
                     onClick={() => setAddingTo(true)}
@@ -542,6 +543,8 @@ function SetEditor() {
   const phone = usePhoneLayout();
   const { setId } = Route.useParams();
   const { redirectTo } = Route.useSearch();
+  // Edited from a live link's gathering: keep the link's light or dark.
+  useLinkTheme(!!redirectTo?.startsWith("/present") && /[?&]link=true\b/.test(redirectTo));
   const navigate = useNavigate();
   const phytoSet = useLibrary((s) => s.sets[setId]);
   // Sync moved this set to a fresh id (its old id belonged to a row this
