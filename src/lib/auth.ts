@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { noteUserSignOut } from "./session-lost";
+import { checkTester } from "./testers";
 
 export async function signInWithEmail(email: string) {
   return supabase.auth.signInWithOtp({ email });
@@ -28,4 +29,9 @@ export async function signOut() {
 export async function getSession() {
   const { data } = await supabase.auth.getSession();
   return data.session;
+}
+
+/** phytoexp.live: is this email on the tester allow list? null = couldn't check. */
+export function isTesterEmail(email: string) {
+  return checkTester((fn, args) => supabase.rpc(fn, args), email);
 }

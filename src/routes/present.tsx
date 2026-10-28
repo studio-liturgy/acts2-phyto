@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { liveLinkUrl } from "@/lib/testers";
 import { PhoneGathering } from "@/components/phone/PhoneGathering";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import {
@@ -480,7 +481,7 @@ function Presenter() {
     // live (ready the moment it's live) and the red live button.
     enabled: showShareDialog || showGoLiveDialog,
   });
-  const shareUrl = share.slug ? `${window.location.origin}/g/${share.slug}` : "";
+  const shareUrl = share.slug ? liveLinkUrl(share.slug) : "";
 
   useEffect(() => {
     if (setFromUrl) setActiveSetId(setFromUrl);

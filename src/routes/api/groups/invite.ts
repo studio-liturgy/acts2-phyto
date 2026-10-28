@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { shareOrigin } from "@/lib/testers";
 import { Resend } from "resend";
 import { z } from "zod";
 import { readEnv, makeRateLimiter } from "@/lib/worker-env";
@@ -55,7 +56,8 @@ export const Route = createFileRoute("/api/groups/invite")({
         }
 
         const { email, groupName, ownerEmail } = parsed.data;
-        const origin = new URL(request.url).origin;
+        // Invites sent from phytoexp.live still lead to phyto.live.
+        const origin = shareOrigin(new URL(request.url).origin);
         const link = origin;
         const group = groupName || "a group";
         // Render email addresses inside an hrefless <a>: not clickable, and mail

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { liveLinkUrl } from "@/lib/testers";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { useAuthStore, useIsSignedIn, useUserEmail } from "@/lib/authStore";
@@ -1056,11 +1057,7 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
               open={showGatheringShare}
               onOpenChange={setShowGatheringShare}
               gatheringId={primaryGathering.id}
-              shareUrl={
-                primaryShare.slug
-                  ? `${typeof window !== "undefined" ? window.location.origin : ""}/g/${primaryShare.slug}`
-                  : ""
-              }
+              shareUrl={primaryShare.slug ? liveLinkUrl(primaryShare.slug) : ""}
               gatheringName={primaryGathering.name}
               isLive={primaryGathering.is_live === null ? null : isLiveNow(primaryGathering)}
               slug={primaryShare.slug}
@@ -2044,7 +2041,7 @@ function GatheringCard({
     // live (ready the moment it's live) and the red live button.
     enabled: showShareDialog || showGoLiveDialog || showEndSessionDialog,
   });
-  const shareUrl = cardShare.slug ? `${window.location.origin}/g/${cardShare.slug}` : "";
+  const shareUrl = cardShare.slug ? liveLinkUrl(cardShare.slug) : "";
 
   const nameLookup = useMemo(() => Object.fromEntries(allSets.map((d) => [d.id, d])), [allSets]);
 

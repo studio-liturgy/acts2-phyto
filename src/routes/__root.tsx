@@ -24,7 +24,10 @@ const appleTouchIcon = isTest ? "/apple-touch-icon-or.png" : "/apple-touch-icon.
 import { authGuard, supabase } from "@/lib/supabase";
 import { safeNextPath, useSessionLost, wasUserSignOut } from "@/lib/session-lost";
 import { SignedOutDialog } from "@/components/SignedOutDialog";
-import { getSession } from "@/lib/auth";
+import { getSession, isTesterEmail, signOut } from "@/lib/auth";
+import type { Session } from "@supabase/supabase-js";
+import { isOpenOnTest, readVerifiedTester, TESTERS_ONLY, writeVerifiedTester } from "@/lib/testers";
+import { TestersOnlyDialog } from "@/components/TestersOnlyDialog";
 import { useAuthStore } from "@/lib/authStore";
 import { pushLater, useLibrary } from "@/lib/store";
 import { db } from "@/lib/db";
@@ -337,6 +340,9 @@ function RootComponent() {
   const [syncDiff, setSyncDiff] = useState<SyncDiff | null>(null);
   const [pendingAction, setPendingAction] = useState<SyncAction | null>(null);
   const [applying, setApplying] = useState(false);
+  const authLoading = useAuthStore((st) => st.isLoading);
+  const [testerOk, setTesterOk] = useState<boolean | null>(null);
+  const [notTester, setNotTester] = useState(false);
 
   const runDiff = async (autoMerge = false) => {
     if (pathname.startsWith("/g/")) return;
@@ -421,6 +427,54 @@ function RootComponent() {
     await useLibrary.getState().refreshBackground();
   };
 
+  // Signed in at page load. Hydrate is_live from Supabase (source of truth) on
+  // every page load, independent of the diff-dialog gate and the /g/ guard.
+  const startSignedIn = () => {
+    refreshLiveState();
+    if (!diffRanThisSession) {
+      diffRanThisSession = true;
+      runDiff();
+      runCollabSync();
+    }
+  };
+
+  const afterSignIn = (s: Session) => {
+    // Signed in again after an expired login: drop the signed-out prompt.
+    authGuard.reset();
+    useSessionLost.getState().clear();
+    // Welcome email is sent from auth.callback.tsx (respects mailing-list opt-in).
+    const isFirstLogin = s.user.created_at === s.user.last_sign_in_at;
+    refreshLiveState();
+    if (!diffRanThisSession) {
+      diffRanThisSession = true;
+      runDiff(isFirstLogin);
+      runCollabSync();
+    }
+  };
+
+  // phytoexp.live tester gate: true when this account may use the app. A
+  // returning tester (cached on this device) sees the app at once; anyone the
+  // list says no to is signed out and shown "Testers only". An unanswered
+  // check (offline) never signs anyone out.
+  const testerGate = async (s: Session): Promise<boolean> => {
+    const cached = readVerifiedTester(window.localStorage) === s.user.id;
+    if (cached) setTesterOk(true);
+    const ok = await isTesterEmail(s.user.email ?? "");
+    if (ok === false) {
+      writeVerifiedTester(window.localStorage, null);
+      setTesterOk(false);
+      setNotTester(true);
+      await signOut();
+      return false;
+    }
+    if (ok === true) {
+      writeVerifiedTester(window.localStorage, s.user.id);
+      setTesterOk(true);
+      return true;
+    }
+    return cached;
+  };
+
   useEffect(() => {
     (async () => {
       await migrateLegacyLocalStorage(); // one-time; no-op after first run
@@ -428,16 +482,13 @@ function RootComponent() {
     })();
     getSession().then((s) => {
       setSession(s);
-      if (s) {
-        // Hydrate is_live from Supabase (source of truth) on every page load,
-        // independent of the diff-dialog gate and the /g/ guard.
-        refreshLiveState();
-        if (!diffRanThisSession) {
-          diffRanThisSession = true;
-          runDiff();
-          runCollabSync();
-        }
+      // phytoexp.live: nothing syncs until the account is confirmed on the
+      // tester list (lib/testers.ts). phyto.live runs straight through.
+      if (s && TESTERS_ONLY) {
+        void testerGate(s).then((ok) => ok && startSignedIn());
+        return;
       }
+      if (s) startSignedIn();
     });
 
     const {
@@ -459,17 +510,10 @@ function RootComponent() {
         stopGroupChannels();
       }
       if (event === "SIGNED_IN" && s) {
-        // Signed in again after an expired login: drop the signed-out prompt.
-        authGuard.reset();
-        useSessionLost.getState().clear();
-        // Welcome email is sent from auth.callback.tsx (respects mailing-list opt-in).
-        const isFirstLogin = s.user.created_at === s.user.last_sign_in_at;
-        refreshLiveState();
-        if (!diffRanThisSession) {
-          diffRanThisSession = true;
-          runDiff(isFirstLogin);
-          runCollabSync();
-        }
+        // Not awaited: an awaited Supabase call inside this callback deadlocks
+        // the auth lock.
+        if (TESTERS_ONLY) void testerGate(s).then((ok) => ok && afterSignIn(s));
+        else afterSignIn(s);
       }
     });
 
@@ -480,6 +524,13 @@ function RootComponent() {
     // render. They're invoked imperatively here, so intentionally omitted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setSession]);
+
+  // phytoexp.live: signed out, only sign in (and the pages it needs) opens.
+  useEffect(() => {
+    if (!TESTERS_ONLY || authLoading || session || isOpenOnTest(pathname)) return;
+    const here = pathname + window.location.search;
+    navigate({ to: "/login", search: pathname === "/" ? {} : { next: here } });
+  }, [session, authLoading, pathname, navigate]);
 
   useEffect(() => {
     if (session && pathname === "/login") {
@@ -623,8 +674,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      {TESTERS_ONLY && !isOpenOnTest(pathname) && !(session && testerOk) ? null : <Outlet />}
       <SignedOutDialog />
+      {TESTERS_ONLY && <TestersOnlyDialog open={notTester} onOpenChange={setNotTester} />}
       <Dialog
         open={pathname !== "/output" && syncDiff !== null}
         onOpenChange={(open) => {

@@ -1,4 +1,5 @@
 import { useAccountSlug } from "@/hooks/use-account-slug";
+import { liveLinkUrl } from "@/lib/testers";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { useSessionLost } from "@/lib/session-lost";
 import { useIsSignedIn } from "@/lib/authStore";
@@ -48,11 +49,7 @@ export function PhoneShareSheet({
       }}
       onEndSession={() => void endSession(gatheringId)}
       gatheringId={gatheringId}
-      shareUrl={
-        share.slug
-          ? `${typeof window !== "undefined" ? window.location.origin : ""}/g/${share.slug}`
-          : ""
-      }
+      shareUrl={share.slug ? liveLinkUrl(share.slug) : ""}
       gatheringName={g.name}
       isLive={isLive}
       slug={share.slug}

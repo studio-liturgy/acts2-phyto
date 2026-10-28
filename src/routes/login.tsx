@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { signInWithEmail, verifyEmailCode } from "@/lib/auth";
+import { isTesterEmail, signInWithEmail, verifyEmailCode } from "@/lib/auth";
+import { TESTERS_ONLY } from "@/lib/testers";
+import { TestersOnlyDialog } from "@/components/TestersOnlyDialog";
 import { sendWelcomeIfNew } from "@/lib/welcome";
 import { supabase } from "@/lib/supabase";
 import { safeNextPath } from "@/lib/session-lost";
@@ -36,6 +38,7 @@ function LoginPage() {
   const [subscribe, setSubscribe] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(callbackError ?? null);
+  const [notTester, setNotTester] = useState(false);
   // Phone: button words in the big button size (Delete gathering's).
   const phone = usePhoneLayout() === true && PHONE_UI;
   const btnText = phone ? "text-xs tracking-wider" : "text-sm";
@@ -45,6 +48,16 @@ function LoginPage() {
     setError(null);
     setSubmitting(true);
     sessionStorage.setItem("phyto-subscribe", String(subscribe));
+    if (TESTERS_ONLY) {
+      // phytoexp.live: check the tester list before any code (or account) exists.
+      const ok = await isTesterEmail(email);
+      if (ok !== true) {
+        setSubmitting(false);
+        if (ok === false) setNotTester(true);
+        else setError("Couldn't check the tester list. Try again.");
+        return;
+      }
+    }
     const { error } = await signInWithEmail(email);
     setSubmitting(false);
     if (error) {
@@ -274,6 +287,7 @@ function LoginPage() {
           </div>
         </div>
       </div>
+      {TESTERS_ONLY && <TestersOnlyDialog open={notTester} onOpenChange={setNotTester} />}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { shareOrigin } from "@/lib/testers";
 import { Resend } from "resend";
 import { z } from "zod";
 import { readEnv, makeRateLimiter } from "@/lib/worker-env";
@@ -58,7 +59,8 @@ export const Route = createFileRoute("/api/share/invite")({
         }
 
         const { email, setName, shareId, ownerEmail, count } = parsed.data;
-        const origin = new URL(request.url).origin;
+        // Invites sent from phytoexp.live still lead to phyto.live.
+        const origin = shareOrigin(new URL(request.url).origin);
         const isBulk = (count ?? 1) > 1;
         // Bulk (or a missing shareId) can't deep-link one set, so point at the app
         // where the recipient sees all of them in "shared with you".
