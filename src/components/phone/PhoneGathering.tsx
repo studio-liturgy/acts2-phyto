@@ -169,8 +169,8 @@ export function PhoneGathering({
 
   // A new set named as typed in the search, added to this gathering, then
   // opened; its back arrow returns here.
-  const newSetHere = (kind: SetKind) => {
-    const id = createSet({ name: query.trim(), kind, slides: [] });
+  const newSetHere = (kind: SetKind, name = query.trim()) => {
+    const id = createSet({ name, kind, slides: [] });
     addSetToGathering(gatheringId, id);
     setQuery("");
     navigate({ to: "/set/$setId", params: { setId: id }, search: { redirectTo: here } });
@@ -501,6 +501,28 @@ export function PhoneGathering({
               </button>
             </div>
           )}
+
+          {/* New sets straight into this gathering, named like the
+              catalogue's + New; each opens in its editor. */}
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {(
+              [
+                ["song", "New Song"],
+                ["scripture", "New Scripture"],
+                ["media", "New Media"],
+              ] as const
+            ).map(([kind, name]) => (
+              <button
+                key={kind}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => newSetHere(kind, name)}
+                className="pill mono flex min-w-0 items-center justify-center gap-1 border border-foreground px-2 py-[7px] text-[10px] uppercase leading-5 tracking-wider transition active:bg-foreground active:text-background"
+              >
+                <Plus className="h-3 w-3 shrink-0" />
+                <span className="truncate">{name}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {canDelete && !fromLink && (
