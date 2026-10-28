@@ -470,7 +470,7 @@ export function ResponseLyricEditor({
                       if (!e.target.value.trim()) commit(removeLine(doc(), row.index));
                     }}
                     placeholder="Verse 1"
-                    className="mono flex-1 bg-transparent px-3 py-1 text-xs font-semibold uppercase tracking-wider outline-none"
+                    className="mono flex-1 bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-wider outline-none"
                   />
                   <button
                     type="button"

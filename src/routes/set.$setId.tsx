@@ -2975,7 +2975,7 @@ function Importers({
                         onClick={() =>
                           setPickedLangs((p) => tapPairLang(songLangCols ?? [], p, code))
                         }
-                        className="mono flex h-7 shrink-0 items-center rounded-full border px-3 text-xs uppercase tracking-wider transition"
+                        className="mono flex h-7 shrink-0 items-center rounded-full border px-3 text-[10px] uppercase tracking-wider transition"
                         style={{
                           borderColor: langColor(code),
                           backgroundColor: on ? langColor(code) : "transparent",

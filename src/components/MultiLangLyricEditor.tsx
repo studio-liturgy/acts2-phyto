@@ -807,7 +807,7 @@ export function MultiLangLyricEditor({
             dragLang.current = i;
             setLangs(next);
           }}
-          className="mono flex h-7 cursor-grab items-center gap-1 rounded-full border px-2 text-xs uppercase tracking-wider"
+          className="mono flex h-7 cursor-grab items-center gap-1 rounded-full border px-2 text-[10px] uppercase tracking-wider"
           style={{
             borderColor: langColor(code),
             backgroundColor: `color-mix(in oklab, ${langColor(code)} 14%, transparent)`,
@@ -853,7 +853,7 @@ export function MultiLangLyricEditor({
           {cols.map((code) => (
             <div
               key={code}
-              className="mono sticky top-0 z-10 flex min-w-0 items-center gap-1 truncate border-b bg-background px-2 py-1 text-[11px] uppercase tracking-wider"
+              className="mono sticky top-0 z-10 flex min-w-0 items-center gap-1 truncate border-b bg-background px-2 py-1 text-[10px] uppercase tracking-wider"
             >
               <span
                 className="inline-block h-2 w-2 shrink-0 rounded-full"
@@ -910,7 +910,7 @@ export function MultiLangLyricEditor({
                       value={row.text}
                       onChange={(e) => editSection(i, e.target.value)}
                       placeholder="Verse 1"
-                      className="mono flex-1 bg-transparent px-2 py-1 text-xs font-semibold uppercase tracking-wider outline-none"
+                      className="mono flex-1 bg-transparent px-2 py-1 text-[10px] font-semibold uppercase tracking-wider outline-none"
                     />
                   </div>
                   <div className="flex-1" />
