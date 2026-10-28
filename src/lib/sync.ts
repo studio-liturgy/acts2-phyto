@@ -1273,9 +1273,14 @@ async function rekeyOwnedSet(
     await db.sets.delete(oldId);
     await db.sets.put(copy);
     const affected = await db.gatherings.filter((g) => g.setIds.includes(oldId)).toArray();
+    // Stamp the repointed gatherings newer: other devices compare updated_at
+    // before the set list, so an unchanged stamp leaves them on the old ids
+    // ("(missing)" or empty slots) forever.
+    const now = Date.now();
     for (const g of affected) {
       await db.gatherings.update(g.id, {
         setIds: g.setIds.map((sid) => (sid === oldId ? newId : sid)),
+        updatedAt: Math.max(now, g.updatedAt + 1000),
       });
     }
     result = { copy, gatheringIds: affected.map((g) => g.id) };

@@ -189,6 +189,14 @@ describe("42501 re-ID guard (regression 54618ca)", () => {
     expect(joinRows.map((r) => r.set_id)).toContain(local[0].id);
     expect(joinRows.map((r) => r.set_id)).not.toContain(set.id);
 
+    // The repointed gathering is stamped newer, locally and remotely, so other
+    // devices (which compare updated_at first) pick up the new slots instead
+    // of keeping the old ids and showing them as missing (Oct 28, hello@).
+    const after = await db.gatherings.get(gathering.id);
+    expect(after!.updatedAt).toBeGreaterThan(gathering.updatedAt);
+    const remoteG = (supabaseMock.tables["gatherings"] ?? []).find((r) => r.id === gathering.id);
+    expect(new Date(remoteG!.updated_at as string).getTime()).toBe(after!.updatedAt);
+
     // A second push of the old id is a no-op, not another doomed upsert.
     const before = supabaseMock.callsFor("sets", "upsert").length;
     expect(await pushToSupabase({ setIds: [set.id], gatheringIds: [] })).toBe(true);
