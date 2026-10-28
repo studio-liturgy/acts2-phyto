@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useLibrary } from "@/lib/store";
 import { FoldCard } from "@/components/FoldCard";
+import { TapRange } from "@/components/TapRange";
 
 const FONT_OPTIONS: { label: string; value: string }[] = [
   { label: "Sans", value: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" },
@@ -44,13 +45,12 @@ export function ScriptureTemplateEditor({
             <span>Font size</span>
             <span className="text-muted-foreground">{t.fontScale.toFixed(2)}×</span>
           </div>
-          <input
-            type="range"
+          <TapRange
             min={1}
             max={2}
             step={0.05}
             value={t.fontScale}
-            onChange={(e) => update({ fontScale: Number(e.target.value) })}
+            onValue={(v) => update({ fontScale: v })}
             className="w-full"
           />
         </div>

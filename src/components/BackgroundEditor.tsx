@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { FoldCard } from "@/components/FoldCard";
+import { TapRange } from "@/components/TapRange";
 import { SLIDE_ASPECTS } from "@/lib/background";
 import { prepareImageFile } from "@/lib/image-upload";
 import { useLibrary } from "@/lib/store";
@@ -179,13 +180,12 @@ function BackgroundImagePicker({
       {url && (
         <label className="flex items-center gap-2">
           <span className="mono w-16 shrink-0 text-[10px] uppercase tracking-wider">Dim</span>
-          <input
-            type="range"
+          <TapRange
             min={0}
             max={90}
             step={5}
             value={dim}
-            onChange={(e) => onChange({ bgDim: Number(e.target.value) })}
+            onValue={(v) => onChange({ bgDim: v })}
             className="w-full"
           />
           <span className="mono w-8 text-right text-[10px] tabular-nums">{dim}%</span>

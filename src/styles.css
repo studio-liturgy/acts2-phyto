@@ -230,6 +230,16 @@ input[type="range"]::-moz-range-thumb {
   background: var(--foreground);
 }
 
+/* TapRange: a finger-sized hit area (24px) that takes no more room than the
+   1px track. The negative margins pull the margin box back to the 1px band in
+   the middle, where the track is drawn, so the line sits where it always did.
+   pan-y: up/down swipes still scroll the page; sideways moves drag. */
+input[type="range"].tap-range {
+  height: 24px;
+  margin-block: -11.5px;
+  touch-action: pan-y;
+}
+
 /* Reusable pill-shaped utilities */
 @utility pill {
   border-radius: 9999px;

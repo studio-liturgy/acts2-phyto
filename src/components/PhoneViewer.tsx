@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ChordLine } from "@/components/ChordLine";
+import { TapRange } from "@/components/TapRange";
 import { guessKey, KEYS, transposeLyrics, type SongChords } from "@/lib/chords";
 import { groupSlides, hiddenSlideIndices } from "@/lib/sections";
 import { arrangedEntries, effectiveArrangement } from "@/lib/arrangements";
@@ -717,13 +718,12 @@ export function ViewerSettings({
             {prefs.fontSize.toFixed(2)}×
           </span>
         </div>
-        <input
-          type="range"
+        <TapRange
           min={0.85}
           max={1.8}
           step={0.05}
           value={prefs.fontSize}
-          onChange={(e) => setPrefs((p) => ({ ...p, fontSize: Number(e.target.value) }))}
+          onValue={(v) => setPrefs((p) => ({ ...p, fontSize: v }))}
           className="phone-range w-full"
           // Colour the slider to the surrounding CHROME (the hamburger passes the
           // phone theme; the presenter panel passes the editor/system theme), NOT
