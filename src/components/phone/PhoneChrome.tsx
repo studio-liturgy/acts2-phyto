@@ -181,12 +181,15 @@ export function PhoneFold({
           />
         </button>
       )}
+      {/* One column held to the box's width (minmax 0), so a long unbroken
+          line inside (a song title in the search results) truncates instead
+          of widening the whole box past the screen. */}
       <div
-        className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+        className={`grid grid-cols-[minmax(0,1fr)] transition-[grid-template-rows] duration-200 ease-out ${
           open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
-        <div className={`min-h-0 ${open ? "" : "overflow-hidden"}`}>{children}</div>
+        <div className={`min-h-0 min-w-0 ${open ? "" : "overflow-hidden"}`}>{children}</div>
       </div>
     </div>
   );
