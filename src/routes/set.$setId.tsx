@@ -268,7 +268,7 @@ function SetHeader({
   // Phone: the + beside Share turns the title row into the gathering search.
   const [addingTo, setAddingTo] = useState(false);
   const setScriptureSettings = usePhoneEditorBus((s) => s.setScriptureSettings);
-  const phoneUndo = usePhoneEditorBus((s) => s.undo);
+  const phoneUndo = usePhoneEditorBus((s) => (s.canUndo ? s.undo : null));
   const deleteDialog = (
     <AlertDialog open={showDeleteSetDialog} onOpenChange={setShowDeleteSetDialog}>
       <AlertDialogContent className="gap-0 rounded-3xl p-8">
@@ -2108,6 +2108,8 @@ function Importers({
     { lyrics: string; roles: LineRoles; chords?: SongChords; caret: number | null }[]
   >([]);
   const redoStack = useRef<typeof undoStack.current>([]);
+  // Whether there is a step to undo (the phone header shows Undo only then).
+  const [canUndoLyrics, setCanUndoLyrics] = useState(false);
   const lastPush = useRef(0);
   // `lyrics` is always stored as letter chords. The box may show something else
   // — nothing at all when chords are switched off, or Nashville numbers when
@@ -2471,6 +2473,7 @@ function Importers({
     undoStack.current.push(snapshot());
     if (undoStack.current.length > 200) undoStack.current.shift();
     redoStack.current = [];
+    setCanUndoLyrics(true);
   };
 
   const restore = (entry: {
@@ -2496,6 +2499,7 @@ function Importers({
     const entry = undoStack.current.pop();
     if (!entry) return;
     redoStack.current.push(snapshot());
+    setCanUndoLyrics(undoStack.current.length > 0);
     restore(entry);
   };
 
@@ -2503,11 +2507,16 @@ function Importers({
     const entry = redoStack.current.pop();
     if (!entry) return;
     undoStack.current.push(snapshot());
+    setCanUndoLyrics(true);
     restore(entry);
   };
   // Phone: the header's Undo button (the box and Call and Response; the
-  // Multi-Language grid registers its own).
-  useRegisterPhoneUndo(undoLyrics, !!phone && kind === "song" && songLayout !== "multilang");
+  // Multi-Language grid registers its own). Shown only with a step to undo.
+  useRegisterPhoneUndo(
+    undoLyrics,
+    !!phone && kind === "song" && songLayout !== "multilang",
+    canUndoLyrics,
+  );
 
   /** Translate what the box now contains back into stored form. Returns the
    *  new stored lyrics, so a caller that needs to know where something ended

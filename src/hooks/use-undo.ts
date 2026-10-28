@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { caretOffset, focusCell } from "@/lib/rich-caret";
 
 /** Where the caret was when a change was made, so undoing it puts the caret
@@ -48,6 +48,8 @@ export function useUndo<T>({
   const lastAt = useRef(0);
   const valueRef = useRef(value);
   valueRef.current = value;
+  // Whether there is a step to undo (the phone header shows Undo only then).
+  const [canUndo, setCanUndo] = useState(false);
 
   // A change we didn't record ourselves becomes a step of its own.
   useEffect(() => {
@@ -59,6 +61,7 @@ export function useUndo<T>({
     }
     own.current = false;
     lastSeen.current = value;
+    setCanUndo(past.current.length > 0);
   }, [value, equals]);
 
   const record = useCallback((caret: CaretSpot | null, key?: string) => {
@@ -71,6 +74,7 @@ export function useUndo<T>({
     if (coalesce) return;
     past.current.push({ value: valueRef.current, caret });
     if (past.current.length > 200) past.current.shift();
+    setCanUndo(true);
   }, []);
 
   const step = useCallback(
@@ -81,6 +85,7 @@ export function useUndo<T>({
       lastKey.current = null;
       own.current = true;
       lastSeen.current = entry.value;
+      setCanUndo(past.current.length > 0);
       apply(entry.value);
       if (entry.caret) focusCell(scope.current, entry.caret.cell, entry.caret.at);
     },
@@ -117,7 +122,7 @@ export function useUndo<T>({
     [undo, redo],
   );
 
-  return { record, undo, redo, onKeyDown };
+  return { record, undo, redo, onKeyDown, canUndo };
 }
 
 /** The focused cell and caret, for recording, from the editor's scope. */

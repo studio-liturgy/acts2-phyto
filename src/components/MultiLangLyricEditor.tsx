@@ -128,6 +128,8 @@ export function MultiLangLyricEditor({
     discrete: false,
     restoring: false,
   });
+  // Whether there is a step to undo (the phone header shows Undo only then).
+  const [canUndo, setCanUndo] = useState(false);
   const step = () => (history.current.discrete = true);
   useEffect(() => {
     const h = history.current;
@@ -143,6 +145,7 @@ export function MultiLangLyricEditor({
       h.discrete = false;
     }
     h.prev = rows;
+    setCanUndo(h.past.length > 0);
   }, [rows]);
   const undoRedo = (redo: boolean) => {
     const h = history.current;
@@ -151,10 +154,11 @@ export function MultiLangLyricEditor({
     (redo ? h.past : h.future).push(rowsRef.current);
     h.restoring = true;
     h.lastAt = 0;
+    setCanUndo(h.past.length > 0);
     setRowsRaw(target);
   };
   // Phone: the header's Undo button (two languages at a time on screen).
-  useRegisterPhoneUndo(() => undoRedo(false), !!visibleLangs);
+  useRegisterPhoneUndo(() => undoRedo(false), !!visibleLangs, canUndo);
 
   // Re-focus after a row is inserted/removed. Set during the edit, consumed once.
   // By line number (the nth line row), not row index: re-dividing adds and

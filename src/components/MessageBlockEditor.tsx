@@ -133,7 +133,7 @@ export function MessageBlockEditor({
   });
   const record = (key?: string) => history.record(currentCaret(scope.current), key);
   // Phone: the header's Undo button.
-  useRegisterPhoneUndo(() => history.undo(null));
+  useRegisterPhoneUndo(() => history.undo(null), true, history.canUndo);
 
   // During a drag we reorder a local copy of the slides so the list follows the
   // pointer, and only write the final order to the store on drop (rather than on

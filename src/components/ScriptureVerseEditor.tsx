@@ -55,7 +55,7 @@ export function ScriptureVerseEditor({
   });
   const record = (key?: string) => history.record(currentCaret(scope.current), key);
   // Phone: the header's Undo button.
-  useRegisterPhoneUndo(() => history.undo(null));
+  useRegisterPhoneUndo(() => history.undo(null), true, history.canUndo);
 
   const editCell = (ri: number, v: string, value: string) => {
     record(`type:${cellKey(ri, v)}`);

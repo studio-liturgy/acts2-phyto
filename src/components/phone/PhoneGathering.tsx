@@ -496,22 +496,25 @@ export function PhoneGathering({
           )}
 
           {/* New sets straight into this gathering, named like the
-              catalogue's + New, each in its kind's colour (Song and
-              Scripture side by side, Media under them); each opens in its
-              editor. */}
+              catalogue's + New, outlined in its kind's colour (Song and
+              Scripture side by side, Media centred under them); each opens
+              in its editor. */}
           <div className="mt-3 grid grid-cols-2 gap-2">
             {(
               [
-                ["song", "New Song"],
-                ["scripture", "New Scripture"],
-                ["media", "New Media"],
+                ["song", "New Song", "--brand-blue"],
+                ["scripture", "New Scripture", "--brand-green"],
+                ["media", "New Media", "--brand-orange"],
               ] as const
-            ).map(([kind, name]) => (
+            ).map(([kind, name, color]) => (
               <button
                 key={kind}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => newSetHere(kind, name)}
-                className={`pill mono flex min-w-0 items-center justify-center gap-1 px-2 py-[7px] text-[10px] uppercase leading-5 tracking-wider transition active:opacity-80 ${phoneKindBg(kind)}`}
+                style={{ color: `var(${color})`, borderColor: `var(${color})` }}
+                className={`pill mono flex min-w-0 items-center justify-center gap-1 border px-2 py-[7px] text-[10px] uppercase leading-5 tracking-wider transition active:opacity-60 ${
+                  kind === "media" ? "col-span-2 w-[calc(50%-0.25rem)] justify-self-center" : ""
+                }`}
               >
                 <Plus className="h-3 w-3 shrink-0" />
                 <span className="truncate">{name}</span>
