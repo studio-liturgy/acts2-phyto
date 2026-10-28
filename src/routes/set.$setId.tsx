@@ -2687,6 +2687,27 @@ function Importers({
                   aria-label="Search for a song"
                   className={`mono uppercase w-full bg-transparent outline-none ${phone ? "text-xs" : "text-sm"}`}
                 />
+                {songQuery && (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      // Retire any search still in flight so its results don't
+                      // paint back in after the box is cleared.
+                      searchSeq.current++;
+                      setSongSearching(false);
+                      setSongQuery("");
+                      setSongResults([]);
+                      setSongErr(null);
+                      setResultsOpen(false);
+                    }}
+                    className="shrink-0 rounded-full p-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                    title="Clear search"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 {/* A single native placeholder can't crossfade between two strings,
                   so it's faked: two stacked labels trading opacity, hidden the
                   moment there's real input. pointer-events-none keeps clicks
