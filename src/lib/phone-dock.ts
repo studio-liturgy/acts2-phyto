@@ -19,6 +19,37 @@ export function scrollEditorToEnd(): void {
 export const keepFocus = (e: { preventDefault: () => void }) => e.preventDefault();
 
 /**
+ * Focus a line from code (a new line, a merge, arrows). In a phone editor
+ * without the browser's own scroll-into-view: on iOS that slid the whole page
+ * down and back. The editor glides the line into view itself
+ * (useKeyboardInset's reveal on focus). Elsewhere, a plain focus.
+ */
+export function focusLine(el: HTMLElement | null | undefined): void {
+  if (!el) return;
+  el.focus({ preventScroll: !!el.closest(".has-dock") });
+}
+
+// One glide per scroller: a new one takes over from wherever the last got to.
+const glides = new WeakMap<HTMLElement, number>();
+
+/** Scroll `el` by `delta` px over `ms`, easing out (quicker than the
+ *  browser's smooth scroll, which read as slow). */
+export function glideBy(el: HTMLElement, delta: number, ms = 180): void {
+  const prev = glides.get(el);
+  if (prev) cancelAnimationFrame(prev);
+  if (!delta) return;
+  const from = el.scrollTop;
+  const t0 = performance.now();
+  const step = (now: number) => {
+    const k = Math.min(1, (now - t0) / ms);
+    el.scrollTop = from + delta * (1 - Math.pow(1 - k, 3));
+    if (k < 1) glides.set(el, requestAnimationFrame(step));
+    else glides.delete(el);
+  };
+  glides.set(el, requestAnimationFrame(step));
+}
+
+/**
  * Tapping a line in a phone editor: how far to scroll the editor first so the
  * line sits just above where the keyboard and the tools tab will be (0 when
  * it already does). Only as far as needed, so the lines glide a short way

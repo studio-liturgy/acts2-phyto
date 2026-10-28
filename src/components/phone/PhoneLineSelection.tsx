@@ -1,13 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { DotsGrip } from "@/components/DragBits";
 
 /**
- * Picking whole lines in a phone song grid, in the look of iOS's own text
- * selection: each line is its own text box, so iOS's handles can't cross
- * from one line to the next. Press and hold a line to pick it (the keyboard
- * goes down); keep the finger down and drag to take in more; then drag the
- * blue handles at either end. Cut / Copy / Delete float above, like iOS's
- * menu. A tap anywhere else lets go.
+ * Picking whole lines in a phone song grid. Each line is its own text box, so
+ * the phone's own selection can't cross lines. Press and hold a line that
+ * isn't being typed in to pick it (the keyboard goes down); keep the finger
+ * down and drag to take in more; then drag the grips centred on the run's top
+ * and bottom edges. Cut / Copy / Delete sit above in phyto's small pills. A
+ * tap anywhere else lets go; scrolling keeps the pick.
  */
 
 type Box = { top: number; bottom: number; left: number; right: number };
@@ -17,7 +18,7 @@ const boxOf = (el: HTMLElement | null): Box | null => {
   return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
 };
 
-/** The handles and the Cut / Copy / Delete menu over a run of picked lines. */
+/** The grips and the Cut / Copy / Delete pills over a run of picked lines. */
 export function PhoneLineSelection({
   scroller,
   first,
@@ -32,7 +33,7 @@ export function PhoneLineSelection({
   /** The first and last picked line's cell. */
   first: () => HTMLElement | null;
   last: () => HTMLElement | null;
-  /** A handle dragged over this element. */
+  /** A grip dragged over this element. */
   onHandle: (end: "start" | "end", el: Element) => void;
   onCut: () => void;
   onCopy: () => void;
@@ -57,8 +58,8 @@ export function PhoneLineSelection({
           p &&
           p.a.top === a.top &&
           p.a.left === a.left &&
+          p.a.right === a.right &&
           p.b.bottom === b.bottom &&
-          p.b.right === b.right &&
           p.view.top === view.top &&
           p.view.bottom === view.bottom;
         return same ? p : { a, b, view };
@@ -69,25 +70,38 @@ export function PhoneLineSelection({
     return () => cancelAnimationFrame(frame);
   }, [scroller]);
 
-  // A tap anywhere else lets go.
+  // A TAP anywhere else lets go (finger down and up without moving). A swipe
+  // to scroll keeps the pick.
   const clear = useRef(onClear);
   clear.current = onClear;
   useEffect(() => {
+    let down: { x: number; y: number } | null = null;
     const onDown = (e: PointerEvent) => {
-      if (root.current?.contains(e.target as Node)) return;
-      clear.current();
+      down = root.current?.contains(e.target as Node) ? null : { x: e.clientX, y: e.clientY };
     };
+    const onUp = (e: PointerEvent) => {
+      const d = down;
+      down = null;
+      if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 10) clear.current();
+    };
+    const onCancel = () => (down = null);
     document.addEventListener("pointerdown", onDown, true);
-    return () => document.removeEventListener("pointerdown", onDown, true);
+    document.addEventListener("pointerup", onUp, true);
+    document.addEventListener("pointercancel", onCancel, true);
+    return () => {
+      document.removeEventListener("pointerdown", onDown, true);
+      document.removeEventListener("pointerup", onUp, true);
+      document.removeEventListener("pointercancel", onCancel, true);
+    };
   }, []);
 
   if (!pos || typeof document === "undefined") return null;
   const { a, b, view } = pos;
   const midX = (a.left + a.right) / 2;
   const inView = (y: number) => y >= view.top - 4 && y <= view.bottom + 4;
-  // The menu above the first line, or under the last when there's no room.
-  const menuAbove = a.top - 52 >= view.top;
-  const menuTop = menuAbove ? a.top - 52 : b.bottom + 22;
+  // The pills above the top grip, or under the bottom one when there's no room.
+  const menuAbove = a.top - 54 >= view.top;
+  const menuTop = menuAbove ? a.top - 54 : b.bottom + 18;
 
   const drag = (end: "start" | "end") => (e: React.PointerEvent) => {
     e.preventDefault();
@@ -106,56 +120,58 @@ export function PhoneLineSelection({
     window.addEventListener("pointercancel", up);
   };
 
-  const HANDLE = "fixed z-[60] flex w-8 touch-none select-none justify-center";
-  const knob = "h-3 w-3 shrink-0 rounded-full bg-[var(--brand-blue)]";
-  const stem = "w-0.5 bg-[var(--brand-blue)]";
+  // A grip pill centred on the edge, with room around it for a thumb.
+  const grip = (end: "start" | "end", y: number) => (
+    <div
+      className="fixed z-[60] -translate-x-1/2 -translate-y-1/2 touch-none select-none p-2"
+      style={{ left: midX, top: y }}
+      onPointerDown={drag(end)}
+      aria-label={
+        end === "start" ? "Move the start of the selection" : "Move the end of the selection"
+      }
+    >
+      <span className="flex h-5 w-10 items-center justify-center rounded-full border border-foreground bg-background">
+        <DotsGrip size={10} className="rotate-90" />
+      </span>
+    </div>
+  );
+
+  const PILL =
+    "pill mono px-3 py-1.5 text-[10px] uppercase tracking-wider transition active:bg-foreground active:text-background";
 
   return createPortal(
     <div ref={root}>
-      {inView(a.top) && (
-        <div
-          className={`${HANDLE} flex-col items-center`}
-          style={{ left: a.left - 16, top: a.top - 12, height: a.bottom - a.top + 12 }}
-          onPointerDown={drag("start")}
-          aria-label="Start of selection"
-        >
-          <span className={knob} />
-          <span className={`${stem} flex-1`} />
-        </div>
-      )}
-      {inView(b.bottom) && (
-        <div
-          className={`${HANDLE} flex-col items-center`}
-          style={{ left: b.right - 16, top: b.top, height: b.bottom - b.top + 12 }}
-          onPointerDown={drag("end")}
-          aria-label="End of selection"
-        >
-          <span className={`${stem} flex-1`} />
-          <span className={knob} />
-        </div>
-      )}
+      {inView(a.top) && grip("start", a.top)}
+      {inView(b.bottom) && grip("end", b.bottom)}
       {inView(menuTop) && (
         <div
-          className="fixed z-[60] flex -translate-x-1/2 divide-x divide-foreground/15 overflow-hidden rounded-full border border-foreground/15 bg-popover text-[15px] text-popover-foreground shadow-xl"
+          className="fixed z-[60] flex -translate-x-1/2 gap-1 rounded-full border border-foreground bg-background p-1 shadow-md"
           style={{ left: midX, top: menuTop }}
         >
-          {(
-            [
-              ["Cut", onCut],
-              ["Copy", onCopy],
-              ["Delete", onDelete],
-            ] as const
-          ).map(([label, act]) => (
-            <button
-              key={label}
-              type="button"
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={act}
-              className="px-4 py-2.5 active:bg-foreground/10"
-            >
-              {label}
-            </button>
-          ))}
+          <button
+            type="button"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={onCut}
+            className={PILL}
+          >
+            Cut
+          </button>
+          <button
+            type="button"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={onCopy}
+            className={PILL}
+          >
+            Copy
+          </button>
+          <button
+            type="button"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={onDelete}
+            className="pill mono px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
+          >
+            Delete
+          </button>
         </div>
       )}
     </div>,

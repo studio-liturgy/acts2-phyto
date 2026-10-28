@@ -2,7 +2,7 @@ import { Link, Navigate } from "@tanstack/react-router";
 import { ArrowUpLeft, ChevronDown, Layers, Library, Settings } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import type { PhoneTab } from "@/lib/phone-layout";
-import { caretAtPoint, revealDelta } from "@/lib/phone-dock";
+import { caretAtPoint, glideBy, revealDelta } from "@/lib/phone-dock";
 import { lineHold } from "@/lib/line-select";
 import { useAuthStore } from "@/lib/authStore";
 
@@ -271,8 +271,8 @@ function useKeyboardInset(): number {
       const b = box.getBoundingClientRect();
       const bottom = Math.min(b.bottom, vv.height) - 64;
       // Glide, never snap (a snap reads as the whole screen jumping).
-      if (r.bottom > bottom) box.scrollBy({ top: r.bottom - bottom, behavior: "smooth" });
-      else if (r.top < b.top + 8) box.scrollBy({ top: r.top - (b.top + 8), behavior: "smooth" });
+      if (r.bottom > bottom) glideBy(box, r.bottom - bottom);
+      else if (r.top < b.top + 8) glideBy(box, r.top - (b.top + 8));
     };
     let lastH = -1;
     const read = () => {
@@ -359,7 +359,7 @@ function useKeyboardInset(): number {
           kb,
         );
         // A short glide, not a jump: the keyboard rises over the same time.
-        if (delta) box.scrollBy({ top: delta, behavior: "smooth" });
+        if (delta) glideBy(box, delta);
       }
       el.focus({ preventScroll: true });
       el.setSelectionRange(caret, caret);

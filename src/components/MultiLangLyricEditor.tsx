@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { PHONE_DOCK_ICON, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock";
+import { PHONE_DOCK_ICON, focusLine, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock";
 import { SeparatorHorizontal, StretchHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { dragRowTarget } from "@/lib/phone-layout";
@@ -178,7 +178,7 @@ export function MultiLangLyricEditor({
     const row = rows.findIndex((r) => r.kind === "line" && ++seen === want.line);
     if (row < 0) return;
     const el = cells.current.get(key(row, want.lang));
-    el?.focus();
+    focusLine(el);
     const caret = want.caret ?? el?.value.length ?? 0;
     el?.setSelectionRange(caret, caret);
   }, [rows]);
@@ -645,7 +645,7 @@ export function MultiLangLyricEditor({
     for (let i = row + dir; i >= 0 && i < rows.length; i += dir) {
       if (rows[i].kind === "line") {
         const el = cells.current.get(key(i, lang));
-        el?.focus();
+        focusLine(el);
         el?.setSelectionRange(el.value.length, el.value.length);
         break;
       }

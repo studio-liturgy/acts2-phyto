@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PHONE_DOCK_ICON, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock";
+import { PHONE_DOCK_ICON, focusLine, keepFocus, scrollEditorToEnd } from "@/lib/phone-dock";
 import { SeparatorHorizontal, StretchHorizontal } from "lucide-react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { dragRowSlot } from "@/lib/phone-layout";
@@ -138,7 +138,7 @@ export function ResponseLyricEditor({
     pendingFocus.current = null;
     const el = cells.current.get(want.index);
     if (!el) return;
-    el.focus();
+    focusLine(el);
     const c = Math.min(want.caret, el.value.length);
     el.setSelectionRange(c, c);
   });
@@ -640,14 +640,14 @@ export function ResponseLyricEditor({
                     if (prev >= 0) {
                       e.preventDefault();
                       const target = cells.current.get(prev);
-                      target?.focus();
+                      focusLine(target);
                       target?.setSelectionRange(target.value.length, target.value.length);
                     }
                   } else if (e.key === "ArrowDown" && caret === el.value.length) {
                     const next = neighbourLine(lyrics, row.index, 1);
                     if (next >= 0) {
                       e.preventDefault();
-                      cells.current.get(next)?.focus();
+                      focusLine(cells.current.get(next));
                     }
                   }
                 }}

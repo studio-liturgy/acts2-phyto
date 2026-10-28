@@ -34,6 +34,9 @@ export function usePhoneLineHold({
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
       const target = e.target as Element;
+      // The line being typed in keeps the phone's own press-and-hold (move
+      // the cursor, pick words); picking whole lines starts on the others.
+      if (target.closest?.("textarea, input") === document.activeElement) return;
       start = { x: t.clientX, y: t.clientY };
       timer = window.setTimeout(() => {
         timer = 0;

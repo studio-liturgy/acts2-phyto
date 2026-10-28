@@ -404,6 +404,16 @@ html[data-kb] body {
   overflow: hidden;
 }
 
+/* Phone editors: a line that isn't being typed in can't be word-picked by the
+   phone's own press-and-hold, so holding it picks whole lines instead
+   (usePhoneLineHold) and the two never show at once. Taps still focus it
+   (useKeyboardInset places the cursor). */
+html[data-phone-ui] .has-dock [data-editor-scroll] textarea:not(:focus) {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 /* Phone editors: room under the last line so the dock (the rounded tools
    tab over the editor's foot) never covers it once scrolled to the end. */
 html[data-phone-ui] .has-dock [data-editor-scroll]::after {
