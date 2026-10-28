@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 import { holdDelay, lineHold } from "@/lib/line-select";
 
+// Px at a line's top and bottom edge where a hold doesn't start.
+const SEAM = 8;
+
 /** Press and hold inside `scroller` (finger still) to start picking lines. */
 export function usePhoneLineHold({
   scroller,
@@ -39,12 +42,29 @@ export function usePhoneLineHold({
       // taps, never the start of a pick.
       if (target.closest?.("button, input, select, a, [contenteditable], [data-chord-strip]"))
         return;
+      // A touch on the seam between two lines is ambiguous (which line?):
+      // leave it as a tap, never a pick.
+      const cell = target.closest?.("[data-lyric-row], [data-cell-lang]");
+      if (cell) {
+        const r = cell.getBoundingClientRect();
+        if (t.clientY < r.top + SEAM || t.clientY > r.bottom - SEAM) return;
+      }
       start = { x: t.clientX, y: t.clientY };
+      const focused = document.activeElement;
+      const scrolled = scroller.scrollTop;
       timer = window.setTimeout(() => {
         timer = 0;
         // A tap that re-rendered its row (a chord opening) leaves a detached
         // target whose lift never reaches us: that was a tap, not a hold.
-        if (!start || !target.isConnected || !cb.current.onHold(target)) return;
+        // So was one that moved the focus or scrolled the editor since.
+        if (
+          !start ||
+          !target.isConnected ||
+          document.activeElement !== focused ||
+          Math.abs(scroller.scrollTop - scrolled) > 3 ||
+          !cb.current.onHold(target)
+        )
+          return;
         active = true;
         lineHold.active = true;
         // The keyboard and any word selection go: this is a line pick now.

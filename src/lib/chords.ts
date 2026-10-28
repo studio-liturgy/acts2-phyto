@@ -187,6 +187,19 @@ export function numberToChord(token: string, key: string): string {
   return out;
 }
 
+/**
+ * A grid's chord box (ChordStrip): the stored chord as the box shows it while
+ * it's typed in (its number in numbers mode, like the strip shows it), and
+ * what's typed back as the letter chord storage keeps.
+ */
+export function chordForBox(token: string, cfg: SongChords): string {
+  return renderChord(token, cfg);
+}
+export function chordFromBox(value: string, cfg: SongChords): string {
+  const v = value.trim();
+  return cfg.display === "numbers" && isNumberToken(v) ? numberToChord(v, cfg.key) : v;
+}
+
 /** Show every chord in a block of lyrics as its Nashville number. */
 export function lyricsToNumbers(text: string, key: string): string {
   return text.replace(/\(([^()\s]+)\)/g, (whole, token: string) =>

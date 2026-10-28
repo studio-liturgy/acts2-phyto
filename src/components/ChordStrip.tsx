@@ -1,5 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { rawChordAnchors, renderChord, setChordAt, type SongChords } from "@/lib/chords";
+import {
+  chordForBox,
+  chordFromBox,
+  rawChordAnchors,
+  renderChord,
+  setChordAt,
+  type SongChords,
+} from "@/lib/chords";
 
 /** The cell's text box: 14px text, 8px in from the left (pl-2). */
 const CELL_FONT_PX = 14;
@@ -77,7 +84,8 @@ export function ChordStrip({
     let best = 0;
     for (const i of wordStarts()) if (xOf(i) <= x + 4) best = i;
     const existing = anchors.find((a) => a.index === best);
-    setEditing({ index: best, value: existing?.chord ?? "" });
+    // Numbers mode: the box opens on the number, as the strip shows it.
+    setEditing({ index: best, value: existing ? chordForBox(existing.chord, chords) : "" });
   };
 
   useLayoutEffect(() => {
@@ -90,7 +98,8 @@ export function ChordStrip({
     setEditing(null);
     // Untouched: leave the line alone (the palette may have filled it).
     if (value.trim() === initial.trim()) return;
-    const next = setChordAt(line, index, value.trim() || null);
+    // A number typed in numbers mode is stored as its letter chord.
+    const next = setChordAt(line, index, chordFromBox(value, chords) || null);
     if (next !== line) onChange(next);
   };
 
@@ -116,7 +125,7 @@ export function ChordStrip({
             onMouseDown={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              setEditing({ index: a.index, value: a.chord });
+              setEditing({ index: a.index, value: chordForBox(a.chord, chords) });
             }}
             className="absolute top-0 whitespace-nowrap font-semibold hover:underline"
             style={{ left: xOf(a.index) }}
