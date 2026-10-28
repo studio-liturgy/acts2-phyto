@@ -1,5 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { signOut } from "@/lib/auth";
+import { signOutAndClearDevice } from "@/lib/account";
+import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { isLiveNow } from "@/lib/live-session";
@@ -258,6 +260,7 @@ function GatheringViewer() {
 function LinkAccountMenu({ ownId }: { ownId: string | null }) {
   const isSignedIn = useIsSignedIn();
   const email = useUserEmail();
+  const phone = usePhoneLayout() === true;
   const navigate = useNavigate();
   const BTN =
     "mt-2 block w-full rounded-lg border border-current/40 px-3 py-1.5 text-center text-[10px] uppercase tracking-wider transition";
@@ -289,12 +292,19 @@ function LinkAccountMenu({ ownId }: { ownId: string | null }) {
       </button>
     );
   }
+  // Sign out, then which account you're in under it. On a phone, signing
+  // out here clears the phone like Settings' Sign out does.
   return (
-    <div className="mt-3 text-center" style={MONO}>
-      <div className="truncate text-[10px] uppercase tracking-wider opacity-60">{email}</div>
-      <button type="button" onClick={() => void signOut()} className={BTN} style={MONO}>
+    <div className="text-center" style={MONO}>
+      <button
+        type="button"
+        onClick={() => void (phone ? signOutAndClearDevice() : signOut())}
+        className={BTN}
+        style={MONO}
+      >
         Sign out
       </button>
+      <div className="mt-2 truncate text-[10px] uppercase tracking-wider opacity-60">{email}</div>
     </div>
   );
 }
