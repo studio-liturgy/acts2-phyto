@@ -375,7 +375,7 @@ export async function fetchRemote(
   let downloadedCount = 0;
   const reportPull = () => {
     const { pull, setPull } = useSyncStatusStore.getState();
-    if (pull) setPull({ done: downloadedCount, total: needContent.length });
+    if (pull) setPull({ ...pull, done: downloadedCount, total: needContent.length });
   };
   reportPull();
 

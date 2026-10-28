@@ -27,6 +27,7 @@ import { SignedOutDialog } from "@/components/SignedOutDialog";
 import { getSession } from "@/lib/auth";
 import { useAuthStore } from "@/lib/authStore";
 import { pushLater, useLibrary } from "@/lib/store";
+import { db } from "@/lib/db";
 import { readLocalPersonalSettings } from "@/lib/workspace-settings";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import {
@@ -345,6 +346,13 @@ function RootComponent() {
     // real done/total counts once it knows how many sets need content.
     const { setPull, setStatus } = useSyncStatusStore.getState();
     setPull({ done: 0, total: 0 });
+    // Nothing on this device yet (a first sign-in, or after a phone sign out
+    // cleared it): gatherings can land before their sets, so the home keeps
+    // the loading view until the whole pull is done instead of "(missing)".
+    void Promise.all([db.sets.count(), db.gatherings.count()]).then(([s, g]) => {
+      const { pull } = useSyncStatusStore.getState();
+      if (pull && s === 0 && g === 0) setPull({ ...pull, fresh: true });
+    });
     setStatus("syncing");
     try {
       // Diff and auto-apply under ONE lock acquisition. Routing the auto path

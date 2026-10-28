@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 export type SyncState = "synced" | "syncing" | "offline";
 
 /** Progress of an account pull (the post-login diff + merge pass).
- *  `total` is 0 until the fetch knows how many sets need downloading. */
-export type PullProgress = { done: number; total: number };
+ *  `total` is 0 until the fetch knows how many sets need downloading.
+ *  `fresh`: the device had no sets or gatherings when it started, so the
+ *  account is arriving piece by piece and the home waits for all of it. */
+export type PullProgress = { done: number; total: number; fresh?: boolean };
 
 interface SyncStatusStore {
   status: SyncState;

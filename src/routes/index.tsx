@@ -171,7 +171,9 @@ function Home() {
   const accountPull = useAccountPull();
   const isEmpty = gatheringOrder.length === 0 && order.length === 0;
   const landing = !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
-  const pulling = isSignedIn && isEmpty && !!accountPull;
+  // A device downloading the account from nothing keeps the loading view
+  // for the whole pull (gatherings can arrive before their sets).
+  const pulling = isSignedIn && !!accountPull && (isEmpty || !!accountPull.fresh);
   const authLoading = useAuthStore((s) => s.isLoading);
   const libraryLoaded = useLibrary((s) => s.libraryLoaded);
   // Phone, signed out: only the intro, with Sign in. No library to browse.
@@ -714,7 +716,7 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
   // show a dedicated loading view. Without it, the empty library renders the
   // first-time landing, which reads as "your account has no data" while the
   // sets are still downloading.
-  if (isSignedIn && isEmpty && accountPull) {
+  if (isSignedIn && (isEmpty || accountPull?.fresh) && accountPull) {
     const { done, total } = accountPull;
     const clampedDone = Math.min(done, total);
     return (

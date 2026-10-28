@@ -4,6 +4,8 @@ import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { APP_NAME } from "@/lib/appConfig";
+import { usePhoneLayout } from "@/hooks/use-phone-layout";
+import { PHONE_UI } from "@/lib/phone-layout";
 
 export const Route = createFileRoute("/feedback")({
   head: () => ({
@@ -68,6 +70,8 @@ function FeedbackPage() {
   const backSearch = useBackHomeSearch();
   const [category, setCategory] = useState<Category | null>(null);
   const [message, setMessage] = useState("");
+  // Phone: Send Feedback in the big button size (Delete gathering's).
+  const phone = usePhoneLayout() === true && PHONE_UI;
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string>("");
@@ -195,7 +199,7 @@ function FeedbackPage() {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="pill mono bg-foreground px-4 py-1.5 text-xs uppercase tracking-wider text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className={`pill mono bg-foreground ${phone ? "px-6 py-3" : "px-4 py-1.5"} text-xs uppercase tracking-wider text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40`}
             >
               {status === "submitting" ? "Sending..." : "Send Feedback"}
             </button>
