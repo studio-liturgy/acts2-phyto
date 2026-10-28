@@ -5,6 +5,7 @@ import {
   PROD_ORIGIN,
   readVerifiedTester,
   shareOrigin,
+  visitUrl,
   writeVerifiedTester,
   type TesterRpc,
 } from "../testers";
@@ -29,6 +30,20 @@ describe("shareOrigin", () => {
   it("keeps the current site elsewhere", () => {
     expect(shareOrigin("https://phyto.live", false)).toBe("https://phyto.live");
     expect(shareOrigin("http://localhost:3000", false)).toBe("http://localhost:3000");
+  });
+});
+
+describe("visitUrl", () => {
+  it("opens a phyto.live link on phytoexp for testers", () => {
+    expect(visitUrl("https://phyto.live/g/abc", "https://phytoexp.live", true)).toBe(
+      "https://phytoexp.live/g/abc",
+    );
+  });
+  it("leaves the link alone elsewhere or when empty", () => {
+    expect(visitUrl("https://phyto.live/g/abc", "https://phyto.live", false)).toBe(
+      "https://phyto.live/g/abc",
+    );
+    expect(visitUrl("", "https://phytoexp.live", true)).toBe("");
   });
 });
 

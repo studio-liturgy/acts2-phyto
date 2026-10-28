@@ -42,6 +42,14 @@ export function liveLinkUrl(slug: string): string {
   return `${shareOriginHere()}/g/${slug}`;
 }
 
+/** The same live link on this site: a phytoexp tester's "Visit EXP link"
+ *  opens the gathering in the test viewer, while the link others get stays
+ *  on phyto.live. Elsewhere the link is returned as is. */
+export function visitUrl(shareUrl: string, currentOrigin: string, test: boolean = isTest): string {
+  if (!test || !shareUrl.startsWith(PROD_ORIGIN + "/")) return shareUrl;
+  return currentOrigin + shareUrl.slice(PROD_ORIGIN.length);
+}
+
 export type TesterRpc = (
   fn: "is_phytoexp_tester",
   args: { p_email: string },

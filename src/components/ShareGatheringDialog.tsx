@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { TESTERS_ONLY, visitUrl } from "@/lib/testers";
 import { QRCodeCanvas } from "qrcode.react";
 import { Copy, Check } from "lucide-react";
 import { GatheringPhonePreview } from "@/components/GatheringPhonePreview";
@@ -467,13 +468,13 @@ export function ShareGatheringDialog({
                   </button>
                 )}
                 <a
-                  href={shareUrl || undefined}
+                  href={shareUrl ? visitUrl(shareUrl, window.location.origin) : undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-disabled={!shareUrl}
                   className={`mono flex-1 rounded-full border border-foreground py-3 text-center text-xs uppercase tracking-wider transition active:bg-foreground active:text-background ${shareUrl ? "" : "pointer-events-none opacity-40"}`}
                 >
-                  Visit link
+                  {TESTERS_ONLY ? "Visit EXP link" : "Visit link"}
                 </a>
               </div>
               {linkBlock}

@@ -33,6 +33,13 @@ export function TestersOnlyDialog({
           >
             Go to phyto.live
           </button>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition hover:bg-foreground hover:text-background"
+          >
+            Close
+          </button>
         </div>
       </AlertDialogContent>
     </AlertDialog>
