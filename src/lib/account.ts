@@ -6,6 +6,7 @@ import { supabase } from "./supabase";
 import { db } from "./db";
 import { signOut } from "./auth";
 import { flushPushes, useLibrary } from "./store";
+import { withSyncLock } from "./sync";
 
 async function accessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
@@ -49,13 +50,25 @@ export async function deleteAccount(confirmEmail: string): Promise<string | null
 
   // The account is gone; nothing local is worth keeping.
   await signOut();
-  await Promise.all([db.sets.clear(), db.gatherings.clear(), db.gathering_sets.clear()]);
+  await clearLibrary();
   try {
     localStorage.clear();
   } catch {
     // ignore
   }
   return null;
+}
+
+/** Clear this device's sets and gatherings under the sync lock. A pass
+ *  already running (the test build's poll, a push) holds a snapshot from
+ *  before sign out and would write the old library back after a bare clear;
+ *  the next sign-in then isn't empty, skips the loading view and keeps stale
+ *  gatherings. After sign out, passes queued behind the lock find no session
+ *  and write nothing. */
+export function clearLibrary(): Promise<unknown> {
+  return withSyncLock(() =>
+    Promise.all([db.sets.clear(), db.gatherings.clear(), db.gathering_sets.clear()]),
+  );
 }
 
 /**
@@ -66,7 +79,7 @@ export async function deleteAccount(confirmEmail: string): Promise<string | null
 export async function signOutAndClearDevice(): Promise<void> {
   await flushPushes();
   await signOut();
-  await Promise.all([db.sets.clear(), db.gatherings.clear(), db.gathering_sets.clear()]);
+  await clearLibrary();
   useLibrary.setState({ sets: {}, order: [], gatherings: {}, gatheringOrder: [] });
   await useLibrary.getState().loadFromDb();
 }

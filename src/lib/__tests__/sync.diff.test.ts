@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { supabaseMock } from "@/test/supabase-mock";
-import { fakeSession, gatheringRow, makeGathering, makeSet, setRow } from "@/test/fixtures";
+import {
+  fakeSession,
+  gatheringRow,
+  gatheringSetRows,
+  makeGathering,
+  makeSet,
+  setRow,
+} from "@/test/fixtures";
 import { resetDb } from "@/test/db-utils";
 
 vi.mock("@/lib/supabase", async () => {
@@ -8,7 +15,7 @@ vi.mock("@/lib/supabase", async () => {
   return { supabase: supabaseMock.client };
 });
 
-import { diffWithSupabase } from "@/lib/sync";
+import { diffWithSupabase, hasDifferences, latestRemoteTime } from "@/lib/sync";
 import { useAuthStore } from "@/lib/authStore";
 import { db } from "@/lib/db";
 
@@ -81,5 +88,30 @@ describe("diffWithSupabase", () => {
     expect(diff!.modified.sets.map((p) => p.local.id)).toEqual([modified.id]);
     expect(diff!.onlyLocal.sets).toEqual([]);
     expect(diff!.localEmpty).toBe(false);
+  });
+
+  it("adopts the account's set list when a gathering's timestamp matches but its slots differ (Oct 28: phone kept an empty October 26)", async () => {
+    // Another device repointed the gathering's slots without moving its
+    // timestamp. Comparing timestamps alone kept this device's stale list
+    // forever; the account's list must win, silently.
+    const s = makeSet();
+    const stale = makeGathering({ setIds: [] });
+    await db.sets.put(s);
+    await db.gatherings.put(stale);
+    const remote = { ...stale, setIds: [s.id] };
+    supabaseMock.configure({
+      session: fakeSession,
+      tables: {
+        sets: [setRow(s)],
+        gatherings: [gatheringRow(remote)],
+        gathering_sets: gatheringSetRows(remote),
+      },
+    });
+
+    const diff = await diffWithSupabase();
+    expect(diff!.touched.gatherings.map((p) => p.remote.setIds)).toEqual([[s.id]]);
+    expect(diff!.modified.gatherings).toEqual([]);
+    expect(hasDifferences(diff!)).toBe(true);
+    expect(latestRemoteTime(diff!)).toBeNull();
   });
 });

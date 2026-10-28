@@ -919,6 +919,20 @@ export async function diffWithSupabase(): Promise<SyncDiff | null> {
       : modifiedGatherings
     ).push(pair);
   }
+  // Same timestamp, different slots: another device rewrote the set list
+  // without moving updated_at (a set re-key, a cascade). There's no local
+  // edit to protect (an edit stamps a newer time), so the account's list
+  // wins silently; without this the stale list stays forever.
+  for (const r of remoteGatherings) {
+    const local = localGatheringMap.get(r.id);
+    if (
+      local &&
+      Math.round(local.updatedAt / 1000) === Math.round(r.updatedAt / 1000) &&
+      gatheringFingerprint(local) !== gatheringFingerprint(r)
+    ) {
+      touchedGatherings.push({ local, remote: r });
+    }
+  }
 
   return {
     strandedLocal: { sets: strandedSets, gatherings: strandedGatherings },
