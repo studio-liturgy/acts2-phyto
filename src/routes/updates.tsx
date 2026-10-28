@@ -1,10 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import UpdatesTest from "@/content/updates-test";
 import UpdatesMain from "@/content/updates-main";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
 
 export const Route = createFileRoute("/updates")({
+  // phytoexp.live has no Updates page: straight home.
+  beforeLoad: () => {
+    if (isTest) throw redirect({ to: "/" });
+  },
   head: () => ({
     meta: [
       { title: isTest ? "Updates | phytoexp" : "Updates | phyto" },

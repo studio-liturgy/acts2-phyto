@@ -1185,7 +1185,8 @@ function SettingsTab({
                 { href: "/donate", label: "Donate" },
               ],
               [
-                { to: "/updates", label: "Updates" },
+                // phytoexp.live has no Updates page.
+                ...(TESTERS_ONLY ? [] : [{ to: "/updates", label: "Updates" }]),
                 { href: "https://github.com/studio-liturgy", label: "Source" },
                 { to: "/feedback", label: "Feedback" },
                 { to: "/terms", label: "Legal" },
