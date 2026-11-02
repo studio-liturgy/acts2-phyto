@@ -1,6 +1,6 @@
 import { Link, Navigate } from "@tanstack/react-router";
 import { ArrowUpLeft, ChevronDown, Layers, Library, Settings } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { PhoneTab } from "@/lib/phone-layout";
 import { caretAtPoint, glideBy, revealDelta } from "@/lib/phone-dock";
 import { holdDelay, lineHold } from "@/lib/line-select";
@@ -30,6 +30,7 @@ export function PhoneScreen({
   bodyClassName?: string;
 }) {
   useNoInputZoom();
+  const bodyRef = useRef<HTMLDivElement>(null);
   // Signed out, a phone shows only the intro (sign in to edit anything).
   const signedOut = useAuthStore((s) => !s.isLoading && s.session === null);
   if (signedOut) return <Navigate to="/" search={{}} replace />;
@@ -40,13 +41,19 @@ export function PhoneScreen({
       {header}
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div
+          ref={bodyRef}
           className={`min-h-0 flex-1 ${scroll ? "overflow-y-auto overscroll-contain" : "overflow-hidden"} ${bodyClassName}`}
         >
           {children}
         </div>
         {overlay}
       </div>
-      {tab && <PhoneTabBar tab={tab} />}
+      {tab && (
+        <PhoneTabBar
+          tab={tab}
+          onReselect={() => bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+        />
+      )}
     </div>
   );
 }
@@ -120,8 +127,11 @@ const TABS: { tab: PhoneTab; label: string; Icon: typeof Library }[] = [
   { tab: "settings", label: "Settings", Icon: Settings },
 ];
 
-/** Icon-only tab bar along the bottom edge, like the Shiro app's. */
-export function PhoneTabBar({ tab }: { tab: PhoneTab }) {
+/**
+ * Icon-only tab bar along the bottom edge, like the Shiro app's. Tapping the
+ * tab already showing scrolls its page back to the top, as iOS apps do.
+ */
+export function PhoneTabBar({ tab, onReselect }: { tab: PhoneTab; onReselect?: () => void }) {
   return (
     <nav className="flex shrink-0 border-t border-foreground/15 bg-background px-1.5 pb-[env(safe-area-inset-bottom)]">
       {TABS.map(({ tab: t, label, Icon }) => (
@@ -134,6 +144,11 @@ export function PhoneTabBar({ tab }: { tab: PhoneTab }) {
           }`}
           aria-label={label}
           aria-current={tab === t ? "page" : undefined}
+          onClick={(e) => {
+            if (tab !== t) return;
+            e.preventDefault();
+            onReselect?.();
+          }}
         >
           <Icon className="h-[23px] w-[23px]" strokeWidth={1.5} />
         </Link>
