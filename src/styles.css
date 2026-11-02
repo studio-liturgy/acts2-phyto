@@ -454,3 +454,11 @@ html[data-phone-ui] .has-dock [data-editor-scroll]::after {
   height: 4.5rem;
   flex-shrink: 0;
 }
+/* The scripture verses scroll inside their own box on desktop. On a phone
+   that box shrank above the room left for the dock, which then sat over the
+   middle of the screen as a bare band: let the editor scroll it as a whole,
+   as the message editor does. */
+html[data-phone-ui] .has-dock [data-editor-scroll] > [data-rich-cells] {
+  flex: none;
+  overflow: visible;
+}
