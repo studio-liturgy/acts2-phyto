@@ -77,8 +77,15 @@ async function main() {
     process.exit(1);
   }
   const resend = new Resend(process.env.RESEND_API_KEY);
+  // Same fix as src/routes/api/share/invite.ts and groups/invite.ts: Apple
+  // Mail's Data Detectors scan the rendered text itself, so an invisible
+  // word joiner after the "@" and before each "." breaks the pattern
+  // (the bare domain would otherwise still be picked up as a web link)
+  // without showing. Kept underlined here (his call for this email).
+  const emailHtml = (addr) =>
+    `<span style="color:inherit;text-decoration:underline;white-space:nowrap;">${addr.replace(/@/g, "@&#8288;").replace(/\./g, "&#8288;.")}</span>`;
   for (const email of emails) {
-    const body = html.replaceAll("[email]", email);
+    const body = html.replaceAll("[email]", emailHtml(email));
     const { error } = await resend.emails.send({
       from,
       to: email,
