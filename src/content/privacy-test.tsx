@@ -21,7 +21,7 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: October 1, 2026
+          Effective Date: October 28, 2026
         </p>
 
         {/* OFFLINE TAB */}
@@ -29,8 +29,7 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
           <div className="mt-6 space-y-6 text-base leading-relaxed opacity-90">
             <p>
               This policy applies when you use phytoexp locally on your device without creating an
-              account. phytoexp is an experimental testing environment. Data here may be reset at
-              any time.
+              account. phytoexp is an experimental testing environment.
             </p>
 
             <section>
@@ -82,6 +81,11 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
                 information is used solely to review feedback and improve the app. We do not sell
                 your information or share it with unrelated third parties. Submitting feedback is
                 entirely optional and is not required to use any feature of the app.
+              </p>
+              <p className="mt-2">
+                Feedback sent from phytoexp also includes the device details you choose to give
+                (device type and model), and your browser&apos;s user agent (browser, operating
+                system and device type), so we can reproduce what you saw.
               </p>
               <p className="mt-2">
                 Positive feedback such as testimonials may be shared publicly on phyto's social
@@ -304,16 +308,16 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
               <ul className="mt-2 list-disc space-y-1 pl-6">
                 <li>
                   <strong>Email address:</strong> used to authenticate you via one-time code or
-                  Google OAuth, to send you a one-time welcome email, and — only if you opt in at
-                  sign-in — to send occasional product updates. See section 6 below.
+                  Google OAuth, to send you a one-time welcome email, and (only if you opt in at
+                  sign-in) to send occasional product updates. See section 6 below.
                 </li>
                 <li>
                   <strong>Catalogue content:</strong> your sets and gatherings, synced to our
                   database so you can access them across devices
                 </li>
                 <li>
-                  <strong>Uploaded media:</strong> any video files you upload for use in your slides
-                  are stored on our servers. See section 5 below.
+                  <strong>Uploaded media:</strong> images and videos you upload for your slides and
+                  backgrounds are stored on our servers. See section 5 below.
                 </li>
                 <li>
                   <strong>Device identifier:</strong> an anonymous ID generated locally on each
@@ -331,7 +335,14 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
                   stored with your account, and a group&rsquo;s with the group, along with any
                   language preferences saved before October 1, 2026. They can be read by anyone who
                   has your gathering link. Which bible versions a set shows is part of the set
-                  itself, not these settings.
+                  itself, not these settings. Your slide background (colour, image, dimming and
+                  slide shape), Song Template, Scripture Template and fade time are stored with your
+                  account, so they follow you to every device you sign in on.
+                </li>
+                <li>
+                  <strong>Tester list:</strong> phytoexp is open only to invited testers. We keep
+                  the email address you were invited with, and check it when you sign in. Ask to be
+                  removed at any time and we delete it from the list.
                 </li>
               </ul>
               <p className="mt-2">
@@ -398,10 +409,11 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
             <section>
               <h2 className="text-2xl">5. Uploaded Media</h2>
               <p className="mt-2">
-                Signed-in users can upload short video clips to use as slide media. Uploaded videos
-                are stored in Cloudflare R2 (object storage) rather than on your device, subject to
-                a limit of 5 MB per image or PDF, 100 MB per video, and 50 MB total per account
-                (accounts created before 6 October 2026 keep their earlier 300 MB allowance).
+                Signed-in users can upload images and short video clips for their slides and
+                backgrounds. Uploaded media is stored in Cloudflare R2 (object storage) rather than
+                on your device, subject to a limit of 5 MB per image or PDF, 100 MB per video, and
+                50 MB total per account (accounts created before 6 October 2026 keep their earlier
+                300 MB allowance).
               </p>
               <p className="mt-2">
                 Each uploaded file is served from its own public URL containing a random,

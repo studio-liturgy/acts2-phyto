@@ -22,7 +22,7 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: September 22, 2026
+          Effective Date: October 28, 2026
         </p>
 
         {/* OFFLINE TAB */}
@@ -46,9 +46,11 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
                 unstable, incomplete, or subject to change before release on phyto.live.
               </p>
               <p className="mt-2">
-                As a pre-release testing environment, features, data, and behaviour may change
-                without notice. Do not rely on phytoexp for production use. Data stored here may be
-                reset or lost at any time.
+                phytoexp is open to invited testers only. It uses your phyto.live account: sets and
+                gatherings you change here sync to phyto.live and to every device you sign in on.
+                Features under test can have bugs that affect that content, so export a copy of
+                anything you can&apos;t afford to lose, and don&apos;t rely on phytoexp to run a
+                live service.
               </p>
             </section>
 
@@ -172,6 +174,12 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
               <p className="mt-3">
                 Versions fetched from bolls.life (such as the ESV, KJV, Chinese Union and Korean
                 Revised) are likewise the copyright of their publishers.
+              </p>
+              <p className="mt-3">
+                Metrical psalms in the song search come from the Seedbed Psalter
+                (psalms.seedbed.com), written by Tim and Julie Tennent and offered for public
+                worship with acknowledgement of the source. They may not be used commercially or for
+                a fee.
               </p>
             </section>
 

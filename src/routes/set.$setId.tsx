@@ -2162,17 +2162,20 @@ function Importers({
     return set ? songLayoutOf(set) : "standard";
   });
   // A Standard song as a table (the Call and Response grid without readers):
-  // always on a phone; on desktop by the Text / Table switch, kept per device.
-  const [tablePref, setTablePref] = useState(
-    () => typeof window !== "undefined" && localStorage.getItem(STANDARD_TABLE_KEY) === "1",
-  );
+  // by the Text / Table switch, kept per device. Phone defaults to Table
+  // (its earlier fixed behaviour) until a tester picks Text themselves.
+  const [tablePref, setTablePref] = useState(() => {
+    if (typeof window === "undefined") return !!phone;
+    const stored = localStorage.getItem(STANDARD_TABLE_KEY);
+    return stored === null ? !!phone : stored === "1";
+  });
   const pickTable = (on: boolean) => {
     setTablePref(on);
     try {
       localStorage.setItem(STANDARD_TABLE_KEY, on ? "1" : "0");
     } catch {}
   };
-  const standardTable = songLayout === "standard" && (!!phone || tablePref);
+  const standardTable = songLayout === "standard" && tablePref;
   // The lyrics are edited in a grid (C+R, or a Standard table), not the box.
   const gridLyrics = songLayout === "response" || standardTable;
   // Slide breaks placed by hand (Lines per slide shows C).
@@ -2911,14 +2914,19 @@ function Importers({
                 </span>
                 {songToggles}
                 {gridLyrics && !phone && <div ref={setToolbarSlot} className="contents" />}
-                {/* Desktop, Standard: edit in the text box or as a table, at the
-                    row's right end (under the search button). */}
-                {!phone && songLayout === "standard" && (
-                  <div className="ml-auto inline-flex h-7 shrink-0 overflow-hidden rounded-full border border-foreground">
+                {/* Standard: edit in the text box or as a table. Desktop: at
+                    the row's right end (under the search button). Phone: same
+                    small segmented pill as Role Align, after C. */}
+                {songLayout === "standard" && (
+                  <div
+                    className={`inline-flex shrink-0 overflow-hidden rounded-full border border-foreground ${
+                      phone ? "h-5" : "ml-auto h-7"
+                    }`}
+                  >
                     {(
                       [
-                        ["Text", false],
-                        ["Table", true],
+                        [phone ? "T" : "Text", false],
+                        [phone ? "G" : "Table", true],
                       ] as const
                     ).map(([label, on]) => (
                       <button
@@ -2926,7 +2934,10 @@ function Importers({
                         type="button"
                         onClick={() => pickTable(on)}
                         aria-pressed={tablePref === on}
-                        className={`mono flex h-full items-center px-3 text-[10px] uppercase leading-none tracking-wider transition ${
+                        title={on ? "Table" : "Text"}
+                        className={`mono flex h-full items-center uppercase leading-none tracking-wider transition ${
+                          phone ? "px-2 text-[10px]" : "px-3 text-[10px]"
+                        } ${
                           tablePref === on
                             ? "bg-foreground text-background"
                             : "bg-background hover:bg-muted"

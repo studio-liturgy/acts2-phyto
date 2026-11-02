@@ -83,6 +83,10 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
                 entirely optional and is not required to use any feature of the app.
               </p>
               <p className="mt-2">
+                Each feedback message also includes your browser&apos;s user agent (browser,
+                operating system and device type), so we can reproduce what you saw.
+              </p>
+              <p className="mt-2">
                 Positive feedback such as testimonials may be shared publicly on phyto's social
                 media channels. We will not share personally sensitive information without your
                 consent.
@@ -304,8 +308,8 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
               <ul className="mt-2 list-disc space-y-1 pl-6">
                 <li>
                   <strong>Email address:</strong> used to authenticate you via one-time code or
-                  Google OAuth, to send you a one-time welcome email, and — only if you opt in at
-                  sign-in — to send occasional product updates. See section 6 below.
+                  Google OAuth, to send you a one-time welcome email, and (only if you opt in at
+                  sign-in) to send occasional product updates. See section 6 below.
                 </li>
                 <li>
                   <strong>Catalogue content:</strong> your sets and gatherings, synced to our

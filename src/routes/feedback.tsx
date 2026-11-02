@@ -1,11 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { APP_NAME } from "@/lib/appConfig";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import { PHONE_UI } from "@/lib/phone-layout";
+import { useUserEmail } from "@/lib/authStore";
+import { FEEDBACK_DEVICES, guessDevice, type FeedbackDevice } from "@/lib/feedback-device";
+
+// phytoexp.live: the form is for mobile testers, so it also asks for the device.
+const isTest = import.meta.env.VITE_APP_ENV === "test";
 
 export const Route = createFileRoute("/feedback")({
   head: () => ({
@@ -57,7 +62,9 @@ const ACTIVE_CHIP: Record<Category, string> = {
 
 const PLACEHOLDER: Record<Category, string> = {
   Encouragement: "Share your encouragement...",
-  "Bug Fix": "What went wrong, and what did you expect?",
+  "Bug Fix": isTest
+    ? "Which screen were you on, what did you tap, and what happened?"
+    : "What went wrong, and what did you expect?",
   "Feature Request": "What would you like phyto to do?",
   Language: "What language and bible versions are you looking for?",
 };
@@ -75,6 +82,22 @@ function FeedbackPage() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [device, setDevice] = useState<FeedbackDevice | null>(null);
+  const [deviceModel, setDeviceModel] = useState("");
+  const [detected, setDetected] = useState("");
+  const accountEmail = useUserEmail();
+
+  // Test build: pre-select the device type from the browser, and pre-fill the
+  // reply email with the tester's account.
+  useEffect(() => {
+    if (!isTest) return;
+    const guess = guessDevice(navigator.userAgent, navigator.maxTouchPoints > 1);
+    setDevice((d) => d ?? guess.device);
+    setDetected(guess.detail);
+  }, []);
+  useEffect(() => {
+    if (isTest && accountEmail) setEmail((e) => e || accountEmail);
+  }, [accountEmail]);
 
   const trimmedEmail = email.trim();
   const emailValid =
@@ -84,6 +107,7 @@ function FeedbackPage() {
     message.trim().length > 0 &&
     message.trim().length <= 5000 &&
     emailValid &&
+    (!isTest || (device !== null && deviceModel.trim().length > 0)) &&
     status !== "submitting";
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,6 +123,9 @@ function FeedbackPage() {
           category,
           message: message.trim(),
           email: trimmedEmail || undefined,
+          ...(isTest && device
+            ? { device, deviceModel: [deviceModel.trim(), detected].filter(Boolean).join(", ") }
+            : {}),
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
@@ -110,7 +137,7 @@ function FeedbackPage() {
       setStatus("success");
       setCategory(null);
       setMessage("");
-      setEmail("");
+      setEmail(isTest && accountEmail ? accountEmail : "");
     } catch {
       setStatus("error");
       setErrorMsg("Something went wrong. Please try again!");
@@ -131,7 +158,9 @@ function FeedbackPage() {
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
         <p className="text-base text-muted-foreground">
-          Pick a category and let us know what's on your mind. We read every message.
+          {isTest
+            ? "Thanks for testing phyto on mobile! Tell us what broke, what felt off, or what you loved. We read every message."
+            : "Pick a category and let us know what's on your mind. We read every message."}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-10 space-y-6">
@@ -150,6 +179,35 @@ function FeedbackPage() {
               );
             })}
           </div>
+
+          {isTest && (
+            <div className="space-y-2">
+              <p className="mono block text-xs uppercase tracking-wider opacity-80">
+                Your device {detected && <span className="opacity-60">({detected})</span>}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {FEEDBACK_DEVICES.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDevice(d)}
+                    className={`pill mono border-2 border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition ${device === d ? "bg-foreground text-background" : "text-foreground hover:bg-foreground hover:text-background"}`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                aria-label="Device model"
+                value={deviceModel}
+                onChange={(e) => setDeviceModel(e.target.value)}
+                placeholder="Model, e.g. iPhone 15 or Pixel 8"
+                maxLength={120}
+                className="mono w-full rounded-full border border-foreground bg-background px-6 py-3 text-sm uppercase outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
+              />
+            </div>
+          )}
 
           <textarea
             value={message}

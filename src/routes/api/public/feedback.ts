@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { z } from "zod";
 import { readEnv, makeRateLimiter } from "@/lib/worker-env";
+import { FEEDBACK_DEVICES } from "@/lib/feedback-device";
 
 const CATEGORIES = ["Encouragement", "Bug Fix", "Feature Request", "Language"] as const;
 
@@ -16,7 +17,12 @@ const FeedbackSchema = z.object({
     .email()
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  // phytoexp.live only: the tester's device (required there, see below).
+  device: z.enum(FEEDBACK_DEVICES).optional(),
+  deviceModel: z.string().trim().min(1).max(200).optional(),
 });
+
+const isTest = import.meta.env.VITE_APP_ENV === "test";
 
 const rateLimited = makeRateLimiter();
 
@@ -56,7 +62,13 @@ export const Route = createFileRoute("/api/public/feedback")({
           return Response.json({ ok: false, error: "Invalid submission." }, { status: 400 });
         }
 
-        const { category, message, email } = parsed.data;
+        const { category, message, email, device, deviceModel } = parsed.data;
+        if (isTest && (!device || !deviceModel)) {
+          return Response.json(
+            { ok: false, error: "Please pick your device and enter its model." },
+            { status: 400 },
+          );
+        }
         const userAgent = request.headers.get("user-agent") ?? "";
 
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -67,6 +79,8 @@ export const Route = createFileRoute("/api/public/feedback")({
           message,
           email: email ?? null,
           user_agent: userAgent,
+          // Only sent from phytoexp, so phyto.live never writes these columns.
+          ...(device ? { device, device_model: deviceModel ?? null } : {}),
         });
 
         if (error) {
@@ -88,8 +102,10 @@ export const Route = createFileRoute("/api/public/feedback")({
               subject: `[Phyto Feedback] ${category}`,
               text: [
                 `Category: ${category}`,
+                ...(device ? [`Device: ${device}\nModel: ${deviceModel ?? ""}`] : []),
                 `Message:\n${message}`,
                 `Submitter email: ${email ?? "not provided"}`,
+                ...(isTest ? ["From: phytoexp.live"] : []),
               ].join("\n\n"),
             });
           } catch (emailErr) {
