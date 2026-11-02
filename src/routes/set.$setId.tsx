@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { touchReorder } from "@/lib/touch-reorder";
 import { createPortal } from "react-dom";
 import { PhoneDock, PhoneFold, PhoneFoldTabs } from "@/components/phone/PhoneChrome";
+import { phoneFoldBoxClass } from "@/lib/phone-fold";
 import { DotsGrip } from "@/components/DragBits";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
@@ -2660,11 +2661,10 @@ function Importers({
             width. */}
         <div
           ref={searchBoxRef}
-          className={`shrink-0 border-b border-foreground/20 ${
-            phone
-              ? `px-4 transition-[padding] duration-200 ${importOpen || chordsOpen ? "pb-4 pt-1" : "py-1"}`
-              : "p-4"
-          }`}
+          className={`shrink-0 border-b border-foreground/20 ${phoneFoldBoxClass(
+            !!phone,
+            importOpen || chordsOpen,
+          )}`}
         >
           {phone && (
             <PhoneFoldTabs
@@ -3241,7 +3241,9 @@ function Importers({
       <div className={`flex h-full flex-col overflow-hidden ${phone ? "has-dock relative" : ""}`}>
         {/* API lookup section — persistent, above the verse/block editor, so you
             can import more passages while adding points and images. */}
-        <div className="relative z-20 shrink-0 border-b border-foreground/20 p-4">
+        <div
+          className={`relative z-20 shrink-0 border-b border-foreground/20 ${phoneFoldBoxClass(!!phone, importOpen)}`}
+        >
           <PhoneFold
             enabled={!!phone}
             title="Import"
