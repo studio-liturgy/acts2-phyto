@@ -60,6 +60,12 @@ const ACTIVE_CHIP: Record<Category, string> = {
   Language: "border-[var(--brand-orange)] bg-[var(--brand-orange)] text-[var(--brand-white)]",
 };
 
+// phytoexp.live: testers report bugs and feature ideas, not encouragement or
+// language requests.
+const VISIBLE_CATEGORIES = isTest
+  ? CATEGORIES.filter((c) => c.label === "Bug Fix" || c.label === "Feature Request")
+  : CATEGORIES;
+
 const PLACEHOLDER: Record<Category, string> = {
   Encouragement: "Share your encouragement...",
   "Bug Fix": isTest
@@ -165,7 +171,7 @@ function FeedbackPage() {
 
         <form onSubmit={handleSubmit} className="mt-10 space-y-6">
           <div className="flex flex-wrap items-center gap-2">
-            {CATEGORIES.map(({ label, chip }) => {
+            {VISIBLE_CATEGORIES.map(({ label, chip }) => {
               const active = category === label;
               return (
                 <button
@@ -202,7 +208,11 @@ function FeedbackPage() {
                 aria-label="Device model"
                 value={deviceModel}
                 onChange={(e) => setDeviceModel(e.target.value)}
-                placeholder="Model, e.g. iPhone 15 or Pixel 8"
+                placeholder={
+                  device === "Computer"
+                    ? "Browser, e.g. Chrome on Mac or Windows"
+                    : "Model, e.g. iPhone 15 or Pixel 8"
+                }
                 maxLength={120}
                 className="mono w-full rounded-full border border-foreground bg-background px-6 py-3 text-sm uppercase outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
               />
@@ -218,29 +228,31 @@ function FeedbackPage() {
             className="w-full resize-y rounded-3xl border border-foreground bg-background p-6 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
           />
 
-          <div className="space-y-2">
-            <label
-              htmlFor="reply-email"
-              className="mono block text-xs uppercase tracking-wider opacity-80"
-            >
-              Your email <span className="opacity-60">(optional, if you'd like a reply)</span>
-            </label>
-            <input
-              id="reply-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              maxLength={255}
-              autoComplete="email"
-              className="mono w-full rounded-full border border-foreground bg-background px-6 py-3 text-sm uppercase outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
-            />
-            {!emailValid && (
-              <p className="mono text-xs uppercase tracking-wider text-[var(--brand-red)]">
-                Please enter a valid email or leave blank.
-              </p>
-            )}
-          </div>
+          {!isTest && (
+            <div className="space-y-2">
+              <label
+                htmlFor="reply-email"
+                className="mono block text-xs uppercase tracking-wider opacity-80"
+              >
+                Your email <span className="opacity-60">(optional, if you'd like a reply)</span>
+              </label>
+              <input
+                id="reply-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                maxLength={255}
+                autoComplete="email"
+                className="mono w-full rounded-full border border-foreground bg-background px-6 py-3 text-sm uppercase outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
+              />
+              {!emailValid && (
+                <p className="mono text-xs uppercase tracking-wider text-[var(--brand-red)]">
+                  Please enter a valid email or leave blank.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-col items-end gap-3">
             {status === "success" && (

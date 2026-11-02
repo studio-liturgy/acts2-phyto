@@ -26,17 +26,17 @@ describe("guessDevice", () => {
     expect(guessDevice(ua, true).detail).toBe("Android 13, Samsung Internet");
   });
 
-  it("iPad reporting as a Mac is a tablet when it has touch", () => {
+  it("iPad reporting as a Mac is Computer, like other tablets (desktop layout for now)", () => {
     const ua =
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
-    expect(guessDevice(ua, true)).toEqual({ device: "Tablet", detail: "iPadOS, Safari" });
+    expect(guessDevice(ua, true)).toEqual({ device: "Computer", detail: "iPadOS, Safari" });
     expect(guessDevice(ua, false)).toEqual({ device: "Computer", detail: "macOS, Safari" });
   });
 
-  it("Android tablet (no Mobile token)", () => {
+  it("Android tablet (no Mobile token) is Computer", () => {
     const ua =
       "Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
-    expect(guessDevice(ua, true).device).toBe("Tablet");
+    expect(guessDevice(ua, true).device).toBe("Computer");
   });
 
   it("Windows Edge", () => {

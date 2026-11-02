@@ -2,7 +2,7 @@
 // pre-selects a device type and pre-fills the system and browser from the
 // user agent; iOS never reveals the phone model, so the tester adds it.
 
-export const FEEDBACK_DEVICES = ["Phone", "Tablet", "Computer"] as const;
+export const FEEDBACK_DEVICES = ["Phone", "Computer"] as const;
 export type FeedbackDevice = (typeof FEEDBACK_DEVICES)[number];
 
 function browserName(ua: string): string {
@@ -34,9 +34,10 @@ function systemName(ua: string, touch: boolean): string {
  * Mac, and only touch support tells them apart.
  */
 export function guessDevice(ua: string, touch = false): { device: FeedbackDevice; detail: string } {
-  let device: FeedbackDevice = "Computer";
-  if (/iPhone|iPod/.test(ua) || (/Android/.test(ua) && /Mobile/.test(ua))) device = "Phone";
-  else if (/iPad|Android|Tablet/.test(ua) || (/Macintosh/.test(ua) && touch)) device = "Tablet";
+  // Tablets keep the desktop layout for now (see phone_layout.md), so they
+  // fall into Computer: there is no Tablet chip to guess into.
+  const device: FeedbackDevice =
+    /iPhone|iPod/.test(ua) || (/Android/.test(ua) && /Mobile/.test(ua)) ? "Phone" : "Computer";
   const detail = [systemName(ua, touch), browserName(ua)].filter(Boolean).join(", ");
   return { device, detail };
 }
