@@ -2918,8 +2918,14 @@ function Importers({
                     the row's right end (under the search button). Phone: same
                     small segmented pill as Role Align, after C. */}
                 {songLayout === "standard" && (
-                  <div
-                    className={`inline-flex shrink-0 overflow-hidden rounded-full border border-foreground ${
+                  // One tap target: a tap anywhere on the pill flips Text/Table.
+                  <button
+                    type="button"
+                    onClick={() => pickTable(!tablePref)}
+                    aria-pressed={tablePref}
+                    aria-label={tablePref ? "Switch to text" : "Switch to table"}
+                    title={tablePref ? "Switch to text" : "Switch to table"}
+                    className={`group inline-flex shrink-0 overflow-hidden rounded-full border border-foreground ${
                       phone ? "h-5" : "ml-auto h-7"
                     }`}
                   >
@@ -2929,24 +2935,20 @@ function Importers({
                         [phone ? "G" : "Table", true],
                       ] as const
                     ).map(([label, on]) => (
-                      <button
+                      <span
                         key={label}
-                        type="button"
-                        onClick={() => pickTable(on)}
-                        aria-pressed={tablePref === on}
-                        title={on ? "Table" : "Text"}
                         className={`mono flex h-full items-center uppercase leading-none tracking-wider transition ${
                           phone ? "px-2 text-[10px]" : "px-3 text-[10px]"
                         } ${
                           tablePref === on
                             ? "bg-foreground text-background"
-                            : "bg-background hover:bg-muted"
+                            : "bg-background group-hover:bg-muted"
                         }`}
                       >
                         {label}
-                      </button>
+                      </span>
                     ))}
-                  </div>
+                  </button>
                 )}
               </ChordControls>
             ) : (
