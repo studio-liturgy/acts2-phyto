@@ -21,7 +21,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: October 24, 2026
+          Effective Date: November 3, 2026
         </p>
 
         {/* OFFLINE TAB */}
@@ -94,26 +94,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">4. Contribute Form</h2>
-              <p className="mt-2">
-                phyto includes an optional contribute form at{" "}
-                <a href="https://phyto.live/contribute" className="underline hover:opacity-60">
-                  phyto.live/contribute
-                </a>{" "}
-                for people who want to help build phyto (app development, backend, design, social
-                media, and more). If you choose to submit it, the information you provide, which may
-                include your name, email, a link to your portfolio or Instagram, your experience,
-                how you use AI, and a short testimony of your faith, is transmitted to and stored in
-                our Supabase database (hosted in the US East region) and a copy is emailed to the
-                developer via Resend so it can be reviewed. This information is used solely to
-                evaluate and follow up on contributor submissions. We do not sell your information
-                or share it with unrelated third parties. Submitting the contribute form is entirely
-                optional and is not required to use any feature of the app.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-2xl">5. Analytics & Tracking</h2>
+              <h2 className="text-2xl">4. Analytics & Tracking</h2>
               <p className="mt-2">
                 phyto does not use tracking pixels, analytics services, or any monitoring
                 technology. We do not track your usage, behaviour, or session data in any form. No
@@ -129,7 +110,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">6. Hosting</h2>
+              <h2 className="text-2xl">5. Hosting</h2>
               <p className="mt-2">
                 The web-hosted version of phyto is served via Cloudflare Workers. Cloudflare may
                 collect standard server-side logs such as IP addresses as part of normal hosting
@@ -148,7 +129,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">7. Third-Party APIs</h2>
+              <h2 className="text-2xl">6. Third-Party APIs</h2>
               <p className="mt-2">phyto relies on the following external services:</p>
               <ul className="mt-2 list-disc space-y-1 pl-6">
                 <li>
@@ -191,9 +172,8 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
                   </a>
                 </li>
                 <li>
-                  <strong>Supabase:</strong> feedback and contribute form submissions are stored in
-                  a Supabase database hosted in the US East region (AWS us-east-1). No account is
-                  required to submit either form.{" "}
+                  <strong>Supabase:</strong> feedback submissions are stored in a Supabase database
+                  hosted in the US East region (AWS us-east-1). No account is required to submit it.{" "}
                   <a
                     href="https://supabase.com/privacy"
                     target="_blank"
@@ -204,8 +184,8 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
                   </a>
                 </li>
                 <li>
-                  <strong>Resend:</strong> delivers email on our behalf. Feedback and contribute
-                  form submissions are forwarded to the developer by email through Resend.{" "}
+                  <strong>Resend:</strong> delivers email on our behalf. Feedback submissions are
+                  forwarded to the developer by email through Resend.{" "}
                   <a
                     href="https://resend.com/legal/privacy-policy"
                     target="_blank"
@@ -223,7 +203,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">8. Stripe</h2>
+              <h2 className="text-2xl">7. Stripe</h2>
               <p className="mt-2">
                 The app links to a voluntary donation page hosted by Stripe at{" "}
                 <a
@@ -247,7 +227,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">9. Instagram</h2>
+              <h2 className="text-2xl">8. Instagram</h2>
               <p className="mt-2">
                 The app links to phyto's Instagram profile at{" "}
                 <a
@@ -264,7 +244,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">10. Children's Privacy</h2>
+              <h2 className="text-2xl">9. Children's Privacy</h2>
               <p className="mt-2">
                 We do not knowingly collect personal information from anyone. The feedback form
                 should not be submitted by children without parental guidance.
@@ -272,7 +252,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">11. Changes to This Policy</h2>
+              <h2 className="text-2xl">10. Changes to This Policy</h2>
               <p className="mt-2">
                 We may update this Privacy Policy from time to time. Updates will be reflected on
                 this page with a revised effective date. Continued use of the app after any change
@@ -281,7 +261,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">12. Contact</h2>
+              <h2 className="text-2xl">11. Contact</h2>
               <p className="mt-2">
                 Questions about this Privacy Policy can be submitted via the feedback form at{" "}
                 <Link to="/feedback" className="underline hover:opacity-60">

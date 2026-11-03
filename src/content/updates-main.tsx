@@ -235,12 +235,8 @@ export default function UpdatesMain() {
             <div className="mono mt-5 text-xs uppercase tracking-wider opacity-80">Contribute</div>
             <ul className="mt-2 space-y-1">
               <FeatureItem>
-                New page at{" "}
-                <Link to="/contribute" className="underline hover:opacity-60">
-                  phyto.live/contribute
-                </Link>{" "}
-                for anyone who wants to help build phyto: app development, backend, UI/UX design,
-                graphic design, social media, and more
+                New page at phyto.live/contribute for anyone who wants to help build phyto: app
+                development, backend, UI/UX design, graphic design, social media, and more
               </FeatureItem>
               <FeatureItem>Linked from the footer and homepage</FeatureItem>
             </ul>

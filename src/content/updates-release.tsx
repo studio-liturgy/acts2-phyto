@@ -4,8 +4,8 @@ import { Plus } from "lucide-react";
 
 // The latest release's date: the newest Updates entry (shown on
 // phyto.live/updates via updates-main and, until it ships, at the top of
-// phytoexp.live/updates via updates-test) and the Terms Effective Date. Older
-// entries write their own date.
+// phytoexp.live/updates via updates-test). Older entries write their own
+// date. Terms and Privacy write their Effective Date as a literal.
 export const RELEASE_DATE = "October 24, 2026";
 
 export function FeatureItem({ children }: { children: ReactNode }) {
