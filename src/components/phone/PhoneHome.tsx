@@ -71,6 +71,7 @@ import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { BackgroundEditor } from "@/components/BackgroundEditor";
 import { clearBackToSettings, markBackToSettings } from "@/hooks/use-back-home";
 import { fetchWorkspaceSettings, saveWorkspaceSettings } from "@/lib/workspace-settings";
+import { workspaceLabel } from "@/lib/workspace-label";
 import { VersionWarning } from "@/components/VersionWarning";
 import { PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
 import { PhoneShareSheet } from "@/components/phone/PhoneShareSheet";
@@ -984,6 +985,9 @@ function SettingsTab({
   const loadGroups = useLibrary((s) => s.loadGroups);
   const setActiveWorkspace = useLibrary((s) => s.setActiveWorkspace);
   const activeGroup = groups.find((g) => g.id === activeWorkspace);
+  // Cached name first, so a reload doesn't show Personal until the list loads.
+  const activeWorkspaceName = useLibrary((s) => s.activeWorkspaceName);
+  const wsLabel = workspaceLabel(activeWorkspace, groups, activeWorkspaceName ?? "");
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [unsynced, setUnsynced] = useState(false);
   const [manage, setManage] = useState(false);
@@ -1073,9 +1077,9 @@ function SettingsTab({
                 <DropdownMenuTrigger asChild>
                   <button className={`${S_OUTLINE} ml-auto shrink-0 gap-1.5`} title="Switch group">
                     <span
-                      className={`max-w-[9rem] truncate ${activeWorkspace === "personal" ? "" : "normal-case"}`}
+                      className={`max-w-[9rem] truncate ${wsLabel.isName ? "normal-case" : ""}`}
                     >
-                      {activeGroup?.name ?? "Personal"}
+                      {wsLabel.label}
                     </span>
                     <ChevronDown className="h-3 w-3 shrink-0" />
                   </button>
