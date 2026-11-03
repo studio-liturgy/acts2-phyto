@@ -95,7 +95,7 @@ describe("fetchScripture", () => {
         url,
         key: (init?.headers as Record<string, string> | undefined)?.["X-YVP-App-Key"],
       });
-      if (url.includes("api.youversion.com")) {
+      if (new URL(url).hostname === "api.youversion.com") {
         const chapter = /passages\/JHN\.(\d+)/.exec(url)?.[1];
         return {
           ok: true,

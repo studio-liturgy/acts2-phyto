@@ -168,7 +168,10 @@ export function parseYvHtml(html: string, keepLineBreaks: boolean): YvVerse[] {
     const end = Number(attr("ev"));
     const start = m.index + m[0].length;
     const raw = body.slice(start, i + 1 < marks.length ? marks[i + 1].index : undefined);
-    let text = decodeEntities(raw.replace(/<[^>]*>/g, "")).replace(CJK_SPACE, "");
+    // Strip tags, then any stray "<" or ">" a malformed tag left behind, so no
+    // markup can survive (the text is only ever rendered as text).
+    const plain = raw.replace(/<[^>]*>/g, "").replace(/[<>]/g, "");
+    let text = decodeEntities(plain).replace(CJK_SPACE, "");
     text = keepLineBreaks
       ? text
           .split("\n")
