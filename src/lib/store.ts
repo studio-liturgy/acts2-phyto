@@ -32,6 +32,7 @@ import { db } from "./db";
 import { liveQuery } from "dexie";
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
+import { writeCachedGroups } from "./group-cache";
 import {
   pushToSupabase,
   recordDeletions,
@@ -585,6 +586,9 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     // back to Personal on every network blip.
     if (!groups) return;
     set({ groups });
+    // Saved for the next page load, so the switcher has the list at once.
+    const userId = useAuthStore.getState().session?.user.id;
+    if (userId) writeCachedGroups(localStorage, userId, groups);
     // Refresh the cached active-group name now that the list is known.
     const activeWs = get().activeWorkspace;
     if (activeWs !== "personal") {

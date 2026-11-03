@@ -55,6 +55,7 @@ import {
   type SyncDiff,
 } from "@/lib/sync";
 import { useSyncStatusStore } from "@/hooks/use-sync-status";
+import { clearCachedGroups, readCachedGroups } from "@/lib/group-cache";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { TestSiteWarning } from "@/components/TestSiteWarning";
 import { Button } from "@/components/ui/button";
@@ -428,12 +429,24 @@ function RootComponent() {
     await useLibrary.getState().refreshSlideSettings();
   };
 
+  // The group list as saved on this device (instant), then a fresh fetch right
+  // away rather than after the shared-set sync, so the switcher is ready.
+  const seedGroups = (userId: string | undefined) => {
+    if (!userId) return;
+    const cached = readCachedGroups(window.localStorage, userId);
+    if (cached && useLibrary.getState().groups.length === 0) {
+      useLibrary.setState({ groups: cached });
+    }
+    void useLibrary.getState().loadGroups();
+  };
+
   // Signed in at page load. Hydrate is_live from Supabase (source of truth) on
   // every page load, independent of the diff-dialog gate and the /g/ guard.
   const startSignedIn = () => {
     refreshLiveState();
     if (!diffRanThisSession) {
       diffRanThisSession = true;
+      seedGroups(useAuthStore.getState().session?.user.id);
       runDiff();
       runCollabSync();
     }
@@ -448,6 +461,7 @@ function RootComponent() {
     refreshLiveState();
     if (!diffRanThisSession) {
       diffRanThisSession = true;
+      seedGroups(s.user.id);
       runDiff(isFirstLogin);
       runCollabSync();
     }
@@ -508,6 +522,7 @@ function RootComponent() {
         useLibrary.getState().setActiveWorkspace("personal");
         // Back to the device's own personal settings.
         useLibrary.setState({ groups: [], workspaceSettings: readLocalPersonalSettings() });
+        clearCachedGroups(window.localStorage);
         stopGroupChannels();
       }
       if (event === "SIGNED_IN" && s) {
