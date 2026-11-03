@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { RELEASE_DATE } from "@/content/updates-release";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BibleCopyrights } from "@/components/BibleCopyrights";
 
@@ -23,7 +22,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: {RELEASE_DATE}
+          Effective Date: November 3, 2026
         </p>
 
         {/* OFFLINE TAB */}
@@ -195,23 +194,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">9. Contribute</h2>
-              <p className="mt-2">
-                The contribute form at{" "}
-                <Link to="/contribute" className="underline hover:opacity-60">
-                  phyto.live/contribute
-                </Link>{" "}
-                is provided so people who want to help build phyto can reach out. Submissions are
-                transmitted to and stored in our Supabase database and used solely to evaluate and
-                follow up with contributors; they are not shared with unrelated third parties.
-                Submitting the form does not create any employment, contractor, or partnership
-                relationship, and any work you go on to contribute remains subject to the project's
-                open source license (see Section 4, Open Source).
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-2xl">10. Disclaimer of Warranties</h2>
+              <h2 className="text-2xl">9. Disclaimer of Warranties</h2>
               <p className="mt-2 uppercase">
                 The app is provided "as is" and "as available", without warranty of any kind,
                 express or implied, including but not limited to warranties of merchantability,
@@ -222,7 +205,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">11. Limitation of Liability</h2>
+              <h2 className="text-2xl">10. Limitation of Liability</h2>
               <p className="mt-2 uppercase">
                 To the fullest extent permitted by applicable law, the developer shall not be liable
                 for any indirect, incidental, special, consequential, or punitive damages, including
@@ -237,7 +220,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">12. Acceptable Use</h2>
+              <h2 className="text-2xl">11. Acceptable Use</h2>
               <p className="mt-2">
                 You agree to use phyto only for lawful purposes. You agree not to:
               </p>
@@ -251,7 +234,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">13. Changes to the App and Terms</h2>
+              <h2 className="text-2xl">12. Changes to the App and Terms</h2>
               <p className="mt-2">
                 We reserve the right to modify, suspend, or discontinue the app at any time without
                 notice. We may also update these Terms from time to time. Continued use of the app
@@ -260,7 +243,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">14. Governing Law</h2>
+              <h2 className="text-2xl">13. Governing Law</h2>
               <p className="mt-2">
                 These Terms shall be governed by and construed in accordance with the laws of
                 British Columbia, Canada, without regard to conflict of law principles.
@@ -268,7 +251,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">15. Contact</h2>
+              <h2 className="text-2xl">14. Contact</h2>
               <p className="mt-2">
                 Questions about these Terms can be submitted via the feedback form at{" "}
                 <Link to="/feedback" className="underline hover:opacity-60">

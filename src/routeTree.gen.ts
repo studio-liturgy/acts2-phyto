@@ -20,7 +20,6 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LegalRouteImport } from './routes/legal'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as DonateRouteImport } from './routes/donate'
-import { Route as ContributeRouteImport } from './routes/contribute'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SetSetIdRouteImport } from './routes/set.$setId'
@@ -31,7 +30,6 @@ import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/str
 import { Route as ApiShareInviteRouteImport } from './routes/api/share/invite'
 import { Route as ApiPublicStatsRouteImport } from './routes/api/public/stats'
 import { Route as ApiPublicFeedbackRouteImport } from './routes/api/public/feedback'
-import { Route as ApiPublicContributeRouteImport } from './routes/api/public/contribute'
 import { Route as ApiMediaUsageRouteImport } from './routes/api/media/usage'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
 import { Route as ApiMediaRawRouteImport } from './routes/api/media/raw'
@@ -94,11 +92,6 @@ const DonateRoute = DonateRouteImport.update({
   path: '/donate',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ContributeRoute = ContributeRouteImport.update({
-  id: '/contribute',
-  path: '/contribute',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -149,11 +142,6 @@ const ApiPublicFeedbackRoute = ApiPublicFeedbackRouteImport.update({
   path: '/api/public/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicContributeRoute = ApiPublicContributeRouteImport.update({
-  id: '/api/public/contribute',
-  path: '/api/public/contribute',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiMediaUsageRoute = ApiMediaUsageRouteImport.update({
   id: '/api/media/usage',
   path: '/api/media/usage',
@@ -188,7 +176,6 @@ const ApiAccountDeleteRoute = ApiAccountDeleteRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/contribute': typeof ContributeRoute
   '/donate': typeof DonateRoute
   '/feedback': typeof FeedbackRoute
   '/legal': typeof LegalRoute
@@ -210,7 +197,6 @@ export interface FileRoutesByFullPath {
   '/api/media/raw': typeof ApiMediaRawRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/media/usage': typeof ApiMediaUsageRoute
-  '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
   '/api/public/stats': typeof ApiPublicStatsRoute
   '/api/share/invite': typeof ApiShareInviteRoute
@@ -219,7 +205,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/contribute': typeof ContributeRoute
   '/donate': typeof DonateRoute
   '/feedback': typeof FeedbackRoute
   '/legal': typeof LegalRoute
@@ -241,7 +226,6 @@ export interface FileRoutesByTo {
   '/api/media/raw': typeof ApiMediaRawRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/media/usage': typeof ApiMediaUsageRoute
-  '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
   '/api/public/stats': typeof ApiPublicStatsRoute
   '/api/share/invite': typeof ApiShareInviteRoute
@@ -251,7 +235,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/contribute': typeof ContributeRoute
   '/donate': typeof DonateRoute
   '/feedback': typeof FeedbackRoute
   '/legal': typeof LegalRoute
@@ -273,7 +256,6 @@ export interface FileRoutesById {
   '/api/media/raw': typeof ApiMediaRawRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/media/usage': typeof ApiMediaUsageRoute
-  '/api/public/contribute': typeof ApiPublicContributeRoute
   '/api/public/feedback': typeof ApiPublicFeedbackRoute
   '/api/public/stats': typeof ApiPublicStatsRoute
   '/api/share/invite': typeof ApiShareInviteRoute
@@ -284,7 +266,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
-    | '/contribute'
     | '/donate'
     | '/feedback'
     | '/legal'
@@ -306,7 +287,6 @@ export interface FileRouteTypes {
     | '/api/media/raw'
     | '/api/media/upload'
     | '/api/media/usage'
-    | '/api/public/contribute'
     | '/api/public/feedback'
     | '/api/public/stats'
     | '/api/share/invite'
@@ -315,7 +295,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
-    | '/contribute'
     | '/donate'
     | '/feedback'
     | '/legal'
@@ -337,7 +316,6 @@ export interface FileRouteTypes {
     | '/api/media/raw'
     | '/api/media/upload'
     | '/api/media/usage'
-    | '/api/public/contribute'
     | '/api/public/feedback'
     | '/api/public/stats'
     | '/api/share/invite'
@@ -346,7 +324,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
-    | '/contribute'
     | '/donate'
     | '/feedback'
     | '/legal'
@@ -368,7 +345,6 @@ export interface FileRouteTypes {
     | '/api/media/raw'
     | '/api/media/upload'
     | '/api/media/usage'
-    | '/api/public/contribute'
     | '/api/public/feedback'
     | '/api/public/stats'
     | '/api/share/invite'
@@ -378,7 +354,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
-  ContributeRoute: typeof ContributeRoute
   DonateRoute: typeof DonateRoute
   FeedbackRoute: typeof FeedbackRoute
   LegalRoute: typeof LegalRoute
@@ -400,7 +375,6 @@ export interface RootRouteChildren {
   ApiMediaRawRoute: typeof ApiMediaRawRoute
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
   ApiMediaUsageRoute: typeof ApiMediaUsageRoute
-  ApiPublicContributeRoute: typeof ApiPublicContributeRoute
   ApiPublicFeedbackRoute: typeof ApiPublicFeedbackRoute
   ApiPublicStatsRoute: typeof ApiPublicStatsRoute
   ApiShareInviteRoute: typeof ApiShareInviteRoute
@@ -486,13 +460,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DonateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/contribute': {
-      id: '/contribute'
-      path: '/contribute'
-      fullPath: '/contribute'
-      preLoaderRoute: typeof ContributeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -563,13 +530,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/contribute': {
-      id: '/api/public/contribute'
-      path: '/api/public/contribute'
-      fullPath: '/api/public/contribute'
-      preLoaderRoute: typeof ApiPublicContributeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/media/usage': {
       id: '/api/media/usage'
       path: '/api/media/usage'
@@ -618,7 +578,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
-  ContributeRoute: ContributeRoute,
   DonateRoute: DonateRoute,
   FeedbackRoute: FeedbackRoute,
   LegalRoute: LegalRoute,
@@ -640,7 +599,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMediaRawRoute: ApiMediaRawRoute,
   ApiMediaUploadRoute: ApiMediaUploadRoute,
   ApiMediaUsageRoute: ApiMediaUsageRoute,
-  ApiPublicContributeRoute: ApiPublicContributeRoute,
   ApiPublicFeedbackRoute: ApiPublicFeedbackRoute,
   ApiPublicStatsRoute: ApiPublicStatsRoute,
   ApiShareInviteRoute: ApiShareInviteRoute,
