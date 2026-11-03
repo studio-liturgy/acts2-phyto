@@ -89,6 +89,9 @@ async function main() {
     const { error } = await resend.emails.send({
       from,
       to: email,
+      // phyto.live's inbound mail goes to Resend, not the studio inbox, so
+      // replies (with screenshots and screen recordings) go to the studio.
+      replyTo: "hello@studioliturgy.com",
       subject: "You're in: testing phyto on mobile",
       html: body,
     });
