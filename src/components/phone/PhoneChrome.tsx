@@ -122,8 +122,8 @@ export function PhoneBackHeader({
 }
 
 const TABS: { tab: PhoneTab; label: string; Icon: typeof Library }[] = [
-  { tab: "gatherings", label: "Gatherings", Icon: Layers },
   { tab: "catalogue", label: "Catalogue", Icon: Library },
+  { tab: "gatherings", label: "Gatherings", Icon: Layers },
   { tab: "settings", label: "Settings", Icon: Settings },
 ];
 
