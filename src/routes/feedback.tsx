@@ -83,8 +83,33 @@ function FeedbackPage() {
   const backSearch = useBackHomeSearch();
   const [category, setCategory] = useState<Category | null>(null);
   const [message, setMessage] = useState("");
-  // Phone: Send Feedback in the big button size (Delete gathering's).
+  // Phone: Send Feedback in the small pill size, like Settings' Sign out.
   const phone = usePhoneLayout() === true && PHONE_UI;
+  // Phone: the same scale as the phone's Settings and pop-ups (body 14px,
+  // mono pills, labels and buttons 10px, inputs 12px). Desktop unchanged.
+  const sz = phone
+    ? {
+        main: "py-6",
+        intro: "text-sm",
+        form: "mt-6 space-y-4",
+        pill: "px-4 py-[7px] text-[10px] leading-5",
+        label: "text-[10px]",
+        input: "px-4 py-2 text-xs",
+        textarea: "p-4 text-sm",
+        rows: 8,
+        note: "text-[10px]",
+      }
+    : {
+        main: "py-10",
+        intro: "text-base",
+        form: "mt-10 space-y-6",
+        pill: "px-4 py-1.5 text-xs",
+        label: "text-xs",
+        input: "px-6 py-3 text-sm",
+        textarea: "p-6 text-base",
+        rows: 10,
+        note: "text-xs",
+      };
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string>("");
@@ -162,14 +187,14 @@ function FeedbackPage() {
         </Link>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
-        <p className="text-base text-muted-foreground">
+      <main className={`mx-auto w-full max-w-3xl flex-1 px-6 ${sz.main}`}>
+        <p className={`${sz.intro} text-muted-foreground`}>
           {isTest
             ? "Thanks for testing phyto on mobile! Tell me what broke, what felt off, or what you loved through the form below."
             : "Pick a category and let us know what's on your mind."}
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-10 space-y-6">
+        <form onSubmit={handleSubmit} className={sz.form}>
           <div className="flex flex-wrap items-center gap-2">
             {VISIBLE_CATEGORIES.map(({ label, chip }) => {
               const active = category === label;
@@ -178,7 +203,7 @@ function FeedbackPage() {
                   key={label}
                   type="button"
                   onClick={() => setCategory(label)}
-                  className={`pill mono border-2 px-4 py-1.5 text-xs uppercase tracking-wider transition ${active ? ACTIVE_CHIP[label] : chip}`}
+                  className={`pill mono border-2 ${sz.pill} uppercase tracking-wider transition ${active ? ACTIVE_CHIP[label] : chip}`}
                 >
                   {label}
                 </button>
@@ -188,7 +213,7 @@ function FeedbackPage() {
 
           {isTest && (
             <div className="space-y-2">
-              <p className="mono block text-xs uppercase tracking-wider opacity-80">
+              <p className={`mono block ${sz.label} uppercase tracking-wider opacity-80`}>
                 Your device {detected && <span className="opacity-60">({detected})</span>}
               </p>
               <div className="flex flex-wrap items-center gap-2">
@@ -197,7 +222,7 @@ function FeedbackPage() {
                     key={d}
                     type="button"
                     onClick={() => setDevice(d)}
-                    className={`pill mono border-2 border-foreground px-4 py-1.5 text-xs uppercase tracking-wider transition ${device === d ? "bg-foreground text-background" : "text-foreground hover:bg-foreground hover:text-background"}`}
+                    className={`pill mono border-2 border-foreground ${sz.pill} uppercase tracking-wider transition ${device === d ? "bg-foreground text-background" : "text-foreground hover:bg-foreground hover:text-background"}`}
                   >
                     {d}
                   </button>
@@ -214,7 +239,7 @@ function FeedbackPage() {
                     : "Model, e.g. iPhone 15 or Pixel 8"
                 }
                 maxLength={120}
-                className="mono w-full rounded-full border border-foreground bg-background px-6 py-3 text-sm uppercase outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
+                className={`mono w-full rounded-full border border-foreground bg-background ${sz.input} uppercase outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30`}
               />
             </div>
           )}
@@ -223,9 +248,9 @@ function FeedbackPage() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={category ? PLACEHOLDER[category] : "Select a category, then write here..."}
-            rows={10}
+            rows={sz.rows}
             maxLength={5000}
-            className="w-full resize-y rounded-3xl border border-foreground bg-background p-6 text-base outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30"
+            className={`w-full resize-y rounded-3xl border border-foreground bg-background ${sz.textarea} outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-foreground/30`}
           />
 
           {!isTest && (
@@ -256,20 +281,20 @@ function FeedbackPage() {
 
           <div className="flex flex-col items-end gap-3">
             {status === "success" && (
-              <p className="mono text-xs uppercase tracking-wider text-[var(--brand-green)]">
+              <p className={`mono ${sz.note} uppercase tracking-wider text-[var(--brand-green)]`}>
                 Thanks for sending in your feedback! We appreciate your time in checking out phyto
                 :)
               </p>
             )}
             {status === "error" && (
-              <p className="mono text-xs uppercase tracking-wider text-[var(--brand-red)]">
+              <p className={`mono ${sz.note} uppercase tracking-wider text-[var(--brand-red)]`}>
                 {errorMsg}
               </p>
             )}
             <button
               type="submit"
               disabled={!canSubmit}
-              className={`pill mono bg-foreground ${phone ? "px-6 py-3" : "px-4 py-1.5"} text-xs uppercase tracking-wider text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40`}
+              className={`pill mono bg-foreground ${sz.pill} uppercase tracking-wider text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40`}
             >
               {status === "submitting" ? "Sending..." : "Send Feedback"}
             </button>
