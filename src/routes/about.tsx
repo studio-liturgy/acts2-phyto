@@ -4,7 +4,7 @@ import AboutTest from "@/content/about-test";
 import AboutMain from "@/content/about-main";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
-const aboutBg = "/about-bg.jpg";
+const aboutBg = isTest ? "/login-bg-or.jpg" : "/about-bg.jpg";
 
 export const Route = createFileRoute("/about")({
   head: () => ({

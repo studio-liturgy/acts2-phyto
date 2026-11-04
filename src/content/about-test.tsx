@@ -5,7 +5,8 @@ import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 
-const aboutBg = "/about-bg-or.jpg";
+// Same picture as the test sign-in page.
+const aboutBg = "/login-bg-or.jpg";
 
 export default function AboutTest() {
   const backSearch = useBackHomeSearch();
