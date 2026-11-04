@@ -98,6 +98,7 @@ export function PhoneViewer({
   onActiveChange,
   onChordChange,
   onEditSet,
+  alwaysShowChords = false,
   prefs: controlledPrefs,
   onPrefsChange,
   onAddSet,
@@ -141,6 +142,10 @@ export function PhoneViewer({
    *  uses this); otherwise the view keeps its own prefs. */
   prefs?: ViewerPrefs;
   onPrefsChange?: (prefs: ViewerPrefs) => void;
+  /** The leader's own preview (the phone gathering's Phone view): a song with
+   *  chords switched on always shows them, whatever this device's viewer
+   *  toggle says. The stored toggle is left untouched for /g. */
+  alwaysShowChords?: boolean;
 }) {
   const [activeSetId, setActiveSetId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
   const [activeTabId, setActiveTabId] = useState<string | null>(activeId ?? sets[0]?.id ?? null);
@@ -342,8 +347,9 @@ export function PhoneViewer({
   })();
 
   // Chords follow the viewer's Show/Hide choice in every context — the g view's
-  // hamburger and the presenter's settings panel both drive prefs.showChords.
-  const showChords = prefs.showChords;
+  // hamburger and the presenter's settings panel both drive prefs.showChords,
+  // except the leader's own phone preview, which always shows them.
+  const showChords = alwaysShowChords || prefs.showChords;
 
   const setActiveChordOverride = (
     patch: Partial<{ key: string; display: "letters" | "numbers" }>,

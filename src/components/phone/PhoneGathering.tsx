@@ -363,6 +363,7 @@ export function PhoneGathering({
               arrangementsBySet={arranged}
               embedded
               showSettings={false}
+              alwaysShowChords
               prefs={prefs}
               onPrefsChange={setPrefs}
               activeId={activeId}
