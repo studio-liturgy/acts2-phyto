@@ -112,13 +112,15 @@ export function savePrefs(prefs: ViewerPrefs) {
 }
 
 /**
- * A song offers the chord toggle whenever its lyrics actually carry chords —
- * independent of whether the leader left chords switched on or off in the
- * editor. That toggle only controls the editor's own box and the leader's
- * preview; a viewer here is free to look at chords the leader isn't.
+ * A song shows chords on the phone view only when its Chords switch is on in
+ * the song editor (the same rule as the catalogue's Chords filter) and its
+ * lyrics actually carry chords. Switched off, the chords stay in the lyrics
+ * but no viewer sees them, and the Chords toggle is hidden when no song in
+ * the gathering qualifies.
  */
 export function phoneSetHasChords(set: PhoneSet): boolean {
   if (set.type !== "song") return false;
+  if (!set.chords || set.chords.hidden) return false;
   return (set.slides ?? []).some((s) => s.lines?.some((l) => parseChordLine(l).chords.length > 0));
 }
 

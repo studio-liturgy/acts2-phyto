@@ -1,5 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { centeredTabScroll, phoneQrColors, phoneQrUrl } from "@/lib/phone-viewer";
+import {
+  centeredTabScroll,
+  phoneQrColors,
+  phoneQrUrl,
+  phoneSetHasChords,
+  type PhoneSet,
+} from "@/lib/phone-viewer";
+
+describe("phoneSetHasChords", () => {
+  const song = (chords?: PhoneSet["chords"], lines = ["(G)Amazing (C)grace"]): PhoneSet =>
+    ({
+      id: "s1",
+      title: "Song",
+      type: "song",
+      slides: [{ id: "a", lines }],
+      chords,
+    }) as PhoneSet;
+  it("shows chords when the song's Chords switch is on", () => {
+    expect(phoneSetHasChords(song({ key: "G", display: "letters" }))).toBe(true);
+  });
+  it("hides them when the song's Chords switch is off", () => {
+    expect(phoneSetHasChords(song({ key: "G", display: "letters", hidden: true }))).toBe(false);
+  });
+  it("hides them when chords were never switched on", () => {
+    expect(phoneSetHasChords(song(undefined))).toBe(false);
+  });
+  it("needs chord rows in the lyrics", () => {
+    expect(phoneSetHasChords(song({ key: "G", display: "letters" }, ["Amazing grace"]))).toBe(
+      false,
+    );
+  });
+});
 
 describe("phoneQrUrl", () => {
   it("keeps the /g link and drops query and hash", () => {
