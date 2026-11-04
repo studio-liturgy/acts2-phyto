@@ -273,23 +273,30 @@ function LinkAccountMenu({ ownId }: { ownId: string | null }) {
     );
   }
   if (ownId) {
+    // Edit and Home share one row, each half the width.
+    const ROW_BTN = BTN.replace("mt-2 block w-full", "flex-1");
     return (
-      <button
-        type="button"
-        onClick={() => {
-          // The edit page's back arrow returns here.
-          try {
-            sessionStorage.setItem("phyto:link-back", here);
-          } catch {
-            // No storage: the edit page simply has no back arrow.
-          }
-          navigate({ to: "/present", search: { gathering: ownId, link: true } });
-        }}
-        className={BTN}
-        style={MONO}
-      >
-        Edit
-      </button>
+      <div className="mt-2 flex gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            // The edit page's back arrow returns here.
+            try {
+              sessionStorage.setItem("phyto:link-back", here);
+            } catch {
+              // No storage: the edit page simply has no back arrow.
+            }
+            navigate({ to: "/present", search: { gathering: ownId, link: true } });
+          }}
+          className={ROW_BTN}
+          style={MONO}
+        >
+          Edit
+        </button>
+        <Link to="/" className={ROW_BTN} style={MONO}>
+          Home
+        </Link>
+      </div>
     );
   }
   // Sign out, then which account you're in under it. On a phone, signing
