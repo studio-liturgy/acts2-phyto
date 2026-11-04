@@ -166,7 +166,7 @@ function FeedbackPage() {
         <p className="text-base text-muted-foreground">
           {isTest
             ? "Tell me what broke, what felt off, or what you loved through the form below."
-            : "Pick a category and let us know what's on your mind. We read every message."}
+            : "Pick a category and let us know what's on your mind."}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-10 space-y-6">
