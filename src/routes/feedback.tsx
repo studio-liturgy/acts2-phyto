@@ -165,7 +165,7 @@ function FeedbackPage() {
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
         <p className="text-base text-muted-foreground">
           {isTest
-            ? "Tell me what broke, what felt off, or what you loved through the form below."
+            ? "Thanks for testing phyto on mobile! Tell me what broke, what felt off, or what you loved through the form below."
             : "Pick a category and let us know what's on your mind."}
         </p>
 
