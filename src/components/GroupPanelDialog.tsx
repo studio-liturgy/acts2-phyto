@@ -27,11 +27,14 @@ export function GroupPanelDialog({
   group,
   onChanged,
   mode = "manage",
+  onDeleted,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   group: MyGroup;
   onChanged?: () => void;
+  /** After the group was deleted (the phone moves to the Catalogue tab). */
+  onDeleted?: () => void;
   /**
    * "manage" is the full roster panel. "invite" is the pared-down step shown
    * right after a group is created: same invite + member list, but no renaming
@@ -152,6 +155,7 @@ export function GroupPanelDialog({
     if (ok) {
       onChanged?.();
       onOpenChange(false);
+      onDeleted?.();
     } else {
       setError("Could not delete. Try again.");
     }

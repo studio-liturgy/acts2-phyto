@@ -59,6 +59,7 @@ import { clearCachedGroups, readCachedGroups } from "@/lib/group-cache";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { TestSiteWarning } from "@/components/TestSiteWarning";
 import { Button } from "@/components/ui/button";
+import { useDialogKeyboard } from "@/hooks/use-dialog-keyboard";
 
 function NotFoundComponent() {
   return (
@@ -343,6 +344,8 @@ function RootComponent() {
   const [applying, setApplying] = useState(false);
   const authLoading = useAuthStore((st) => st.isLoading);
   const [testerOk, setTesterOk] = useState<boolean | null>(null);
+  // Phone: pop-up dialogs move above the keyboard while typing in them.
+  useDialogKeyboard(PHONE_UI);
   const [notTester, setNotTester] = useState(false);
 
   const runDiff = async (autoMerge = false) => {

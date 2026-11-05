@@ -378,6 +378,14 @@ input[type="range"].phone-range::-moz-range-thumb {
   html[data-phone-ui] :is([role="dialog"], [role="alertdialog"]).rounded-3xl > p.text-base {
     margin-top: 0.75rem;
   }
+  /* Typing in a dialog: centred in the part the keyboard leaves visible
+     (use-dialog-keyboard.ts), scrolling inside if it is taller than that. */
+  html[data-phone-ui][data-dialog-kb] :is([role="dialog"], [role="alertdialog"]).rounded-3xl {
+    top: calc(var(--dkb-top, 0px) + var(--dkb-h, 100dvh) / 2);
+    max-height: calc(var(--dkb-h, 100dvh) - 1.5rem);
+    overflow-y: auto;
+    transition: top 200ms ease-out;
+  }
 }
 
 /* Phone layout: the page itself never rubber-bands; each screen scrolls its

@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+import { fitFontSize } from "@/lib/fit-text";
 import { isTesterEmail, signInWithEmail, verifyEmailCode } from "@/lib/auth";
 import { TESTERS_ONLY } from "@/lib/testers";
 import { TestersOnlyDialog } from "@/components/TestersOnlyDialog";
@@ -42,6 +43,27 @@ function LoginPage() {
   // Phone: button words in the big button size (Delete gathering's).
   const phone = usePhoneLayout() === true && PHONE_UI;
   const btnText = phone ? "text-xs tracking-wider" : "text-sm";
+  // Phone: "Keep me in the loop" sized to run edge to edge under the buttons.
+  const loopRow = useRef<HTMLLabelElement>(null);
+  const loopText = useRef<HTMLSpanElement>(null);
+  const [loopSize, setLoopSize] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const row = loopRow.current;
+    const text = loopText.current;
+    if (!phone || !row || !text) return;
+    const fit = () => {
+      const size = parseFloat(getComputedStyle(text).fontSize);
+      const t = text.getBoundingClientRect();
+      const avail = row.getBoundingClientRect().right - t.left;
+      const next = fitFontSize(size, t.width, avail, { min: 8, max: 14 });
+      setLoopSize((s) => (s === next ? s : next));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(row);
+    void document.fonts?.ready.then(fit);
+    return () => ro.disconnect();
+  }, [phone, step]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,7 +258,9 @@ function LoginPage() {
                 )}
 
                 <label
-                  className={`mono flex cursor-pointer items-center justify-center gap-2 pt-1 text-[11px] uppercase ${isTest ? "text-black/70" : "text-white/70"}`}
+                  ref={loopRow}
+                  className={`mono flex cursor-pointer items-center gap-2 pt-1 uppercase ${phone ? "justify-start whitespace-nowrap" : "justify-center text-[11px]"} ${isTest ? "text-black/70" : "text-white/70"}`}
+                  style={phone ? { fontSize: loopSize ?? 11 } : undefined}
                 >
                   <input
                     type="checkbox"
@@ -258,7 +282,7 @@ function LoginPage() {
                       </svg>
                     )}
                   </div>
-                  Keep me in the loop with phyto updates and news.
+                  <span ref={loopText}>Keep me in the loop with phyto updates and news.</span>
                 </label>
 
                 <p

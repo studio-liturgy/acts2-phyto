@@ -65,6 +65,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ShareSetDialog } from "@/components/ShareSetDialog";
 import { SharedInboxList } from "@/components/SharedInboxList";
 import { GroupPanelDialog } from "@/components/GroupPanelDialog";
+import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
@@ -108,6 +109,20 @@ export function PhoneHome({ tab }: { tab: PhoneTab }) {
   const groups = useLibrary((s) => s.groups) ?? [];
   const loadGroups = useLibrary((s) => s.loadGroups);
   const setActiveWorkspace = useLibrary((s) => s.setActiveWorkspace);
+  const shareCatalogueToGroup = useLibrary((s) => s.shareCatalogueToGroup);
+  const navigate = useNavigate();
+  const goTab = (t: PhoneTab) => navigate({ to: "/", search: { tab: t } });
+
+  // After + New group (in Settings): over to the new group's catalogue, the
+  // desktop's "Share your catalogue?", then the invite panel. Held here, not
+  // in Settings, so the pop-ups survive the move to the Catalogue tab.
+  const [catalogueShareGroupId, setCatalogueShareGroupId] = useState<string | null>(null);
+  const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
+  const inviteGroup = groups.find((g) => g.id === inviteGroupId);
+  const onGroupCreated = (id: string) => {
+    goTab("catalogue");
+    setCatalogueShareGroupId(id);
+  };
 
   // "Shared with you" and group invites, as on the desktop home.
   const [inbox, setInbox] = useState<InboxShare[]>([]);
@@ -153,6 +168,7 @@ export function PhoneHome({ tab }: { tab: PhoneTab }) {
     setGroupInvites((prev) => prev.filter((i) => i.inviteId !== invite.inviteId));
     await loadGroups();
     await setActiveWorkspace(invite.groupId);
+    goTab("gatherings");
   };
   const declineInvite = async (invite: GroupInvite) => {
     await declineGroupInvite(invite.inviteId);
@@ -185,6 +201,67 @@ export function PhoneHome({ tab }: { tab: PhoneTab }) {
           groupInvites={groupInvites}
           onAcceptInvite={acceptInvite}
           onDeclineInvite={declineInvite}
+          onGroupCreated={onGroupCreated}
+          onSwitched={() => goTab("gatherings")}
+          onGroupDeleted={() => goTab("catalogue")}
+        />
+      )}
+
+      {/* After creating a group: offer to share the whole personal catalogue
+          (the desktop's pop-up and copy), then invite people. */}
+      <AlertDialog
+        open={catalogueShareGroupId !== null}
+        onOpenChange={(o) => {
+          if (!o) setCatalogueShareGroupId(null);
+        }}
+      >
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Share your catalogue?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            Add all your personal sets to this group so everyone can use them. You can retract any
+            set later.
+          </AlertDialogDescription>
+          <div className="mt-6 border-t border-foreground/15 pt-4">
+            <WorkspaceSettingsRows />
+          </div>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={async () => {
+                const gid = catalogueShareGroupId;
+                setCatalogueShareGroupId(null);
+                if (gid) {
+                  await shareCatalogueToGroup(gid);
+                  setInviteGroupId(gid);
+                }
+              }}
+              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background transition active:opacity-80"
+            >
+              Share catalogue
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const gid = catalogueShareGroupId;
+                setCatalogueShareGroupId(null);
+                if (gid) setInviteGroupId(gid);
+              }}
+              className="mono uppercase flex-1 rounded-full border border-foreground bg-transparent py-2 text-sm transition active:bg-foreground active:text-background"
+            >
+              Not now
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+      {inviteGroup && (
+        <GroupPanelDialog
+          open={inviteGroupId !== null}
+          onOpenChange={(o) => !o && setInviteGroupId(null)}
+          group={inviteGroup}
+          onChanged={loadGroups}
+          mode="invite"
         />
       )}
 
@@ -971,10 +1048,19 @@ function SettingsTab({
   groupInvites,
   onAcceptInvite,
   onDeclineInvite,
+  onGroupCreated,
+  onSwitched,
+  onGroupDeleted,
 }: {
   groupInvites: GroupInvite[];
   onAcceptInvite: (invite: GroupInvite) => void;
   onDeclineInvite: (invite: GroupInvite) => void;
+  /** A new group was made and is now the active workspace. */
+  onGroupCreated: (id: string) => void;
+  /** Switched to another workspace from the group menu. */
+  onSwitched: () => void;
+  /** Deleted the group (back in Personal). */
+  onGroupDeleted: () => void;
 }) {
   const navigate = useNavigate();
   const isSignedIn = useIsSignedIn();
@@ -996,8 +1082,10 @@ function SettingsTab({
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
-  const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
-  const inviteGroup = groups.find((g) => g.id === inviteGroupId);
+  const switchTo = async (ws: string) => {
+    await setActiveWorkspace(ws);
+    onSwitched();
+  };
   const handleCreateGroup = async () => {
     const name = newGroupName.trim();
     if (!name || creatingGroup || groups.length >= MAX_GROUPS) return;
@@ -1011,7 +1099,7 @@ function SettingsTab({
       if (personal) await saveWorkspaceSettings({ groupId: id }, personal.settings);
       await loadGroups();
       await setActiveWorkspace(id);
-      setInviteGroupId(id);
+      onGroupCreated(id);
     }
   };
 
@@ -1098,7 +1186,7 @@ function SettingsTab({
                   )}
                   {activeWorkspace !== "personal" && (
                     <DropdownMenuItem
-                      onClick={() => setActiveWorkspace("personal")}
+                      onClick={() => void switchTo("personal")}
                       className={MENU_ITEM}
                     >
                       Personal
@@ -1109,7 +1197,7 @@ function SettingsTab({
                     .map((g) => (
                       <DropdownMenuItem
                         key={g.id}
-                        onClick={() => setActiveWorkspace(g.id)}
+                        onClick={() => void switchTo(g.id)}
                         className={`${MENU_ITEM} normal-case`}
                       >
                         {g.name}
@@ -1370,21 +1458,13 @@ function SettingsTab({
           </div>
         </DialogContent>
       </Dialog>
-      {inviteGroup && (
-        <GroupPanelDialog
-          open={inviteGroupId !== null}
-          onOpenChange={(o) => !o && setInviteGroupId(null)}
-          group={inviteGroup}
-          onChanged={loadGroups}
-          mode="invite"
-        />
-      )}
       {activeGroup && (
         <GroupPanelDialog
           open={manage}
           onOpenChange={setManage}
           group={activeGroup}
           onChanged={loadGroups}
+          onDeleted={onGroupDeleted}
         />
       )}
     </PhoneScreen>
