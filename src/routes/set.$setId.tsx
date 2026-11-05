@@ -7,7 +7,7 @@ import { DotsGrip } from "@/components/DragBits";
 import { useLibrary, useSongTemplateDraft, useScriptureTemplateDraft } from "@/lib/store";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
-import { groupSlides, moveSlideKeepingSections } from "@/lib/sections";
+import { groupSlides, moveSlideKeepingSections, opensSection, sectionLabel } from "@/lib/sections";
 import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
 import { parseYouTubeId } from "@/lib/parsers";
 import { applyDividers, breakCount } from "@/lib/apply-dividers";
@@ -670,7 +670,7 @@ function SetEditor() {
           const groups: { label: string | undefined; slides: Slide[] }[] = [];
           for (const s of phytoSet.slides) {
             const last = groups[groups.length - 1];
-            if (!last || s.section !== last.label) {
+            if (!last || opensSection(last.slides[last.slides.length - 1], s)) {
               groups.push({ label: s.section, slides: [s] });
             } else {
               last.slides.push(s);
@@ -680,9 +680,9 @@ function SetEditor() {
             <div className="space-y-4">
               {groups.map((g, gi) => (
                 <div key={gi}>
-                  {g.label && (
+                  {g.label !== undefined && (
                     <div className="mono mb-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-                      {g.label}
+                      {sectionLabel(g.label)}
                     </div>
                   )}
                   <div
@@ -1900,15 +1900,16 @@ function ChordSheet({ slides, chords }: { slides: Slide[]; chords: SongChords })
       localStorage.setItem(CHORD_SHEET_KEY, h ? "0" : "1");
       return !h;
     });
+  // A section with no name gets no title here (as on phones).
   const groups: { label: string | undefined; lines: string[] }[] = [];
-  for (const s of slides) {
+  slides.forEach((s, i) => {
     const last = groups[groups.length - 1];
-    if (!last || s.section !== last.label) {
+    if (!last || opensSection(slides[i - 1], s)) {
       groups.push({ label: s.section, lines: [...(s.lines ?? [])] });
     } else {
       last.lines.push(...(s.lines ?? []));
     }
-  }
+  });
 
   return (
     <div className="mb-4 overflow-hidden rounded-2xl border border-foreground">

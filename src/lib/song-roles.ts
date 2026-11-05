@@ -11,6 +11,7 @@
 import type { Slide } from "./types";
 import { isChordOnlyLine } from "./chords";
 import { lyricsToSlides } from "./slide-text";
+import { SECTION_LINE_RE } from "./sections";
 
 export type Role = "leader" | "people";
 
@@ -60,7 +61,7 @@ export function startsRoleRun(roles: readonly (Role | null | undefined)[], i: nu
  *  slide break or a `[Section]` label (mirrors parseLyricsFromText). */
 function isSlideLine(line: string): boolean {
   const t = line.trim();
-  return t !== "" && !/^---\s*$/.test(t) && !/^\[.+\]$/.test(t);
+  return t !== "" && !/^---\s*$/.test(t) && !SECTION_LINE_RE.test(t);
 }
 
 /** Can a stored line take a role? A slide line that isn't instrumental. */
@@ -187,7 +188,7 @@ export function plainSongSlides(
 }
 
 /** A lyric line of the plain text: words, not a `[Label]`, `---` or blank. */
-const isWordLine = (l: string) => !!l.trim() && !/^\s*\[.+\]\s*$/.test(l) && l.trim() !== "---";
+const isWordLine = (l: string) => !!l.trim() && !SECTION_LINE_RE.test(l) && l.trim() !== "---";
 
 /** The roles of the text's lyric lines only, in order (kept while the song is
  *  in Multi-Language, which has no roles). */

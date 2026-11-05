@@ -23,6 +23,10 @@ export interface Slide {
   /** Manual section label used for grouping (e.g. "Chorus", "Verse 1", "Intro").
    *  Independent of `reference` so scripture slides can keep their verse ref. */
   section?: string;
+  /** Songs: this slide opens a section with no name (`section` is ""), so
+   *  two unnamed sections side by side stay apart. Named sections need no
+   *  marker: they start wherever the label changes. */
+  sectionStart?: boolean;
   /** data URL or external URL for an image slide / background */
   imageUrl?: string;
   /** Image slides (media) and message images: how the image fills its frame.

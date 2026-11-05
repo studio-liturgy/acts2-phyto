@@ -2225,7 +2225,7 @@ function SlideGridForPresenter({
                 onClick={(e) => onToggleSection?.(g.key, e.clientX, e.clientY)}
                 className="pill absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center border border-foreground bg-background transition hover:bg-foreground hover:text-background"
                 title={
-                  isHidden ? `Show ${g.section ?? "section"}` : `Hide ${g.section ?? "section"}`
+                  isHidden ? `Show ${g.section || "section"}` : `Hide ${g.section || "section"}`
                 }
                 aria-label={isHidden ? "Show section" : "Hide section"}
                 aria-pressed={isHidden}

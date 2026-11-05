@@ -287,7 +287,7 @@ export function PhoneGathering({
               effectiveArrangement(d.slides, arranged[id], hidden[id]),
             );
             const labels = new Map(sectionOptions(d.slides).map((o) => [o.key, o]));
-            const named = order.some(({ group }) => !!group.section);
+            const named = order.some(({ group }) => group.section !== null);
             return (
               <section key={`${id}#${i}`}>
                 <div className="mb-2 flex items-center gap-2">

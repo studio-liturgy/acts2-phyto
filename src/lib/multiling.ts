@@ -84,7 +84,9 @@ export function divideRows(rows: MultiRow[], perSlide: number): MultiRow[] {
 /** Whether two grids divide into the same slides (same rows in each). */
 export function sameDivision(a: MultiRow[], b: MultiRow[]): boolean {
   const shape = (rows: MultiRow[]) =>
-    JSON.stringify(rowsToSlides(rows, []).map((sl) => [sl.section ?? "", sl.linesByLang]));
+    JSON.stringify(
+      rowsToSlides(rows, []).map((sl) => [sl.section ?? "", !!sl.sectionStart, sl.linesByLang]),
+    );
   return shape(a) === shape(b);
 }
 
@@ -166,6 +168,8 @@ export function slideStarts(rows: MultiRow[]): (number | null)[] {
 export function rowsToSlides(rows: MultiRow[], show: LangCode[]): Slide[] {
   const slides: Slide[] = [];
   let section: string | undefined;
+  // The next slide opens a section with no name.
+  let opensUnnamed = false;
   let chunk: LineRow[] = [];
   const flush = () => {
     if (!chunk.length) return;
@@ -183,14 +187,18 @@ export function rowsToSlides(rows: MultiRow[], show: LangCode[]): Slide[] {
       lines,
       linesByLang: byLang,
       ...(lineLangs.length ? { lineLangs } : {}),
-      ...(section ? { section } : {}),
+      ...(section !== undefined ? { section } : {}),
+      ...(opensUnnamed ? { sectionStart: true } : {}),
     });
+    opensUnnamed = false;
     chunk = [];
   };
   for (const row of rows) {
     if (row.kind === "section") {
       flush();
-      section = row.text.trim() || undefined;
+      // An emptied name keeps the section (only the bin removes one).
+      section = row.text.trim();
+      opensUnnamed = !section;
       continue;
     }
     if (row.kind === "break") {
@@ -212,8 +220,8 @@ export function slidesToRows(slides: Slide[]): MultiRow[] {
   const rows: MultiRow[] = [];
   let prevSection: string | undefined;
   for (const s of slides) {
-    if (s.section !== prevSection) {
-      if (s.section) rows.push({ kind: "section", text: s.section });
+    if (s.section !== prevSection || s.sectionStart) {
+      if (s.section !== undefined) rows.push({ kind: "section", text: s.section });
       prevSection = s.section;
     } else pushBreak(rows);
     const byLang = s.linesByLang ?? {};
@@ -275,8 +283,8 @@ export function standardToRows(slides: Slide[], lang: LangCode): MultiRow[] {
   const rows: MultiRow[] = [];
   let prevSection: string | undefined;
   for (const s of slides) {
-    if (s.section !== prevSection) {
-      if (s.section) rows.push({ kind: "section", text: s.section });
+    if (s.section !== prevSection || s.sectionStart) {
+      if (s.section !== undefined) rows.push({ kind: "section", text: s.section });
       prevSection = s.section;
     } else pushBreak(rows);
     for (const line of s.lines ?? []) {
@@ -347,8 +355,8 @@ export function returnToMultilang(hidden: HiddenLangs, plain: Slide[]): MultiRow
   let prevSection: string | undefined;
   let k = 0;
   for (const s of plain) {
-    if (s.section !== prevSection) {
-      if (s.section) rows.push({ kind: "section", text: s.section });
+    if (s.section !== prevSection || s.sectionStart) {
+      if (s.section !== undefined) rows.push({ kind: "section", text: s.section });
       prevSection = s.section;
     } else pushBreak(rows);
     for (const line of s.lines ?? []) {

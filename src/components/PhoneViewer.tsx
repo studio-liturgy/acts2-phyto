@@ -3,7 +3,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { ChordLine } from "@/components/ChordLine";
 import { TapRange } from "@/components/TapRange";
 import { guessKey, KEYS, transposeLyrics, type SongChords } from "@/lib/chords";
-import { groupSlides, hiddenSlideIndices } from "@/lib/sections";
+import { groupSlides, hiddenSlideIndices, opensSection } from "@/lib/sections";
 import { arrangedEntries, effectiveArrangement } from "@/lib/arrangements";
 import { renderInline } from "@/lib/inline-format";
 import { MAX_SHOWN_LANGS, shownLangs } from "@/lib/multiling";
@@ -923,9 +923,12 @@ function SetContent({
         });
       }
     }
+    let prevSlide: PhoneSlide | undefined;
     for (const slide of arranged.length > 0 ? [] : slides) {
       const last = groups[groups.length - 1];
-      if (last && last.section === slide.section) {
+      const opens = opensSection(prevSlide, slide);
+      prevSlide = slide;
+      if (last && !opens) {
         last.lines.push(...(slide.lines ?? []));
         last.roles.push(...rolesOf(slide));
       } else {
@@ -1181,7 +1184,9 @@ function SlideBlock({
     : undefined;
   return (
     <div className={showChords ? "space-y-2" : "space-y-1"}>
-      {section && <p className={`text-xs uppercase tracking-widest ${mutedClass}`}>{section}</p>}
+      {section?.trim() && (
+        <p className={`text-xs uppercase tracking-widest ${mutedClass}`}>{section}</p>
+      )}
       {lines.map((line, j) => (
         <ChordLine
           key={j}

@@ -9,6 +9,8 @@ export interface SectionSlide {
   id?: string;
   kind?: string;
   section?: string;
+  /** Songs: opens a section with no name (see Slide). */
+  sectionStart?: boolean;
   reference?: string;
   /** which scripture import this verse came from, so a message groups by
    *  import (and colours per block) rather than by shared reference text. */
@@ -42,6 +44,29 @@ export function sectionOf(s: SectionSlide): string | null {
   return null;
 }
 
+/** A song slide in a section whose name was left empty (`[]`). */
+export function isUnnamedSection(s: SectionSlide): boolean {
+  return (
+    (s.kind === undefined || s.kind === "lyric") && s.section !== undefined && !s.section.trim()
+  );
+}
+
+/** Does `s` open a new section after `prev` (for the simple groupings that
+ *  walk slides by label)? An unnamed section opens one even after another. */
+export function opensSection(prev: SectionSlide | undefined, s: SectionSlide): boolean {
+  return !prev || prev.section !== s.section || !!s.sectionStart;
+}
+
+/** A group's name on pills and menus: a section whose name was left empty
+ *  reads "Section", lines before any section "Untitled". */
+export function sectionLabel(section: string | null): string {
+  return section === null ? "Untitled" : section.trim() || "Section";
+}
+
+/** A song section label line in the lyrics text: `[Chorus]`, or `[]` for a
+ *  section with no name. Group 1 is the name. */
+export const SECTION_LINE_RE = /^\s*\[(.*)\]\s*$/;
+
 /** Group consecutive slides by their resolved section, the same way the
  *  presenter grid renders them. Shared so every surface agrees on keys. */
 export function groupSlides<T extends SectionSlide>(slides: T[]): SlideGroup<T>[] {
@@ -53,8 +78,12 @@ export function groupSlides<T extends SectionSlide>(slides: T[]): SlideGroup<T>[
   let dividerSection: string | null | undefined =
     slides[0]?.sectionBefore !== undefined ? slides[0].sectionBefore.trim() || null : undefined;
   let mediaSectionNo = 0;
+  // Unnamed song sections (label "") each open a block of their own.
+  let unnamedNo = 0;
   slides.forEach((s, i) => {
-    const sec = sectionOf(s) ?? dividerSection ?? null;
+    const unnamed = isUnnamedSection(s);
+    if (unnamed && (s.sectionStart || currentSection !== "")) unnamedNo += 1;
+    const sec = (unnamed ? "" : sectionOf(s)) ?? dividerSection ?? null;
     const resolvedSection = sec ?? currentSection;
     // A block is: one scripture import (by importIndex), a run of consecutive
     // points/images together, or a run of one section (songs). This keeps a
@@ -66,7 +95,9 @@ export function groupSlides<T extends SectionSlide>(slides: T[]): SlideGroup<T>[
           ? dividerSection !== undefined
             ? `media:${mediaSectionNo}`
             : "elements"
-          : `sec:${resolvedSection ?? ""}`;
+          : unnamed
+            ? `unnamed:${unnamedNo}`
+            : `sec:${resolvedSection ?? ""}`;
     const last = groups[groups.length - 1];
     if (!last || blockKey !== lastBlockKey) {
       groups.push({ section: resolvedSection, key: "", items: [{ slide: s, index: i }] });

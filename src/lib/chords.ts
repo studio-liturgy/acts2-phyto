@@ -922,7 +922,7 @@ export function insertChordAtBoxOffset(
   const layout = buildChordRowLayout(lyrics, render);
 
   const storedLines = lyrics.split("\n");
-  const isSection = (i: number) => /^\[.+\]$/.test(storedLines[i].trim());
+  const isSection = (i: number) => /^\[.*\]$/.test(storedLines[i].trim());
 
   let cursor = 0;
   let hit: { line: RowLayoutLine; offset: number } | null = null;

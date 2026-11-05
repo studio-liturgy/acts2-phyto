@@ -23,6 +23,8 @@ export interface ShareSlide {
   title?: string;
   lines?: string[];
   section?: string;
+  /** Songs: opens an unnamed section (see Slide). */
+  sectionStart?: boolean;
   reference?: string;
   imageUrl?: string;
   videoSource?: "youtube" | "file" | "url";

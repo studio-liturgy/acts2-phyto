@@ -7,7 +7,7 @@
 // Shared by the presenter grid, live navigation and the phone viewer so they
 // all agree on the order.
 
-import { groupSlides, type SectionSlide, type SlideGroup } from "./sections";
+import { groupSlides, sectionLabel, type SectionSlide, type SlideGroup } from "./sections";
 
 export type Arrangement = string[];
 
@@ -185,18 +185,18 @@ export interface SectionOption {
 
 /** The song's written sections as pill/menu options. A label the song uses
  *  twice gets its number ("Chorus", "Chorus (2)") so the two stay apart;
- *  an unlabeled section reads "Untitled". */
+ *  names come from `sectionLabel`. */
 export function sectionOptions(slides: SectionSlide[]): SectionOption[] {
   const groups = groupSlides(slides);
+  const bases = groups.map((g) => sectionLabel(g.section));
   const total = new Map<string, number>();
-  for (const g of groups) total.set(g.section ?? "", (total.get(g.section ?? "") ?? 0) + 1);
+  for (const b of bases) total.set(b, (total.get(b) ?? 0) + 1);
   const seen = new Map<string, number>();
   return groups.map((g, index) => {
-    const name = g.section ?? "";
-    const n = (seen.get(name) ?? 0) + 1;
-    seen.set(name, n);
-    const base = name || "Untitled";
-    return { key: g.key, label: (total.get(name) ?? 0) > 1 ? `${base} (${n})` : base, index };
+    const base = bases[index];
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    return { key: g.key, label: (total.get(base) ?? 0) > 1 ? `${base} (${n})` : base, index };
   });
 }
 

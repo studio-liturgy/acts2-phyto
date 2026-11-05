@@ -3,6 +3,7 @@
 // set.$setId.tsx so the editor and the unit tests share one implementation.
 import type { Slide } from "./types";
 import { stableStringify } from "./sync";
+import { SECTION_LINE_RE } from "./sections";
 import { parseVerseTag, spanRanges, verseTag } from "./verse-ref";
 
 /** Options for turning scripture text into slides. */
@@ -34,13 +35,16 @@ function uid() {
 }
 
 // Parses lyrics using only --- as slide breaks, never re-splitting by linesPer.
-// Lines matching /^\[.+\]$/ set the current group label for following slides.
+// Lines matching /^\[.*\]$/ set the current group label for following slides
+// (`[]`: a section with no name).
 // Used for the live right-column preview on every keystroke.
 export function parseLyricsFromText(text: string): Slide[] {
   const rawLines = text.split("\n");
   const slides: Slide[] = [];
   let currentSection: string | undefined;
   let currentLines: string[] = [];
+  // The next slide opens an unnamed section (`[]`).
+  let opensUnnamed = false;
 
   const flushSlide = () => {
     const content = currentLines.join("\n").trim();
@@ -53,7 +57,9 @@ export function parseLyricsFromText(text: string): Slide[] {
           .map((l) => l.trim())
           .filter(Boolean),
         section: currentSection,
+        ...(opensUnnamed ? { sectionStart: true } : {}),
       });
+      opensUnnamed = false;
     }
     currentLines = [];
   };
@@ -61,9 +67,11 @@ export function parseLyricsFromText(text: string): Slide[] {
   for (const line of rawLines) {
     if (/^---\s*$/.test(line)) {
       flushSlide();
-    } else if (/^\[.+\]$/.test(line.trim())) {
+    } else if (SECTION_LINE_RE.test(line)) {
       flushSlide();
       currentSection = line.trim().slice(1, -1);
+      // Not trimmed: a name being typed keeps its trailing space.
+      opensUnnamed = !currentSection.trim();
     } else {
       currentLines.push(line);
     }
@@ -174,8 +182,8 @@ export function slidesToLyricsText(slides: Slide[]): string {
   let prevSection: string | undefined;
   const parts: string[] = [];
   for (const s of slides) {
-    if (s.section !== prevSection) {
-      if (s.section) parts.push(`[${s.section}]`);
+    if (s.section !== prevSection || s.sectionStart) {
+      if (s.section !== undefined) parts.push(`[${s.section}]`);
       prevSection = s.section;
     }
     parts.push(s.lines?.join("\n") ?? "");

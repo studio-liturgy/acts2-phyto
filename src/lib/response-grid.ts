@@ -10,6 +10,7 @@
 // never drift apart.
 import { splitChordLine, stripChordsRaw } from "./chords";
 import type { LineRoles, Role } from "./song-roles";
+import { SECTION_LINE_RE } from "./sections";
 
 export type ResponseRow =
   | {
@@ -30,7 +31,8 @@ export type ResponseRow =
       first: boolean;
     };
 
-const SECTION_RE = /^\s*\[(.+)\]\s*$/;
+// `[]` is a section with no name (see SECTION_LINE_RE).
+const SECTION_RE = SECTION_LINE_RE;
 const BREAK_RE = /^\s*---\s*$/;
 
 /** A lyric row: words, or the one-space placeholder of a new empty line. */

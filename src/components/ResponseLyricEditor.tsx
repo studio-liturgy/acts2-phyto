@@ -465,12 +465,10 @@ export function ResponseLyricEditor({
                       const d = doc();
                       commit(setLine(d, row.index, `[${e.target.value}]`), undefined, true);
                     }}
-                    onBlur={(e) => {
-                      // An emptied label would stop being a section: drop it.
-                      if (!e.target.value.trim()) commit(removeLine(doc(), row.index));
-                    }}
-                    placeholder="Verse 1"
-                    className="mono flex-1 bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-wider outline-none"
+                    // An emptied name keeps the section (`[]`): only the bin
+                    // removes one.
+                    placeholder="Section"
+                    className="mono flex-1 bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-wider outline-none placeholder:text-muted-foreground"
                   />
                   <button
                     type="button"

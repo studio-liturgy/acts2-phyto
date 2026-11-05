@@ -913,8 +913,8 @@ export function MultiLangLyricEditor({
                     <input
                       value={row.text}
                       onChange={(e) => editSection(i, e.target.value)}
-                      placeholder="Verse 1"
-                      className="mono flex-1 bg-transparent px-2 py-1 text-[10px] font-semibold uppercase tracking-wider outline-none"
+                      placeholder="Section"
+                      className="mono flex-1 bg-transparent px-2 py-1 text-[10px] font-semibold uppercase tracking-wider outline-none placeholder:text-muted-foreground"
                     />
                   </div>
                   <div className="flex-1" />
