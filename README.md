@@ -9,14 +9,42 @@ It was created out of a need in a small house church setting and shared freely i
 
 ## What it does
 
-- Import and adjust song lyrics, bible verses and image/videos easily
-- Organize sets into gatherings
-- Present individual sets or gatherings live onto a projector or TV in an organized way
-- Search through your sets while presenting for spontaneous moments
-- Adjust set templates to suit your setup
-- Go "LIVE" on your gathering, share a link to your friends, and they can view it on their phone
-- Log in and sync your sets and gatherings across devices
-- More functionality to come!
+### Songs
+
+- Search a built-in catalogue of about 3,000 worship songs, fully offline, plus metrical psalms from the Seedbed Psalter
+- Chords on their own row above the words, for you and your musicians only, never on the projector. Switch between chord letters and Nashville numbers, and transpose to any key
+- Paste a chord sheet from Ultimate Guitar, WorshipTogether or ChordPro and the chords land on the right words
+- Multi-Language songs: one column per language, shown together on the slides. 26 languages, with reading aids like pinyin, jyutping and romaji
+- Call and Response: mark each line for the Leader or the People
+- Song arrangements: set the section order for each gathering, repeats included, without changing the song
+
+### Scripture and messages
+
+- Every Bible version YouVersion offers (1,485 Bibles in 1,262 languages), plus versions like ESV, KJV and Chinese Union
+- Two versions stacked verse by verse for bilingual gatherings
+- Grow a scripture set into a message with points, quotes, lists and images
+
+### Media
+
+- Images, PDFs, uploaded videos and YouTube links, with sections, looping and auto advance
+
+### Presenting
+
+- Organize sets into gatherings and present them on a TV or projector from the browser, with nothing to install
+- Search your catalogue while presenting for spontaneous moments
+- One background for every slide (a colour, or an image with dimming), in 16:9, 16:10, 4:3 or 21:9
+- Export a gathering or a set as a PDF or PowerPoint, drawn at 4K
+
+### Live on phones
+
+- Go live and share one permanent link or QR code. Everyone follows the words on their own phone
+- People following along can turn on chords, transpose and change the text size, and it only changes their own screen
+
+### Sharing and teams
+
+- Share a set with anyone by email and edit it together
+- Create a group: a shared workspace for your team's sets and gatherings
+- Sign in with an email code or Google to sync across devices, or use phyto without an account
 
 ## Why phyto exists
 
