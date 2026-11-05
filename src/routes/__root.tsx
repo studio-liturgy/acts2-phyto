@@ -144,14 +144,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: APP_NAME },
+      // No twitter:title/description: X falls back to each page's og:title and
+      // og:description, so link cards match the page instead of one fixed line.
+      // No twitter:site: phyto has no X account.
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@phyto.live" },
-      { name: "twitter:title", content: `${APP_NAME} | home gatherings` },
-      {
-        name: "twitter:description",
-        content:
-          "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live.",
-      },
       { property: "og:image", content: ogImage },
       { name: "twitter:image", content: ogImage },
       // Staging (phytoexp.live) mirrors prod content — keep it out of search so it

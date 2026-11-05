@@ -33,6 +33,7 @@ export default function UpdatesTest() {
         >
           <ArrowLeft className="h-3 w-3" /> BACK
         </Link>
+        <h1 className="sr-only">Updates</h1>
         {/* The next release's entry, exactly as phyto.live/updates will show it. */}
         <ul className="mt-8 space-y-12">
           <SongModesEntry />

@@ -24,6 +24,7 @@ export default function UpdatesMain() {
         >
           <ArrowLeft className="h-3 w-3" /> BACK
         </Link>
+        <h1 className="sr-only">Updates</h1>
         <ul className="mt-8 space-y-12">
           <SongModesEntry />
           <ArrangementsEntry />

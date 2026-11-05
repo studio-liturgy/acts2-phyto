@@ -59,6 +59,7 @@ export function LegalLayout({
         >
           <ArrowLeft className="h-3 w-3" /> BACK
         </Link>
+        <h1 className="sr-only">{active === "terms" ? "Terms of Use" : "Privacy Policy"}</h1>
         <div className="mt-8 flex gap-2">
           <LegalPill to="/terms" active={active === "terms"}>
             Terms of Use
