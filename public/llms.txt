@@ -1,6 +1,6 @@
 # phyto
 
-> A lightweight, open-source presentation tool for worship gatherings. Build sets of songs, scripture, and media, group them into gatherings, and present them live.
+> A free, open source presentation tool for worship gatherings at home. Prepare songs with chords and multiple languages, scripture from any YouVersion Bible, and media, group them into gatherings, present them live, and let everyone follow on their phones.
 
 ## Pages
 
