@@ -108,7 +108,8 @@ export const Route = createFileRoute("/")({
       { title: `${APP_NAME}: free worship presentation for gatherings at home` },
       {
         name: "description",
-        content: "Prepare sets, group them into gatherings, and present them live!",
+        content:
+          "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live.",
       },
       {
         property: "og:title",
@@ -116,7 +117,8 @@ export const Route = createFileRoute("/")({
       },
       {
         property: "og:description",
-        content: "Prepare sets, group them into gatherings, and present them live!",
+        content:
+          "phyto is a free, open source presentation tool built for worship gatherings in homes. Prepare your verses and lyrics beforehand, then run them live.",
       },
       { property: "og:url", content: "https://phyto.live/" },
     ],
