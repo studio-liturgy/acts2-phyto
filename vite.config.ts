@@ -38,5 +38,10 @@ export default defineConfig({
     // The export's PDF worker (lib/pdf-build.worker.ts) loads pdf-lib on demand,
     // which needs ES module workers (the default IIFE can't code-split).
     worker: { format: "es" },
+    // Cap Rollup's parallel file reads (default 1000). Cloudflare's build machine has a
+    // low open-file limit: with lucide-react's thousands of icon files the build failed
+    // with EMFILE, or worse "succeeded" with a module silently missing and 500'd every
+    // page. 64 builds under `ulimit -n 256` locally.
+    build: { rollupOptions: { maxParallelFileOps: 64 } },
   },
 });
