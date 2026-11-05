@@ -209,9 +209,18 @@ const NAV_CHIP = [
  *  network) still shows the still. Not the video's own `poster`: iOS Safari drops that as soon
  *  as loading starts and flashes blank before the first frame paints. Stays a panel for a clip
  *  that has no src yet (placeholder). The parent drives play/pause via ref. */
-const StepVideo = forwardRef<HTMLVideoElement, { clip: Clip; className?: string }>(
-  function StepVideo({ clip, className }, ref) {
+const StepVideo = forwardRef<HTMLVideoElement, { clip: Clip; className?: string; lazy?: boolean }>(
+  function StepVideo({ clip, className, lazy = false }, ref) {
     const [playing, setPlaying] = useState(false);
+    // Phone-width copies (`lazy`) never preload: their section's IntersectionObserver
+    // calls play() as each scrolls into view, which loads just that clip, and the poster
+    // covers it until then. The desktop copies preload in full, but only once the page
+    // is known to be desktop width (SSR renders "none"), so a phone never fetches the
+    // hidden desktop set.
+    const [preload, setPreload] = useState<"none" | "auto">("none");
+    useEffect(() => {
+      if (!lazy && window.matchMedia("(min-width: 768px)").matches) setPreload("auto");
+    }, [lazy]);
     const aspect = clip.aspect === "4/3" ? "aspect-[4/3]" : "aspect-square";
     return (
       <div
@@ -231,7 +240,7 @@ const StepVideo = forwardRef<HTMLVideoElement, { clip: Clip; className?: string 
               muted
               loop
               playsInline
-              preload="auto"
+              preload={preload}
               onPlaying={() => setPlaying(true)}
               className={`absolute inset-0 h-full w-full object-cover ${
                 playing ? "opacity-100" : "opacity-0"
@@ -636,16 +645,9 @@ export function FirstTimeLanding({
             />
           </Link>
           <h1 className="mt-10 text-5xl leading-[1.1] md:text-6xl">
-            <span className="md:hidden">
-              Built for small home worship gatherings,
-              <br />
-              like yours and mine.
-            </span>
-            <span className="hidden md:inline">
-              Built for small home worship gatherings,
-              <br />
-              like yours and mine.
-            </span>
+            Built for small home worship gatherings,
+            <br />
+            like yours and mine.
           </h1>
         </div>
       </section>
@@ -1130,6 +1132,7 @@ export function FirstTimeLanding({
                         key={j}
                         clip={clip}
                         className="mt-4 w-full"
+                        lazy
                         ref={(el) => {
                           mobileVideoRefs.current[i][j] = el;
                         }}
@@ -1146,6 +1149,7 @@ export function FirstTimeLanding({
                     <StepVideo
                       clip={step.clips[step.clips.length - 1]}
                       className="mt-4 w-full"
+                      lazy
                       ref={(el) => {
                         mobileVideoRefs.current[i][step.clips.length - 1] = el;
                       }}

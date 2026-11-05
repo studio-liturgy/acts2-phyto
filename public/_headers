@@ -1,0 +1,4 @@
+# Build output under /assets/ has a content hash in every file name, so a new
+# build always ships new names: browsers can keep these for a year.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -30,6 +30,7 @@ export default function AboutTest() {
           >
             <ArrowLeft className="h-3 w-3" /> BACK
           </Link>
+          <h1 className="sr-only">What is phyto?</h1>
 
           {/* Large intro */}
           <div className="mt-10 max-w-5xl space-y-10 text-3xl md:text-[2.6rem] md:leading-[1.15] leading-snug">
