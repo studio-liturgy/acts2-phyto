@@ -1,5 +1,7 @@
 # phyto
 
+![phyto](public/og-image.png)
+
 A free, open source presentation tool for small worship gatherings. Use it online at [phyto.live](https://phyto.live/).
 
 phyto is built to help keep our times of worship together simple, focused, and organized.
