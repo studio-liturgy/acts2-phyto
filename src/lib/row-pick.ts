@@ -94,11 +94,12 @@ export function verseRowsText(rows: VerseRow[], version: string): string {
 /* ── Message: slides ──────────────────────────────────────────────────── */
 
 /** A slide's words, one line each: a verse in `version`, a point's heading
- *  and lines (a quote with its attribution), "Image" for a picture. */
+ *  and lines (a quote with its attribution). Images have none (his call: the
+ *  words copied leave pictures out; the page's own clip still holds them). */
 export function slideText(s: Slide, version: string, primary: string): string[] {
   if (s.kind === "scripture")
     return [s.linesByVersion?.[version] ?? (version === primary ? (s.lines?.[0] ?? "") : "")];
-  if (s.kind === "image") return ["Image"];
+  if (s.kind === "image") return [];
   const out: string[] = [];
   if (s.title) out.push(s.title);
   out.push(...(s.lines ?? []));

@@ -112,7 +112,7 @@ describe("message slides", () => {
   } as Slide;
   it("copies as words, one per line", () => {
     expect(slidesText([verse, point, img], "NIV", "NIV")).toBe(
-      "For God\nGrace\nIs free\nIs enough\nImage",
+      "For God\nGrace\nIs free\nIs enough",
     );
     expect(slidesText([verse], "ESV", "NIV")).toBe("For God so");
   });

@@ -1059,7 +1059,7 @@ function SettingsTab({
   onGroupCreated: (id: string) => void;
   /** Switched to another workspace from the group menu. */
   onSwitched: () => void;
-  /** Deleted the group (back in Personal). */
+  /** Deleted or left the group (back in Personal). */
   onGroupDeleted: () => void;
 }) {
   const navigate = useNavigate();

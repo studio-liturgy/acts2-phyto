@@ -3,6 +3,7 @@ import { htmlToMarkup, markupToHtml } from "@/lib/inline-format";
 import {
   caretOffset,
   caretOnEdgeLine,
+  focusRich,
   isCollapsedIn,
   neighbourCell,
   plainTextLength,
@@ -98,8 +99,7 @@ export function RichText({
     if (!el) return false;
     const next = neighbourCell(el, dir);
     if (!next) return false;
-    next.focus();
-    setCaret(next, at === "start" ? 0 : Infinity);
+    focusRich(next, at === "start" ? 0 : Infinity);
     return true;
   };
 

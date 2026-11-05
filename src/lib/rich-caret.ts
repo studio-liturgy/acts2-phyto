@@ -153,6 +153,26 @@ export function neighbourCell(cell: HTMLElement, dir: -1 | 1): HTMLElement | nul
   return null;
 }
 
+/**
+ * Focus a rich text box with the caret at a plain offset. In a phone editor
+ * (`.has-dock`) the caret goes in BEFORE the focus, and the focus skips the
+ * browser's scroll-into-view: on iOS either one revealing the caret slid the
+ * whole page down and back (the song editor's fix, focusLine). The editor
+ * glides the line into view itself.
+ */
+export function focusRich(el: HTMLElement, at: number): void {
+  if (!el.closest(".has-dock")) {
+    el.focus();
+    setCaret(el, at);
+    return;
+  }
+  setCaret(el, at);
+  el.focus({ preventScroll: true });
+  // Some browsers put the caret at the start on focus: put it back.
+  const now = caretOffset(el);
+  if (now !== null && now !== Math.min(at, plainTextLength(el))) setCaret(el, at);
+}
+
 /** Focus a cell (found by its data-rich-cell id within `scope`) with the caret
  *  at a plain offset. Runs after the next paint so a fresh cell exists. */
 export function focusCell(scope: HTMLElement | null | undefined, id: string, at: number): void {
@@ -162,7 +182,6 @@ export function focusCell(scope: HTMLElement | null | undefined, id: string, at:
       (c) => c.dataset.richCell === id,
     );
     if (!el) return;
-    el.focus();
-    setCaret(el, at);
+    focusRich(el, at);
   });
 }

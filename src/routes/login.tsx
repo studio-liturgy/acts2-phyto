@@ -53,9 +53,14 @@ function LoginPage() {
     if (!phone || !row || !text) return;
     const fit = () => {
       const size = parseFloat(getComputedStyle(text).fontSize);
-      const t = text.getBoundingClientRect();
-      const avail = row.getBoundingClientRect().right - t.left;
-      const next = fitFontSize(size, t.width, avail, { min: 8, max: 14 });
+      // The room right of the box (the box plus its 8px gap), whatever the
+      // row's current layout.
+      const box = text.previousElementSibling?.getBoundingClientRect().width ?? 14;
+      const avail = row.getBoundingClientRect().width - box - 8;
+      const next = fitFontSize(size, text.getBoundingClientRect().width, avail, {
+        min: 8,
+        max: 14,
+      });
       setLoopSize((s) => (s === next ? s : next));
     };
     fit();
@@ -259,18 +264,20 @@ function LoginPage() {
 
                 <label
                   ref={loopRow}
-                  className={`mono flex cursor-pointer items-center gap-2 pt-1 uppercase ${phone ? "justify-start whitespace-nowrap" : "justify-center text-[11px]"} ${isTest ? "text-black/70" : "text-white/70"}`}
+                  className={`mono flex cursor-pointer items-center gap-2 pt-1 uppercase ${phone ? "justify-between whitespace-nowrap" : "justify-center text-[11px]"} ${isTest ? "text-black/70" : "text-white/70"}`}
                   style={phone ? { fontSize: loopSize ?? 11 } : undefined}
                 >
-                  <input
-                    type="checkbox"
-                    checked={subscribe}
-                    onChange={(e) => setSubscribe(e.target.checked)}
-                    className="sr-only"
-                  />
+                  {/* The hidden checkbox sits inside the box, so the row holds
+                      only the box and the words. */}
                   <div
-                    className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border ${isTest ? "border-black" : "border-white"}`}
+                    className={`relative flex h-3.5 w-3.5 shrink-0 items-center justify-center border ${isTest ? "border-black" : "border-white"}`}
                   >
+                    <input
+                      type="checkbox"
+                      checked={subscribe}
+                      onChange={(e) => setSubscribe(e.target.checked)}
+                      className="sr-only"
+                    />
                     {subscribe && (
                       <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
                         <path

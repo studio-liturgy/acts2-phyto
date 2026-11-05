@@ -33,7 +33,7 @@ export function GroupPanelDialog({
   onOpenChange: (open: boolean) => void;
   group: MyGroup;
   onChanged?: () => void;
-  /** After the group was deleted (the phone moves to the Catalogue tab). */
+  /** After the group was deleted or left (the phone moves to the Catalogue tab). */
   onDeleted?: () => void;
   /**
    * "manage" is the full roster panel. "invite" is the pared-down step shown
@@ -145,6 +145,7 @@ export function GroupPanelDialog({
     if (ok) {
       onChanged?.();
       onOpenChange(false);
+      onDeleted?.();
     } else {
       setError("Could not leave. Try again.");
     }

@@ -422,9 +422,12 @@ function useKeyboardInset(): number {
         // A short glide, not a jump: the keyboard rises over the same time.
         if (delta) glideBy(box, delta);
       }
-      el.focus({ preventScroll: true });
-      if (plain) el.setSelectionRange(caret, caret);
-      else {
+      if (plain) {
+        el.focus({ preventScroll: true });
+        el.setSelectionRange(caret, caret);
+      } else {
+        // A rich box: the caret goes in first, then the focus, so iOS has no
+        // caret to scroll to (setting it after the focus slid the page).
         const sel = window.getSelection();
         if (!range) {
           range = document.createRange();
@@ -433,6 +436,11 @@ function useKeyboardInset(): number {
         }
         sel?.removeAllRanges();
         sel?.addRange(range);
+        el.focus({ preventScroll: true });
+        if (sel && (!sel.rangeCount || !el.contains(sel.getRangeAt(0).startContainer))) {
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
       }
       start();
     };
