@@ -209,11 +209,6 @@ export function addSection(
   return { doc: insertLines(doc, at, [`[${name}]`], [null]), focus: at + 1 };
 }
 
-/** Names of the sections in the lyrics, in order. */
-export function sectionNames(lyrics: string): string[] {
-  return responseRows(lyrics).flatMap((r) => (r.kind === "section" ? [r.text] : []));
-}
-
 // Drag selection (a run of lyric lines, picked by stored line index from..to,
 // both ends included). Sections and breaks inside the run are never part of
 // it: copy skips them and cut / delete / paste leave them in place.

@@ -40,7 +40,6 @@ import {
   splitPasteBlock,
 } from "@/lib/multiling";
 import { reconcileSlideIds } from "@/lib/slide-text";
-import { newSectionName } from "@/lib/sections";
 import { useLibrary } from "@/lib/store";
 
 const GUTTER = "2.75rem";
@@ -573,8 +572,8 @@ export function MultiLangLyricEditor({
   const focusRowRef = useRef<number | null>(null);
   const focusLangRef = useRef<LangCode | null>(null);
   const addSection = () => {
-    const name = newSectionName(rows.flatMap((r) => (r.kind === "section" ? [r.text] : [])));
-    const { rows: next, line } = addSectionRow(rows, focusRowRef.current, name);
+    // No name: the faint SECTION placeholder shows until one is typed.
+    const { rows: next, line } = addSectionRow(rows, focusRowRef.current, "");
     step();
     const lang =
       focusLangRef.current && langs.includes(focusLangRef.current)

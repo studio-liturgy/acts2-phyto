@@ -34,12 +34,10 @@ import {
   neighbourLine,
   removeLine,
   responseRows,
-  sectionNames,
   setLine,
   toDoc,
   type Doc,
 } from "@/lib/response-grid";
-import { newSectionName } from "@/lib/sections";
 import { ROLE_LABEL, nextRole, type LineRoles, type Role } from "@/lib/song-roles";
 
 const ROLE_COLOR: Record<Role, string> = {
@@ -304,8 +302,8 @@ export function ResponseLyricEditor({
   const onAddSection = () => {
     const d = doc();
     const prevRole = [...d.roles].reverse().find((r) => r) ?? null;
-    const name = newSectionName(sectionNames(lyrics));
-    const { doc: next, focus } = addSection(d, focusIndex.current, name, prevRole);
+    // No name: the faint SECTION placeholder shows until one is typed.
+    const { doc: next, focus } = addSection(d, focusIndex.current, "", prevRole);
     commit(next, { index: focus, caret: 0 });
   };
 
