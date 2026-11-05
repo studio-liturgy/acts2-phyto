@@ -40,11 +40,15 @@ export function usePhoneLineHold({
       if (target.closest?.("textarea, input") === document.activeElement) return;
       // Chords (and the strip above a line), role and delete buttons are
       // taps, never the start of a pick.
-      if (target.closest?.("button, input, select, a, [contenteditable], [data-chord-strip]"))
+      if (
+        target.closest?.(
+          "button, input, select, a, [contenteditable], [data-chord-strip], [data-no-pick]",
+        )
+      )
         return;
       // A touch on the seam between two lines is ambiguous (which line?):
       // leave it as a tap, never a pick.
-      const cell = target.closest?.("[data-lyric-row], [data-cell-lang]");
+      const cell = target.closest?.("[data-lyric-row], [data-cell-lang], [data-pick-row]");
       if (cell) {
         const r = cell.getBoundingClientRect();
         if (t.clientY < r.top + SEAM || t.clientY > r.bottom - SEAM) return;

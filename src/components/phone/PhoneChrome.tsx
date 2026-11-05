@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { PhoneTab } from "@/lib/phone-layout";
 import { caretAtPoint, glideBy, revealDelta } from "@/lib/phone-dock";
 import { holdDelay, lineHold } from "@/lib/line-select";
+import { pickCellAt } from "@/lib/row-pick";
 import { useAuthStore } from "@/lib/authStore";
 
 /**
@@ -342,7 +343,7 @@ function useKeyboardInset(): number {
     // at the editor's top), then focus without scrolling and put the caret
     // where the finger was. A long press or a drag is left to iOS.
     let touch: { x: number; y: number; t: number; limit: number } | null = null;
-    const tapTarget = (target: EventTarget | null) => {
+    const tapTarget = (target: EventTarget | null, x = 0, y = 0) => {
       let t: EventTarget | null = target;
       // A line not being typed in lets touches through to its cell (styles.css:
       // no iOS press-and-hold on it), so a tap on the cell means its line.
@@ -351,6 +352,25 @@ function useKeyboardInset(): number {
         !(t instanceof HTMLTextAreaElement || t instanceof HTMLInputElement) &&
         !t.closest("button, a, input, select, [contenteditable], [data-chord-strip]")
       ) {
+        const row = t.closest("[data-pick-row]");
+        if (row) {
+          // A verse, point or image row (scripture and message editors): the
+          // text box under the finger, or the nearest one in the row.
+          const boxes = [...row.querySelectorAll<HTMLElement>('[contenteditable="true"]')].filter(
+            (b) => b.closest("[data-pick-row]") === row,
+          );
+          const i = pickCellAt(
+            boxes.map((b) => b.getBoundingClientRect()),
+            x,
+            y,
+          );
+          const box = boxes[i];
+          return box &&
+            box !== document.activeElement &&
+            box.closest(".has-dock [data-editor-scroll]")
+            ? box
+            : null;
+        }
         t = t.closest("[data-lyric-row], [data-cell-lang]")?.querySelector("textarea") ?? null;
       }
       if (!(t instanceof HTMLTextAreaElement || t instanceof HTMLInputElement)) return null;
@@ -361,7 +381,7 @@ function useKeyboardInset(): number {
     const onTouchStart = (e: TouchEvent) => {
       const p = e.touches[0];
       touch =
-        e.touches.length === 1 && tapTarget(e.target)
+        e.touches.length === 1 && tapTarget(e.target, p.clientX, p.clientY)
           ? { x: p.clientX, y: p.clientY, t: Date.now(), limit: holdDelay() }
           : null;
     };
@@ -370,14 +390,25 @@ function useKeyboardInset(): number {
       touch = null;
       // The lift after a press-and-hold line pick isn't a tap on the line.
       if (lineHold.active) return;
-      const el = tapTarget(e.target);
       const p = e.changedTouches[0];
+      const el = p ? tapTarget(e.target, p.clientX, p.clientY) : null;
       if (!t0 || !el || !p) return;
       if (Math.hypot(p.clientX - t0.x, p.clientY - t0.y) > 10) return;
       // Up to the line-pick hold time it's a tap (same figure, lib/line-select).
       if (Date.now() - t0.t > t0.limit) return;
       e.preventDefault();
-      const caret = caretAtPoint(el, p.clientX, p.clientY);
+      const plain = el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement;
+      const caret = plain ? caretAtPoint(el, p.clientX, p.clientY) : 0;
+      // A rich text box (verse, point) takes no touches while shut, so the
+      // point's position in its text is read with touches let back in.
+      let range: Range | null = null;
+      if (!plain) {
+        el.style.pointerEvents = "auto";
+        el.style.userSelect = el.style.webkitUserSelect = "text";
+        range = document.caretRangeFromPoint?.(p.clientX, p.clientY) ?? null;
+        el.style.pointerEvents = el.style.userSelect = el.style.webkitUserSelect = "";
+        if (range && !el.contains(range.startContainer)) range = null;
+      }
       const box = el.closest<HTMLElement>("[data-editor-scroll]");
       if (box) {
         const up = last > 0;
@@ -392,7 +423,17 @@ function useKeyboardInset(): number {
         if (delta) glideBy(box, delta);
       }
       el.focus({ preventScroll: true });
-      el.setSelectionRange(caret, caret);
+      if (plain) el.setSelectionRange(caret, caret);
+      else {
+        const sel = window.getSelection();
+        if (!range) {
+          range = document.createRange();
+          range.selectNodeContents(el);
+          range.collapse(false);
+        }
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
       start();
     };
     vv.addEventListener("resize", start);

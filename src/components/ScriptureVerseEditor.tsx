@@ -1,5 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
+import { usePhoneLayout } from "@/hooks/use-phone-layout";
+import { PHONE_UI } from "@/lib/phone-layout";
+import { useRowPick } from "@/hooks/use-row-pick";
+import {
+  inRun,
+  insertVerseRows,
+  removeVerseRows,
+  setRowClip,
+  versesFromClip,
+  verseRowsText,
+} from "@/lib/row-pick";
 import { Plus, Trash2 } from "lucide-react";
 import { DotsGrip } from "@/components/DragBits";
 import { hideDragGhost } from "@/lib/drag-ghost";
@@ -134,53 +145,45 @@ export function ScriptureVerseEditor({
     focusCell(scope.current, cellKey(ri + 1, v), 0);
   };
 
-  // Drag down a version column to select a run of its verses as if it were one
-  // text box. A plain click leaves in-cell editing untouched; Cmd/Ctrl+C then
-  // copies the selected verses joined by newlines.
-  const [colSel, setColSel] = useState<{ version: string; from: number; to: number } | null>(null);
-  const dragAnchor = useRef<{ version: string; row: number } | null>(null);
-  const onCellMouseDown = (version: string, rowIndex: number) => {
-    setColSel(null);
-    dragAnchor.current = { version, row: rowIndex };
-    const onMove = (e: MouseEvent) => {
-      const anchor = dragAnchor.current;
-      if (!anchor) return;
-      const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
-      const cell = under?.closest?.("[data-verse-version]") as HTMLElement | null;
-      if (!cell || cell.getAttribute("data-verse-version") !== anchor.version) return;
-      const r = Number(cell.getAttribute("data-verse-row"));
-      if (Number.isNaN(r) || r === anchor.row) {
-        setColSel(null);
-        return;
-      }
-      window.getSelection()?.removeAllRanges();
-      setColSel({
-        version: anchor.version,
-        from: Math.min(anchor.row, r),
-        to: Math.max(anchor.row, r),
-      });
-    };
-    const onUp = () => {
-      dragAnchor.current = null;
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  };
-  useEffect(() => {
-    if (!colSel) return;
-    const onCopy = (e: ClipboardEvent) => {
-      const t = rows
-        .filter((_, i) => i >= colSel.from && i <= colSel.to)
-        .map((r) => r.text[colSel.version] ?? "")
-        .join("\n");
-      e.clipboardData?.setData("text/plain", t);
-      e.preventDefault();
-    };
-    document.addEventListener("copy", onCopy);
-    return () => document.removeEventListener("copy", onCopy);
-  }, [colSel, rows]);
+  // Pick whole verses: drag down from one into another (computer) or press and
+  // hold (phone), then copy, cut, delete or paste over them (useRowPick).
+  // Copied verses pasted back come in as verses, after the one being typed in.
+  const phone = usePhoneLayout() === true && PHONE_UI;
+  const [scroller, setScroller] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    setScroller(scope.current?.closest<HTMLElement>("[data-editor-scroll]") ?? scope.current);
+  }, []);
+  const pick = useRowPick({
+    scopeRef: scope,
+    scroller,
+    enabled: !readOnly,
+    phone,
+    copy: (run, version) => {
+      const picked = rows.slice(run.from, run.to + 1);
+      const text = verseRowsText(picked, version && versions.includes(version) ? version : v1);
+      setRowClip({ kind: "verses", text, rows: picked });
+      return text;
+    },
+    remove: (run) => {
+      record();
+      commit(removeVerseRows(rows, run.from, run.to));
+    },
+    paste: (text, run, after) => {
+      const pasted = versesFromClip(text);
+      if (!pasted || (!run && after === null)) return false;
+      // Every version this editor shows gets a box, blank when the copy
+      // didn't have it.
+      const fitted = pasted.map((r) => ({
+        ...r,
+        text: Object.fromEntries(versions.map((v) => [v, r.text[v] ?? ""])),
+      }));
+      const base = run ? removeVerseRows(rows, run.from, run.to) : rows;
+      const at = run ? run.from : (after as number) + 1;
+      record();
+      commit(insertVerseRows(base, at, fitted));
+      return true;
+    },
+  });
 
   // One group per import: a verse that begins an import (row.starts) opens a new
   // group, so importing the same passage twice shows as two groups rather than
@@ -224,6 +227,7 @@ export function ScriptureVerseEditor({
         if (readOnly) return;
         history.onKeyDown(e, () => currentCaret(scope.current));
       }}
+      onMouseDown={pick.onMouseDown}
       className="min-h-0 flex-1 overflow-auto"
     >
       {groups.length === 0 ? (
@@ -245,6 +249,7 @@ export function ScriptureVerseEditor({
               style={{ backgroundColor: `color-mix(in oklab, ${tint} 30%, transparent)` }}
             >
               <span
+                data-no-pick
                 draggable={!readOnly}
                 onDragStart={(e) => {
                   if (readOnly) return;
@@ -290,17 +295,17 @@ export function ScriptureVerseEditor({
                   ri += 1;
                   const index = ri;
                   return (
-                    <div key={index} className="border-b border-foreground/15 last:border-b-0">
+                    <div
+                      key={index}
+                      data-pick-row={index}
+                      data-picked={inRun(pick.run, index) ? "" : undefined}
+                      className="border-b border-foreground/15 last:border-b-0"
+                    >
                       <div
                         className="grid divide-x divide-foreground/15"
                         style={{ gridTemplateColumns: cols }}
                       >
                         {versions.map((v) => {
-                          const selected =
-                            !!colSel &&
-                            colSel.version === v &&
-                            index >= colSel.from &&
-                            index <= colSel.to;
                           return (
                             <RichText
                               key={v}
@@ -310,7 +315,6 @@ export function ScriptureVerseEditor({
                               data={{ "data-verse-version": v, "data-verse-row": index }}
                               disabled={readOnly}
                               value={row.text[v] ?? ""}
-                              onMouseDown={() => onCellMouseDown(v, index)}
                               onChange={(val) => editCell(index, v, val)}
                               onFocus={(at) => noteCaret(index, v, at)}
                               onCaret={(at) => noteCaret(index, v, at)}
@@ -326,7 +330,6 @@ export function ScriptureVerseEditor({
                                   return true;
                                 }
                               }}
-                              selected={selected}
                             />
                           );
                         })}
@@ -371,6 +374,7 @@ export function ScriptureVerseEditor({
           );
         })
       )}
+      {pick.overlay}
     </div>
   );
 }

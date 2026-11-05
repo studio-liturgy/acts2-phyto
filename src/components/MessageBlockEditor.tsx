@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { touchReorder } from "@/lib/touch-reorder";
 import { useRegisterPhoneUndo } from "@/lib/phone-editor-bus";
+import { usePhoneLayout } from "@/hooks/use-phone-layout";
+import { PHONE_UI } from "@/lib/phone-layout";
+import { useRowPick } from "@/hooks/use-row-pick";
+import { inRun, insertSlides, setRowClip, slidesFromClip, slidesText } from "@/lib/row-pick";
 import { Maximize2, Minimize2, Plus, Trash2 } from "lucide-react";
 import { DotsGrip } from "@/components/DragBits";
 import { hideDragGhost } from "@/lib/drag-ghost";
@@ -222,67 +226,52 @@ export function MessageBlockEditor({
     setLiveOrder(null);
   };
 
-  // Drag down a version column to select a run of verses across the whole
-  // message, exactly like the song editor. Verses are numbered in slide order so
-  // a range can span separate import blocks.
-  const verseSeq = new Map<string, number>();
-  {
-    let seq = 0;
-    for (const s of display) if (s.kind === "scripture") verseSeq.set(s.id, seq++);
-  }
-  const [colSel, setColSel] = useState<{ version: string; from: number; to: number } | null>(null);
-  const colDragAnchor = useRef<{ version: string; seq: number } | null>(null);
-  const onCellMouseDown = (version: string, seq: number) => {
-    setColSel(null);
-    colDragAnchor.current = { version, seq };
-    const onMove = (e: MouseEvent) => {
-      const anchor = colDragAnchor.current;
-      if (!anchor) return;
-      const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
-      const cell = under?.closest?.("[data-verse-version]") as HTMLElement | null;
-      if (!cell || cell.getAttribute("data-verse-version") !== anchor.version) return;
-      const s = Number(cell.getAttribute("data-verse-seq"));
-      if (Number.isNaN(s) || s === anchor.seq) {
-        setColSel(null);
-        return;
-      }
-      window.getSelection()?.removeAllRanges();
-      setColSel({
-        version: anchor.version,
-        from: Math.min(anchor.seq, s),
-        to: Math.max(anchor.seq, s),
+  // Pick whole rows (each verse, point and image, in slide order): drag down
+  // from one into another (computer) or press and hold (phone), then copy,
+  // cut, delete or paste over them (useRowPick). Copied rows pasted back come
+  // in as they were (images, verses, point types), after the row being typed
+  // in.
+  const rowIndex = new Map(display.map((s, i) => [s.id, i]));
+  const phone = usePhoneLayout() === true && PHONE_UI;
+  const [scroller, setScroller] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => setScroller(scope.current), []);
+  const pick = useRowPick({
+    scopeRef: scope,
+    scroller,
+    enabled: !readOnly && !liveOrder,
+    phone,
+    copy: (run, version) => {
+      const picked = display.slice(run.from, run.to + 1);
+      const text = slidesText(
+        picked,
+        version && versions.includes(version) ? version : versions[0],
+        primaryVersion,
+      );
+      setRowClip({ kind: "slides", text, slides: picked });
+      return text;
+    },
+    remove: (run) => {
+      const ids = new Set(display.slice(run.from, run.to + 1).map((s) => s.id));
+      record();
+      updateSet(setId, { slides: slides.filter((s) => !ids.has(s.id)) });
+    },
+    paste: (text, run, after) => {
+      const pasted = slidesFromClip(text);
+      if (!pasted || (!run && after === null)) return false;
+      const ids = new Set(run ? display.slice(run.from, run.to + 1).map((s) => s.id) : []);
+      const base = slides.filter((s) => !ids.has(s.id));
+      const at = run ? run.from : (after as number) + 1;
+      record();
+      updateSet(setId, {
+        slides: insertSlides(base, at, pasted, () => Math.random().toString(36).slice(2, 10)),
       });
-    };
-    const onUp = () => {
-      colDragAnchor.current = null;
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
+      return true;
+    },
+  });
+  const pickProps = (id: string) => {
+    const i = rowIndex.get(id) ?? -1;
+    return { "data-pick-row": i, "data-picked": inRun(pick.run, i) ? "" : undefined };
   };
-  useEffect(() => {
-    if (!colSel) return;
-    const onCopy = (e: ClipboardEvent) => {
-      const text = display
-        .filter((s) => s.kind === "scripture")
-        .filter((s) => {
-          const seq = verseSeq.get(s.id);
-          return seq !== undefined && seq >= colSel.from && seq <= colSel.to;
-        })
-        .map(
-          (s) =>
-            s.linesByVersion?.[colSel.version] ??
-            (colSel.version === primaryVersion ? (s.lines?.[0] ?? "") : ""),
-        )
-        .join("\n");
-      e.clipboardData?.setData("text/plain", text);
-      e.preventDefault();
-    };
-    document.addEventListener("copy", onCopy);
-    return () => document.removeEventListener("copy", onCopy);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [colSel, display]);
 
   const removeBlock = (b: Block) => {
     record();
@@ -409,6 +398,7 @@ export function MessageBlockEditor({
               {b.slides.map((slide, ti) => (
                 <div
                   key={slide.id}
+                  {...pickProps(slide.id)}
                   draggable={!readOnly}
                   onDragStart={(e) => {
                     if (readOnly) return;
@@ -481,6 +471,7 @@ export function MessageBlockEditor({
       <div
         key={b.key}
         data-msg-block={i}
+        {...(b.kind === "element" ? pickProps(b.slide.id) : {})}
         onDragOver={dragProps(i).onDragOver}
         onDrop={dragProps(i).onDrop}
       >
@@ -492,9 +483,7 @@ export function MessageBlockEditor({
             slides={b.slides}
             tint={tints[i]}
             grip={grip}
-            seqOf={(id) => verseSeq.get(id)}
-            colSel={colSel}
-            onCellMouseDown={onCellMouseDown}
+            pickProps={pickProps}
             onEdit={(slide, v, val) => {
               record(`type:${slide.id}:${v}`);
               const patch: Partial<Slide> = {
@@ -642,6 +631,7 @@ export function MessageBlockEditor({
         if (readOnly) return;
         history.onKeyDown(e, () => currentCaret(scope.current));
       }}
+      onMouseDown={pick.onMouseDown}
       // A drop anywhere in the editor (below the last block, say) commits the
       // live order: the dragged node may have been remounted mid-drag, in
       // which case the browser never fires dragend on it.
@@ -690,6 +680,7 @@ export function MessageBlockEditor({
         </AlertDialogContent>
       </AlertDialog>
       {!readOnly && slides.length > 0 && <ScriptureHints />}
+      {pick.overlay}
     </div>
   );
 }
@@ -705,6 +696,7 @@ function Grip({
 }) {
   return (
     <span
+      data-no-pick
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
@@ -723,9 +715,7 @@ function ImportBlock({
   slides,
   tint,
   grip,
-  seqOf,
-  colSel,
-  onCellMouseDown,
+  pickProps,
   onEdit,
   onMergeUp,
   onSplit,
@@ -743,9 +733,8 @@ function ImportBlock({
   slides: Slide[];
   tint: string;
   grip: React.ReactNode;
-  seqOf: (id: string) => number | undefined;
-  colSel: { version: string; from: number; to: number } | null;
-  onCellMouseDown: (version: string, seq: number) => void;
+  /** A verse row's place in the row pick (data-pick-row, data-picked). */
+  pickProps: (id: string) => Record<string, string | number | undefined>;
   onEdit: (slide: Slide, version: string, value: string) => void;
   /** Backspace at the start of a verse: join it onto the verse above. */
   onMergeUp: (slide: Slide, version: string) => void;
@@ -823,10 +812,10 @@ function ImportBlock({
       }
     >
       {slides.map((s) => {
-        const seq = seqOf(s.id);
         return (
           <div
             key={s.id}
+            {...pickProps(s.id)}
             className="grid divide-x border-b last:border-b-0"
             style={{ gridTemplateColumns: cols }}
           >
@@ -853,17 +842,6 @@ function ImportBlock({
                     return true;
                   }
                 }}
-                data={
-                  seq !== undefined ? { "data-verse-version": v, "data-verse-seq": seq } : undefined
-                }
-                onMouseDown={seq !== undefined ? () => onCellMouseDown(v, seq) : undefined}
-                selected={
-                  !!colSel &&
-                  colSel.version === v &&
-                  seq !== undefined &&
-                  seq >= colSel.from &&
-                  seq <= colSel.to
-                }
               />
             ))}
           </div>

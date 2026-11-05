@@ -454,6 +454,37 @@ html[data-phone-ui]
   user-select: text;
 }
 
+/* The same for the verse, point and image rows of the scripture and message
+   editors (rich text boxes): a shut box takes no touches, so holding a row
+   picks it (useRowPick) and a tap opens the box (useKeyboardInset). */
+html[data-phone-ui] .has-dock [data-editor-scroll] [data-pick-row] [contenteditable]:not(:focus) {
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+html[data-phone-ui] .has-dock [data-editor-scroll] [data-pick-row] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+html[data-phone-ui] .has-dock [data-editor-scroll] [data-pick-row] [contenteditable]:focus {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+/* A picked row (all screens), the song grids' pick shade, laid over the row
+   so a point's own tint can't hide it. */
+[data-pick-row][data-picked] {
+  position: relative;
+}
+[data-pick-row][data-picked]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-color: color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+
 /* Phone editors: room under the last line so the dock (the rounded tools
    tab over the editor's foot) never covers it once scrolled to the end. */
 html[data-phone-ui] .has-dock [data-editor-scroll]::after {
