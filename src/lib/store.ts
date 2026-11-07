@@ -30,6 +30,11 @@ import {
 } from "./slide-settings";
 import { db } from "./db";
 import { liveQuery } from "dexie";
+import {
+  clearGatheringDeleting,
+  isGatheringDeleting,
+  markGatheringDeleting,
+} from "./pending-gathering-deletes";
 import { supabase } from "./supabase";
 import { useAuthStore } from "./authStore";
 import { writeCachedGroups } from "./group-cache";
@@ -296,6 +301,7 @@ function buildLibraryState(
   for (const p of allGatherings) {
     const inWs = activeWorkspace === "personal" ? !p.group_id : p.group_id === activeWorkspace;
     if (!inWs) continue;
+    if (isGatheringDeleting(p.id)) continue; // deleted, server delete still running
     gatherings[p.id] = p;
     gatheringOrder.push(p.id);
   }
@@ -1102,43 +1108,50 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     const existing = get().gatherings[id];
     const isForeign = !!existing?.shared;
     const groupId = existing?.group_id ?? null;
+    // Gone from the screen at the click. The server delete below can wait
+    // seconds for a running sync pass, so the id stays hidden from every
+    // re-derive until it has finished.
+    markGatheringDeleting(id);
+    set((s) => {
+      const { [id]: _gone, ...rest } = s.gatherings;
+      return { gatherings: rest, gatheringOrder: s.gatheringOrder.filter((x) => x !== id) };
+    });
     // Serialize against pushes/merges so an in-flight push can't re-upsert this
     // gathering (or its gathering_sets) from a pre-delete Dexie snapshot.
-    await withSyncLock(async () => {
-      const session = useAuthStore.getState().session;
-      if (session) {
-        const userId = session.user.id;
-        if (isForeign) {
-          // Another member's group gathering (only the group admin sees Delete):
-          // the RPC deletes it and its slots and tombstones it for its owner, so
-          // the owner's devices drop their copy instead of pushing it back.
-          const { error } = await supabase.rpc("delete_group_gathering", { p_id: id });
-          if (error) console.error("[deleteGathering] delete_group_gathering error:", error);
-        } else {
-          const { error: gsErr } = await supabase
-            .from("gathering_sets")
-            .delete()
-            .eq("gathering_id", id);
-          if (gsErr) console.error("[deleteGathering] gathering_sets delete error:", gsErr);
-          const { error: gErr } = await supabase
-            .from("gatherings")
-            .delete()
-            .eq("id", id)
-            .eq("user_id", userId);
-          if (gErr) console.error("[deleteGathering] gatherings delete error:", gErr);
-          // Tombstone my own row so my other devices delete their copy instead
-          // of pushing it back (sync.ts remotelyDeleted).
-          await recordDeletions("gathering", [id]);
+    try {
+      await withSyncLock(async () => {
+        const session = useAuthStore.getState().session;
+        if (session) {
+          const userId = session.user.id;
+          if (isForeign) {
+            // Another member's group gathering (only the group admin sees Delete):
+            // the RPC deletes it and its slots and tombstones it for its owner, so
+            // the owner's devices drop their copy instead of pushing it back.
+            const { error } = await supabase.rpc("delete_group_gathering", { p_id: id });
+            if (error) console.error("[deleteGathering] delete_group_gathering error:", error);
+          } else {
+            const { error: gsErr } = await supabase
+              .from("gathering_sets")
+              .delete()
+              .eq("gathering_id", id);
+            if (gsErr) console.error("[deleteGathering] gathering_sets delete error:", gsErr);
+            const { error: gErr } = await supabase
+              .from("gatherings")
+              .delete()
+              .eq("id", id)
+              .eq("user_id", userId);
+            if (gErr) console.error("[deleteGathering] gatherings delete error:", gErr);
+            // Tombstone my own row so my other devices delete their copy instead
+            // of pushing it back (sync.ts remotelyDeleted).
+            await recordDeletions("gathering", [id]);
+          }
         }
-      }
 
-      await db.gatherings.delete(id);
-
-      set((s) => {
-        const { [id]: _gone, ...rest } = s.gatherings;
-        return { gatherings: rest, gatheringOrder: s.gatheringOrder.filter((x) => x !== id) };
+        await db.gatherings.delete(id);
       });
-    });
+    } finally {
+      clearGatheringDeleting(id);
+    }
     if (groupId) pingGroupsChanged([groupId]); // members prune it live
   },
 
