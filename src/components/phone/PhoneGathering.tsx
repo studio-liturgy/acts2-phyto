@@ -1,5 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { setMatchesSearch } from "@/lib/set-search";
+import { useAuthStore } from "@/lib/authStore";
+import { canDeleteGathering } from "@/lib/group-catalogue";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUp, List, Monitor, Plus, Search, Smartphone, X } from "lucide-react";
 import type { SetKind } from "@/lib/types";
@@ -69,6 +71,8 @@ export function PhoneGathering({
   const order = useLibrary((s) => s.order ?? NO_IDS);
   const renameGathering = useLibrary((s) => s.renameGathering);
   const deleteGathering = useLibrary((s) => s.deleteGathering);
+  const myGroups = useLibrary((s) => s.groups) ?? [];
+  const myUserId = useAuthStore((s) => s.session?.user.id ?? null);
   const addSetToGathering = useLibrary((s) => s.addSetToGathering);
   const removeSetFromGathering = useLibrary((s) => s.removeSetFromGathering);
   const reorderGatheringSets = useLibrary((s) => s.reorderGatheringSets);
@@ -182,7 +186,7 @@ export function PhoneGathering({
     );
   }
 
-  const canDelete = !g.shared;
+  const canDelete = canDeleteGathering(g, myGroups, myUserId);
   const slots: Slot[] = drag?.order ?? g.setIds.map((id, i) => ({ key: `${id}#${i}`, id }));
 
   // List / Phone / Desktop: the set list, the phone view, the slides.

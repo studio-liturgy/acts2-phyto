@@ -1,4 +1,18 @@
-/** Group catalogue helpers: the ownership chip and the set editor's remove action. */
+/** Group catalogue helpers: the ownership chip, the set editor's remove action
+ *  and who may delete a gathering. */
+
+/** Who sees Delete on a gathering: its owner, or the admin (creator) of the
+ *  group it belongs to. Matches the server's `is_group_owner` check, which
+ *  reads `groups.owner_id`. */
+export function canDeleteGathering(
+  gathering: { shared?: boolean; group_id?: string | null },
+  groups: { id: string; owner_id: string }[],
+  userId: string | null | undefined,
+): boolean {
+  if (!gathering.shared) return true;
+  if (!gathering.group_id || !userId) return false;
+  return groups.some((g) => g.id === gathering.group_id && g.owner_id === userId);
+}
 
 /** Ownership chip in a group: off, then my own sets, then everyone else's. */
 export type OwnershipFilter = "personal" | "others";

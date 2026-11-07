@@ -76,7 +76,11 @@ import { VersionWarning } from "@/components/VersionWarning";
 import { DotsGrip } from "@/components/DragBits";
 import { songPatternStyle, songPatterns } from "@/lib/song-layout";
 import { hideDragGhost, setCircleDragGhost } from "@/lib/drag-ghost";
-import { nextOwnershipFilter, type OwnershipFilter } from "@/lib/group-catalogue";
+import {
+  canDeleteGathering,
+  nextOwnershipFilter,
+  type OwnershipFilter,
+} from "@/lib/group-catalogue";
 import {
   KIND_STEP_NAME,
   kindColorOf,
@@ -292,6 +296,7 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
   } = useLibrary();
 
   const isSignedIn = useIsSignedIn();
+  const myUserId = useAuthStore((s) => s.session?.user.id ?? null);
   const userEmail = useUserEmail();
   const syncStatus = useSyncStatus();
   const accountPull = useAccountPull();
@@ -1056,7 +1061,8 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
                       className={gatheringDisplayOrder.length > 2 ? "w-[450px] shrink-0" : ""}
                       editMode={editingGatheringId === pid}
                       onEditModeChange={(v) => setEditingGatheringId(v ? pid : null)}
-                      canDelete={!p.shared}
+                      canDelete={canDeleteGathering(p, groups, myUserId)}
+                      isOwn={!p.shared}
                     />
                   );
                 })}
@@ -1999,6 +2005,7 @@ function GatheringCard({
   editMode,
   onEditModeChange,
   canDelete = true,
+  isOwn = true,
 }: {
   gatheringId: string;
   name: string;
@@ -2011,8 +2018,10 @@ function GatheringCard({
   allSets: { id: string; name: string; kind: SetKind }[];
   onRename: (name: string) => void;
   onDelete: () => void;
-  /** False for a group gathering I don't own: only the owner may delete it. */
+  /** Owner, or the group admin for another member's gathering. */
   canDelete?: boolean;
+  /** False for a group gathering another member owns (no link customizing). */
+  isOwn?: boolean;
   onAdd: (setId: string) => void;
   onRemoveAt: (index: number) => void;
   onReorder: (ids: string[]) => void;
@@ -2371,7 +2380,7 @@ function GatheringCard({
         gatheringName={name}
         isLive={isLive}
         slug={cardShare.slug}
-        onSlugSave={canDelete && cardShare.canCustomize ? cardShare.save : undefined}
+        onSlugSave={isOwn && cardShare.canCustomize ? cardShare.save : undefined}
       />
 
       {/* Delete gathering confirmation dialog */}

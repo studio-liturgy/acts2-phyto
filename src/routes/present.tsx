@@ -13,7 +13,8 @@ import {
   startLiveHeartbeat,
   loadGatheringSections,
 } from "@/lib/store";
-import { useIsSignedIn } from "@/lib/authStore";
+import { useAuthStore, useIsSignedIn } from "@/lib/authStore";
+import { canDeleteGathering } from "@/lib/group-catalogue";
 import { useTheme } from "@/hooks/use-theme";
 import { APP_NAME } from "@/lib/appConfig";
 import { isLiveNow } from "@/lib/live-session";
@@ -285,6 +286,8 @@ function Presenter() {
   const goLive = useLibrary((s) => s.goLive);
   const endSession = useLibrary((s) => s.endSession);
   const deleteGathering = useLibrary((s) => s.deleteGathering);
+  const myGroups = useLibrary((s) => s.groups) ?? [];
+  const myUserId = useAuthStore((s) => s.session?.user.id ?? null);
   const navigate = useNavigate();
   const live = useLive();
   const songTemplate = useLibrary((s) => s.songTemplate);
@@ -879,8 +882,8 @@ function Presenter() {
                       Done
                     </button>
                     {/* Reveal delete while renaming — same flow as the home page.
-                        Only the owner may delete a group gathering. */}
-                    {!activeGathering.shared && (
+                        Owner, or the group admin for another member's gathering. */}
+                    {canDeleteGathering(activeGathering, myGroups, myUserId) && (
                       <button
                         // Keep the rename input focused (don't blur-commit) when
                         // opening the delete dialog.

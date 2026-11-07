@@ -1097,8 +1097,8 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     }),
 
   deleteGathering: async (id) => {
-    // A foreign group gathering is a shared resource: deleting it removes it for
-    // the whole group (RLS member-delete), with no personal tombstone.
+    // Someone else's group gathering (only the group admin can delete it) goes
+    // through the admin RPC, which also tombstones it for its owner.
     const existing = get().gatherings[id];
     const isForeign = !!existing?.shared;
     const groupId = existing?.group_id ?? null;
@@ -1108,21 +1108,28 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       const session = useAuthStore.getState().session;
       if (session) {
         const userId = session.user.id;
-        const { error: gsErr } = await supabase
-          .from("gathering_sets")
-          .delete()
-          .eq("gathering_id", id);
-        if (gsErr) console.error("[deleteGathering] gathering_sets delete error:", gsErr);
-
-        const gDelete = supabase.from("gatherings").delete().eq("id", id);
-        // My own rows are scoped to me (owner delete); a group gathering owned by
-        // another member is deleted via the group-member delete policy.
-        const { error: gErr } = await (isForeign ? gDelete : gDelete.eq("user_id", userId));
-        if (gErr) console.error("[deleteGathering] gatherings delete error:", gErr);
-        // Tombstone only my OWN rows so other devices delete their copy instead of
-        // pushing it back (sync.ts remotelyDeleted). A foreign row isn't mine to
-        // tombstone; other members prune it via syncGroups.
-        if (!isForeign) await recordDeletions("gathering", [id]);
+        if (isForeign) {
+          // Another member's group gathering (only the group admin sees Delete):
+          // the RPC deletes it and its slots and tombstones it for its owner, so
+          // the owner's devices drop their copy instead of pushing it back.
+          const { error } = await supabase.rpc("delete_group_gathering", { p_id: id });
+          if (error) console.error("[deleteGathering] delete_group_gathering error:", error);
+        } else {
+          const { error: gsErr } = await supabase
+            .from("gathering_sets")
+            .delete()
+            .eq("gathering_id", id);
+          if (gsErr) console.error("[deleteGathering] gathering_sets delete error:", gsErr);
+          const { error: gErr } = await supabase
+            .from("gatherings")
+            .delete()
+            .eq("id", id)
+            .eq("user_id", userId);
+          if (gErr) console.error("[deleteGathering] gatherings delete error:", gErr);
+          // Tombstone my own row so my other devices delete their copy instead
+          // of pushing it back (sync.ts remotelyDeleted).
+          await recordDeletions("gathering", [id]);
+        }
       }
 
       await db.gatherings.delete(id);
