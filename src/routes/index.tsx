@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { liveLinkUrl, TESTERS_ONLY } from "@/lib/testers";
+import { liveLinkUrl } from "@/lib/testers";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { useAuthStore, useIsSignedIn, useUserEmail } from "@/lib/authStore";
@@ -183,8 +183,7 @@ function Home() {
   const isSignedIn = useIsSignedIn();
   const accountPull = useAccountPull();
   const isEmpty = gatheringOrder.length === 0 && order.length === 0;
-  const landing =
-    !!intro || (!TESTERS_ONLY && activeWorkspace === "personal" && isEmpty && groups.length === 0);
+  const landing = !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
   // A device downloading the account from nothing keeps the loading view
   // for the whole pull (gatherings can arrive before their sets).
   const pulling = isSignedIn && !!accountPull && (isEmpty || !!accountPull.fresh);
@@ -196,9 +195,9 @@ function Home() {
   // Not read from this device yet: blank, so an empty-looking library isn't
   // taken for an empty account (which would open on the Catalogue).
   if (phone && !libraryLoaded) return <div className="min-h-screen bg-background" />;
-  // Phone: an empty account starts on the Catalogue, not the desktop's
-  // first-time landing (that one only on ?intro).
-  if (phone && !intro && !pulling) return <PhoneHome tab={phoneHomeTab(tab, isEmpty)} />;
+  // Phone: an empty personal account auto-opens the intro too, same as
+  // desktop (`landing` already covers ?intro and the empty-account case).
+  if (phone && !landing && !pulling) return <PhoneHome tab={phoneHomeTab(tab, isEmpty)} />;
   if (phone === null && !landing) return <div className="min-h-screen bg-background" />;
   return <Library />;
 }
@@ -618,12 +617,10 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
   // the normal (empty) catalogue, not the intro. It also never auto-shows for
   // someone who already belongs to a group — they aren't a brand-new user even
   // if their personal catalogue happens to be empty. The explicit Intro link
-  // (?intro) still opens it for anyone, phytoexp.live included.
-  // phytoexp.live doesn't auto-show it for an empty account, only via ?intro.
+  // (?intro) still opens it for anyone, phytoexp.live included, and so does
+  // an empty account there.
   const showLanding =
-    signInOnly ||
-    !!intro ||
-    (!TESTERS_ONLY && activeWorkspace === "personal" && isEmpty && groups.length === 0);
+    signInOnly || !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
 
   // The live gathering always leads, regardless of creation order.
   const gatheringDisplayOrder = useMemo(
