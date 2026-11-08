@@ -1270,8 +1270,7 @@ function SettingsTab({
           {(
             [
               [
-                // phytoexp.live has no intro.
-                ...(TESTERS_ONLY ? [] : [{ to: "/?intro=true", label: "Intro" }]),
+                { to: "/?intro=true", label: "Intro" },
                 { to: "/about", label: "About" },
                 { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
                 { href: "/donate", label: "Donate" },
