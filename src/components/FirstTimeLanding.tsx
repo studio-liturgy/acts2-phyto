@@ -148,7 +148,7 @@ const STEPS: Step[] = [
     ],
     mobile: {
       textA: [
-        "Connect to a TV or projector, hit Present, then Output and drag it to your extended screen",
+        "Connect to a TV or projector, hit Present, then Output and drag it to your extended screen (mobile WIP)",
       ],
     },
     desktop: {
