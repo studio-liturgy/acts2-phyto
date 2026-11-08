@@ -48,6 +48,7 @@ import { Footer } from "@/components/Footer";
 import { PhoneHome } from "@/components/phone/PhoneHome";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import { parsePhoneTab, phoneHomeTab, type PhoneTab } from "@/lib/phone-layout";
+import { HOME_SEO_TITLE, homeTitle } from "@/lib/home-title";
 import { FirstTimeLanding } from "@/components/FirstTimeLanding";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
 import { ExportGatheringButton } from "@/components/ExportGatheringButton";
@@ -108,7 +109,7 @@ export const Route = createFileRoute("/")({
   }),
   head: () => ({
     meta: [
-      { title: `${APP_NAME}: free worship presentation for gatherings at home` },
+      { title: HOME_SEO_TITLE },
       {
         name: "description",
         content:
@@ -116,7 +117,7 @@ export const Route = createFileRoute("/")({
       },
       {
         property: "og:title",
-        content: `${APP_NAME}: free worship presentation for gatherings at home`,
+        content: HOME_SEO_TITLE,
       },
       {
         property: "og:description",
@@ -189,6 +190,13 @@ function Home() {
   const pulling = isSignedIn && !!accountPull && (isEmpty || !!accountPull.fresh);
   const authLoading = useAuthStore((s) => s.isLoading);
   const libraryLoaded = useLibrary((s) => s.libraryLoaded);
+  // The server renders the SEO title; once signed in, the tab reads like the
+  // other app pages (lib/home-title.ts).
+  const phoneTab = phone && isSignedIn && !landing && !pulling ? phoneHomeTab(tab, isEmpty) : null;
+  const title = homeTitle({ signedIn: isSignedIn, landing, phoneTab });
+  useEffect(() => {
+    document.title = title;
+  }, [title]);
   // Phone, signed out: only the intro, with Sign in. No library to browse.
   if (phone && authLoading) return <div className="min-h-screen bg-background" />;
   if (phone && !isSignedIn) return <Library signInOnly />;
@@ -197,7 +205,7 @@ function Home() {
   if (phone && !libraryLoaded) return <div className="min-h-screen bg-background" />;
   // Phone: an empty personal account auto-opens the intro too, same as
   // desktop (`landing` already covers ?intro and the empty-account case).
-  if (phone && !landing && !pulling) return <PhoneHome tab={phoneHomeTab(tab, isEmpty)} />;
+  if (phoneTab) return <PhoneHome tab={phoneTab} />;
   if (phone === null && !landing) return <div className="min-h-screen bg-background" />;
   return <Library />;
 }
