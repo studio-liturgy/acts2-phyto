@@ -1,4 +1,4 @@
-import type { Background, Slide, SetTemplate } from "@/lib/types";
+import type { Background, LiveState, Slide, SetTemplate } from "@/lib/types";
 import { stripChords } from "@/lib/chords";
 import { fitOrigin, fitScale, stageSize } from "@/lib/slide-fit";
 import { useLibrary } from "@/lib/store";
@@ -59,9 +59,11 @@ interface Props {
    *  so a change waits for the live slide to be clicked again. */
   template?: SlideLook;
   /** Video playback command from live state. Only acted on by variant="stage". */
-  videoCmd?: { action: "play" | "pause" | "restart" | "stop"; nonce: number };
+  videoCmd?: LiveState["videoCmd"];
   /** Called (stage only) when the current video reaches its end. */
   onVideoEnded?: () => void;
+  /** Called (stage only) as the live video plays: its position and length. */
+  onVideoTime?: (current: number, duration: number) => void;
   /**
    * Whether this slide is the currently-live one. The dissolve keeps the
    * outgoing slide mounted in a back layer; marking it inactive lets a video
@@ -93,13 +95,16 @@ function VideoLayer({
   variant,
   videoCmd,
   onEnded,
+  onTime,
   active = true,
   playbackEnabled = true,
 }: {
   slide: Slide;
   variant: "stage" | "thumb" | "preview";
-  videoCmd?: { action: "play" | "pause" | "restart" | "stop"; nonce: number };
+  videoCmd?: LiveState["videoCmd"];
   onEnded?: () => void;
+  /** Where the video is (seconds) and its length, for the playbar. */
+  onTime?: (current: number, duration: number) => void;
   active?: boolean;
   playbackEnabled?: boolean;
 }) {
@@ -124,6 +129,10 @@ function VideoLayer({
       return;
     }
     if (!playbackEnabled) return;
+    // The playbar: jump first, then carry on playing or paused.
+    if (videoCmd?.seekTo !== undefined && action !== "restart") {
+      el.currentTime = videoCmd.seekTo;
+    }
     if (action === "play") el.play().catch(() => {});
     else if (action === "pause") el.pause();
     else if (action === "stop") {
@@ -133,6 +142,9 @@ function VideoLayer({
       el.currentTime = 0;
       el.play().catch(() => {});
     }
+    // A seek rides on the command's nonce: re-running on `seekTo` alone would
+    // jump again on any unrelated change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStage, active, playbackEnabled, action, videoCmd?.nonce]);
 
   // Mount the YouTube iframe on first play; unmount it (back to the poster)
@@ -176,6 +188,7 @@ function VideoLayer({
     const dispatch = (first: boolean) => {
       send("addEventListener", ["onStateChange"]);
       if ((action === "restart" || action === "stop") && first) send("seekTo", [0, true]);
+      else if (videoCmd?.seekTo !== undefined && first) send("seekTo", [videoCmd.seekTo, true]);
       if (action === "play" || action === "restart") send("playVideo");
       else if (action === "pause" || action === "stop") send("pauseVideo");
     };
@@ -195,7 +208,41 @@ function VideoLayer({
       window.removeEventListener("message", onMsg);
       if (timer) clearInterval(timer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStage, slide.videoSource, action, videoCmd?.nonce, ytStarted, active]);
+
+  // The YouTube player's position, for the playbar: "listening" makes it
+  // send infoDelivery messages with currentTime (and duration once known).
+  const onTimeRef = useRef(onTime);
+  onTimeRef.current = onTime;
+  useEffect(() => {
+    if (!isStage || slide.videoSource !== "youtube" || !ytStarted || !active) return;
+    let duration = 0;
+    const onMsg = (ev: MessageEvent) => {
+      if (ev.origin !== YT_ORIGIN) return;
+      try {
+        const d = JSON.parse(ev.data);
+        if (d?.event !== "infoDelivery" || !d.info) return;
+        if (typeof d.info.duration === "number") duration = d.info.duration;
+        if (typeof d.info.currentTime === "number")
+          onTimeRef.current?.(d.info.currentTime, duration);
+      } catch {
+        // non-JSON message from the iframe: ignore
+      }
+    };
+    window.addEventListener("message", onMsg);
+    const listen = () =>
+      iframeRef.current?.contentWindow?.postMessage(
+        JSON.stringify({ event: "listening" }),
+        YT_ORIGIN,
+      );
+    listen();
+    const t = setTimeout(listen, 1000);
+    return () => {
+      window.removeEventListener("message", onMsg);
+      clearTimeout(t);
+    };
+  }, [isStage, slide.videoSource, ytStarted, active]);
 
   // Detect end-of-video from the YouTube iframe (state 0 = ended).
   useEffect(() => {
@@ -263,6 +310,16 @@ function VideoLayer({
           preload="metadata"
           controls={isStage}
           onEnded={isStage ? onEnded : undefined}
+          onTimeUpdate={
+            isStage && onTime
+              ? (e) => onTime(e.currentTarget.currentTime, e.currentTarget.duration || 0)
+              : undefined
+          }
+          onLoadedMetadata={
+            isStage && onTime
+              ? (e) => onTime(e.currentTarget.currentTime, e.currentTarget.duration || 0)
+              : undefined
+          }
         />
         {!playing && <PlayGlyph />}
       </>
@@ -317,6 +374,7 @@ export function SlideView({
   template,
   videoCmd,
   onVideoEnded,
+  onVideoTime,
   active = true,
   playbackEnabled = true,
 }: Props) {
@@ -477,6 +535,7 @@ export function SlideView({
             variant={variant}
             videoCmd={videoCmd}
             onEnded={onVideoEnded}
+            onTime={active ? onVideoTime : undefined}
             active={active}
             playbackEnabled={playbackEnabled}
           />
@@ -652,6 +711,7 @@ export function DissolveSlide({
   template: baseTemplate,
   videoCmd,
   onVideoEnded,
+  onVideoTime,
   playbackEnabled = true,
   refreshKey,
 }: Props & {
@@ -832,6 +892,7 @@ export function DissolveSlide({
           template={templateA}
           videoCmd={videoCmd}
           onVideoEnded={onVideoEnded}
+          onVideoTime={onVideoTime}
           active={front === "a"}
           playbackEnabled={playbackEnabled}
           className="h-full w-full"
@@ -846,6 +907,7 @@ export function DissolveSlide({
           template={templateB}
           videoCmd={videoCmd}
           onVideoEnded={onVideoEnded}
+          onVideoTime={onVideoTime}
           active={front === "b"}
           playbackEnabled={playbackEnabled}
           className="h-full w-full"

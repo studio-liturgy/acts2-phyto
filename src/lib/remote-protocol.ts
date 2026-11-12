@@ -52,7 +52,10 @@ export type RemoteToRoom =
   | { t: "live"; live: RemoteLive }
   | { t: "reset" };
 
-export type ScreenToRoom = { t: "ended"; nonce: number };
+export type ScreenToRoom =
+  | { t: "ended"; nonce: number }
+  /** The live video's position, for the remote's playbar. */
+  | { t: "vtime"; slideId: string | null; current: number; duration: number };
 
 export type RoomToRemote =
   | { t: "auth"; ok: boolean }
@@ -60,7 +63,8 @@ export type RoomToRemote =
    *  remote only sends what changed. */
   | { t: "have"; sets: Record<string, string> }
   | { t: "screens"; n: number }
-  | { t: "ended"; nonce: number };
+  | { t: "ended"; nonce: number }
+  | { t: "vtime"; slideId: string | null; current: number; duration: number };
 
 export type RoomToScreen =
   /** First on every connect: `empty` = no remote has sent a gathering (or it

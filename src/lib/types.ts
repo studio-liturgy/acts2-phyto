@@ -276,7 +276,13 @@ export interface LiveState {
   blackoutFadeMs?: number;
   /** Video playback command, broadcast to the output window. `nonce` increments
    *  on every press so the output reacts even when repeating a prior action. */
-  videoCmd?: { action: "play" | "pause" | "restart" | "stop"; nonce: number };
+  videoCmd?: {
+    action: "play" | "pause" | "restart" | "stop";
+    nonce: number;
+    /** Jump to this many seconds first (the playbar), then carry on with
+     *  `action` (still playing, or still paused). */
+    seekTo?: number;
+  };
   /** Set by the output window when the current video reaches its end, so the
    *  presenter knows the next →/Space should advance the slide. */
   videoEnded?: boolean;

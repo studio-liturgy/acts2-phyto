@@ -29,6 +29,7 @@ import { useWakeLock } from "@/hooks/use-wake-lock";
 import { usePreloadImages } from "@/hooks/use-preload-images";
 import { PreloadVideos } from "@/components/PreloadVideos";
 import { setsAround, setsMedia } from "@/lib/media-preload";
+import { throttleLatest } from "@/lib/video-time";
 import type { Set as PhytoSet, Slide } from "@/lib/types";
 
 // Present from a phone (n133): the screen link. Opened on the computer or
@@ -244,6 +245,17 @@ function ScreenView({ slug }: { slug: string }) {
   }, [meta, sets, live?.setId]);
   usePreloadImages(media.images);
 
+  // The playbar's position for the remote, a few times a second.
+  const sendTime = useMemo(
+    () =>
+      throttleLatest((m: ScreenToRoom) => {
+        if (sockRef.current?.readyState === WebSocket.OPEN) {
+          sockRef.current.send(JSON.stringify(m));
+        }
+      }, 300),
+    [],
+  );
+
   const sendEnded = () => {
     const nonce = live?.videoCmd?.nonce ?? 0;
     const m: ScreenToRoom = { t: "ended", nonce };
@@ -265,6 +277,9 @@ function ScreenView({ slug }: { slug: string }) {
             videoCmd={live.videoCmd}
             refreshKey={live.refresh}
             onVideoEnded={sendEnded}
+            onVideoTime={(current, duration) =>
+              sendTime({ t: "vtime", slideId: slide?.id ?? null, current, duration })
+            }
             playbackEnabled={armed}
             className="h-full w-full"
           />

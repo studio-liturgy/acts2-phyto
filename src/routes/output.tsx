@@ -5,11 +5,15 @@ import { DissolveSlide } from "@/components/SlideView";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Slide } from "@/lib/types";
 import { APP_NAME } from "@/lib/appConfig";
+import { postVideoTime, throttleLatest } from "@/lib/video-time";
 import { setsAround, setsMedia } from "@/lib/media-preload";
 import { usePreloadImages } from "@/hooks/use-preload-images";
 import { PreloadVideos } from "@/components/PreloadVideos";
 
 const ARMED_KEY = "phyto-video-armed";
+
+/** The playbar's position for the presenter, a few times a second. */
+const sendVideoTime = throttleLatest(postVideoTime, 250);
 
 export const Route = createFileRoute("/output")({
   head: () => ({
@@ -126,6 +130,9 @@ function Output() {
           videoCmd={live.videoCmd}
           refreshKey={live.refresh}
           onVideoEnded={() => live.videoFinished()}
+          onVideoTime={(current, duration) =>
+            sendVideoTime({ slideId: slide?.id ?? null, current, duration })
+          }
           playbackEnabled={armed}
           className="h-full w-full"
         />

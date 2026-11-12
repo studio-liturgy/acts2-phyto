@@ -1589,6 +1589,9 @@ export interface LiveStore extends LiveState {
   restartVideo: () => void;
   /** Marked by the output window when the current video finishes. */
   videoFinished: () => void;
+  /** Jump the live video to `seconds` (the playbar), keeping it playing or
+   *  paused as it was. */
+  seekVideo: (seconds: number) => void;
 }
 
 const DEFAULT_VIDEO_CMD = { action: "pause" as const, nonce: 0 };
@@ -1740,6 +1743,19 @@ export const useLive = create<LiveStore>((set, get) => ({
       videoCmd: { action: "restart", nonce: (get().videoCmd?.nonce ?? 0) + 1 },
       videoEnded: false,
     }),
+  seekVideo: (seconds) => {
+    const cur = get().videoCmd;
+    const action =
+      cur?.action === "restart" ? "play" : cur?.action === "stop" ? "pause" : cur?.action;
+    get().setLive({
+      videoCmd: {
+        action: action ?? "pause",
+        nonce: (cur?.nonce ?? 0) + 1,
+        seekTo: Math.max(0, seconds),
+      },
+      videoEnded: false,
+    });
+  },
   videoFinished: () =>
     get().setLive({
       videoCmd: { action: "pause", nonce: (get().videoCmd?.nonce ?? 0) + 1 },

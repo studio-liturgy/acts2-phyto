@@ -70,6 +70,14 @@ export class ScreenRoom extends DurableObject {
     if (att.role === "screen") {
       const m = parseMessage<ScreenToRoom>(raw);
       if (m?.t === "ended") this.toRemotes({ t: "ended", nonce: m.nonce });
+      else if (m?.t === "vtime") {
+        this.toRemotes({
+          t: "vtime",
+          slideId: m.slideId,
+          current: m.current,
+          duration: m.duration,
+        });
+      }
       return;
     }
     const m = parseMessage<RemoteToRoom>(raw);

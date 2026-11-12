@@ -19,6 +19,7 @@ import {
   type RoomToRemote,
 } from "./remote-protocol";
 import { isLiveNow } from "./live-session";
+import { useVideoTime } from "./video-time";
 import type { LiveState } from "./types";
 
 export type RemoteStatus =
@@ -197,6 +198,8 @@ function connect() {
       } else {
         useRemote.setState({ screens: 0, status: "waiting" });
       }
+    } else if (m.t === "vtime") {
+      useVideoTime.setState({ slideId: m.slideId, current: m.current, duration: m.duration });
     } else if (m.t === "ended") {
       const live = useLive.getState();
       if (live.videoCmd?.nonce === m.nonce && !live.videoEnded) live.videoFinished();

@@ -3,11 +3,7 @@ import { useLibrary } from "@/lib/store";
 import { FoldCard } from "@/components/FoldCard";
 import { TapRange } from "@/components/TapRange";
 
-const FONT_OPTIONS: { label: string; value: string }[] = [
-  { label: "Sans", value: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" },
-  { label: "Serif", value: "'Times New Roman', Times, serif" },
-  { label: "Mono", value: "'Courier New', Courier, monospace" },
-];
+import { FONT_OPTIONS } from "@/lib/template-fonts";
 
 /** Changes apply as they're made: no Apply step. */
 export function ScriptureTemplateEditor({

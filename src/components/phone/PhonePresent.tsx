@@ -1,28 +1,40 @@
-import { Navigate } from "@tanstack/react-router";
+import { Navigate, useNavigate } from "@tanstack/react-router";
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Copy,
   Monitor,
+  Pause,
+  Pencil,
+  Play,
   RotateCcw,
   SlidersHorizontal,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
-  PhoneBackHeader,
-  PhoneFoldTabs,
-  PhoneScreen,
-  PhoneTitleHeader,
-} from "@/components/phone/PhoneChrome";
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { PhoneBackHeader, PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
 import { SlideView } from "@/components/SlideView";
 import { NumberStepper } from "@/components/NumberStepper";
-import { SongTemplateEditor } from "@/components/SongTemplateEditor";
-import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
-import { BackgroundEditor } from "@/components/BackgroundEditor";
-import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
 import { SongLanguageBar } from "@/components/SongLanguageBar";
+import { AutoAdvanceStepper, LoopSwitches } from "@/components/MediaTemplateEditor";
+import { TapRange } from "@/components/TapRange";
+import { VideoBar } from "@/components/VideoBar";
+import { FONT_OPTIONS } from "@/lib/template-fonts";
+import { SLIDE_ASPECTS } from "@/lib/background";
+import { prepareImageFile } from "@/lib/image-upload";
+import { reapplyChords, stripChordsRaw } from "@/lib/chords";
+
 import { kindLiveColor } from "@/lib/kind-live";
 import { balanceRows } from "@/lib/balance-rows";
 import {
@@ -31,7 +43,7 @@ import {
   AlertDialogDescription,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { songLangs } from "@/lib/multiling";
+import { editedLangLines, songLangs } from "@/lib/multiling";
 import { visibleVersions } from "@/lib/versions";
 import type { Set as PhytoSet } from "@/lib/types";
 import { useAccountSlug } from "@/hooks/use-account-slug";
@@ -183,14 +195,7 @@ function RemoteView({ gatheringId, slug }: { gatheringId: string; slug: string }
       actions={toggle}
     />
   ) : (
-    <PhoneTitleHeader
-      title={
-        <span className="flex items-center gap-3">
-          Present
-          <DisconnectButton />
-        </span>
-      }
-    />
+    <PhoneTitleHeader title="Present" />
   );
 
   return (
@@ -251,6 +256,9 @@ function ScreenLink({ slug }: { slug: string }) {
             Share link
           </button>
         )}
+        <div className="mt-3 w-full">
+          <DisconnectButton wide />
+        </div>
       </div>
       <p className={NOTE}>
         Open this link on the computer or device connected to your TV or projector. The controls
@@ -260,15 +268,18 @@ function ScreenLink({ slug }: { slug: string }) {
   );
 }
 
-/** Disconnect, beside the title: asks first, like End Session. */
-function DisconnectButton() {
+/** Disconnect: beside the gathering's name once connected, under Share link
+ *  on the link page. Asks first, like End Session. */
+function DisconnectButton({ wide = false }: { wide?: boolean }) {
   const [asking, setAsking] = useState(false);
   return (
     <>
       <button
         type="button"
         onClick={() => setAsking(true)}
-        className="mono flex h-8 items-center rounded-full border border-[var(--brand-red)] px-3 text-[10px] uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
+        className={`mono flex items-center justify-center rounded-full border border-[var(--brand-red)] uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)] ${
+          wide ? "w-full py-3 text-xs" : "h-8 px-3 text-[10px]"
+        }`}
       >
         Disconnect
       </button>
@@ -413,9 +424,13 @@ function Thumb({
   );
 }
 
-/** The browsed set's sections as coloured pills, right-aligned, in rows that
- *  never leave one pill alone when that can be helped (lib/balance-rows). */
-function SectionPills({
+/**
+ * The browsed set's sections beside the edit circle, stacked as tall pills in
+ * their colours. They size to fit the circle's height: few sections, big
+ * pills; many, smaller ones; when they'd get too small to read, they wrap
+ * into balanced rows instead (lib/balance-rows: no pill alone on a row).
+ */
+function SectionColumn({
   sections,
   labels,
   liveAt,
@@ -428,25 +443,33 @@ function SectionPills({
 }) {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
   const [rows, setRows] = useState<number[]>([sections.length]);
   const sig = sections.map((s) => s.entryKey).join("|");
+  const GAP = 8;
+  const MAX = 50;
+  const MIN = 30;
+  const n = sections.length;
+  const stackedH = n > 0 ? (box.h - GAP * (n - 1)) / n : 0;
+  const stacked = stackedH >= MIN;
   useLayoutEffect(() => {
-    const box = boxRef.current;
+    const el = boxRef.current;
     const measure = measureRef.current;
-    if (!box || !measure) return;
+    if (!el || !measure) return;
     const run = () => {
+      setBox({ w: el.clientWidth, h: el.clientHeight });
       const widths = Array.from(measure.firstElementChild?.children ?? []).map(
         (c) => (c as HTMLElement).getBoundingClientRect().width,
       );
-      setRows(balanceRows(widths, 6, box.clientWidth));
+      setRows(balanceRows(widths, 6, el.clientWidth));
     };
     run();
     const ro = new ResizeObserver(run);
-    ro.observe(box);
+    ro.observe(el);
     return () => ro.disconnect();
   }, [sig]);
 
-  const pill = (sec: (typeof sections)[number], interactive: boolean) => {
+  const pill = (sec: (typeof sections)[number], mode: "stack" | "wrap" | "measure") => {
     const opt = labels.get(sec.sectionKey);
     const tint = SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
     const isLive = liveAt >= sec.start && liveAt <= sec.end;
@@ -454,12 +477,15 @@ function SectionPills({
       <button
         key={sec.entryKey}
         type="button"
-        tabIndex={interactive ? 0 : -1}
-        onClick={interactive ? () => onPick(sec.start) : undefined}
-        className={`pill mono flex h-7 shrink-0 items-center whitespace-nowrap border px-3 text-[10px] uppercase tracking-wider ${
+        tabIndex={mode === "measure" ? -1 : 0}
+        onClick={mode === "measure" ? undefined : () => onPick(sec.start)}
+        className={`mono flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border-2 px-3 text-[10px] uppercase tracking-wider text-[var(--brand-white)] ${
           isLive ? "border-foreground" : "border-transparent"
-        }`}
-        style={{ backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }}
+        } ${mode === "stack" ? "w-full" : "h-7"}`}
+        style={{
+          backgroundColor: tint,
+          ...(mode === "stack" ? { height: Math.min(MAX, stackedH) } : {}),
+        }}
       >
         {opt?.label ?? "Untitled"}
       </button>
@@ -468,26 +494,33 @@ function SectionPills({
 
   let at = 0;
   return (
-    <div ref={boxRef} className="relative min-w-0 flex-1">
-      {/* Unseen copy at natural width, to measure each pill. */}
+    <div ref={boxRef} className="relative h-full min-w-0">
+      {/* Unseen copy at natural width, to measure each pill for wrapping. */}
       <div
         ref={measureRef}
         aria-hidden
         className="pointer-events-none invisible absolute inset-x-0 top-0 h-0 overflow-hidden"
       >
-        <div className="flex w-max gap-1.5">{sections.map((sec) => pill(sec, false))}</div>
+        <div className="flex w-max gap-1.5">{sections.map((sec) => pill(sec, "measure"))}</div>
       </div>
-      <div className="flex flex-col items-end gap-1.5">
-        {rows.map((len, r) => {
-          const row = sections.slice(at, at + len);
-          at += len;
-          return (
-            <div key={r} className="flex justify-end gap-1.5">
-              {row.map((sec) => pill(sec, true))}
-            </div>
-          );
-        })}
-      </div>
+      {box.h > 0 &&
+        (stacked ? (
+          <div className="flex h-full flex-col justify-center" style={{ gap: GAP }}>
+            {sections.map((sec) => pill(sec, "stack"))}
+          </div>
+        ) : (
+          <div className="flex h-full flex-col items-end justify-center gap-1.5 overflow-y-auto">
+            {rows.map((len, r) => {
+              const row = sections.slice(at, at + len);
+              at += len;
+              return (
+                <div key={r} className="flex justify-end gap-1.5">
+                  {row.map((sec) => pill(sec, "wrap"))}
+                </div>
+              );
+            })}
+          </div>
+        ))}
     </div>
   );
 }
@@ -603,7 +636,28 @@ function Controls({
     return SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
   };
 
-  const ROUND = "flex h-16 w-16 shrink-0 items-center justify-center rounded-full transition";
+  // The mock-ups' proportions, as shares of the screen's width.
+  const CIRCLE = "flex aspect-square items-center justify-center rounded-full transition";
+  const liveIsVideo = liveSlide?.kind === "video";
+  // The (edit) circle: Quick edit for a slide with words; otherwise straight
+  // to the set editor.
+  const [quickEdit, setQuickEdit] = useState(false);
+  const browsedSlide =
+    browsed && browsedSet ? browsedSet.slides.find((x) => x.id === browsed.slideId) : undefined;
+  const navigate = useNavigate();
+  const openSetEditor = () => {
+    if (!browsedSet) return;
+    void navigate({
+      to: "/set/$setId",
+      params: { setId: browsedSet.id },
+      search: { redirectTo: "/?tab=present" },
+    });
+  };
+  const onEdit = () => {
+    if (browsedSlide && (browsedSlide.kind === "lyric" || browsedSlide.kind === "point")) {
+      setQuickEdit(true);
+    } else openSetEditor();
+  };
 
   return (
     // The screen's whole height: the slides stay on top; under them the
@@ -664,77 +718,112 @@ function Controls({
               })}
             </div>
           </div>
-          <div className="mt-3 shrink-0 border-b border-foreground/20 px-6 pb-2">
-            <PhoneFoldTabs
-              tabs={[
-                {
-                  title: "Controls",
-                  open: tab === "controls",
-                  onToggle: () => setTab("controls"),
-                },
-                {
-                  title: "Settings",
-                  open: tab === "settings",
-                  onToggle: () => setTab("settings"),
-                },
-              ]}
-            />
+          {/* Controls | Settings, each centred in its half, a line between. */}
+          <div className="mt-3 flex shrink-0 items-stretch border-b border-foreground/20 pb-2">
+            {(
+              [
+                ["controls", "Controls"],
+                ["settings", "Settings"],
+              ] as const
+            ).map(([v, label], i) => (
+              <Fragment key={v}>
+                {i > 0 && <span aria-hidden className="w-px bg-foreground/30" />}
+                <button
+                  type="button"
+                  onClick={() => setTab(v)}
+                  aria-pressed={tab === v}
+                  className={`mono flex-1 text-center text-[10px] uppercase leading-5 tracking-wider transition-colors ${
+                    tab === v ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              </Fragment>
+            ))}
           </div>
           {tab === "settings" ? (
-            <div className="min-h-0 flex-1 overflow-y-auto pb-6">
-              <SlideSettings set={browsedSet} />
+            <div className="min-h-0 flex-1 overflow-y-auto pb-8">
+              <RemoteSettings set={browsedSet} />
             </div>
           ) : (
-            <div className="flex min-h-0 flex-1 flex-col justify-end pb-5">
-              {/* The set's name with Back to current slide under it on the
-                  left; its sections on the right, level with the name. */}
-              <div className="flex items-start gap-3 px-6">
-                <div className="min-w-0 max-w-[45%] shrink-0">
-                  <p className="mono truncate pt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                    {browsedSet?.name ?? "\u00a0"}
-                  </p>
-                  <div className="-ml-2 mt-1">
-                    <BackToCurrent
-                      hidden={liveAt < 0 || liveAt === browse || !settled}
-                      onClick={() => centreOn(liveAt, true)}
-                    />
-                  </div>
-                </div>
-                {sections.length > 0 && (
-                  <SectionPills
-                    sections={sections}
-                    labels={labels}
-                    liveAt={liveAt}
-                    onPick={(start) => go(run[start] ?? null)}
-                  />
-                )}
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[5%] pb-5">
+              <div className="mt-auto" />
+              {/* (reset) and the set's title. */}
+              <div className="flex items-center gap-[4%] pt-4">
+                <button
+                  type="button"
+                  onClick={() => centreOn(liveAt, true)}
+                  disabled={liveAt < 0}
+                  title="Back to current slide"
+                  aria-label="Back to current slide"
+                  className={`${CIRCLE} w-[22%] shrink-0 border border-foreground active:bg-foreground/15 disabled:opacity-30 ${
+                    liveAt >= 0 && (liveAt === browse || !settled) ? "opacity-30" : ""
+                  }`}
+                >
+                  <RotateCcw className="h-6 w-6" />
+                </button>
+                <p className="mono line-clamp-2 min-w-0 flex-1 break-words text-right text-[8vw] uppercase leading-[1.05] tracking-wider">
+                  {browsedSet?.name ?? ""}
+                </p>
               </div>
-              {liveSlide?.kind === "video" && (
-                <div className="mt-3 flex gap-3 px-6">
+              {liveIsVideo ? (
+                // A video live: (play/pause) and Restart.
+                <div className="mt-[3%] grid grid-cols-2 gap-[3.5%]">
                   <button
                     type="button"
                     onClick={() => live.setVideoPlaying(!playing)}
-                    className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+                    title={playing ? "Pause video" : "Play video"}
+                    aria-label={playing ? "Pause video" : "Play video"}
+                    className={`${CIRCLE} w-full border border-foreground active:bg-foreground/15`}
                   >
-                    {playing ? "Stop video" : "Play video"}
+                    {playing ? <Pause className="h-10 w-10" /> : <Play className="h-10 w-10" />}
                   </button>
                   <button
                     type="button"
                     onClick={() => live.restartVideo()}
-                    className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+                    className={`${CIRCLE} mono w-full border border-foreground text-sm uppercase tracking-wider active:bg-foreground/15`}
                   >
                     Restart
                   </button>
                 </div>
+              ) : (
+                // (edit) and the set's sections.
+                <div className="mt-[3%] grid grid-cols-[45%_1fr] gap-[3.5%]">
+                  <button
+                    type="button"
+                    onClick={onEdit}
+                    disabled={!browsedSet}
+                    title="Edit"
+                    aria-label="Edit"
+                    className={`${CIRCLE} w-full border border-foreground active:bg-foreground/15 disabled:opacity-30`}
+                  >
+                    <Pencil className="h-10 w-10" />
+                  </button>
+                  {sections.length > 0 ? (
+                    <SectionColumn
+                      sections={sections}
+                      labels={labels}
+                      liveAt={liveAt}
+                      onPick={(start) => go(run[start] ?? null)}
+                    />
+                  ) : (
+                    <div />
+                  )}
+                </div>
               )}
-
-              {/* Previous / Clear / Next. */}
-              <div className="mt-3 flex items-center gap-3 px-6">
+              {/* The video's playbar, just above the arrows and Clear. */}
+              {liveIsVideo && liveSlide && (
+                <div className="mt-5">
+                  <VideoBar slideId={liveSlide.id} />
+                </div>
+              )}
+              {/* (arrow) Clear (arrow). */}
+              <div className="mt-[4%] flex items-stretch gap-[2%]">
                 <button
                   type="button"
                   disabled={!prev}
                   onClick={() => go(prev)}
-                  className={`${ROUND} border border-foreground active:bg-foreground active:text-background disabled:opacity-30`}
+                  className={`${CIRCLE} w-[17%] shrink-0 bg-foreground text-background active:opacity-80 disabled:opacity-30`}
                   aria-label="Previous slide"
                   title="Previous slide"
                 >
@@ -743,10 +832,10 @@ function Controls({
                 <button
                   type="button"
                   onClick={() => live.toggleBlackout()}
-                  className={`mono h-16 flex-1 rounded-full border text-xs uppercase tracking-wider transition ${
+                  className={`mono flex-1 rounded-full text-sm uppercase tracking-wider transition ${
                     live.blackout
-                      ? "border-[var(--brand-red)] bg-[var(--brand-red)] text-[var(--brand-white)]"
-                      : "border-foreground"
+                      ? "bg-[var(--brand-red)] text-[var(--brand-white)]"
+                      : "bg-foreground text-background active:opacity-80"
                   }`}
                   aria-pressed={live.blackout}
                 >
@@ -756,7 +845,7 @@ function Controls({
                   type="button"
                   disabled={!next}
                   onClick={() => go(next)}
-                  className={`${ROUND} bg-foreground text-background active:opacity-80 disabled:opacity-30`}
+                  className={`${CIRCLE} w-[17%] shrink-0 bg-foreground text-background active:opacity-80 disabled:opacity-30`}
                   aria-label="Next slide"
                   title="Next slide"
                 >
@@ -767,57 +856,409 @@ function Controls({
           )}
         </>
       )}
+      {browsedSet && browsedSlide && (
+        <QuickEdit
+          open={quickEdit}
+          onOpenChange={setQuickEdit}
+          set={browsedSet}
+          slideId={browsedSlide.id}
+          onEditSet={() => {
+            setQuickEdit(false);
+            openSetEditor();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-/** The presenter's settings for the set in view (the one browsed to, which
- *  may not be live yet): fade time, Media Functions, Languages, the Song or
- *  Scripture Template, and Background (one of those two open at a time).
- *  They change the setting itself, as on desktop, and reach the screen on
- *  the next slide or a tap on the live one. */
-function SlideSettings({ set }: { set: PhytoSet | undefined }) {
+/**
+ * Quick edit (the (edit) circle): the browsed slide's words, chords kept
+ * (re-anchored as on desktop's Fast Edit), saved on Save. Edit set opens
+ * the whole set in the set editor, coming back to Present.
+ */
+function QuickEdit({
+  open,
+  onOpenChange,
+  set,
+  slideId,
+  onEditSet,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  set: PhytoSet;
+  slideId: string;
+  onEditSet: () => void;
+}) {
+  const updateSlide = useLibrary((s) => s.updateSlide);
+  const slide = set.slides.find((x) => x.id === slideId);
+  const [draft, setDraft] = useState("");
+  // Fill the box when it opens (never while it closes).
+  useEffect(() => {
+    if (open && slide) setDraft((slide.lines ?? []).map(stripChordsRaw).join("\n"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+  const save = () => {
+    if (!slide) return;
+    const merged = reapplyChords((slide.lines ?? []).join("\n"), draft);
+    updateSlide(set.id, slide.id, editedLangLines(slide, merged.split("\n")));
+    onOpenChange(false);
+  };
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="gap-0 rounded-3xl p-8">
+        <AlertDialogTitle className="text-2xl font-normal leading-tight">
+          Quick edit
+        </AlertDialogTitle>
+        <AlertDialogDescription className="sr-only">
+          Edit the words on this slide.
+        </AlertDialogDescription>
+        <textarea
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={6}
+          className="mono mt-4 w-full resize-none rounded-2xl border border-foreground bg-background p-3 text-base leading-snug outline-none"
+        />
+        <div className="mt-8 flex gap-3">
+          <button
+            type="button"
+            onClick={save}
+            className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="mono uppercase flex-1 rounded-full border border-foreground py-2 text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={onEditSet}
+          className="mono uppercase mt-3 w-full rounded-full border border-foreground py-2 text-sm"
+        >
+          Edit set
+        </button>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+/**
+ * The remote's Settings tab: everything for the set in view (the one browsed
+ * to, which may not be live yet) at once, laid out as in his mock-ups. Each
+ * changes the setting itself, as on desktop, and reaches the screen on the
+ * next slide or a tap on the live one.
+ */
+function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
   const fadeMs = useLibrary((s) => s.fadeMs);
   const setFadeMs = useLibrary((s) => s.setFadeMs);
+  const songTemplate = useLibrary((s) => s.songTemplate);
+  const setSongTemplate = useLibrary((s) => s.setSongTemplate);
+  const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
+  const setScriptureTemplate = useLibrary((s) => s.setScriptureTemplate);
+  const background = useLibrary((s) => s.background);
+  const setBackground = useLibrary((s) => s.setBackground);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageErr, setImageErr] = useState<string | null>(null);
+
+  const kind = set?.kind;
+  const isSong = kind === "song";
+  const isScripture = kind === "scripture" || kind === "message";
   const langs = set ? songLangs(set) : [];
-  const [openCard, setOpenCard] = useState<"template" | "background" | null>(null);
-  const cardProps = (card: "template" | "background") => ({
-    open: openCard === card,
-    onOpenChange: (o: boolean) => setOpenCard(o ? card : null),
-  });
+  const t = isSong ? songTemplate : scriptureTemplate;
+  const setT = isSong ? setSongTemplate : setScriptureTemplate;
+  const font = t.fontFamily ?? FONT_OPTIONS[0].value;
+
+  const LABEL = "mono text-[10px] uppercase tracking-wider";
+  const PILL =
+    "mono flex h-7 items-center justify-center rounded-full border px-3 text-[10px] uppercase tracking-wider transition";
+  const on = "border-foreground bg-foreground text-background";
+  const off = "border-foreground/40";
+  // Two halves of one pill (Reference, Alignment).
+  const half = (active: boolean, first: boolean) =>
+    `flex h-7 flex-1 items-center justify-center text-[10px] transition ${first ? "border-r border-foreground/40" : ""} ${
+      active ? "bg-foreground text-background" : ""
+    }`;
+
+  const pickImage = async (file?: File) => {
+    if (!file) return;
+    setImageBusy(true);
+    setImageErr(null);
+    let full = false;
+    try {
+      const prepared = await prepareImageFile(file, () => {
+        full = true;
+        setImageErr("Out of storage. Remove a background or some media first.");
+      });
+      if (prepared) setBackground({ bgImage: prepared.url });
+      else if (!full) setImageErr("That image could not be read.");
+    } finally {
+      setImageBusy(false);
+    }
+  };
+
   return (
-    <div className="mt-2 space-y-2 px-6">
-      <div className="flex h-10 items-center justify-between">
-        <span className="mono text-[10px] uppercase tracking-wider">Fade time</span>
-        <div className="flex items-center gap-1">
-          <NumberStepper
-            value={fadeMs / 1000}
-            onChange={(v) => setFadeMs(Math.round(v * 1000))}
-            min={0}
-            max={5}
-            step={0.1}
-            format={(n) => n.toFixed(1)}
-            boxClassName="w-9"
-            decrementLabel="Shorter slide fade"
-            incrementLabel="Longer slide fade"
-          />
-          <span className="text-xs text-muted-foreground">s</span>
+    <div className="space-y-6 px-[5%] pt-5">
+      {/* Fade time, then Font size (or Auto advance for media). */}
+      <div className="grid grid-cols-2 items-center gap-x-4">
+        <div className="flex items-center gap-3">
+          <span className={LABEL}>Fade time</span>
+          <div className="flex items-center gap-1">
+            <NumberStepper
+              value={fadeMs / 1000}
+              onChange={(v) => setFadeMs(Math.round(v * 1000))}
+              min={0}
+              max={5}
+              step={0.1}
+              format={(n) => n.toFixed(1)}
+              boxClassName="w-9"
+              decrementLabel="Shorter slide fade"
+              incrementLabel="Longer slide fade"
+            />
+            <span className="text-xs text-muted-foreground">s</span>
+          </div>
         </div>
+        {(isSong || isScripture) && (
+          <div className="flex items-center gap-3">
+            <span className={`${LABEL} shrink-0`}>Font size</span>
+            <TapRange
+              min={1}
+              max={2}
+              step={0.05}
+              value={t.fontScale ?? 1}
+              onValue={(v) => setT({ fontScale: v })}
+              className="min-w-0 flex-1"
+            />
+          </div>
+        )}
+        {kind === "media" && set && (
+          <div className="flex items-center gap-3">
+            <span className={`${LABEL} shrink-0`}>Auto advance</span>
+            <AutoAdvanceStepper setId={set.id} />
+          </div>
+        )}
       </div>
-      {set?.kind === "media" && <MediaTemplateEditor setId={set.id} />}
-      {set && langs.length > 0 && (
-        <div className="rounded-[20px] border border-foreground p-3">
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider">Languages</div>
-          <SongLanguageBar set={set} />
+
+      {(isSong || isScripture) && (
+        <div className="grid grid-cols-2 gap-x-4">
+          <div>
+            <div className={`${LABEL} mb-2`}>Font type</div>
+            <div className="flex gap-1">
+              {FONT_OPTIONS.map((f) => (
+                <button
+                  key={f.label}
+                  type="button"
+                  onClick={() => setT({ fontFamily: f.value })}
+                  aria-label={f.label}
+                  title={f.label}
+                  style={{ fontFamily: f.value }}
+                  className={`flex h-7 flex-1 items-center justify-center rounded-full border text-xs transition ${
+                    font === f.value ? on : off
+                  }`}
+                >
+                  {f.short}
+                </button>
+              ))}
+            </div>
+          </div>
+          {isSong ? (
+            <div>
+              <div className={`${LABEL} mb-2`}>Position</div>
+              <div className="flex gap-1">
+                {(
+                  [
+                    ["top", "Top"],
+                    ["centre", "Centre"],
+                  ] as const
+                ).map(([v, label]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setSongTemplate({ position: v })}
+                    className={`${PILL} flex-1 ${(songTemplate.position ?? "centre") === v ? on : off}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <div className={`${LABEL} mb-2`}>Reference</div>
+                <div className="flex overflow-hidden rounded-full border border-foreground/40">
+                  <button
+                    type="button"
+                    onClick={() => setScriptureTemplate({ referencePosition: "above" })}
+                    aria-label="Reference above"
+                    title="Above"
+                    className={half(
+                      (scriptureTemplate.referencePosition ?? "below") === "above",
+                      true,
+                    )}
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScriptureTemplate({ referencePosition: "below" })}
+                    aria-label="Reference below"
+                    title="Below"
+                    className={half(
+                      (scriptureTemplate.referencePosition ?? "below") === "below",
+                      false,
+                    )}
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className={`${LABEL} mb-2`}>Alignment</div>
+                <div className="mono flex overflow-hidden rounded-full border border-foreground/40">
+                  <button
+                    type="button"
+                    onClick={() => setScriptureTemplate({ align: "left" })}
+                    aria-label="Left"
+                    title="Left"
+                    className={half((scriptureTemplate.align ?? "left") === "left", true)}
+                  >
+                    L
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScriptureTemplate({ align: "center" })}
+                    aria-label="Centre"
+                    title="Centre"
+                    className={half(scriptureTemplate.align === "center", false)}
+                  >
+                    C
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
-      {/* One rounded box with a line between each card, as in Settings. */}
-      <div className="overflow-hidden rounded-[20px] border border-foreground [&_[data-fold-card]+[data-fold-card]]:border-t [&_[data-fold-card]]:rounded-none [&_[data-fold-card]]:border-0">
-        {set?.kind === "song" && <SongTemplateEditor {...cardProps("template")} />}
-        {(set?.kind === "scripture" || set?.kind === "message") && (
-          <ScriptureTemplateEditor {...cardProps("template")} />
+
+      {isSong && (
+        <div className="grid grid-cols-2 gap-x-4">
+          <div>
+            <div className={`${LABEL} mb-2`}>Case</div>
+            <div className="flex gap-1">
+              {(
+                [
+                  ["upper", "All Caps"],
+                  ["mixed", "Mixed"],
+                ] as const
+              ).map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setSongTemplate({ textCase: v })}
+                  className={`${PILL} flex-1 ${(songTemplate.textCase ?? "mixed") === v ? on : off}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {set && langs.length > 0 && (
+        <div>
+          <div className={`${LABEL} mb-2`}>Languages</div>
+          <SongLanguageBar set={set} orientation="horizontal" />
+        </div>
+      )}
+
+      {kind === "media" && set && (
+        <div className="space-y-3">
+          <LoopSwitches setId={set.id} />
+        </div>
+      )}
+
+      {/* Background: Black, White or an image (with its Dim). */}
+      <div>
+        <div className={`${LABEL} mb-2`}>Background</div>
+        <div className="grid grid-cols-3 gap-1">
+          {(
+            [
+              ["black", "Black", "bg-black text-white"],
+              ["white", "White", "bg-white text-black"],
+            ] as const
+          ).map(([v, label, look]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setBackground({ bg: v, bgImage: undefined })}
+              className={`mono flex h-7 items-center justify-center rounded-full text-[10px] uppercase tracking-wider transition ${look} ${
+                !background.bgImage && background.bg === v
+                  ? "border-2 border-foreground"
+                  : "border border-foreground/40"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <label
+            className={`mono flex h-7 cursor-pointer items-center justify-center rounded-full text-[10px] uppercase tracking-wider transition ${
+              background.bgImage ? "border-2 border-foreground" : "border border-foreground/40"
+            }`}
+          >
+            {imageBusy ? "Uploading" : "Image"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={imageBusy}
+              onChange={(e) => {
+                void pickImage(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+        {background.bgImage && (
+          <div className="mt-3 flex items-center gap-3">
+            <span className={`${LABEL} shrink-0`}>Dim</span>
+            <TapRange
+              min={0}
+              max={90}
+              step={5}
+              value={background.bgDim}
+              onValue={(v) => setBackground({ bgDim: v })}
+              className="min-w-0 flex-1"
+            />
+            <span className="mono w-8 text-right text-[10px] tabular-nums">
+              {background.bgDim}%
+            </span>
+          </div>
         )}
-        <BackgroundEditor phone {...cardProps("background")} />
+        {imageErr && <p className="mt-2 text-[10px] text-destructive">{imageErr}</p>}
+      </div>
+
+      {/* Aspect ratio: the screen's shape. */}
+      <div>
+        <div className={`${LABEL} mb-2`}>Aspect ratio</div>
+        <div className="flex flex-wrap gap-2">
+          {SLIDE_ASPECTS.map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => setBackground({ aspect: a })}
+              className={`${PILL} tabular-nums ${(background.aspect ?? "16:9") === a ? on : off}`}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

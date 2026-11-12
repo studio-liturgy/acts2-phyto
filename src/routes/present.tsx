@@ -31,6 +31,8 @@ import { inferredVersions, versionsMismatchWorkspace, visibleVersions } from "@/
 import { VersionWarning } from "@/components/VersionWarning";
 import { NumberStepper } from "@/components/NumberStepper";
 import { kindLiveColor } from "@/lib/kind-live";
+import { listenVideoTime } from "@/lib/video-time";
+import { VideoBar } from "@/components/VideoBar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -752,6 +754,9 @@ function Presenter() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [liveSet, liveSlide, live, hiddenBySet, arrangesSongs, arrangeBySet]);
+
+  // The playbar follows Stage Output's reports.
+  useEffect(() => listenVideoTime(), []);
 
   const openOutput = () => window.open("/output", "_blank", "noopener,noreferrer");
 
@@ -1654,6 +1659,12 @@ function Presenter() {
                   />
                   <span className="text-xs text-muted-foreground">s</span>
                 </div>
+                {/* The live video's playbar, beside Play / Restart. */}
+                {liveSlide?.kind === "video" && (
+                  <div className="mx-3 min-w-0 flex-1">
+                    <VideoBar slideId={liveSlide.id} />
+                  </div>
+                )}
                 <div className="flex items-center gap-1.5">
                   {liveSlide?.kind === "video" && (
                     <>
