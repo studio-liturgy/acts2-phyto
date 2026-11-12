@@ -1,5 +1,9 @@
 import { Link, Navigate, useNavigate } from "@tanstack/react-router";
 import {
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyStart,
+  CaseSensitive,
+  CaseUpper,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -168,7 +172,7 @@ function RemoteView({ gatheringId, slug }: { gatheringId: string; slug: string }
           <Link
             to="/present"
             search={{ gathering: gatheringId, remote: true }}
-            className="pill flex h-10 w-10 shrink-0 items-center justify-center transition active:bg-foreground/15"
+            className="pill flex h-9 w-9 shrink-0 items-center justify-center transition active:bg-foreground/15"
             title="Edit gathering"
             aria-label="Edit gathering"
           >
@@ -424,20 +428,21 @@ function SectionRow({
 }) {
   const rowRef = useRef<HTMLDivElement | null>(null);
   const current = sections.findIndex((sec) => browse >= sec.start && browse <= sec.end);
+  // The section in view is centred where it can be; the row starts flush
+  // left. A new set (the row is new) jumps straight there, no glide.
+  const placed = useRef(false);
   useEffect(() => {
     const row = rowRef.current;
     const el = row?.children[current] as HTMLElement | undefined;
     if (!row || !el) return;
     row.scrollTo({
-      left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2,
-      behavior: "smooth",
+      left: centeredTabScroll(el.offsetLeft, el.offsetWidth, row.clientWidth, row.scrollWidth),
+      behavior: placed.current ? "smooth" : "instant",
     });
+    placed.current = true;
   }, [current]);
   return (
-    <div
-      ref={rowRef}
-      className="relative flex gap-3 overflow-x-auto px-[27%] [scrollbar-width:none]"
-    >
+    <div ref={rowRef} className="relative flex gap-3 overflow-x-auto px-4 [scrollbar-width:none]">
       {sections.map((sec) => {
         const opt = labels.get(sec.sectionKey);
         const tint = SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
@@ -704,7 +709,11 @@ function Controls({
                   } as CSSProperties
                 }
               >
-                <div className="flex h-[4.5rem] shrink-0 flex-col justify-center">
+                {/* A new set fades its sections in. */}
+                <div
+                  key={liveIsVideo ? "video" : (browsed?.slot ?? -1)}
+                  className="flex h-[4.5rem] shrink-0 flex-col justify-center duration-300 animate-in fade-in-0"
+                >
                   {liveIsVideo && liveSlide ? (
                     <div className="px-[4%]">
                       <VideoBar slideId={liveSlide.id} showTime />
@@ -712,6 +721,7 @@ function Controls({
                   ) : (
                     sections.length > 0 && (
                       <SectionRow
+                        key={browsed?.slot ?? -1}
                         sections={sections}
                         labels={labels}
                         liveAt={liveAt}
@@ -1054,8 +1064,8 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
           {splitSetting(
             "Position",
             [
-              ["top", "Top"],
-              ["centre", "Centre"],
+              ["top", <AlignVerticalJustifyStart key="t" className="h-3.5 w-3.5" />, "Top"],
+              ["centre", <AlignVerticalJustifyCenter key="c" className="h-3.5 w-3.5" />, "Centre"],
             ],
             songTemplate.position ?? "centre",
             (v) => setSongTemplate({ position: v as "top" | "centre" }),
@@ -1063,8 +1073,8 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
           {splitSetting(
             "Case",
             [
-              ["upper", "All Caps"],
-              ["mixed", "Mixed"],
+              ["upper", <CaseUpper key="u" className="h-4 w-4" />, "All caps"],
+              ["mixed", <CaseSensitive key="m" className="h-4 w-4" />, "Mixed case"],
             ],
             songTemplate.textCase ?? "mixed",
             (v) => setSongTemplate({ textCase: v as "upper" | "mixed" }),
