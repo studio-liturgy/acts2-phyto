@@ -1134,7 +1134,7 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
               key={v}
               type="button"
               onClick={() => setBackground({ bg: v, bgImage: undefined })}
-              className={`mono flex h-7 items-center justify-center rounded-full text-[10px] uppercase tracking-wider transition ${look} ${
+              className={`mono flex h-[30px] items-center justify-center rounded-full text-[10px] uppercase tracking-wider transition ${look} ${
                 !background.bgImage && background.bg === v
                   ? "border-2 border-foreground"
                   : "border border-foreground/40"
@@ -1144,7 +1144,7 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
             </button>
           ))}
           <label
-            className={`mono flex h-7 cursor-pointer items-center justify-center rounded-full text-[10px] uppercase tracking-wider transition ${
+            className={`mono flex h-[30px] cursor-pointer items-center justify-center rounded-full text-[10px] uppercase tracking-wider transition ${
               background.bgImage ? "border-2 border-foreground" : "border border-foreground/40"
             }`}
           >
