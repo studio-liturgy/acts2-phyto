@@ -26,7 +26,13 @@ import { safeNextPath, useSessionLost, wasUserSignOut } from "@/lib/session-lost
 import { SignedOutDialog } from "@/components/SignedOutDialog";
 import { getSession, isTesterEmail, signOut } from "@/lib/auth";
 import type { Session } from "@supabase/supabase-js";
-import { isOpenOnTest, readVerifiedTester, TESTERS_ONLY, writeVerifiedTester } from "@/lib/testers";
+import {
+  isOpenOnTest,
+  isViewerPath,
+  readVerifiedTester,
+  TESTERS_ONLY,
+  writeVerifiedTester,
+} from "@/lib/testers";
 import { TestersOnlyDialog } from "@/components/TestersOnlyDialog";
 import { useAuthStore } from "@/lib/authStore";
 import { pushLater, useLibrary } from "@/lib/store";
@@ -345,7 +351,7 @@ function RootComponent() {
   const [notTester, setNotTester] = useState(false);
 
   const runDiff = async (autoMerge = false) => {
-    if (pathname.startsWith("/g/")) return;
+    if (isViewerPath(pathname)) return;
     // Publish the pull to the sync-status store for the whole pass: the home
     // page shows a loading view (instead of the first-time landing) while an
     // empty device is still downloading the account. fetchRemote fills in the
@@ -416,7 +422,7 @@ function RootComponent() {
   // addressed to my email, then pull/prune the saved shared sets. Claim must run
   // first — the set reads are admitted by the RLS grant it establishes.
   const runCollabSync = async () => {
-    if (pathname.startsWith("/g/")) return;
+    if (isViewerPath(pathname)) return;
     await claimShares();
     // Group invites are NOT auto-claimed: they wait in the invite inbox for the
     // user to accept or decline (see index.tsx).
@@ -563,7 +569,7 @@ function RootComponent() {
   // Merge/Replace dialog). Polls on an interval, and immediately whenever the tab
   // regains focus/visibility or the network comes back, for a snappy feel.
   useEffect(() => {
-    if (!session || pathname.startsWith("/g/")) return;
+    if (!session || isViewerPath(pathname)) return;
     let running = false;
     let ticks = 0;
     const tick = async (personal = false) => {
@@ -625,7 +631,7 @@ function RootComponent() {
     [myGroups],
   );
   useEffect(() => {
-    if (!session || pathname.startsWith("/g/")) {
+    if (!session || isViewerPath(pathname)) {
       stopGroupChannels();
       setGroupChangeHandler(null);
       return;
@@ -664,7 +670,7 @@ function RootComponent() {
   // keeps it clear of the initial merge, and the store guards re-entry, so the
   // repeat calls this effect makes on every session/dialog change are no-ops.
   useEffect(() => {
-    if (!session || syncDiff || pathname.startsWith("/g/")) return;
+    if (!session || syncDiff || isViewerPath(pathname)) return;
     const timer = setTimeout(() => migrateInlineImages(), 5000);
     return () => clearTimeout(timer);
   }, [session, syncDiff, pathname, migrateInlineImages]);
@@ -695,7 +701,7 @@ function RootComponent() {
       <SignedOutDialog />
       {TESTERS_ONLY && <TestersOnlyDialog open={notTester} onOpenChange={setNotTester} />}
       <Dialog
-        open={pathname !== "/output" && syncDiff !== null}
+        open={pathname !== "/output" && !pathname.startsWith("/screen/") && syncDiff !== null}
         onOpenChange={(open) => {
           if (!open && !applying) closeSyncDialog();
         }}

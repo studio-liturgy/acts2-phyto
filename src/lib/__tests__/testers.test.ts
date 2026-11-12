@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   checkTester,
   isOpenOnTest,
+  isViewerPath,
   PROD_ORIGIN,
   readVerifiedTester,
   shareOrigin,
@@ -11,15 +12,40 @@ import {
 } from "../testers";
 
 describe("isOpenOnTest", () => {
-  it("leaves sign in, its callback, legal pages and live links open", () => {
-    for (const p of ["/login", "/auth/callback", "/legal", "/terms", "/privacy", "/g/abc"]) {
+  it("leaves sign in, its callback, legal pages, live links and screen links open", () => {
+    for (const p of [
+      "/login",
+      "/auth/callback",
+      "/legal",
+      "/terms",
+      "/privacy",
+      "/g/abc",
+      "/screen/abc",
+    ]) {
       expect(isOpenOnTest(p)).toBe(true);
     }
   });
   it("gates the app itself", () => {
-    for (const p of ["/", "/present", "/output", "/set/123", "/s/xyz", "/updates", "/g"]) {
+    for (const p of [
+      "/",
+      "/present",
+      "/output",
+      "/set/123",
+      "/s/xyz",
+      "/updates",
+      "/g",
+      "/screen",
+    ]) {
       expect(isOpenOnTest(p)).toBe(false);
     }
+  });
+});
+
+describe("isViewerPath", () => {
+  it("live links and screen links skip the library sync", () => {
+    expect(isViewerPath("/g/abc")).toBe(true);
+    expect(isViewerPath("/screen/abc")).toBe(true);
+    expect(isViewerPath("/present")).toBe(false);
   });
 });
 

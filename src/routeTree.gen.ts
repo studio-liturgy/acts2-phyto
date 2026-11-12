@@ -23,6 +23,7 @@ import { Route as DonateRouteImport } from './routes/donate'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SetSetIdRouteImport } from './routes/set.$setId'
+import { Route as ScreenSlugRouteImport } from './routes/screen.$slug'
 import { Route as SShareIdRouteImport } from './routes/s.$shareId'
 import { Route as GTokenRouteImport } from './routes/g.$token'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -105,6 +106,11 @@ const IndexRoute = IndexRouteImport.update({
 const SetSetIdRoute = SetSetIdRouteImport.update({
   id: '/set/$setId',
   path: '/set/$setId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScreenSlugRoute = ScreenSlugRouteImport.update({
+  id: '/screen/$slug',
+  path: '/screen/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SShareIdRoute = SShareIdRouteImport.update({
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
+  '/screen/$slug': typeof ScreenSlugRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
@@ -219,6 +226,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
+  '/screen/$slug': typeof ScreenSlugRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
@@ -249,6 +257,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
+  '/screen/$slug': typeof ScreenSlugRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
@@ -280,6 +289,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/g/$token'
     | '/s/$shareId'
+    | '/screen/$slug'
     | '/set/$setId'
     | '/api/account/delete'
     | '/api/auth/welcome'
@@ -309,6 +319,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/g/$token'
     | '/s/$shareId'
+    | '/screen/$slug'
     | '/set/$setId'
     | '/api/account/delete'
     | '/api/auth/welcome'
@@ -338,6 +349,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/g/$token'
     | '/s/$shareId'
+    | '/screen/$slug'
     | '/set/$setId'
     | '/api/account/delete'
     | '/api/auth/welcome'
@@ -368,6 +380,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   GTokenRoute: typeof GTokenRoute
   SShareIdRoute: typeof SShareIdRoute
+  ScreenSlugRoute: typeof ScreenSlugRoute
   SetSetIdRoute: typeof SetSetIdRoute
   ApiAccountDeleteRoute: typeof ApiAccountDeleteRoute
   ApiAuthWelcomeRoute: typeof ApiAuthWelcomeRoute
@@ -481,6 +494,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetSetIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/screen/$slug': {
+      id: '/screen/$slug'
+      path: '/screen/$slug'
+      fullPath: '/screen/$slug'
+      preLoaderRoute: typeof ScreenSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/s/$shareId': {
       id: '/s/$shareId'
       path: '/s/$shareId'
@@ -592,6 +612,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   GTokenRoute: GTokenRoute,
   SShareIdRoute: SShareIdRoute,
+  ScreenSlugRoute: ScreenSlugRoute,
   SetSetIdRoute: SetSetIdRoute,
   ApiAccountDeleteRoute: ApiAccountDeleteRoute,
   ApiAuthWelcomeRoute: ApiAuthWelcomeRoute,

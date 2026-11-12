@@ -14,13 +14,25 @@ export const PHONE_MAX_WIDTH = 767;
 
 export const PHONE_QUERY = `(max-width: ${PHONE_MAX_WIDTH}px)`;
 
-/** The three screens of the bottom tab bar on the phone home. */
-export type PhoneTab = "gatherings" | "catalogue" | "settings";
+/** The screens of the bottom tab bar on the phone home. Present (the
+ *  remote) only shows while a gathering is live. */
+export type PhoneTab = "gatherings" | "catalogue" | "present" | "settings";
 
-export const PHONE_TABS: PhoneTab[] = ["gatherings", "catalogue", "settings"];
+export const PHONE_TABS: PhoneTab[] = ["gatherings", "catalogue", "present", "settings"];
 
 export function parsePhoneTab(v: unknown): PhoneTab | undefined {
-  return v === "catalogue" || v === "settings" || v === "gatherings" ? v : undefined;
+  return v === "catalogue" || v === "settings" || v === "gatherings" || v === "present"
+    ? v
+    : undefined;
+}
+
+/** The gathering the Present tab drives: the first live one in the list. */
+export function presentGatheringId(
+  order: string[],
+  gatherings: Record<string, Gathering | undefined>,
+  isLive: (g: Gathering) => boolean,
+): string | null {
+  return order.find((id) => gatherings[id] && isLive(gatherings[id])) ?? null;
 }
 
 /**

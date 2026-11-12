@@ -1,11 +1,13 @@
 import { Link, Navigate } from "@tanstack/react-router";
-import { ArrowUpLeft, ChevronDown, Layers, Library, Settings } from "lucide-react";
+import { ArrowUpLeft, ArrowUpRight, ChevronDown, Layers, Library, Settings } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { PhoneTab } from "@/lib/phone-layout";
 import { caretAtPoint, glideBy, revealDelta } from "@/lib/phone-dock";
 import { holdDelay, lineHold } from "@/lib/line-select";
 import { pickCellAt } from "@/lib/row-pick";
 import { useAuthStore } from "@/lib/authStore";
+import { useLibrary } from "@/lib/store";
+import { isLiveNow } from "@/lib/live-session";
 
 /**
  * A phone screen: header, the scrolling body, and (on the main screens) the
@@ -125,17 +127,21 @@ export function PhoneBackHeader({
 const TABS: { tab: PhoneTab; label: string; Icon: typeof Library }[] = [
   { tab: "catalogue", label: "Catalogue", Icon: Library },
   { tab: "gatherings", label: "Gatherings", Icon: Layers },
+  { tab: "present", label: "Present", Icon: ArrowUpRight },
   { tab: "settings", label: "Settings", Icon: Settings },
 ];
 
 /**
  * Icon-only tab bar along the bottom edge, like the Shiro app's. Tapping the
  * tab already showing scrolls its page back to the top, as iOS apps do.
+ * Present (the remote) is there only while a gathering is live.
  */
 export function PhoneTabBar({ tab, onReselect }: { tab: PhoneTab; onReselect?: () => void }) {
+  const anyLive = useLibrary((s) => Object.values(s.gatherings ?? {}).some((g) => isLiveNow(g)));
+  const tabs = TABS.filter((t) => t.tab !== "present" || anyLive || tab === "present");
   return (
     <nav className="flex shrink-0 border-t border-foreground/15 bg-background px-1.5 pb-[env(safe-area-inset-bottom)]">
-      {TABS.map(({ tab: t, label, Icon }) => (
+      {tabs.map(({ tab: t, label, Icon }) => (
         <Link
           key={t}
           to="/"

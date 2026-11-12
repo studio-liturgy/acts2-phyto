@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type { Gathering } from "../types";
 import {
   moveItem,
   ownLiveGathering,
   parsePhoneTab,
+  presentGatheringId,
   phoneHomeTab,
   phoneLangPair,
   reorderTarget,
@@ -70,9 +72,20 @@ describe("moveItem", () => {
 });
 
 describe("parsePhoneTab", () => {
-  it("accepts the three tabs only", () => {
+  it("accepts the four tabs only", () => {
     expect(parsePhoneTab("catalogue")).toBe("catalogue");
-    expect(parsePhoneTab("present")).toBeUndefined();
+    expect(parsePhoneTab("present")).toBe("present");
+    expect(parsePhoneTab("output")).toBeUndefined();
+  });
+});
+
+describe("presentGatheringId", () => {
+  it("is the first live gathering in the list", () => {
+    const g = (id: string, live: boolean) => ({ id, live }) as unknown as Gathering;
+    const all = { a: g("a", false), b: g("b", true), c: g("c", true) };
+    const isLive = (x: Gathering) => (x as unknown as { live: boolean }).live;
+    expect(presentGatheringId(["a", "c", "b"], all, isLive)).toBe("c");
+    expect(presentGatheringId(["a", "x"], all, isLive)).toBeNull();
   });
 });
 

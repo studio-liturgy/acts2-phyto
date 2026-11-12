@@ -7,6 +7,7 @@ export const HOME_SEO_TITLE = `${APP_NAME}: free worship presentation for gather
 const PHONE_TAB_NAME: Record<PhoneTab, string> = {
   gatherings: "Gatherings",
   catalogue: "Catalogue",
+  present: "Present",
   settings: "Settings",
 };
 

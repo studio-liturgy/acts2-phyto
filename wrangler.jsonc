@@ -17,6 +17,13 @@
   // Public base URL for serving uploaded media (R2 custom domain, no trailing
   // slash). Update once the prod bucket's public domain is connected.
   "vars": { "MEDIA_PUBLIC_BASE": "https://media.phyto.live" },
+  // Present from a phone: one screen room per share link (src/room/screen-room.ts).
+  // SQLite-backed, so it runs on the free plan. Bindings aren't inherited by
+  // envs, so test repeats it; the migration tag is shared.
+  "durable_objects": {
+    "bindings": [{ "name": "SCREEN_ROOM", "class_name": "ScreenRoom" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ScreenRoom"] }],
   "env": {
     // Test deployment: separate Worker bound to phytoexp.live, sharing the
     // same Supabase DB and Resend secrets as production. Deploy with
@@ -26,6 +33,9 @@
       "routes": [{ "pattern": "phytoexp.live", "custom_domain": true }],
       "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "acts2-phyto-media-test" }],
       "vars": { "MEDIA_PUBLIC_BASE": "https://media.phytoexp.live" },
+      "durable_objects": {
+        "bindings": [{ "name": "SCREEN_ROOM", "class_name": "ScreenRoom" }],
+      },
     },
   },
 }

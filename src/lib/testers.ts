@@ -18,12 +18,19 @@ const isTest = import.meta.env.VITE_APP_ENV === "test";
 export const TESTERS_ONLY = isTest;
 
 /** Paths a signed-out (or not yet checked) visitor may still open on phytoexp:
- *  sign in, its callback, the legal pages it links to, and old phytoexp /g
- *  live links that are already out in the world. */
+ *  sign in, its callback, the legal pages it links to, old phytoexp /g
+ *  live links that are already out in the world, and screen links. */
 export function isOpenOnTest(pathname: string): boolean {
   if (pathname === "/login" || pathname === "/auth/callback") return true;
   if (pathname === "/legal" || pathname === "/terms" || pathname === "/privacy") return true;
-  return pathname.startsWith("/g/");
+  // The screen link (Present from a phone) needs no sign in either.
+  return pathname.startsWith("/g/") || pathname.startsWith("/screen/");
+}
+
+/** Pages that only show what someone else is presenting (the /g live link,
+ *  the screen link): no library sync runs on them. */
+export function isViewerPath(pathname: string): boolean {
+  return pathname.startsWith("/g/") || pathname.startsWith("/screen/");
 }
 
 /** Origin for links meant for other people (live /g links, invite emails).

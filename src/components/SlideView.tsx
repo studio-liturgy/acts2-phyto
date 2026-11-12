@@ -10,7 +10,8 @@ import { startsRoleRun, type Role } from "@/lib/song-roles";
 
 import { scriptOfTranslation, versionLangTag } from "@/lib/bible";
 import { langDef, langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { BackgroundOverride } from "@/lib/background-override";
 
 /**
  * Call and Response on a slide: a gap wherever the reader changes, and the
@@ -289,9 +290,16 @@ function PlayGlyph() {
 /** A template plus the background it's drawn on. */
 export type SlideLook = SetTemplate & { background?: Background };
 
+/** The Background in effect: the override, else this device's. */
+function useBackground(): Background {
+  const override = useContext(BackgroundOverride);
+  const own = useLibrary((s) => s.background);
+  return override ?? own;
+}
+
 /** The stage for the screen shape set in the Background card. */
 function useStageSize() {
-  const aspect = useLibrary((s) => s.background.aspect);
+  const aspect = useBackground().aspect;
   return useMemo(() => stageSize(aspect), [aspect]);
 }
 
@@ -411,7 +419,7 @@ export function SlideView({
 
   // The background sits behind every slide; a slide's own image still wins.
   // It covers rather than contains: a backdrop, not the subject.
-  const globalBackground = useLibrary((s) => s.background);
+  const globalBackground = useBackground();
   const back = template?.background ?? globalBackground;
   const bgUrl = slide?.imageUrl ?? back.bgImage;
   const bg = bgUrl
@@ -657,7 +665,7 @@ export function DissolveSlide({
   // The background travels with the template, so a Background change reaches
   // the live slide the same way a template edit does: on the next slide, or
   // when the live one is clicked again.
-  const background = useLibrary((s) => s.background);
+  const background = useBackground();
   const template = useMemo<SlideLook>(
     () => ({ ...baseTemplate, background }),
     [baseTemplate, background],

@@ -11,6 +11,7 @@ import {
   Share2,
   Trash2,
   Wifi,
+  ArrowUpRight,
   X,
 } from "lucide-react";
 import { flushPushes, useLibrary } from "@/lib/store";
@@ -48,6 +49,7 @@ import {
 import { NO_GATHERINGS, NO_IDS, NO_SETS, phoneKindBg, type PhoneTab } from "@/lib/phone-layout";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { SlideView } from "@/components/SlideView";
+import { PhonePresent } from "@/components/phone/PhonePresent";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -196,6 +198,7 @@ export function PhoneHome({ tab }: { tab: PhoneTab }) {
     <>
       {tab === "gatherings" && <GatheringsTab arrivals={arrivals} />}
       {tab === "catalogue" && <CatalogueTab sharedOutIds={sharedOutIds} />}
+      {tab === "present" && <PhonePresent />}
       {tab === "settings" && (
         <SettingsTab
           groupInvites={groupInvites}
@@ -379,14 +382,26 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
           </Link>
           {isSignedIn &&
             (live ? (
-              <button
-                onClick={() => setEnding(id)}
-                className="pill ml-1 flex h-10 w-10 animate-pulse items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)]"
-                title="End session"
-                aria-label="End session"
-              >
-                <Wifi className="h-4 w-4" />
-              </button>
+              <>
+                <button
+                  onClick={() => setEnding(id)}
+                  className="pill ml-1 flex h-10 w-10 animate-pulse items-center justify-center bg-[var(--brand-red)] text-[var(--brand-white)]"
+                  title="End session"
+                  aria-label="End session"
+                >
+                  <Wifi className="h-4 w-4" />
+                </button>
+                {/* Present from this phone (the remote). */}
+                <Link
+                  to="/"
+                  search={{ tab: "present" }}
+                  className={`${ICON_PLAIN} ml-1`}
+                  title="Present"
+                  aria-label="Present"
+                >
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </>
             ) : (
               <button
                 onClick={() => setSheet({ id, step: "confirm" })}
