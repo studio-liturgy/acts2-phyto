@@ -484,9 +484,16 @@ function Controls({
   // or while a finger is still swiping.
   const [settled, setSettled] = useState(true);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Where a glide is headed (a quicknav tap, a new live slide). Until it
+  // lands, the set name, quicknav and sections show that slide, not each
+  // one the row passes on the way.
+  const [target, setTarget] = useState<number | null>(null);
   const settleSoon = (ms: number) => {
     if (settleTimer.current) clearTimeout(settleTimer.current);
-    settleTimer.current = setTimeout(() => setSettled(true), ms);
+    settleTimer.current = setTimeout(() => {
+      setSettled(true);
+      setTarget(null);
+    }, ms);
   };
   // A new live slide hides it in the same render, before the glide starts.
   const [seenLive, setSeenLive] = useState(liveAt);
@@ -507,6 +514,7 @@ function Controls({
     if (!row || !el) return;
     if (smooth) {
       setSettled(false);
+      setTarget(i);
       // Rest is declared by the scroll events; this only covers a glide
       // that never starts (already in place).
       settleSoon(700);
@@ -549,7 +557,9 @@ function Controls({
     live.setId && live.slideId
       ? sets[live.setId]?.slides.find((s) => s.id === live.slideId)
       : undefined;
-  const browsed = run[browse];
+  // What the controls show: the glide's destination while gliding.
+  const shown = target ?? browse;
+  const browsed = run[shown];
   const browsedSet = browsed ? sets[browsed.setId] : undefined;
   const playing = isVideoPlaying(live);
   const prev = stepRun(run, liveAt, -1);
@@ -701,7 +711,7 @@ function Controls({
                         sections={sections}
                         labels={labels}
                         liveAt={liveAt}
-                        browse={browse}
+                        browse={shown}
                         onPick={(start) => go(run[start] ?? null)}
                       />
                     )
