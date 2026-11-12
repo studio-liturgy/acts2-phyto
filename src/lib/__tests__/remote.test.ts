@@ -8,7 +8,7 @@ import {
   screenLinkUrl,
   splitSet,
 } from "../remote-protocol";
-import { centredIndex, gatheringRun, runIndex, stepRun } from "../remote-run";
+import { centredIndex, gatheringRun, runIndex, slotSections, stepRun } from "../remote-run";
 import type { Set as PhytoSet, Slide } from "../types";
 
 const lyric = (id: string, section?: string): Slide => ({ id, kind: "lyric", section });
@@ -132,6 +132,22 @@ describe("gathering run", () => {
     expect(stepRun(run, 1, 1)?.setId).toBe("s2");
     expect(stepRun(run, 2, 1)).toBeNull();
     expect(stepRun(run, 0, -1)).toBeNull();
+  });
+
+  it("lists a set's sections in play order with their first slide", () => {
+    const two = {
+      s1: song("s1", [lyric("v1", "Verse"), lyric("v2", "Verse"), lyric("c", "Chorus")]),
+      s2: song("s2", [lyric("x")]),
+    };
+    const run = gatheringRun(["s1", "s2"], two, { s1: ["Chorus#0", "Verse#0", "Chorus#0"] });
+    expect(slotSections(run, 0)).toEqual([
+      { entryKey: "Chorus#0@0", sectionKey: "Chorus#0", start: 0, end: 0 },
+      { entryKey: "Verse#0@0", sectionKey: "Verse#0", start: 1, end: 2 },
+      { entryKey: "Chorus#0@1", sectionKey: "Chorus#0", start: 3, end: 3 },
+    ]);
+    expect(run[0].named).toBe(true);
+    expect(run[4].named).toBe(false);
+    expect(slotSections(run, 1).map((s) => s.start)).toEqual([4]);
   });
 
   it("picks the item nearest the scroller's middle", () => {

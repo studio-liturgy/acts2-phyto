@@ -30,6 +30,7 @@ import { useAccountSlug } from "@/hooks/use-account-slug";
 import { inferredVersions, versionsMismatchWorkspace, visibleVersions } from "@/lib/versions";
 import { VersionWarning } from "@/components/VersionWarning";
 import { NumberStepper } from "@/components/NumberStepper";
+import { kindLiveColor } from "@/lib/kind-live";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -135,14 +136,6 @@ function kindActiveBg(kind: SetKind): string {
   if (kind === "message") return "bg-[var(--brand-green-dark)]/20";
   if (kind === "media") return "bg-[var(--brand-orange)]/20";
   return "bg-muted/50";
-}
-
-function kindLiveColor(kind: SetKind): string {
-  if (kind === "song") return "var(--brand-blue)";
-  if (kind === "scripture") return "var(--brand-green)";
-  if (kind === "message") return "var(--brand-green-dark)";
-  if (kind === "media") return "var(--brand-orange)";
-  return "var(--brand-red)";
 }
 
 const KIND_ABBREV: Record<SetKind, string> = {

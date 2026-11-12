@@ -1,9 +1,19 @@
 import { Navigate } from "@tanstack/react-router";
-import { Check, Copy, Monitor, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, Monitor, SlidersHorizontal } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
 import { SlideView } from "@/components/SlideView";
+import { NumberStepper } from "@/components/NumberStepper";
+import { SongTemplateEditor } from "@/components/SongTemplateEditor";
+import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
+import { BackgroundEditor } from "@/components/BackgroundEditor";
+import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
+import { SongLanguageBar } from "@/components/SongLanguageBar";
+import { kindLiveColor } from "@/lib/kind-live";
+import { songLangs } from "@/lib/multiling";
+import { visibleVersions } from "@/lib/versions";
+import type { Set as PhytoSet } from "@/lib/types";
 import { useAccountSlug } from "@/hooks/use-account-slug";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { arrangedEntries, effectiveArrangement, sectionOptions } from "@/lib/arrangements";
@@ -11,7 +21,14 @@ import { isLiveNow } from "@/lib/live-session";
 import { NO_GATHERINGS, NO_IDS, NO_SETS, presentGatheringId } from "@/lib/phone-layout";
 import { useRemote } from "@/lib/remote-client";
 import { screenLinkUrl } from "@/lib/remote-protocol";
-import { centredIndex, gatheringRun, runIndex, stepRun, type RunPos } from "@/lib/remote-run";
+import {
+  centredIndex,
+  gatheringRun,
+  runIndex,
+  slotSections,
+  stepRun,
+  type RunPos,
+} from "@/lib/remote-run";
 import {
   gatheringSectionsReady,
   isVideoPlaying,
@@ -95,9 +112,9 @@ export function PhonePresent() {
 
 function RemoteView({ gatheringId, slug }: { gatheringId: string; slug: string }) {
   const status = useRemote((s) => s.status);
-  const everConnected = useRemote((s) => s.everConnected);
   const [view, setView] = useState<"controls" | "slides">("controls");
-  const showControls = everConnected || status === "connected";
+  // The last screen closing goes back to the link page.
+  const showControls = status === "connected";
 
   const toggle = (
     <div className="flex h-8 items-center rounded-full border border-foreground p-0.5">
@@ -237,14 +254,55 @@ function Deck({ gatheringId, view }: { gatheringId: string; view: "controls" | "
 }
 
 function StatusLine() {
-  const screens = useRemote((s) => s.screens);
   const reconnecting = useRemote((s) => s.reconnecting);
   // Space kept, so the controls never jump when it appears.
-  const text = reconnecting ? "Reconnecting" : screens === 0 ? "No screen connected" : "";
   return (
     <p className="mono h-4 text-center text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
-      {text}
+      {reconnecting ? "Reconnecting" : ""}
     </p>
+  );
+}
+
+/** A slide thumbnail as the presenter shows it: a 2px border inside the
+ *  box (the kind's colour when live, white in dark mode; never clipped), and
+ *  its number with the live dot in the corner. */
+function Thumb({
+  set,
+  slideIndex,
+  isLive,
+  onClick,
+  className = "",
+  label,
+}: {
+  set: PhytoSet;
+  slideIndex: number;
+  isLive: boolean;
+  onClick: () => void;
+  className?: string;
+  label: string;
+}) {
+  const slide = set.slides[slideIndex];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={`relative block overflow-hidden rounded-lg border-2 text-left ${
+        isLive ? "border-[var(--live-color)] dark:border-foreground" : "border-transparent"
+      } ${className}`}
+      style={isLive ? ({ "--live-color": kindLiveColor(set.kind) } as CSSProperties) : undefined}
+    >
+      <SlideView slide={slide} versions={visibleVersions(set)} variant="thumb" />
+      <span className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
+        {isLive && (
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: kindLiveColor(set.kind) }}
+          />
+        )}
+        {slideIndex + 1}
+      </span>
+    </button>
   );
 }
 
@@ -264,22 +322,38 @@ function Controls({
   const opening = () =>
     sharedBrowse >= 0 && sharedBrowse < run.length ? sharedBrowse : Math.max(0, liveAt);
   const [browse, setBrowse] = useState(opening);
+  // The row is gliding to the live slide (after a tap, Previous / Next or
+  // Back to current slide): Back to current slide stays hidden on the way.
+  const [gliding, setGliding] = useState(false);
+  const glideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const centreOn = (i: number, smooth: boolean) => {
     const row = rowRef.current;
     const el = row?.children[i] as HTMLElement | undefined;
     if (!row || !el) return;
+    if (smooth) {
+      setGliding(true);
+      if (glideTimer.current) clearTimeout(glideTimer.current);
+      // A fallback in case the row never lands exactly (a swipe interrupts).
+      glideTimer.current = setTimeout(() => setGliding(false), 900);
+    }
     row.scrollTo({
       left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2,
       behavior: smooth ? "smooth" : "instant",
     });
   };
+  useEffect(
+    () => () => {
+      if (glideTimer.current) clearTimeout(glideTimer.current);
+    },
+    [],
+  );
   // Open on the shared browse position (or the live slide).
   useLayoutEffect(() => {
     centreOn(opening(), false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // A new live slide (a tap, Previous / Next): the row follows it.
+  // A new live slide (a tap, Previous / Next, a section): the row follows it.
   const prevLive = useRef(liveAt);
   useEffect(() => {
     if (liveAt >= 0 && liveAt !== prevLive.current) centreOn(liveAt, true);
@@ -297,6 +371,12 @@ function Controls({
       sharedBrowse = i;
       setBrowse(i);
     }
+    if (gliding && i === liveAt) setGliding(false);
+  };
+  // A finger on the row is browsing, not gliding.
+  const onTouchStart = () => {
+    if (glideTimer.current) clearTimeout(glideTimer.current);
+    setGliding(false);
   };
 
   const liveSlide =
@@ -306,6 +386,17 @@ function Controls({
   const browsed = run[browse];
   const browsedSet = browsed ? sets[browsed.setId] : undefined;
   const playing = isVideoPlaying(live);
+  const prev = stepRun(run, liveAt, -1);
+  const next = stepRun(run, liveAt, 1);
+
+  // The browsed set's sections in play order, on their colours.
+  const sections = browsed && browsed.named ? slotSections(run, browsed.slot) : [];
+  const labels = new Map(
+    browsedSet ? sectionOptions(browsedSet.slides).map((o) => [o.key, o]) : [],
+  );
+
+  const ROUND =
+    "flex h-16 w-16 shrink-0 items-center justify-center rounded-full transition disabled:opacity-30";
 
   return (
     <div className="flex min-h-full flex-col pb-6 pt-1">
@@ -321,57 +412,74 @@ function Controls({
           <div
             ref={rowRef}
             onScroll={onScroll}
-            className="relative mt-2 flex [scrollbar-width:none] snap-x snap-mandatory gap-3 overflow-x-auto px-[25%]"
+            onTouchStart={onTouchStart}
+            className="relative mt-2 flex snap-x snap-mandatory gap-3 overflow-x-auto px-[12.5%] [scrollbar-width:none]"
           >
             {run.map((p, i) => {
               const d = sets[p.setId];
-              const slide = d?.slides.find((s) => s.id === p.slideId);
-              if (!d || !slide) return <div key={`${p.slot}:${p.slideId}:${p.occ}`} />;
+              const at = d ? d.slides.findIndex((s) => s.id === p.slideId) : -1;
+              const key = `${p.slot}:${p.slideId}:${p.occ}`;
+              if (!d || at < 0) return <div key={key} />;
               return (
-                <button
-                  key={`${p.slot}:${p.slideId}:${p.occ}`}
-                  type="button"
+                <Thumb
+                  key={key}
+                  set={d}
+                  slideIndex={at}
+                  isLive={i === liveAt}
                   onClick={() => go(p)}
-                  className={`relative w-1/2 shrink-0 snap-center overflow-hidden rounded-md transition-opacity duration-200 ${
+                  label={`${d.name}, slide ${at + 1}`}
+                  className={`w-3/4 shrink-0 snap-center transition-opacity duration-200 ${
                     i === browse ? "opacity-100" : "opacity-50"
-                  } ${i === liveAt ? "ring-2 ring-[var(--brand-red)]" : ""}`}
-                  aria-label={`${d.name}, slide ${i + 1}`}
-                >
-                  <SlideView slide={slide} versions={d.versions} variant="thumb" />
-                </button>
+                  }`}
+                />
               );
             })}
           </div>
           <p className="mono mt-3 truncate px-6 text-center text-[10px] uppercase tracking-wider text-muted-foreground">
             {browsedSet?.name ?? "\u00a0"}
           </p>
+          {/* Sections: a tap puts the first slide of that section live. */}
+          {sections.length > 0 && (
+            <div className="mt-2 flex flex-wrap justify-center gap-1.5 px-6">
+              {sections.map((sec) => {
+                const opt = labels.get(sec.sectionKey);
+                const tint = SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
+                const isLive = liveAt >= sec.start && liveAt <= sec.end;
+                return (
+                  <button
+                    key={sec.entryKey}
+                    type="button"
+                    onClick={() => go(run[sec.start])}
+                    className={`pill mono flex h-7 items-center border px-3 text-[10px] uppercase tracking-wider ${
+                      isLive ? "border-foreground" : "border-transparent"
+                    }`}
+                    style={{ backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }}
+                  >
+                    {opt?.label ?? "Untitled"}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div className="mt-2 flex h-8 justify-center">
             <BackToCurrent
-              hidden={liveAt < 0 || liveAt === browse}
+              hidden={liveAt < 0 || liveAt === browse || gliding}
               onClick={() => centreOn(liveAt, true)}
             />
           </div>
 
-          <div className="mt-4 flex gap-3 px-6">
+          {/* Previous / Clear / Next. */}
+          <div className="mt-4 flex items-center gap-3 px-6">
             <button
               type="button"
-              disabled={!stepRun(run, liveAt, -1)}
-              onClick={() => go(stepRun(run, liveAt, -1))}
-              className="mono h-16 flex-1 rounded-full border border-foreground text-sm uppercase tracking-wider transition active:bg-foreground active:text-background disabled:opacity-30"
+              disabled={!prev}
+              onClick={() => go(prev)}
+              className={`${ROUND} border border-foreground active:bg-foreground active:text-background`}
+              aria-label="Previous slide"
+              title="Previous slide"
             >
-              Previous
+              <ArrowLeft className="h-6 w-6" />
             </button>
-            <button
-              type="button"
-              disabled={!stepRun(run, liveAt, 1)}
-              onClick={() => go(stepRun(run, liveAt, 1))}
-              className="mono h-16 flex-1 rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-30"
-            >
-              Next
-            </button>
-          </div>
-
-          <div className="mt-3 flex gap-3 px-6">
             <button
               type="button"
               onClick={() => live.toggleBlackout()}
@@ -382,31 +490,87 @@ function Controls({
               }`}
               aria-pressed={live.blackout}
             >
-              Stop
+              Clear
             </button>
-            {liveSlide?.kind === "video" && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => live.setVideoPlaying(!playing)}
-                  className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
-                >
-                  {playing ? "Stop video" : "Play video"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => live.restartVideo()}
-                  className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
-                >
-                  Restart
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              disabled={!next}
+              onClick={() => go(next)}
+              className={`${ROUND} bg-foreground text-background active:opacity-80`}
+              aria-label="Next slide"
+              title="Next slide"
+            >
+              <ArrowRight className="h-6 w-6" />
+            </button>
           </div>
+          {liveSlide?.kind === "video" && (
+            <div className="mt-3 flex gap-3 px-6">
+              <button
+                type="button"
+                onClick={() => live.setVideoPlaying(!playing)}
+                className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+              >
+                {playing ? "Stop video" : "Play video"}
+              </button>
+              <button
+                type="button"
+                onClick={() => live.restartVideo()}
+                className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+              >
+                Restart
+              </button>
+            </div>
+          )}
+
+          <SlideSettings set={browsedSet} />
         </>
       )}
       <div className="mt-auto px-6 pt-8">
         <DisconnectButton />
+      </div>
+    </div>
+  );
+}
+
+/** The presenter's settings for the set in view (the one browsed to, which
+ *  may not be live yet): fade time, Media Functions, Languages, the Song or
+ *  Scripture Template, and Background. They change the setting itself, as on
+ *  desktop, and reach the screen on the next slide or a tap on the live one. */
+function SlideSettings({ set }: { set: PhytoSet | undefined }) {
+  const fadeMs = useLibrary((s) => s.fadeMs);
+  const setFadeMs = useLibrary((s) => s.setFadeMs);
+  const langs = set ? songLangs(set) : [];
+  return (
+    <div className="mt-6 space-y-2 px-6">
+      <div className="flex h-10 items-center justify-between rounded-[20px] border border-foreground px-4">
+        <span className="mono text-[10px] uppercase tracking-wider">Fade time</span>
+        <div className="flex items-center gap-1">
+          <NumberStepper
+            value={fadeMs / 1000}
+            onChange={(v) => setFadeMs(Math.round(v * 1000))}
+            min={0}
+            max={5}
+            step={0.1}
+            format={(n) => n.toFixed(1)}
+            boxClassName="w-9"
+            decrementLabel="Shorter slide fade"
+            incrementLabel="Longer slide fade"
+          />
+          <span className="text-xs text-muted-foreground">s</span>
+        </div>
+      </div>
+      {set?.kind === "media" && <MediaTemplateEditor setId={set.id} />}
+      {set && langs.length > 0 && (
+        <div className="rounded-[20px] border border-foreground p-3">
+          <div className="mono mb-2 text-[10px] uppercase tracking-wider">Languages</div>
+          <SongLanguageBar set={set} />
+        </div>
+      )}
+      {/* One rounded box with a line between each card, as in Settings. */}
+      <div className="overflow-hidden rounded-[20px] border border-foreground [&_[data-fold-card]+[data-fold-card]]:border-t [&_[data-fold-card]]:rounded-none [&_[data-fold-card]]:border-0">
+        {set?.kind === "song" && <SongTemplateEditor />}
+        {(set?.kind === "scripture" || set?.kind === "message") && <ScriptureTemplateEditor />}
+        <BackgroundEditor phone />
       </div>
     </div>
   );
@@ -543,17 +707,16 @@ function SlidesList({
                         const i = at++;
                         const p = run[i];
                         return (
-                          <button
-                            key={`${slide.id}@${i}`}
-                            type="button"
-                            data-run={i}
-                            onClick={() => go(p ?? null)}
-                            className={`relative block w-full overflow-hidden rounded-md ${
-                              i === liveAt ? "ring-2 ring-[var(--brand-red)]" : ""
-                            }`}
-                          >
-                            <SlideView slide={slide} versions={d.versions} variant="thumb" />
-                          </button>
+                          <div key={`${slide.id}@${i}`} data-run={i}>
+                            <Thumb
+                              set={d}
+                              slideIndex={d.slides.indexOf(slide)}
+                              isLive={i === liveAt}
+                              onClick={() => go(p ?? null)}
+                              label={`${d.name}, slide ${d.slides.indexOf(slide) + 1}`}
+                              className="w-full"
+                            />
+                          </div>
                         );
                       })}
                     </div>

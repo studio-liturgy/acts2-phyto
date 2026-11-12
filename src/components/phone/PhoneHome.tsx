@@ -50,6 +50,7 @@ import { NO_GATHERINGS, NO_IDS, NO_SETS, phoneKindBg, type PhoneTab } from "@/li
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { SlideView } from "@/components/SlideView";
 import { PhonePresent } from "@/components/phone/PhonePresent";
+import { useRemote } from "@/lib/remote-client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1124,6 +1125,7 @@ function SettingsTab({
   const HEADING = "mono mb-3 text-[10px] uppercase tracking-wider text-foreground/40";
   // One of Song Template, Scripture Template and Background open at a time.
   const [openCard, setOpenCard] = useState<"song" | "scripture" | "background" | null>(null);
+  const remoteConnected = useRemote((s) => s.status === "connected");
   const cardProps = (card: "song" | "scripture" | "background") => ({
     open: openCard === card,
     onOpenChange: (o: boolean) => setOpenCard(o ? card : null),
@@ -1261,23 +1263,26 @@ function SettingsTab({
         )}
 
         {/* Slide settings: the presenter's Song Template, Scripture Template
-            and Background cards, one open at a time, each over a sample slide. */}
-        <div className={SECTION}>
-          <div className={HEADING}>Slide settings</div>
-          {/* One rounded box around the three, a line between each. */}
-          <div className="overflow-hidden rounded-[20px] border border-foreground [&_[data-fold-card]]:rounded-none [&_[data-fold-card]]:border-0 [&_[data-fold-card]+[data-fold-card]]:border-t">
-            <SongTemplateEditor {...cardProps("song")} preview={<SamplePreview kind="song" />} />
-            <ScriptureTemplateEditor
-              {...cardProps("scripture")}
-              preview={<SamplePreview kind="scripture" />}
-            />
-            <BackgroundEditor
-              phone
-              {...cardProps("background")}
-              preview={<SamplePreview kind="song" />}
-            />
+            and Background cards, one open at a time, each over a sample slide.
+            While this phone is a remote they live in Present instead. */}
+        {!remoteConnected && (
+          <div className={SECTION}>
+            <div className={HEADING}>Slide settings</div>
+            {/* One rounded box around the three, a line between each. */}
+            <div className="overflow-hidden rounded-[20px] border border-foreground [&_[data-fold-card]]:rounded-none [&_[data-fold-card]]:border-0 [&_[data-fold-card]+[data-fold-card]]:border-t">
+              <SongTemplateEditor {...cardProps("song")} preview={<SamplePreview kind="song" />} />
+              <ScriptureTemplateEditor
+                {...cardProps("scripture")}
+                preview={<SamplePreview kind="scripture" />}
+              />
+              <BackgroundEditor
+                phone
+                {...cardProps("background")}
+                preview={<SamplePreview kind="song" />}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* The footer's links as a quiet two-column list, like the desktop
             footer. Internal pages come Back to Settings. */}

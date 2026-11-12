@@ -3,7 +3,7 @@
 // gathering's arrangements and hidden sections, as the presenter and the
 // phone views use), sets one after another.
 
-import { arrangedSequence, effectiveArrangement } from "./arrangements";
+import { arrangedEntries, effectiveArrangement } from "./arrangements";
 import type { Set as PhytoSet } from "./types";
 
 export interface RunPos {
@@ -12,6 +12,13 @@ export interface RunPos {
   occ: number;
   /** Which slot of the gathering the set sits in (a set can appear twice). */
   slot: number;
+  /** The arranged entry (section play) this slide belongs to, unique within
+   *  its set ("Chorus#0@1" = the second chorus). */
+  entryKey: string;
+  /** The section's key ("Chorus#0"), for its name and colour. */
+  sectionKey: string;
+  /** The section has a name (a set with none shows no section pills). */
+  named: boolean;
 }
 
 /** Every slide of the gathering in play order. Missing sets are skipped. */
@@ -25,11 +32,28 @@ export function gatheringRun(
   setIds.forEach((setId, slot) => {
     const d = sets[setId];
     if (!d) return;
-    const seq = arrangedSequence(
+    // Same order and repeat count as arrangedSequence (the presenter's).
+    const occ = new Map<string, number>();
+    const entries = arrangedEntries(
       d.slides,
       effectiveArrangement(d.slides, arranged[setId], hidden[setId]),
     );
-    for (const p of seq) out.push({ setId, slideId: p.slideId, occ: p.occ, slot });
+    for (const e of entries) {
+      for (const { slide } of e.group.items) {
+        if (!slide.id) continue;
+        const n = occ.get(slide.id) ?? 0;
+        occ.set(slide.id, n + 1);
+        out.push({
+          setId,
+          slideId: slide.id,
+          occ: n,
+          slot,
+          entryKey: e.entryKey,
+          sectionKey: e.group.key,
+          named: e.group.section !== null,
+        });
+      }
+    }
   });
   return out;
 }
@@ -75,4 +99,20 @@ export function centredIndex(
     }
   });
   return best;
+}
+
+/** A slot's sections in play order, each with the run index of its first
+ *  slide (the section pills: a tap goes to the start of that section). */
+export function slotSections(
+  run: RunPos[],
+  slot: number,
+): { entryKey: string; sectionKey: string; start: number; end: number }[] {
+  const out: { entryKey: string; sectionKey: string; start: number; end: number }[] = [];
+  run.forEach((p, i) => {
+    if (p.slot !== slot) return;
+    const last = out[out.length - 1];
+    if (last && last.entryKey === p.entryKey) last.end = i;
+    else out.push({ entryKey: p.entryKey, sectionKey: p.sectionKey, start: i, end: i });
+  });
+  return out;
 }

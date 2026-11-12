@@ -28,7 +28,8 @@ export type RemoteStatus =
   | "connecting"
   /** Connected; no screen has joined yet (the QR code and link). */
   | "waiting"
-  /** At least one screen is showing the slides (the controls). */
+  /** At least one screen is showing the slides (the controls). When the
+   *  last one closes, it goes back to "waiting". */
   | "connected"
   /** The room refused this login (not this account's or group's link). */
   | "denied";
@@ -37,10 +38,8 @@ interface RemoteStore {
   status: RemoteStatus;
   /** Screens connected right now. */
   screens: number;
-  /** A screen has joined since Remote was tapped: a drop shows the controls
-   *  greyed out rather than going back to the QR code. */
-  everConnected: boolean;
-  /** Reconnecting after a drop (the controls stay, marked as reconnecting). */
+  /** This phone is reconnecting after a drop (the controls stay, marked as
+   *  reconnecting). */
   reconnecting: boolean;
   slug: string | null;
   gatheringId: string | null;
@@ -150,7 +149,7 @@ function connect() {
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
   const sock = new WebSocket(`${proto}//${window.location.host}${roomPath(slug, "remote")}`);
   ws = sock;
-  useRemote.setState((s) => ({ status: s.everConnected ? s.status : "connecting" }));
+  useRemote.setState((s) => ({ status: s.status === "connected" ? s.status : "connecting" }));
   sock.onopen = async () => {
     const { data } = await supabase.auth.getSession();
     if (ws !== sock) return;
@@ -177,11 +176,8 @@ function connect() {
       syncLive(true);
       useRemote.setState({ reconnecting: false });
     } else if (m.t === "screens") {
-      useRemote.setState((s) => ({
-        screens: m.n,
-        everConnected: s.everConnected || m.n > 0,
-        status: m.n > 0 || s.everConnected ? "connected" : "waiting",
-      }));
+      // The last screen closed: back to the link page.
+      useRemote.setState({ screens: m.n, status: m.n > 0 ? "connected" : "waiting" });
     } else if (m.t === "ended") {
       const live = useLive.getState();
       if (live.videoCmd?.nonce === m.nonce && !live.videoEnded) live.videoFinished();
@@ -208,7 +204,6 @@ function onVisible() {
 export const useRemote = create<RemoteStore>((set, get) => ({
   status: "idle",
   screens: 0,
-  everConnected: false,
   reconnecting: false,
   slug: null,
   gatheringId: null,
@@ -232,7 +227,6 @@ export const useRemote = create<RemoteStore>((set, get) => ({
     set({
       status: "connecting",
       screens: 0,
-      everConnected: false,
       reconnecting: false,
       slug,
       gatheringId,
@@ -255,6 +249,6 @@ export const useRemote = create<RemoteStore>((set, get) => ({
         sock.close(1000, "Disconnected");
       } catch {}
     }
-    set({ status: "idle", screens: 0, everConnected: false, reconnecting: false });
+    set({ status: "idle", screens: 0, reconnecting: false });
   },
 }));
