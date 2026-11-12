@@ -578,139 +578,142 @@ function Controls({
   const ROUND = "flex h-16 w-16 shrink-0 items-center justify-center rounded-full transition";
 
   return (
-    <div className="flex min-h-full flex-col pb-6 pt-1">
-      <StatusLine />
-      {run.length === 0 ? (
-        <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
-          This gathering has no slides yet.
-        </p>
-      ) : (
-        <>
-          {/* One row of slides, the browsed one in the middle and its
+    <div className="flex min-h-full flex-col pb-6">
+      {/* The slides, the set and its sections, and Previous / Clear / Next
+          stay put at the top; the settings scroll under them. */}
+      <div className="sticky top-0 z-10 bg-background pb-3 pt-1">
+        <StatusLine />
+        {run.length === 0 ? (
+          <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
+            This gathering has no slides yet.
+          </p>
+        ) : (
+          <>
+            {/* One row of slides, the browsed one in the middle and its
               neighbours faded, each section's slides on one band of its
               colour. Swiping only looks; a tap puts it live. */}
-          <div
-            ref={rowRef}
-            onScroll={onScroll}
-            className="relative mt-2 flex snap-x snap-mandatory overflow-x-auto px-[12.5%] [scrollbar-width:none]"
-          >
-            {run.map((p, i) => {
-              const d = sets[p.setId];
-              const at = d ? d.slides.findIndex((s) => s.id === p.slideId) : -1;
-              const key = `${p.slot}:${p.slideId}:${p.occ}`;
-              const prevP = run[i - 1];
-              const nextP = run[i + 1];
-              const first = !prevP || prevP.slot !== p.slot || prevP.entryKey !== p.entryKey;
-              const last = !nextP || nextP.slot !== p.slot || nextP.entryKey !== p.entryKey;
-              const tint = tintOf(p);
-              return (
-                <div
-                  key={key}
-                  className={`w-3/4 shrink-0 snap-center p-1.5 ${first && i > 0 ? "ml-3" : ""} ${
-                    first ? "rounded-l-xl" : ""
-                  } ${last ? "rounded-r-xl" : ""}`}
-                  style={
-                    tint
-                      ? { backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }
-                      : undefined
-                  }
-                >
-                  {d && at >= 0 && (
-                    <Thumb
-                      set={d}
-                      slideIndex={at}
-                      isLive={i === liveAt}
-                      onClick={() => go(p)}
-                      label={`${d.name}, slide ${at + 1}`}
-                      className={`w-full transition-opacity duration-200 ${
-                        i === browse ? "opacity-100" : "opacity-50"
-                      }`}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          {/* Back to current slide, right under the row. */}
-          <div className="mt-1 flex h-8 justify-center">
-            <BackToCurrent
-              hidden={liveAt < 0 || liveAt === browse || !settled}
-              onClick={() => centreOn(liveAt, true)}
-            />
-          </div>
-          {/* The set's name on the left; its sections on the right, level
-              with it. A tap on a section puts its first slide live. */}
-          <div className="mt-1 flex items-start gap-3 px-6">
-            <p className="mono min-w-0 max-w-[45%] shrink-0 truncate pt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-              {browsedSet?.name ?? "\u00a0"}
-            </p>
-            {sections.length > 0 && (
-              <SectionPills
-                sections={sections}
-                labels={labels}
-                liveAt={liveAt}
-                onPick={(start) => go(run[start] ?? null)}
+            <div
+              ref={rowRef}
+              onScroll={onScroll}
+              className="relative mt-2 flex snap-x snap-mandatory overflow-x-auto px-[12.5%] [scrollbar-width:none]"
+            >
+              {run.map((p, i) => {
+                const d = sets[p.setId];
+                const at = d ? d.slides.findIndex((s) => s.id === p.slideId) : -1;
+                const key = `${p.slot}:${p.slideId}:${p.occ}`;
+                const prevP = run[i - 1];
+                const nextP = run[i + 1];
+                const first = !prevP || prevP.slot !== p.slot || prevP.entryKey !== p.entryKey;
+                const last = !nextP || nextP.slot !== p.slot || nextP.entryKey !== p.entryKey;
+                const tint = tintOf(p);
+                return (
+                  <div
+                    key={key}
+                    className={`w-3/4 shrink-0 snap-center p-1.5 ${first && i > 0 ? "ml-3" : ""} ${
+                      first ? "rounded-l-xl" : ""
+                    } ${last ? "rounded-r-xl" : ""}`}
+                    style={
+                      tint
+                        ? { backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }
+                        : undefined
+                    }
+                  >
+                    {d && at >= 0 && (
+                      <Thumb
+                        set={d}
+                        slideIndex={at}
+                        isLive={i === liveAt}
+                        onClick={() => go(p)}
+                        label={`${d.name}, slide ${at + 1}`}
+                        className={`w-full transition-opacity duration-200 ${
+                          i === browse ? "opacity-100" : "opacity-50"
+                        }`}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Back to current slide, right under the row. */}
+            <div className="mt-1 flex h-8 justify-center">
+              <BackToCurrent
+                hidden={liveAt < 0 || liveAt === browse || !settled}
+                onClick={() => centreOn(liveAt, true)}
               />
-            )}
-          </div>
+            </div>
+            {/* The set's name on the left; its sections on the right, level
+              with it. A tap on a section puts its first slide live. */}
+            <div className="mt-1 flex items-start gap-3 px-6">
+              <p className="mono min-w-0 max-w-[45%] shrink-0 truncate pt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                {browsedSet?.name ?? "\u00a0"}
+              </p>
+              {sections.length > 0 && (
+                <SectionPills
+                  sections={sections}
+                  labels={labels}
+                  liveAt={liveAt}
+                  onPick={(start) => go(run[start] ?? null)}
+                />
+              )}
+            </div>
 
-          {/* Previous / Clear / Next. */}
-          <div className="mt-3 flex items-center gap-3 px-6">
-            <button
-              type="button"
-              disabled={!prev}
-              onClick={() => go(prev)}
-              className={`${ROUND} border border-foreground active:bg-foreground active:text-background disabled:opacity-30`}
-              aria-label="Previous slide"
-              title="Previous slide"
-            >
-              <ChevronLeft className="h-7 w-7" />
-            </button>
-            <button
-              type="button"
-              onClick={() => live.toggleBlackout()}
-              className={`mono h-16 flex-1 rounded-full border text-xs uppercase tracking-wider transition ${
-                live.blackout
-                  ? "border-[var(--brand-red)] bg-[var(--brand-red)] text-[var(--brand-white)]"
-                  : "border-foreground"
-              }`}
-              aria-pressed={live.blackout}
-            >
-              Clear
-            </button>
-            <button
-              type="button"
-              disabled={!next}
-              onClick={() => go(next)}
-              className={`${ROUND} bg-foreground text-background active:opacity-80 disabled:opacity-30`}
-              aria-label="Next slide"
-              title="Next slide"
-            >
-              <ChevronRight className="h-7 w-7" />
-            </button>
-          </div>
-          {liveSlide?.kind === "video" && (
-            <div className="mt-3 flex gap-3 px-6">
+            {/* Previous / Clear / Next. */}
+            <div className="mt-3 flex items-center gap-3 px-6">
               <button
                 type="button"
-                onClick={() => live.setVideoPlaying(!playing)}
-                className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+                disabled={!prev}
+                onClick={() => go(prev)}
+                className={`${ROUND} border border-foreground active:bg-foreground active:text-background disabled:opacity-30`}
+                aria-label="Previous slide"
+                title="Previous slide"
               >
-                {playing ? "Stop video" : "Play video"}
+                <ChevronLeft className="h-7 w-7" />
               </button>
               <button
                 type="button"
-                onClick={() => live.restartVideo()}
-                className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+                onClick={() => live.toggleBlackout()}
+                className={`mono h-16 flex-1 rounded-full border text-xs uppercase tracking-wider transition ${
+                  live.blackout
+                    ? "border-[var(--brand-red)] bg-[var(--brand-red)] text-[var(--brand-white)]"
+                    : "border-foreground"
+                }`}
+                aria-pressed={live.blackout}
               >
-                Restart
+                Clear
+              </button>
+              <button
+                type="button"
+                disabled={!next}
+                onClick={() => go(next)}
+                className={`${ROUND} bg-foreground text-background active:opacity-80 disabled:opacity-30`}
+                aria-label="Next slide"
+                title="Next slide"
+              >
+                <ChevronRight className="h-7 w-7" />
               </button>
             </div>
-          )}
-
-          <SlideSettings set={browsedSet} />
-        </>
-      )}
+            {liveSlide?.kind === "video" && (
+              <div className="mt-3 flex gap-3 px-6">
+                <button
+                  type="button"
+                  onClick={() => live.setVideoPlaying(!playing)}
+                  className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+                >
+                  {playing ? "Stop video" : "Play video"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => live.restartVideo()}
+                  className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+                >
+                  Restart
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      {run.length > 0 && <SlideSettings set={browsedSet} />}
     </div>
   );
 }
@@ -730,7 +733,7 @@ function SlideSettings({ set }: { set: PhytoSet | undefined }) {
     onOpenChange: (o: boolean) => setOpenCard(o ? card : null),
   });
   return (
-    <div className="mt-5 space-y-2 px-6">
+    <div className="mt-2 space-y-2 px-6">
       <div className="flex h-10 items-center justify-between px-4">
         <span className="mono text-[10px] uppercase tracking-wider">Fade time</span>
         <div className="flex items-center gap-1">
