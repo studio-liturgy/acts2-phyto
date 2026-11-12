@@ -678,7 +678,9 @@ function Controls({
             sets={sets}
             activeSlot={browsed?.slot ?? -1}
             onReset={() => centreOn(liveAt, true)}
-            resetDim={liveAt < 0 || liveAt === browse || !settled}
+            // Off only once the row rests on the live slide: never flickering
+            // off and on while slides scroll past.
+            resetDim={liveAt < 0 || (settled && shown === liveAt)}
             onPick={(slot) => {
               const i = run.findIndex((p) => p.slot === slot);
               if (i >= 0) centreOn(i, true);
