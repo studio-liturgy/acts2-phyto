@@ -59,7 +59,7 @@ export function ShareGatheringDialog({
   /** Provided only when the viewer may customize the link (the owner). Absent =
    *  the slug is shown as a static, read-only part of the URL. */
   onSlugSave?: (slug: string) => Promise<SlugSaveResult>;
-  /** Phone, while live: a Present button under Download PNG. */
+  /** Phone, while live: a Present button above Share link and Visit link. */
   onPresent?: () => void;
 }) {
   const [step, setStep] = useState(startStep);
@@ -317,16 +317,6 @@ export function ShareGatheringDialog({
         >
           Download PNG
         </button>
-        {/* Phone, live: over to the Present tab (this phone as the remote). */}
-        {phone && onPresent && (
-          <button
-            type="button"
-            onClick={onPresent}
-            className="mono uppercase mt-2 self-center rounded-full border border-foreground px-4 py-1.5 text-[10px] tracking-wider transition hover:bg-foreground hover:text-background"
-          >
-            Present
-          </button>
-        )}
       </div>
     </div>
   );
@@ -467,6 +457,16 @@ export function ShareGatheringDialog({
             </div>
           ) : (
             <div className={`flex-1 ${reveal}`}>
+              {/* Live: over to the Present tab (this phone as the remote). */}
+              {onPresent && (
+                <button
+                  type="button"
+                  onClick={onPresent}
+                  className="mono mb-2 w-full rounded-full border border-foreground py-3 text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+                >
+                  Present
+                </button>
+              )}
               {/* Share link (the phone's share sheet) and Visit link (opens it). */}
               <div className="mb-4 flex gap-2">
                 {canNativeShare && (

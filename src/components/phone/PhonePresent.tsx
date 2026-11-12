@@ -10,7 +10,12 @@ import {
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
+import {
+  PhoneBackHeader,
+  PhoneFoldTabs,
+  PhoneScreen,
+  PhoneTitleHeader,
+} from "@/components/phone/PhoneChrome";
 import { SlideView } from "@/components/SlideView";
 import { NumberStepper } from "@/components/NumberStepper";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
@@ -62,8 +67,9 @@ import {
 
 const NONE: Record<string, string[]> = {};
 const SECTION_TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-orange)"];
+// The Go live sheet's note: full width, at the foot of the screen.
 const NOTE =
-  "mono text-pretty text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
+  "mono mt-8 w-full text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
 
 export function PhonePresent() {
   const gatherings = useLibrary((s) => s.gatherings ?? NO_GATHERINGS);
@@ -118,7 +124,7 @@ export function PhonePresent() {
               Remote
             </button>
           </div>
-          <p className={`${NOTE} mt-8 w-full`}>
+          <p className={NOTE}>
             {status === "denied"
               ? "Couldn't connect as the remote. Sign in again, then tap Remote."
               : "Control the slides from this phone. Next, open the screen link on the computer or device connected to your TV or projector."}
@@ -162,21 +168,35 @@ function RemoteView({ gatheringId, slug }: { gatheringId: string; slug: string }
     </div>
   );
 
-  return (
-    <PhoneScreen
-      tab="present"
-      header={
-        <PhoneTitleHeader
-          title={
-            <span className="flex items-center gap-3">
-              Present
-              <DisconnectButton />
-            </span>
-          }
-          actions={showControls ? toggle : undefined}
-        />
+  const g = useLibrary((s) => s.gatherings[gatheringId]);
+  // Connected: the gathering's name in the smaller bar of the gathering
+  // editor, with its line underneath. Before that: Present, like the tab.
+  const header = showControls ? (
+    <PhoneBackHeader
+      back={null}
+      title={
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="min-w-0 truncate text-xl tracking-[-0.045em]">{g?.name}</span>
+          <DisconnectButton />
+        </span>
       }
-    >
+      actions={toggle}
+    />
+  ) : (
+    <PhoneTitleHeader
+      title={
+        <span className="flex items-center gap-3">
+          Present
+          <DisconnectButton />
+        </span>
+      }
+    />
+  );
+
+  return (
+    // Controls fills the screen itself (the slides on top, the controls at
+    // the foot); the link page and Slides scroll as usual.
+    <PhoneScreen tab="present" header={header} scroll={!(showControls && view === "controls")}>
       {showControls ? <Deck gatheringId={gatheringId} view={view} /> : <ScreenLink slug={slug} />}
     </PhoneScreen>
   );
@@ -189,38 +209,10 @@ function ScreenLink({ slug }: { slug: string }) {
   const [copied, setCopied] = useState(false);
   const canShare = typeof navigator !== "undefined" && !!navigator.share;
   return (
-    <div className="flex min-h-full flex-col px-6 pb-6 pt-2">
-      {canShare && (
-        <button
-          type="button"
-          disabled={!url}
-          onClick={() => navigator.share({ url }).catch(() => {})}
-          className="mono mb-4 w-full rounded-full bg-foreground py-3 text-xs uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
-        >
-          Share link
-        </button>
-      )}
-      <div className="flex items-center overflow-hidden rounded-full border border-foreground">
-        <span
-          className={`flex-1 truncate px-4 font-mono text-sm uppercase ${url ? "text-foreground" : "text-muted-foreground"}`}
-        >
-          {url || "Loading link"}
-        </span>
-        <button
-          type="button"
-          disabled={!url}
-          onClick={() => {
-            navigator.clipboard.writeText(url);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90 disabled:opacity-40"
-          aria-label="Copy URL"
-        >
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-        </button>
-      </div>
-      <div className="mt-10 flex justify-center">
+    // The same frame as the Remote button's screen, so the note sits in the
+    // same place: the QR code about mid-screen, then the link, then Share.
+    <div className="flex h-full flex-col px-6 pb-6">
+      <div className="flex flex-1 flex-col items-center justify-center">
         <div className="rounded-2xl bg-white p-3">
           <QRCodeCanvas
             value={url || "https://phyto.live/"}
@@ -229,8 +221,38 @@ function ScreenLink({ slug }: { slug: string }) {
             bgColor="#ffffff"
           />
         </div>
+        <div className="mt-8 flex w-full items-center overflow-hidden rounded-full border border-foreground">
+          <span
+            className={`flex-1 truncate px-4 font-mono text-sm uppercase ${url ? "text-foreground" : "text-muted-foreground"}`}
+          >
+            {url || "Loading link"}
+          </span>
+          <button
+            type="button"
+            disabled={!url}
+            onClick={() => {
+              navigator.clipboard.writeText(url);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition hover:opacity-90 disabled:opacity-40"
+            aria-label="Copy URL"
+          >
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          </button>
+        </div>
+        {canShare && (
+          <button
+            type="button"
+            disabled={!url}
+            onClick={() => navigator.share({ url }).catch(() => {})}
+            className="mono mt-3 w-full rounded-full bg-foreground py-3 text-xs uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
+          >
+            Share link
+          </button>
+        )}
       </div>
-      <p className={`${NOTE} mt-8`}>
+      <p className={NOTE}>
         Open this link on the computer or device connected to your TV or projector. The controls
         appear here once it connects.
       </p>
@@ -286,6 +308,8 @@ function DisconnectButton() {
 /** The browse position both views share (an index into the run). Module
  *  level, so switching views (or tabs) keeps it. */
 let sharedBrowse = -1;
+/** The Controls view's open tab, kept the same way. */
+let sharedTab: "controls" | "settings" = "controls";
 
 /** Once a screen has connected: the two views. */
 function Deck({ gatheringId, view }: { gatheringId: string; view: "controls" | "slides" }) {
@@ -411,7 +435,7 @@ function SectionPills({
     const measure = measureRef.current;
     if (!box || !measure) return;
     const run = () => {
-      const widths = Array.from(measure.children).map(
+      const widths = Array.from(measure.firstElementChild?.children ?? []).map(
         (c) => (c as HTMLElement).getBoundingClientRect().width,
       );
       setRows(balanceRows(widths, 6, box.clientWidth));
@@ -449,9 +473,9 @@ function SectionPills({
       <div
         ref={measureRef}
         aria-hidden
-        className="pointer-events-none invisible absolute left-0 top-0 flex gap-1.5"
+        className="pointer-events-none invisible absolute inset-x-0 top-0 h-0 overflow-hidden"
       >
-        {sections.map((sec) => pill(sec, false))}
+        <div className="flex w-max gap-1.5">{sections.map((sec) => pill(sec, false))}</div>
       </div>
       <div className="flex flex-col items-end gap-1.5">
         {rows.map((len, r) => {
@@ -484,6 +508,10 @@ function Controls({
   const opening = () =>
     sharedBrowse >= 0 && sharedBrowse < run.length ? sharedBrowse : Math.max(0, liveAt);
   const [browse, setBrowse] = useState(opening);
+  const [tab, setTab] = useState<"controls" | "settings">(() => sharedTab);
+  useEffect(() => {
+    sharedTab = tab;
+  }, [tab]);
 
   // Back to current slide only shows once the row has come to rest away
   // from the live slide: never while it glides there (across sections too)
@@ -578,17 +606,18 @@ function Controls({
   const ROUND = "flex h-16 w-16 shrink-0 items-center justify-center rounded-full transition";
 
   return (
-    <div className="flex min-h-full flex-col pb-6">
-      {/* The slides, the set and its sections, and Previous / Clear / Next
-          stay put at the top; the settings scroll under them. */}
-      <div className="sticky top-0 z-10 bg-background pb-3 pt-1">
-        <StatusLine />
-        {run.length === 0 ? (
-          <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
-            This gathering has no slides yet.
-          </p>
-        ) : (
-          <>
+    // The screen's whole height: the slides stay on top; under them the
+    // Controls / Settings tabs (one always open). Controls sits at the foot,
+    // in thumb reach; Settings scrolls.
+    <div className="flex h-full flex-col overflow-x-hidden pt-1">
+      <StatusLine />
+      {run.length === 0 ? (
+        <p className="mono px-6 py-16 text-center text-xs uppercase tracking-wider text-muted-foreground">
+          This gathering has no slides yet.
+        </p>
+      ) : (
+        <>
+          <div className="shrink-0">
             {/* One row of slides, the browsed one in the middle and its
               neighbours faded, each section's slides on one band of its
               colour. Swiping only looks; a tap puts it live. */}
@@ -634,86 +663,110 @@ function Controls({
                 );
               })}
             </div>
-            {/* Back to current slide, right under the row. */}
-            <div className="mt-1 flex h-8 justify-center">
-              <BackToCurrent
-                hidden={liveAt < 0 || liveAt === browse || !settled}
-                onClick={() => centreOn(liveAt, true)}
-              />
+          </div>
+          <div className="mt-3 shrink-0 border-b border-foreground/20 px-6 pb-2">
+            <PhoneFoldTabs
+              tabs={[
+                {
+                  title: "Controls",
+                  open: tab === "controls",
+                  onToggle: () => setTab("controls"),
+                },
+                {
+                  title: "Settings",
+                  open: tab === "settings",
+                  onToggle: () => setTab("settings"),
+                },
+              ]}
+            />
+          </div>
+          {tab === "settings" ? (
+            <div className="min-h-0 flex-1 overflow-y-auto pb-6">
+              <SlideSettings set={browsedSet} />
             </div>
-            {/* The set's name on the left; its sections on the right, level
-              with it. A tap on a section puts its first slide live. */}
-            <div className="mt-1 flex items-start gap-3 px-6">
-              <p className="mono min-w-0 max-w-[45%] shrink-0 truncate pt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                {browsedSet?.name ?? "\u00a0"}
-              </p>
-              {sections.length > 0 && (
-                <SectionPills
-                  sections={sections}
-                  labels={labels}
-                  liveAt={liveAt}
-                  onPick={(start) => go(run[start] ?? null)}
-                />
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col justify-end pb-5">
+              {/* The set's name with Back to current slide under it on the
+                  left; its sections on the right, level with the name. */}
+              <div className="flex items-start gap-3 px-6">
+                <div className="min-w-0 max-w-[45%] shrink-0">
+                  <p className="mono truncate pt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {browsedSet?.name ?? "\u00a0"}
+                  </p>
+                  <div className="-ml-2 mt-1">
+                    <BackToCurrent
+                      hidden={liveAt < 0 || liveAt === browse || !settled}
+                      onClick={() => centreOn(liveAt, true)}
+                    />
+                  </div>
+                </div>
+                {sections.length > 0 && (
+                  <SectionPills
+                    sections={sections}
+                    labels={labels}
+                    liveAt={liveAt}
+                    onPick={(start) => go(run[start] ?? null)}
+                  />
+                )}
+              </div>
+              {liveSlide?.kind === "video" && (
+                <div className="mt-3 flex gap-3 px-6">
+                  <button
+                    type="button"
+                    onClick={() => live.setVideoPlaying(!playing)}
+                    className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+                  >
+                    {playing ? "Stop video" : "Play video"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => live.restartVideo()}
+                    className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+                  >
+                    Restart
+                  </button>
+                </div>
               )}
-            </div>
 
-            {/* Previous / Clear / Next. */}
-            <div className="mt-3 flex items-center gap-3 px-6">
-              <button
-                type="button"
-                disabled={!prev}
-                onClick={() => go(prev)}
-                className={`${ROUND} border border-foreground active:bg-foreground active:text-background disabled:opacity-30`}
-                aria-label="Previous slide"
-                title="Previous slide"
-              >
-                <ChevronLeft className="h-7 w-7" />
-              </button>
-              <button
-                type="button"
-                onClick={() => live.toggleBlackout()}
-                className={`mono h-16 flex-1 rounded-full border text-xs uppercase tracking-wider transition ${
-                  live.blackout
-                    ? "border-[var(--brand-red)] bg-[var(--brand-red)] text-[var(--brand-white)]"
-                    : "border-foreground"
-                }`}
-                aria-pressed={live.blackout}
-              >
-                Clear
-              </button>
-              <button
-                type="button"
-                disabled={!next}
-                onClick={() => go(next)}
-                className={`${ROUND} bg-foreground text-background active:opacity-80 disabled:opacity-30`}
-                aria-label="Next slide"
-                title="Next slide"
-              >
-                <ChevronRight className="h-7 w-7" />
-              </button>
-            </div>
-            {liveSlide?.kind === "video" && (
-              <div className="mt-3 flex gap-3 px-6">
+              {/* Previous / Clear / Next. */}
+              <div className="mt-3 flex items-center gap-3 px-6">
                 <button
                   type="button"
-                  onClick={() => live.setVideoPlaying(!playing)}
-                  className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+                  disabled={!prev}
+                  onClick={() => go(prev)}
+                  className={`${ROUND} border border-foreground active:bg-foreground active:text-background disabled:opacity-30`}
+                  aria-label="Previous slide"
+                  title="Previous slide"
                 >
-                  {playing ? "Stop video" : "Play video"}
+                  <ChevronLeft className="h-7 w-7" />
                 </button>
                 <button
                   type="button"
-                  onClick={() => live.restartVideo()}
-                  className="mono h-12 flex-1 rounded-full border border-foreground text-xs uppercase tracking-wider transition active:bg-foreground active:text-background"
+                  onClick={() => live.toggleBlackout()}
+                  className={`mono h-16 flex-1 rounded-full border text-xs uppercase tracking-wider transition ${
+                    live.blackout
+                      ? "border-[var(--brand-red)] bg-[var(--brand-red)] text-[var(--brand-white)]"
+                      : "border-foreground"
+                  }`}
+                  aria-pressed={live.blackout}
                 >
-                  Restart
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  disabled={!next}
+                  onClick={() => go(next)}
+                  className={`${ROUND} bg-foreground text-background active:opacity-80 disabled:opacity-30`}
+                  aria-label="Next slide"
+                  title="Next slide"
+                >
+                  <ChevronRight className="h-7 w-7" />
                 </button>
               </div>
-            )}
-          </>
-        )}
-      </div>
-      {run.length > 0 && <SlideSettings set={browsedSet} />}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -734,7 +787,7 @@ function SlideSettings({ set }: { set: PhytoSet | undefined }) {
   });
   return (
     <div className="mt-2 space-y-2 px-6">
-      <div className="flex h-10 items-center justify-between px-4">
+      <div className="flex h-10 items-center justify-between">
         <span className="mono text-[10px] uppercase tracking-wider">Fade time</span>
         <div className="flex items-center gap-1">
           <NumberStepper
