@@ -6,12 +6,10 @@ import {
   ChevronRight,
   ChevronUp,
   Copy,
-  Monitor,
   Pause,
   Pencil,
   Play,
   RotateCcw,
-  SlidersHorizontal,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
@@ -151,58 +149,27 @@ export function PhonePresent() {
 
 function RemoteView({ gatheringId, slug }: { gatheringId: string; slug: string }) {
   const status = useRemote((s) => s.status);
-  const [view, setView] = useState<"controls" | "slides">("controls");
   // The last screen closing goes back to the link page.
   const showControls = status === "connected";
-
-  const toggle = (
-    <div className="flex h-8 items-center rounded-full border border-foreground p-0.5">
-      {(
-        [
-          ["controls", "Controls", SlidersHorizontal],
-          ["slides", "Slides", Monitor],
-        ] as const
-      ).map(([v, label, Icon]) => (
-        <button
-          key={v}
-          type="button"
-          onClick={() => setView(v)}
-          aria-label={label}
-          aria-pressed={view === v}
-          title={label}
-          className={`flex h-full w-8 items-center justify-center rounded-full transition ${
-            view === v ? "bg-foreground text-background" : "text-muted-foreground"
-          }`}
-        >
-          <Icon className="h-3.5 w-3.5" />
-        </button>
-      ))}
-    </div>
-  );
-
   const g = useLibrary((s) => s.gatherings[gatheringId]);
-  // Connected: the gathering's name in the smaller bar of the gathering
-  // editor, with its line underneath. Before that: Present, like the tab.
+  // Connected: back to Gatherings (the remote stays connected), the
+  // gathering's name in the gathering editor's smaller bar with its line
+  // underneath, Disconnect on the right. Before that: Present, like the tab.
   const header = showControls ? (
     <PhoneBackHeader
-      back={null}
-      title={
-        <span className="flex min-w-0 items-center gap-3">
-          <span className="min-w-0 truncate text-xl tracking-[-0.045em]">{g?.name}</span>
-          <DisconnectButton />
-        </span>
-      }
-      actions={toggle}
+      back="/"
+      title={<span className="block truncate text-xl tracking-[-0.045em]">{g?.name}</span>}
+      actions={<DisconnectButton />}
     />
   ) : (
     <PhoneTitleHeader title="Present" />
   );
 
   return (
-    // Controls fills the screen itself (the slides on top, the controls at
-    // the foot); the link page and Slides scroll as usual.
-    <PhoneScreen tab="present" header={header} scroll={!(showControls && view === "controls")}>
-      {showControls ? <Deck gatheringId={gatheringId} view={view} /> : <ScreenLink slug={slug} />}
+    // Connected, the remote fills the screen itself and its Controls /
+    // Settings tabs take the bottom bar's place.
+    <PhoneScreen tab={showControls ? undefined : "present"} header={header} scroll={!showControls}>
+      {showControls ? <Deck gatheringId={gatheringId} /> : <ScreenLink slug={slug} />}
     </PhoneScreen>
   );
 }
@@ -316,14 +283,14 @@ function DisconnectButton({ wide = false }: { wide?: boolean }) {
   );
 }
 
-/** The browse position both views share (an index into the run). Module
- *  level, so switching views (or tabs) keeps it. */
+/** The browse position (an index into the run). Module level, so leaving
+ *  Present and coming back keeps it. */
 let sharedBrowse = -1;
 /** The Controls view's open tab, kept the same way. */
 let sharedTab: "controls" | "settings" = "controls";
 
-/** Once a screen has connected: the two views. */
-function Deck({ gatheringId, view }: { gatheringId: string; view: "controls" | "slides" }) {
+/** Once a screen has connected: the remote. */
+function Deck({ gatheringId }: { gatheringId: string }) {
   const g = useLibrary((s) => s.gatherings[gatheringId]);
   const sets = useLibrary((s) => s.sets ?? NO_SETS);
   const hidden = useGatheringSections((s) => s.hidden[gatheringId]) ?? NONE;
@@ -342,11 +309,7 @@ function Deck({ gatheringId, view }: { gatheringId: string; view: "controls" | "
   const liveAt = runIndex(run, live);
   const go = (p: RunPos | null) => p && live.go(p.setId, p.slideId, p.occ);
 
-  return view === "controls" ? (
-    <Controls run={run} liveAt={liveAt} go={go} />
-  ) : (
-    <SlidesList gatheringId={gatheringId} run={run} liveAt={liveAt} go={go} />
-  );
+  return <Controls setIds={setIds} run={run} liveAt={liveAt} go={go} />;
 }
 
 function StatusLine() {
@@ -526,10 +489,12 @@ function SectionColumn({
 }
 
 function Controls({
+  setIds,
   run,
   liveAt,
   go,
 }: {
+  setIds: string[];
   run: RunPos[];
   liveAt: number;
   go: (p: RunPos | null) => void;
@@ -718,29 +683,18 @@ function Controls({
               })}
             </div>
           </div>
-          {/* Controls | Settings, each centred in its half, a line between. */}
-          <div className="mt-3 flex shrink-0 items-stretch border-b border-foreground/20 pb-2">
-            {(
-              [
-                ["controls", "Controls"],
-                ["settings", "Settings"],
-              ] as const
-            ).map(([v, label], i) => (
-              <Fragment key={v}>
-                {i > 0 && <span aria-hidden className="w-px bg-foreground/30" />}
-                <button
-                  type="button"
-                  onClick={() => setTab(v)}
-                  aria-pressed={tab === v}
-                  className={`mono flex-1 text-center text-[10px] uppercase leading-5 tracking-wider transition-colors ${
-                    tab === v ? "text-foreground" : "text-muted-foreground"
-                  }`}
-                >
-                  {label}
-                </button>
-              </Fragment>
-            ))}
-          </div>
+          {/* The gathering's sets in a row, as on the /g live link: a tap
+              brings that set's first slide to the middle of the row (looking
+              only; nothing goes live). Stays put with the slides. */}
+          <SetTabs
+            setIds={setIds}
+            sets={sets}
+            activeSlot={browsed?.slot ?? -1}
+            onPick={(slot) => {
+              const i = run.findIndex((p) => p.slot === slot);
+              if (i >= 0) centreOn(i, true);
+            }}
+          />
           {tab === "settings" ? (
             <div className="min-h-0 flex-1 overflow-y-auto pb-8">
               <RemoteSettings set={browsedSet} />
@@ -762,7 +716,11 @@ function Controls({
                 >
                   <RotateCcw className="h-6 w-6" />
                 </button>
-                <p className="mono line-clamp-2 min-w-0 flex-1 break-words text-right text-[8vw] uppercase leading-[1.05] tracking-wider">
+                {/* Fades over to the next set's name as the row moves into it. */}
+                <p
+                  key={browsed?.slot ?? -1}
+                  className="mono line-clamp-2 min-w-0 flex-1 break-words text-right text-[8vw] uppercase leading-[1.05] tracking-wider duration-300 animate-in fade-in-0"
+                >
                   {browsedSet?.name ?? ""}
                 </p>
               </div>
@@ -854,6 +812,30 @@ function Controls({
               </div>
             </div>
           )}
+          {/* Controls | Settings in the bottom bar's place, each centred in
+              its half with a line between. */}
+          <nav className="flex shrink-0 items-stretch border-t border-foreground/15 bg-background pb-[env(safe-area-inset-bottom)]">
+            {(
+              [
+                ["controls", "Controls"],
+                ["settings", "Settings"],
+              ] as const
+            ).map(([v, label], i) => (
+              <Fragment key={v}>
+                {i > 0 && <span aria-hidden className="my-3 w-px bg-foreground/30" />}
+                <button
+                  type="button"
+                  onClick={() => setTab(v)}
+                  aria-pressed={tab === v}
+                  className={`mono h-[54px] flex-1 text-center text-[10px] uppercase tracking-wider transition-colors ${
+                    tab === v ? "text-foreground" : "text-foreground/35"
+                  }`}
+                >
+                  {label}
+                </button>
+              </Fragment>
+            ))}
+          </nav>
         </>
       )}
       {browsedSet && browsedSlide && (
@@ -1264,174 +1246,48 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
   );
 }
 
-/** Back to current slide: a plain reset icon. */
-function BackToCurrent({
-  hidden,
-  onClick,
-  floating = false,
+/** The gathering's sets as a scrolling row of tabs (the /g live link's), the
+ *  one in view underlined and kept in sight. */
+function SetTabs({
+  setIds,
+  sets,
+  activeSlot,
+  onPick,
 }: {
-  hidden: boolean;
-  onClick: () => void;
-  /** Over the Slides list: on the page colour so it reads over slides. */
-  floating?: boolean;
+  setIds: string[];
+  sets: Record<string, PhytoSet>;
+  activeSlot: number;
+  onPick: (slot: number) => void;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title="Back to current slide"
-      aria-label="Back to current slide"
-      className={`flex h-8 w-8 items-center justify-center rounded-full transition-opacity duration-200 hover:bg-foreground/15 active:bg-foreground/15 ${
-        floating ? "bg-background" : ""
-      } ${hidden ? "pointer-events-none opacity-0" : "opacity-100"}`}
-      tabIndex={hidden ? -1 : 0}
-    >
-      <RotateCcw className="h-4 w-4" />
-    </button>
-  );
-}
-
-/** Every slide in play order, set by set, sections on their colours (the
- *  gathering's Desktop view). A tap puts a slide live. */
-function SlidesList({
-  gatheringId,
-  run,
-  liveAt,
-  go,
-}: {
-  gatheringId: string;
-  run: RunPos[];
-  liveAt: number;
-  go: (p: RunPos | null) => void;
-}) {
-  const g = useLibrary((s) => s.gatherings[gatheringId]);
-  const sets = useLibrary((s) => s.sets ?? NO_SETS);
-  const hidden = useGatheringSections((s) => s.hidden[gatheringId]) ?? NONE;
-  const arranged = useGatheringSections((s) => s.arranged[gatheringId]) ?? NONE;
-  const listRef = useRef<HTMLDivElement | null>(null);
-  const [liveInView, setLiveInView] = useState(true);
-
-  const item = (i: number) =>
-    listRef.current?.querySelector<HTMLElement>(`[data-run="${i}"]`) ?? null;
-  const scrollToItem = (i: number, smooth: boolean) =>
-    item(i)?.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "instant" });
-
-  // Open where the Controls row was.
-  useLayoutEffect(() => {
-    scrollToItem(
-      sharedBrowse >= 0 && sharedBrowse < run.length ? sharedBrowse : Math.max(0, liveAt),
-      false,
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Track the slide nearest the middle (the shared browse position) and
-  // whether the live slide is on screen.
+  const barRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    const scroller = listRef.current?.parentElement;
-    if (!scroller) return;
-    let frame = 0;
-    const measure = () => {
-      frame = 0;
-      const box = scroller.getBoundingClientRect();
-      const mid = box.top + box.height / 2;
-      let best = -1;
-      let dist = Infinity;
-      let seen = false;
-      listRef.current?.querySelectorAll<HTMLElement>("[data-run]").forEach((el) => {
-        const r = el.getBoundingClientRect();
-        const i = Number(el.dataset.run);
-        const d = Math.abs(r.top + r.height / 2 - mid);
-        if (d < dist) {
-          dist = d;
-          best = i;
-        }
-        if (i === liveAt && r.bottom > box.top && r.top < box.bottom) seen = true;
-      });
-      if (best >= 0) sharedBrowse = best;
-      setLiveInView(liveAt < 0 || seen);
-    };
-    const on = () => {
-      if (!frame) frame = requestAnimationFrame(measure);
-    };
-    measure();
-    scroller.addEventListener("scroll", on, { passive: true });
-    return () => {
-      scroller.removeEventListener("scroll", on);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, [liveAt, run]);
-
-  let at = 0;
+    const el = barRef.current?.children[activeSlot] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  }, [activeSlot]);
   return (
-    <div className="relative">
-      <div className="sticky top-0 z-10 bg-background px-6 pb-1 pt-1">
-        <StatusLine />
-      </div>
-      <div ref={listRef} className="space-y-6 px-5 pb-28 pt-3">
-        {(g?.setIds ?? NO_IDS).map((id, slot) => {
-          const d = sets[id];
-          if (!d) return null;
-          const order = arrangedEntries(
-            d.slides,
-            effectiveArrangement(d.slides, arranged[id], hidden[id]),
-          );
-          const labels = new Map(sectionOptions(d.slides).map((o) => [o.key, o]));
-          const named = order.some(({ group }) => group.section !== null);
-          return (
-            <section key={`${id}#${slot}`}>
-              <div className="mb-2 flex items-center gap-2">
-                <span className="mono text-[10px] text-muted-foreground">{slot + 1}.</span>
-                <span className="min-w-0 truncate text-base">{d.name}</span>
-              </div>
-              <div className="space-y-2">
-                {order.map(({ group, entryKey }) => {
-                  const opt = labels.get(group.key);
-                  const tint = SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
-                  return (
-                    <div
-                      key={entryKey}
-                      className={named ? "space-y-2 rounded-xl p-2" : "space-y-2"}
-                      style={
-                        named
-                          ? { backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }
-                          : undefined
-                      }
-                    >
-                      {named && (
-                        <p className="mono px-1 text-[10px] uppercase tracking-wider">
-                          {opt?.label ?? "Untitled"}
-                        </p>
-                      )}
-                      {group.items.map(({ slide }) => {
-                        const i = at++;
-                        const p = run[i];
-                        return (
-                          <div key={`${slide.id}@${i}`} data-run={i}>
-                            <Thumb
-                              set={d}
-                              slideIndex={d.slides.indexOf(slide)}
-                              isLive={i === liveAt}
-                              onClick={() => go(p ?? null)}
-                              label={`${d.name}, slide ${d.slides.indexOf(slide) + 1}`}
-                              className="w-full"
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
-      </div>
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(54px+env(safe-area-inset-bottom)+1rem)] z-20 flex h-8 justify-center">
-        <div className="pointer-events-auto">
-          <BackToCurrent floating hidden={liveInView} onClick={() => scrollToItem(liveAt, true)} />
-        </div>
-      </div>
+    <div
+      ref={barRef}
+      className="mt-2 flex shrink-0 overflow-x-auto border-b border-foreground/20 [scrollbar-width:none]"
+    >
+      {setIds.map((id, slot) => {
+        const d = sets[id];
+        const empty = !d || d.slides.length === 0;
+        return (
+          <button
+            key={`${id}#${slot}`}
+            type="button"
+            disabled={empty}
+            onClick={() => onPick(slot)}
+            className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm transition-colors disabled:opacity-40 ${
+              slot === activeSlot
+                ? "border-b-2 border-foreground text-foreground"
+                : "text-muted-foreground"
+            }`}
+          >
+            {d?.name ?? "(missing)"}
+          </button>
+        );
+      })}
     </div>
   );
 }
