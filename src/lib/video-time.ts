@@ -68,3 +68,12 @@ export function throttleLatest<T>(send: (v: T) => void, ms: number): (v: T) => v
     );
   };
 }
+
+/** Seconds as m:ss (1:05), or h:mm:ss past an hour. */
+export function clock(seconds: number): string {
+  const t = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const sec = String(t % 60).padStart(2, "0");
+  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+}

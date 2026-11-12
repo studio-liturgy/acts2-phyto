@@ -47,21 +47,3 @@ export function balanceRows(widths: number[], gap: number, maxWidth: number): nu
   };
   return best(0, rows).lengths;
 }
-
-/**
- * The remote's section chips beside the edit circle (his rule): never one
- * chip per row for long. 1 = 1; 2 = 1 / 1; 3 = 2 / 1; 4 = 2 / 2; 5 = 3 / 2,
- * or 2 / 3 when the three won't fit side by side; more = balanced rows of
- * whatever fits (balanceRows).
- */
-export function sectionRows(widths: number[], gap: number, maxWidth: number): number[] {
-  const n = widths.length;
-  if (n <= 1) return n ? [1] : [];
-  if (n === 2) return [1, 1];
-  if (n === 3) return [2, 1];
-  if (n === 4) return [2, 2];
-  const width = (a: number, b: number) =>
-    widths.slice(a, b).reduce((x, y) => x + y, 0) + gap * (b - a - 1);
-  if (n === 5) return width(0, 3) <= maxWidth || width(2, 5) > maxWidth ? [3, 2] : [2, 3];
-  return balanceRows(widths, gap, maxWidth);
-}

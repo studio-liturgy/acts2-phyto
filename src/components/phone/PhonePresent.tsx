@@ -37,7 +37,6 @@ import { prepareImageFile } from "@/lib/image-upload";
 import { reapplyChords, stripChordsRaw } from "@/lib/chords";
 
 import { kindLiveColor } from "@/lib/kind-live";
-import { sectionRows } from "@/lib/balance-rows";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -405,86 +404,52 @@ function Thumb({
 }
 
 /**
- * The browsed set's sections beside the edit circle as big chips in their
- * colours (as tall as Clear), in rows by his rule (lib/balance-rows
- * sectionRows: 3 = 2 / 1, 4 = 2 / 2, 5 = 3 / 2...), each row's chips sharing
- * its width.
+ * The browsed set's sections as one row of big chips in their colours that
+ * scrolls sideways, keeping the section in view centred as the slides move.
+ * The live section has a white outline.
  */
-function SectionColumn({
+function SectionRow({
   sections,
   labels,
   liveAt,
+  browse,
   onPick,
 }: {
   sections: { entryKey: string; sectionKey: string; start: number; end: number }[];
   labels: Map<string, { label: string; index: number }>;
   liveAt: number;
+  browse: number;
   onPick: (start: number) => void;
 }) {
-  const boxRef = useRef<HTMLDivElement | null>(null);
-  const measureRef = useRef<HTMLDivElement | null>(null);
-  const [rows, setRows] = useState<number[]>(() =>
-    sectionRows(
-      sections.map(() => 0),
-      8,
-      1,
-    ),
-  );
-  const sig = sections.map((s) => s.entryKey).join("|");
-  useLayoutEffect(() => {
-    const el = boxRef.current;
-    const measure = measureRef.current;
-    if (!el || !measure) return;
-    const run = () => {
-      const widths = Array.from(measure.firstElementChild?.children ?? []).map(
-        (c) => (c as HTMLElement).getBoundingClientRect().width,
-      );
-      setRows(sectionRows(widths, 8, el.clientWidth));
-    };
-    run();
-    const ro = new ResizeObserver(run);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [sig]);
-
-  const chip = (sec: (typeof sections)[number], measuring: boolean) => {
-    const opt = labels.get(sec.sectionKey);
-    const tint = SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
-    const isLive = liveAt >= sec.start && liveAt <= sec.end;
-    return (
-      <button
-        key={sec.entryKey}
-        type="button"
-        tabIndex={measuring ? -1 : 0}
-        onClick={measuring ? undefined : () => onPick(sec.start)}
-        className={`mono flex h-[15vw] items-center justify-center whitespace-nowrap rounded-full border-2 px-4 text-sm uppercase tracking-wider text-[var(--brand-white)] ${
-          isLive ? "border-foreground" : "border-transparent"
-        } ${measuring ? "shrink-0" : "min-w-0 flex-1"}`}
-        style={{ backgroundColor: tint }}
-      >
-        <span className="truncate">{opt?.label ?? "Untitled"}</span>
-      </button>
-    );
-  };
-
-  let at = 0;
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const current = sections.findIndex((sec) => browse >= sec.start && browse <= sec.end);
+  useEffect(() => {
+    const row = rowRef.current;
+    const el = row?.children[current] as HTMLElement | undefined;
+    if (!row || !el) return;
+    row.scrollTo({
+      left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2,
+      behavior: "smooth",
+    });
+  }, [current]);
   return (
-    <div ref={boxRef} className="relative flex min-w-0 flex-col justify-center gap-2">
-      {/* Unseen copy at natural width, to measure each chip. */}
-      <div
-        ref={measureRef}
-        aria-hidden
-        className="pointer-events-none invisible absolute inset-x-0 top-0 h-0 overflow-hidden"
-      >
-        <div className="flex w-max gap-2">{sections.map((sec) => chip(sec, true))}</div>
-      </div>
-      {rows.map((len, r) => {
-        const row = sections.slice(at, at + len);
-        at += len;
+    <div ref={rowRef} className="flex gap-3 overflow-x-auto px-[27%] [scrollbar-width:none]">
+      {sections.map((sec) => {
+        const opt = labels.get(sec.sectionKey);
+        const tint = SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
+        const isLive = liveAt >= sec.start && liveAt <= sec.end;
         return (
-          <div key={r} className="flex gap-2">
-            {row.map((sec) => chip(sec, false))}
-          </div>
+          <button
+            key={sec.entryKey}
+            type="button"
+            onClick={() => onPick(sec.start)}
+            className={`mono flex h-14 min-w-[43%] shrink-0 items-center justify-center whitespace-nowrap rounded-full border-2 px-6 text-sm uppercase tracking-wider text-[var(--brand-white)] ${
+              isLive ? "border-white" : "border-transparent"
+            }`}
+            style={{ backgroundColor: tint }}
+          >
+            {opt?.label ?? "Untitled"}
+          </button>
         );
       })}
     </div>
@@ -627,21 +592,6 @@ function Controls({
     } else openSetEditor();
   };
 
-  const editCircle = (
-    <button
-      type="button"
-      onClick={onEdit}
-      disabled={!browsedSet}
-      title="Edit"
-      aria-label="Edit"
-      className={`${CIRCLE} w-[45%] shrink-0 border border-foreground active:bg-foreground/15 disabled:opacity-30 ${
-        sections.length > 0 ? "!w-full" : ""
-      }`}
-    >
-      <Pencil className="h-10 w-10" />
-    </button>
-  );
-
   return (
     // The screen's whole height: the slides stay on top; under them the
     // Controls / Settings tabs (one always open). Controls sits at the foot,
@@ -708,6 +658,8 @@ function Controls({
             setIds={setIds}
             sets={sets}
             activeSlot={browsed?.slot ?? -1}
+            onReset={() => centreOn(liveAt, true)}
+            resetDim={liveAt < 0 || liveAt === browse || !settled}
             onPick={(slot) => {
               const i = run.findIndex((p) => p.slot === slot);
               if (i >= 0) centreOn(i, true);
@@ -721,102 +673,108 @@ function Controls({
               <RemoteSettings set={browsedSet} />
             </div>
           ) : (
+            // The mock-ups: a band for the sections (or the video's
+            // playbar), then four big circles, (edit) Clear / (arrow)
+            // (arrow), sized to fit the space left. The band keeps its
+            // height when empty, so the circles never move.
             <div
               key="controls"
-              className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[5%] pb-5 duration-200 animate-in fade-in-0"
+              className="min-h-0 flex-1 [container-type:size] duration-200 animate-in fade-in-0"
             >
-              <div className="mt-auto" />
-              {/* (reset) on the left; (edit) beside it on the right when the
-                  set has no sections to show. */}
-              <div className="flex items-center justify-between pt-4">
-                <button
-                  type="button"
-                  onClick={() => centreOn(liveAt, true)}
-                  disabled={liveAt < 0}
-                  title="Back to current slide"
-                  aria-label="Back to current slide"
-                  className={`${CIRCLE} w-[22%] shrink-0 border border-foreground active:bg-foreground/15 disabled:opacity-30 ${
-                    liveAt >= 0 && (liveAt === browse || !settled) ? "opacity-30" : ""
-                  }`}
-                >
-                  <RotateCcw className="h-6 w-6" />
-                </button>
-                {!liveIsVideo && sections.length === 0 && editCircle}
-              </div>
-              {liveIsVideo ? (
-                // A video live: (play/pause) and Restart.
-                <div className="mt-[3%] grid grid-cols-2 gap-[3.5%]">
+              <div
+                className="flex h-full flex-col justify-end gap-3 pb-4"
+                style={
+                  {
+                    "--d":
+                      "min(calc((100cqw - 2rem - 0.75rem) / 2), calc((100cqh - 4.5rem - 2.5rem) / 2))",
+                  } as CSSProperties
+                }
+              >
+                <div className="flex h-[4.5rem] shrink-0 flex-col justify-center">
+                  {liveIsVideo && liveSlide ? (
+                    <div className="px-[4%]">
+                      <VideoBar slideId={liveSlide.id} showTime />
+                    </div>
+                  ) : (
+                    sections.length > 0 && (
+                      <SectionRow
+                        sections={sections}
+                        labels={labels}
+                        liveAt={liveAt}
+                        browse={browse}
+                        onPick={(start) => go(run[start] ?? null)}
+                      />
+                    )
+                  )}
+                </div>
+                <div className="grid shrink-0 grid-cols-[var(--d)_var(--d)] justify-center gap-3">
+                  {liveIsVideo ? (
+                    // (reset) top right, (play/pause) bottom left.
+                    <div className="relative h-[var(--d)] w-[var(--d)]">
+                      <button
+                        type="button"
+                        onClick={() => live.restartVideo()}
+                        title="Restart video"
+                        aria-label="Restart video"
+                        className={`${CIRCLE} absolute right-0 top-0 w-[47%] border border-foreground active:bg-foreground/15`}
+                      >
+                        <RotateCcw className="h-7 w-7" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => live.setVideoPlaying(!playing)}
+                        title={playing ? "Pause video" : "Play video"}
+                        aria-label={playing ? "Pause video" : "Play video"}
+                        className={`${CIRCLE} absolute bottom-[3%] left-[5%] w-[47%] border border-foreground active:bg-foreground/15`}
+                      >
+                        {playing ? <Pause className="h-7 w-7" /> : <Play className="h-7 w-7" />}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onEdit}
+                      disabled={!browsedSet}
+                      title="Edit"
+                      aria-label="Edit"
+                      className={`${CIRCLE} w-[var(--d)] border border-foreground active:bg-foreground/15 disabled:opacity-30`}
+                    >
+                      <Pencil className="h-9 w-9" />
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => live.setVideoPlaying(!playing)}
-                    title={playing ? "Pause video" : "Play video"}
-                    aria-label={playing ? "Pause video" : "Play video"}
-                    className={`${CIRCLE} w-full border border-foreground active:bg-foreground/15`}
+                    onClick={() => live.toggleBlackout()}
+                    className={`${CIRCLE} mono w-[var(--d)] text-sm uppercase tracking-wider ${
+                      live.blackout
+                        ? "bg-[var(--brand-red)] text-[var(--brand-white)]"
+                        : "bg-foreground text-background active:opacity-80"
+                    }`}
+                    aria-pressed={live.blackout}
                   >
-                    {playing ? <Pause className="h-10 w-10" /> : <Play className="h-10 w-10" />}
+                    Clear
                   </button>
                   <button
                     type="button"
-                    onClick={() => live.restartVideo()}
-                    className={`${CIRCLE} mono w-full border border-foreground text-sm uppercase tracking-wider active:bg-foreground/15`}
+                    disabled={!prev}
+                    onClick={() => go(prev)}
+                    className={`${CIRCLE} w-[var(--d)] bg-foreground text-background active:opacity-80 disabled:opacity-30`}
+                    aria-label="Previous slide"
+                    title="Previous slide"
                   >
-                    Restart
+                    <ChevronLeft className="h-10 w-10" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!next}
+                    onClick={() => go(next)}
+                    className={`${CIRCLE} w-[var(--d)] bg-foreground text-background active:opacity-80 disabled:opacity-30`}
+                    aria-label="Next slide"
+                    title="Next slide"
+                  >
+                    <ChevronRight className="h-10 w-10" />
                   </button>
                 </div>
-              ) : (
-                sections.length > 0 && (
-                  // (edit) and the set's sections.
-                  <div className="mt-[3%] grid grid-cols-[45%_1fr] items-center gap-[3.5%]">
-                    {editCircle}
-                    <SectionColumn
-                      sections={sections}
-                      labels={labels}
-                      liveAt={liveAt}
-                      onPick={(start) => go(run[start] ?? null)}
-                    />
-                  </div>
-                )
-              )}
-              {/* The video's playbar, just above the arrows and Clear. */}
-              {liveIsVideo && liveSlide && (
-                <div className="mt-5">
-                  <VideoBar slideId={liveSlide.id} />
-                </div>
-              )}
-              {/* (arrow) Clear (arrow). */}
-              <div className="mt-[4%] flex items-stretch gap-[2%]">
-                <button
-                  type="button"
-                  disabled={!prev}
-                  onClick={() => go(prev)}
-                  className={`${CIRCLE} w-[17%] shrink-0 bg-foreground text-background active:opacity-80 disabled:opacity-30`}
-                  aria-label="Previous slide"
-                  title="Previous slide"
-                >
-                  <ChevronLeft className="h-7 w-7" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => live.toggleBlackout()}
-                  className={`mono flex-1 rounded-full text-sm uppercase tracking-wider transition ${
-                    live.blackout
-                      ? "bg-[var(--brand-red)] text-[var(--brand-white)]"
-                      : "bg-foreground text-background active:opacity-80"
-                  }`}
-                  aria-pressed={live.blackout}
-                >
-                  Clear
-                </button>
-                <button
-                  type="button"
-                  disabled={!next}
-                  onClick={() => go(next)}
-                  className={`${CIRCLE} w-[17%] shrink-0 bg-foreground text-background active:opacity-80 disabled:opacity-30`}
-                  aria-label="Next slide"
-                  title="Next slide"
-                >
-                  <ChevronRight className="h-7 w-7" />
-                </button>
               </div>
             </div>
           )}
@@ -1224,11 +1182,15 @@ function SetTabs({
   sets,
   activeSlot,
   onPick,
+  onReset,
+  resetDim,
 }: {
   setIds: string[];
   sets: Record<string, PhytoSet>;
   activeSlot: number;
   onPick: (slot: number) => void;
+  onReset: () => void;
+  resetDim: boolean;
 }) {
   const barRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -1236,29 +1198,39 @@ function SetTabs({
     el?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }, [activeSlot]);
   return (
-    <div
-      ref={barRef}
-      className="mt-2 flex shrink-0 overflow-x-auto border-b border-foreground/20 [scrollbar-width:none]"
-    >
-      {setIds.map((id, slot) => {
-        const d = sets[id];
-        const empty = !d || d.slides.length === 0;
-        return (
-          <button
-            key={`${id}#${slot}`}
-            type="button"
-            disabled={empty}
-            onClick={() => onPick(slot)}
-            className={`shrink-0 whitespace-nowrap border-t-[3px] px-4 pb-3 pt-2.5 text-sm transition-colors disabled:opacity-40 ${
-              slot === activeSlot
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground"
-            }`}
-          >
-            {d?.name ?? "(missing)"}
-          </button>
-        );
-      })}
+    // (reset) stays put on the left, like the /g link's menu button; the
+    // sets scroll beside it.
+    <div className="mt-2 flex shrink-0 items-stretch border-b border-foreground/20">
+      <button
+        type="button"
+        onClick={onReset}
+        title="Back to current slide"
+        aria-label="Back to current slide"
+        className={`flex shrink-0 items-center px-4 transition-opacity ${resetDim ? "opacity-30" : ""}`}
+      >
+        <RotateCcw className="h-[18px] w-[18px]" />
+      </button>
+      <div ref={barRef} className="flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
+        {setIds.map((id, slot) => {
+          const d = sets[id];
+          const empty = !d || d.slides.length === 0;
+          return (
+            <button
+              key={`${id}#${slot}`}
+              type="button"
+              disabled={empty}
+              onClick={() => onPick(slot)}
+              className={`shrink-0 whitespace-nowrap border-t-[3px] px-4 pb-3 pt-2.5 text-sm transition-colors disabled:opacity-40 ${
+                slot === activeSlot
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground"
+              }`}
+            >
+              {d?.name ?? "(missing)"}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

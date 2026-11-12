@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { balanceRows, sectionRows } from "../balance-rows";
+import { balanceRows } from "../balance-rows";
 
 describe("balanceRows (section pills on the remote)", () => {
   it("one row when they all fit", () => {
@@ -25,21 +25,5 @@ describe("balanceRows (section pills on the remote)", () => {
 
   it("a pill wider than the row still gets its own row", () => {
     expect(balanceRows([300, 50], 6, 200)).toEqual([1, 1]);
-  });
-});
-
-describe("sectionRows (the remote's section chips)", () => {
-  it("follows his counts for up to five", () => {
-    expect(sectionRows([50], 6, 300)).toEqual([1]);
-    expect(sectionRows([50, 50], 6, 300)).toEqual([1, 1]);
-    expect(sectionRows([50, 50, 50], 6, 300)).toEqual([2, 1]);
-    expect(sectionRows([50, 50, 50, 50], 6, 300)).toEqual([2, 2]);
-    expect(sectionRows([50, 50, 50, 50, 50], 6, 300)).toEqual([3, 2]);
-  });
-  it("five whose first three won't fit go 2 / 3", () => {
-    expect(sectionRows([120, 120, 120, 40, 40], 6, 250)).toEqual([2, 3]);
-  });
-  it("more than five balance by width", () => {
-    expect(sectionRows([60, 60, 60, 60, 60, 60], 6, 200)).toEqual([3, 3]);
   });
 });

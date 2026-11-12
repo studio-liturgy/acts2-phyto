@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { useLive } from "../store";
-import { throttleLatest } from "../video-time";
+import { clock, throttleLatest } from "../video-time";
 
 describe("video playbar", () => {
   it("a seek keeps a playing video playing, a paused one paused", () => {
@@ -26,5 +26,11 @@ describe("video playbar", () => {
     expect(sent).toEqual([1]);
     await new Promise((r) => setTimeout(r, 50));
     expect(sent).toEqual([1, 3]);
+  });
+
+  it("shows times as m:ss, h:mm:ss past an hour", () => {
+    expect(clock(0)).toBe("0:00");
+    expect(clock(65.7)).toBe("1:05");
+    expect(clock(3725)).toBe("1:02:05");
   });
 });
