@@ -47,12 +47,15 @@ export function PhoneGathering({
   gatheringId,
   view,
   fromLink = false,
+  fromRemote = false,
 }: {
   gatheringId: string;
   view: "sets" | "phone" | "slides";
   /** Opened from the live link's menu: no Back, no Delete, no tab bar, and in
    *  the link's own light or dark. */
   fromLink?: boolean;
+  /** Opened from the remote (Present tab): Back returns to it. */
+  fromRemote?: boolean;
 }) {
   // From the link: the back arrow returns to it (saved when Edit was tapped).
   const [linkBack, setLinkBack] = useState<string | null>(null);
@@ -162,7 +165,7 @@ export function PhoneGathering({
       .slice(0, 8);
   }, [order, sets, query]);
 
-  const here = `/present?gathering=${encodeURIComponent(gatheringId)}${view === "phone" ? "&view=mobile" : view === "slides" ? "&view=slides" : ""}${fromLink ? "&link=true" : ""}`;
+  const here = `/present?gathering=${encodeURIComponent(gatheringId)}${view === "phone" ? "&view=mobile" : view === "slides" ? "&view=slides" : ""}${fromLink ? "&link=true" : ""}${fromRemote ? "&remote=true" : ""}`;
 
   // A new set named as typed in the search, added to this gathering, then
   // opened; its back arrow returns here.
@@ -201,6 +204,7 @@ export function PhoneGathering({
             ? { view: "slides" as const }
             : {}),
         ...(fromLink ? { link: true } : {}),
+        ...(fromRemote ? { remote: true } : {}),
       },
       replace: true,
     });
@@ -232,7 +236,7 @@ export function PhoneGathering({
 
   const header = (
     <PhoneBackHeader
-      back={fromLink ? linkBack : "/"}
+      back={fromLink ? linkBack : fromRemote ? "/?tab=present" : "/"}
       title={
         // The name is always editable, like a text field that looks like a title.
         <input

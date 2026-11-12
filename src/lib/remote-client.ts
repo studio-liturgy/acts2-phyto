@@ -56,6 +56,13 @@ let pingTimer: ReturnType<typeof setInterval> | null = null;
 let unsubs: (() => void)[] = [];
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let reconnectingTimer: ReturnType<typeof setTimeout> | null = null;
+/** When the gathering was first seen ended (see syncDeck). */
+let endedSince: number | null = null;
+let endedCheck: ReturnType<typeof setTimeout> | null = null;
+const ENDED_GRACE_MS = 8000;
+/** The last "pong" from the room: a socket iOS froze in the background can
+ *  still read as open, so coming back checks it answers. */
+let lastPong = 0;
 let screensGoneTimer: ReturnType<typeof setTimeout> | null = null;
 /** What the room holds: set id -> content hash. */
 let roomHas: Record<string, string> = {};
@@ -88,12 +95,27 @@ function syncDeck() {
   const gid = useRemote.getState().gatheringId;
   const lib = useLibrary.getState();
   const g = gid ? lib.gatherings[gid] : null;
-  // The session ended (or the gathering is gone): the remote disconnects and
-  // the screens go back to waiting.
-  if (gid && (!g || (g.is_live !== null && !isLiveNow(g)))) {
-    useRemote.getState().stop();
+  // The session ended: the remote disconnects and the screens go back to
+  // waiting. Only once it has stayed ended for a few seconds: a sync pass or
+  // a reload can hand over a stale copy for a moment, and that used to cut
+  // the remote off at random while the phone was busy elsewhere. A gathering
+  // missing from the library (another workspace showing) never disconnects.
+  const ended = !!g && g.is_live !== null && !isLiveNow(g);
+  if (ended) {
+    endedSince ??= Date.now();
+    if (Date.now() - endedSince >= ENDED_GRACE_MS) {
+      useRemote.getState().stop();
+      return;
+    }
+    if (!endedCheck) {
+      endedCheck = setTimeout(() => {
+        endedCheck = null;
+        syncDeck();
+      }, ENDED_GRACE_MS);
+    }
     return;
   }
+  endedSince = null;
   if (!g || ws?.readyState !== WebSocket.OPEN) return;
   const meta: RemoteMeta = {
     gatheringId: g.id,
@@ -160,6 +182,10 @@ function connect() {
   };
   sock.onmessage = (e) => {
     if (ws !== sock) return;
+    if (e.data === "pong") {
+      lastPong = Date.now();
+      return;
+    }
     const m = parseMessage<RoomToRemote>(e.data);
     if (!m) return;
     if (m.t === "auth") {
@@ -225,8 +251,27 @@ function connect() {
 function onVisible() {
   if (document.visibilityState !== "visible") return;
   const s = useRemote.getState();
-  // Back from a lock: iOS dropped the socket, so reconnect at once.
-  if (s.status !== "idle" && s.status !== "denied" && !ws) connect();
+  if (s.status === "idle" || s.status === "denied") return;
+  // Back from a lock or another app: iOS dropped the socket, so reconnect at
+  // once. One that still reads as open must answer a ping within 3 s, or it's
+  // replaced (it went quiet in the background without closing).
+  if (!ws) {
+    connect();
+    return;
+  }
+  const sock = ws;
+  const asked = Date.now();
+  try {
+    sock.send("ping");
+  } catch {}
+  setTimeout(() => {
+    if (ws !== sock || lastPong >= asked) return;
+    ws = null;
+    try {
+      sock.close();
+    } catch {}
+    connect();
+  }, 3000);
 }
 
 export const useRemote = create<RemoteStore>((set, get) => ({
@@ -270,6 +315,9 @@ export const useRemote = create<RemoteStore>((set, get) => ({
     if (reconnectingTimer) clearTimeout(reconnectingTimer);
     if (screensGoneTimer) clearTimeout(screensGoneTimer);
     reconnectingTimer = screensGoneTimer = null;
+    if (endedCheck) clearTimeout(endedCheck);
+    endedCheck = null;
+    endedSince = null;
     unsubs.forEach((u) => u());
     unsubs = [];
     if (typeof document !== "undefined")

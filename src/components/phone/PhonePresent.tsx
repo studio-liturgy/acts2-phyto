@@ -1,4 +1,4 @@
-import { Navigate, useNavigate } from "@tanstack/react-router";
+import { Link, Navigate, useNavigate } from "@tanstack/react-router";
 import {
   Check,
   ChevronDown,
@@ -10,6 +10,7 @@ import {
   Pencil,
   Play,
   RotateCcw,
+  Settings,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
@@ -20,9 +21,11 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { PhoneBackHeader, PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
 import { SlideView } from "@/components/SlideView";
+import { RemoteIcon } from "@/components/RemoteIcon";
 import { NumberStepper } from "@/components/NumberStepper";
 import { SongLanguageBar } from "@/components/SongLanguageBar";
 import { AutoAdvanceStepper, LoopSwitches } from "@/components/MediaTemplateEditor";
@@ -34,7 +37,7 @@ import { prepareImageFile } from "@/lib/image-upload";
 import { reapplyChords, stripChordsRaw } from "@/lib/chords";
 
 import { kindLiveColor } from "@/lib/kind-live";
-import { balanceRows } from "@/lib/balance-rows";
+import { sectionRows } from "@/lib/balance-rows";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -158,7 +161,21 @@ function RemoteView({ gatheringId, slug }: { gatheringId: string; slug: string }
   const header = showControls ? (
     <PhoneBackHeader
       back="/"
-      title={<span className="block truncate text-xl tracking-[-0.045em]">{g?.name}</span>}
+      title={
+        <span className="flex min-w-0 items-center gap-0.5">
+          <span className="mr-0.5 min-w-0 truncate text-xl tracking-[-0.045em]">{g?.name}</span>
+          {/* Edit the gathering, coming back here (as from the live link). */}
+          <Link
+            to="/present"
+            search={{ gathering: gatheringId, remote: true }}
+            className="pill flex h-10 w-10 shrink-0 items-center justify-center transition active:bg-foreground/15"
+            title="Edit gathering"
+            aria-label="Edit gathering"
+          >
+            <Pencil className="h-4 w-4" />
+          </Link>
+        </span>
+      }
       actions={<DisconnectButton />}
     />
   ) : (
@@ -388,10 +405,10 @@ function Thumb({
 }
 
 /**
- * The browsed set's sections beside the edit circle, stacked as tall pills in
- * their colours. They size to fit the circle's height: few sections, big
- * pills; many, smaller ones; when they'd get too small to read, they wrap
- * into balanced rows instead (lib/balance-rows: no pill alone on a row).
+ * The browsed set's sections beside the edit circle as big chips in their
+ * colours (as tall as Clear), in rows by his rule (lib/balance-rows
+ * sectionRows: 3 = 2 / 1, 4 = 2 / 2, 5 = 3 / 2...), each row's chips sharing
+ * its width.
  */
 function SectionColumn({
   sections,
@@ -406,25 +423,23 @@ function SectionColumn({
 }) {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
-  const [box, setBox] = useState({ w: 0, h: 0 });
-  const [rows, setRows] = useState<number[]>([sections.length]);
+  const [rows, setRows] = useState<number[]>(() =>
+    sectionRows(
+      sections.map(() => 0),
+      8,
+      1,
+    ),
+  );
   const sig = sections.map((s) => s.entryKey).join("|");
-  const GAP = 8;
-  const MAX = 50;
-  const MIN = 30;
-  const n = sections.length;
-  const stackedH = n > 0 ? (box.h - GAP * (n - 1)) / n : 0;
-  const stacked = stackedH >= MIN;
   useLayoutEffect(() => {
     const el = boxRef.current;
     const measure = measureRef.current;
     if (!el || !measure) return;
     const run = () => {
-      setBox({ w: el.clientWidth, h: el.clientHeight });
       const widths = Array.from(measure.firstElementChild?.children ?? []).map(
         (c) => (c as HTMLElement).getBoundingClientRect().width,
       );
-      setRows(balanceRows(widths, 6, el.clientWidth));
+      setRows(sectionRows(widths, 8, el.clientWidth));
     };
     run();
     const ro = new ResizeObserver(run);
@@ -432,7 +447,7 @@ function SectionColumn({
     return () => ro.disconnect();
   }, [sig]);
 
-  const pill = (sec: (typeof sections)[number], mode: "stack" | "wrap" | "measure") => {
+  const chip = (sec: (typeof sections)[number], measuring: boolean) => {
     const opt = labels.get(sec.sectionKey);
     const tint = SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
     const isLive = liveAt >= sec.start && liveAt <= sec.end;
@@ -440,50 +455,38 @@ function SectionColumn({
       <button
         key={sec.entryKey}
         type="button"
-        tabIndex={mode === "measure" ? -1 : 0}
-        onClick={mode === "measure" ? undefined : () => onPick(sec.start)}
-        className={`mono flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border-2 px-3 text-[10px] uppercase tracking-wider text-[var(--brand-white)] ${
+        tabIndex={measuring ? -1 : 0}
+        onClick={measuring ? undefined : () => onPick(sec.start)}
+        className={`mono flex h-[15vw] items-center justify-center whitespace-nowrap rounded-full border-2 px-4 text-sm uppercase tracking-wider text-[var(--brand-white)] ${
           isLive ? "border-foreground" : "border-transparent"
-        } ${mode === "stack" ? "w-full" : "h-7"}`}
-        style={{
-          backgroundColor: tint,
-          ...(mode === "stack" ? { height: Math.min(MAX, stackedH) } : {}),
-        }}
+        } ${measuring ? "shrink-0" : "min-w-0 flex-1"}`}
+        style={{ backgroundColor: tint }}
       >
-        {opt?.label ?? "Untitled"}
+        <span className="truncate">{opt?.label ?? "Untitled"}</span>
       </button>
     );
   };
 
   let at = 0;
   return (
-    <div ref={boxRef} className="relative h-full min-w-0">
-      {/* Unseen copy at natural width, to measure each pill for wrapping. */}
+    <div ref={boxRef} className="relative flex min-w-0 flex-col justify-center gap-2">
+      {/* Unseen copy at natural width, to measure each chip. */}
       <div
         ref={measureRef}
         aria-hidden
         className="pointer-events-none invisible absolute inset-x-0 top-0 h-0 overflow-hidden"
       >
-        <div className="flex w-max gap-1.5">{sections.map((sec) => pill(sec, "measure"))}</div>
+        <div className="flex w-max gap-2">{sections.map((sec) => chip(sec, true))}</div>
       </div>
-      {box.h > 0 &&
-        (stacked ? (
-          <div className="flex h-full flex-col justify-center" style={{ gap: GAP }}>
-            {sections.map((sec) => pill(sec, "stack"))}
+      {rows.map((len, r) => {
+        const row = sections.slice(at, at + len);
+        at += len;
+        return (
+          <div key={r} className="flex gap-2">
+            {row.map((sec) => chip(sec, false))}
           </div>
-        ) : (
-          <div className="flex h-full flex-col items-end justify-center gap-1.5 overflow-y-auto">
-            {rows.map((len, r) => {
-              const row = sections.slice(at, at + len);
-              at += len;
-              return (
-                <div key={r} className="flex justify-end gap-1.5">
-                  {row.map((sec) => pill(sec, "wrap"))}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+        );
+      })}
     </div>
   );
 }
@@ -624,6 +627,21 @@ function Controls({
     } else openSetEditor();
   };
 
+  const editCircle = (
+    <button
+      type="button"
+      onClick={onEdit}
+      disabled={!browsedSet}
+      title="Edit"
+      aria-label="Edit"
+      className={`${CIRCLE} w-[45%] shrink-0 border border-foreground active:bg-foreground/15 disabled:opacity-30 ${
+        sections.length > 0 ? "!w-full" : ""
+      }`}
+    >
+      <Pencil className="h-10 w-10" />
+    </button>
+  );
+
   return (
     // The screen's whole height: the slides stay on top; under them the
     // Controls / Settings tabs (one always open). Controls sits at the foot,
@@ -696,14 +714,21 @@ function Controls({
             }}
           />
           {tab === "settings" ? (
-            <div className="min-h-0 flex-1 overflow-y-auto pb-8">
+            <div
+              key="settings"
+              className="min-h-0 flex-1 overflow-y-auto pb-8 duration-200 animate-in fade-in-0"
+            >
               <RemoteSettings set={browsedSet} />
             </div>
           ) : (
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[5%] pb-5">
+            <div
+              key="controls"
+              className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[5%] pb-5 duration-200 animate-in fade-in-0"
+            >
               <div className="mt-auto" />
-              {/* (reset) and the set's title. */}
-              <div className="flex items-center gap-[4%] pt-4">
+              {/* (reset) on the left; (edit) beside it on the right when the
+                  set has no sections to show. */}
+              <div className="flex items-center justify-between pt-4">
                 <button
                   type="button"
                   onClick={() => centreOn(liveAt, true)}
@@ -716,13 +741,7 @@ function Controls({
                 >
                   <RotateCcw className="h-6 w-6" />
                 </button>
-                {/* Fades over to the next set's name as the row moves into it. */}
-                <p
-                  key={browsed?.slot ?? -1}
-                  className="mono line-clamp-2 min-w-0 flex-1 break-words text-right text-[8vw] uppercase leading-[1.05] tracking-wider duration-300 animate-in fade-in-0"
-                >
-                  {browsedSet?.name ?? ""}
-                </p>
+                {!liveIsVideo && sections.length === 0 && editCircle}
               </div>
               {liveIsVideo ? (
                 // A video live: (play/pause) and Restart.
@@ -745,29 +764,18 @@ function Controls({
                   </button>
                 </div>
               ) : (
-                // (edit) and the set's sections.
-                <div className="mt-[3%] grid grid-cols-[45%_1fr] gap-[3.5%]">
-                  <button
-                    type="button"
-                    onClick={onEdit}
-                    disabled={!browsedSet}
-                    title="Edit"
-                    aria-label="Edit"
-                    className={`${CIRCLE} w-full border border-foreground active:bg-foreground/15 disabled:opacity-30`}
-                  >
-                    <Pencil className="h-10 w-10" />
-                  </button>
-                  {sections.length > 0 ? (
+                sections.length > 0 && (
+                  // (edit) and the set's sections.
+                  <div className="mt-[3%] grid grid-cols-[45%_1fr] items-center gap-[3.5%]">
+                    {editCircle}
                     <SectionColumn
                       sections={sections}
                       labels={labels}
                       liveAt={liveAt}
                       onPick={(start) => go(run[start] ?? null)}
                     />
-                  ) : (
-                    <div />
-                  )}
-                </div>
+                  </div>
+                )
               )}
               {/* The video's playbar, just above the arrows and Clear. */}
               {liveIsVideo && liveSlide && (
@@ -812,28 +820,28 @@ function Controls({
               </div>
             </div>
           )}
-          {/* Controls | Settings in the bottom bar's place, each centred in
-              its half with a line between. */}
-          <nav className="flex shrink-0 items-stretch border-t border-foreground/15 bg-background pb-[env(safe-area-inset-bottom)]">
+          {/* Controls (a remote) and Settings (a gear) in the bottom bar's
+              place, as icons like the app's own tabs. */}
+          <nav className="flex shrink-0 border-t border-foreground/15 bg-background px-1.5 pb-[env(safe-area-inset-bottom)]">
             {(
               [
-                ["controls", "Controls"],
-                ["settings", "Settings"],
+                ["controls", "Controls", RemoteIcon],
+                ["settings", "Settings", Settings],
               ] as const
-            ).map(([v, label], i) => (
-              <Fragment key={v}>
-                {i > 0 && <span aria-hidden className="my-3 w-px bg-foreground/30" />}
-                <button
-                  type="button"
-                  onClick={() => setTab(v)}
-                  aria-pressed={tab === v}
-                  className={`mono h-[54px] flex-1 text-center text-[10px] uppercase tracking-wider transition-colors ${
-                    tab === v ? "text-foreground" : "text-foreground/35"
-                  }`}
-                >
-                  {label}
-                </button>
-              </Fragment>
+            ).map(([v, label, Icon]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setTab(v)}
+                aria-label={label}
+                title={label}
+                aria-pressed={tab === v}
+                className={`flex h-[54px] flex-1 items-center justify-center transition-colors ${
+                  tab === v ? "text-foreground" : "text-foreground/35"
+                }`}
+              >
+                <Icon className="h-[23px] w-[23px]" strokeWidth={1.5} />
+              </button>
             ))}
           </nav>
         </>
@@ -889,9 +897,7 @@ function QuickEdit({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="gap-0 rounded-3xl p-8">
-        <AlertDialogTitle className="text-2xl font-normal leading-tight">
-          Quick edit
-        </AlertDialogTitle>
+        <AlertDialogTitle className="sr-only">Quick edit</AlertDialogTitle>
         <AlertDialogDescription className="sr-only">
           Edit the words on this slide.
         </AlertDialogDescription>
@@ -900,7 +906,7 @@ function QuickEdit({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           rows={6}
-          className="mono mt-4 w-full resize-none rounded-2xl border border-foreground bg-background p-3 text-base leading-snug outline-none"
+          className="mono w-full resize-none rounded-2xl border border-foreground bg-background p-3 text-base leading-snug outline-none"
         />
         <div className="mt-8 flex gap-3">
           <button
@@ -961,11 +967,34 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
     "mono flex h-7 items-center justify-center rounded-full border px-3 text-[10px] uppercase tracking-wider transition";
   const on = "border-foreground bg-foreground text-background";
   const off = "border-foreground/40";
-  // Two halves of one pill (Reference, Alignment).
-  const half = (active: boolean, first: boolean) =>
-    `flex h-7 flex-1 items-center justify-center text-[10px] transition ${first ? "border-r border-foreground/40" : ""} ${
-      active ? "bg-foreground text-background" : ""
-    }`;
+  // A setting with two choices as the two halves of one pill, its label
+  // above (Position, Case, Reference, Alignment), half the row each.
+  const splitSetting = (
+    label: string,
+    options: [string, ReactNode, string?][],
+    value: string,
+    onPick: (v: string) => void,
+  ) => (
+    <div className="min-w-0 flex-1">
+      <div className={`${LABEL} mb-2`}>{label}</div>
+      <div className="mono flex overflow-hidden rounded-full border border-foreground/40">
+        {options.map(([v, content, name], i) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onPick(v)}
+            aria-label={name}
+            title={name}
+            className={`flex h-7 flex-1 items-center justify-center text-[10px] uppercase tracking-wider transition ${
+              i > 0 ? "border-l border-foreground/40" : ""
+            } ${value === v ? "bg-foreground text-background" : ""}`}
+          >
+            {content}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   const pickImage = async (file?: File) => {
     if (!file) return;
@@ -986,170 +1015,111 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
 
   return (
     <div className="space-y-6 px-[5%] pt-5">
-      {/* Fade time, then Font size (or Auto advance for media). */}
-      <div className="grid grid-cols-2 items-center gap-x-4">
-        <div className="flex items-center gap-3">
-          <span className={LABEL}>Fade time</span>
-          <div className="flex items-center gap-1">
-            <NumberStepper
-              value={fadeMs / 1000}
-              onChange={(v) => setFadeMs(Math.round(v * 1000))}
-              min={0}
-              max={5}
-              step={0.1}
-              format={(n) => n.toFixed(1)}
-              boxClassName="w-9"
-              decrementLabel="Shorter slide fade"
-              incrementLabel="Longer slide fade"
-            />
-            <span className="text-xs text-muted-foreground">s</span>
-          </div>
+      {/* Each setting on its own row. */}
+      <div className="flex items-center justify-between gap-4">
+        <span className={LABEL}>Fade time</span>
+        <div className="flex items-center gap-1">
+          <NumberStepper
+            value={fadeMs / 1000}
+            onChange={(v) => setFadeMs(Math.round(v * 1000))}
+            min={0}
+            max={5}
+            step={0.1}
+            format={(n) => n.toFixed(1)}
+            boxClassName="w-9"
+            decrementLabel="Shorter slide fade"
+            incrementLabel="Longer slide fade"
+          />
+          <span className="text-xs text-muted-foreground">s</span>
         </div>
-        {(isSong || isScripture) && (
-          <div className="flex items-center gap-3">
-            <span className={`${LABEL} shrink-0`}>Font size</span>
-            <TapRange
-              min={1}
-              max={2}
-              step={0.05}
-              value={t.fontScale ?? 1}
-              onValue={(v) => setT({ fontScale: v })}
-              className="min-w-0 flex-1"
-            />
-          </div>
-        )}
-        {kind === "media" && set && (
-          <div className="flex items-center gap-3">
-            <span className={`${LABEL} shrink-0`}>Auto advance</span>
-            <AutoAdvanceStepper setId={set.id} />
-          </div>
-        )}
       </div>
+      {kind === "media" && set && (
+        <div className="flex items-center justify-between gap-4">
+          <span className={LABEL}>Auto advance</span>
+          <AutoAdvanceStepper setId={set.id} />
+        </div>
+      )}
+      {(isSong || isScripture) && (
+        <div className="flex items-center gap-4">
+          <span className={`${LABEL} shrink-0`}>Font size</span>
+          <TapRange
+            min={1}
+            max={2}
+            step={0.05}
+            value={t.fontScale ?? 1}
+            onValue={(v) => setT({ fontScale: v })}
+            className="min-w-0 flex-1"
+          />
+        </div>
+      )}
 
       {(isSong || isScripture) && (
-        <div className="grid grid-cols-2 gap-x-4">
-          <div>
-            <div className={`${LABEL} mb-2`}>Font type</div>
-            <div className="flex gap-1">
-              {FONT_OPTIONS.map((f) => (
-                <button
-                  key={f.label}
-                  type="button"
-                  onClick={() => setT({ fontFamily: f.value })}
-                  aria-label={f.label}
-                  title={f.label}
-                  style={{ fontFamily: f.value }}
-                  className={`flex h-7 flex-1 items-center justify-center rounded-full border text-xs transition ${
-                    font === f.value ? on : off
-                  }`}
-                >
-                  {f.short}
-                </button>
-              ))}
-            </div>
+        <div>
+          <div className={`${LABEL} mb-2`}>Font type</div>
+          {/* Three big circles, together as wide as the screen. */}
+          <div className="grid grid-cols-3 gap-3">
+            {FONT_OPTIONS.map((f) => (
+              <button
+                key={f.label}
+                type="button"
+                onClick={() => setT({ fontFamily: f.value })}
+                aria-label={f.label}
+                title={f.label}
+                style={{ fontFamily: f.value }}
+                className={`flex aspect-square items-center justify-center rounded-full border text-2xl transition ${
+                  font === f.value ? on : off
+                }`}
+              >
+                {f.short}
+              </button>
+            ))}
           </div>
-          {isSong ? (
-            <div>
-              <div className={`${LABEL} mb-2`}>Position</div>
-              <div className="flex gap-1">
-                {(
-                  [
-                    ["top", "Top"],
-                    ["centre", "Centre"],
-                  ] as const
-                ).map(([v, label]) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setSongTemplate({ position: v })}
-                    className={`${PILL} flex-1 ${(songTemplate.position ?? "centre") === v ? on : off}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <div className={`${LABEL} mb-2`}>Reference</div>
-                <div className="flex overflow-hidden rounded-full border border-foreground/40">
-                  <button
-                    type="button"
-                    onClick={() => setScriptureTemplate({ referencePosition: "above" })}
-                    aria-label="Reference above"
-                    title="Above"
-                    className={half(
-                      (scriptureTemplate.referencePosition ?? "below") === "above",
-                      true,
-                    )}
-                  >
-                    <ChevronUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setScriptureTemplate({ referencePosition: "below" })}
-                    aria-label="Reference below"
-                    title="Below"
-                    className={half(
-                      (scriptureTemplate.referencePosition ?? "below") === "below",
-                      false,
-                    )}
-                  >
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className={`${LABEL} mb-2`}>Alignment</div>
-                <div className="mono flex overflow-hidden rounded-full border border-foreground/40">
-                  <button
-                    type="button"
-                    onClick={() => setScriptureTemplate({ align: "left" })}
-                    aria-label="Left"
-                    title="Left"
-                    className={half((scriptureTemplate.align ?? "left") === "left", true)}
-                  >
-                    L
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setScriptureTemplate({ align: "center" })}
-                    aria-label="Centre"
-                    title="Centre"
-                    className={half(scriptureTemplate.align === "center", false)}
-                  >
-                    C
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
       {isSong && (
-        <div className="grid grid-cols-2 gap-x-4">
-          <div>
-            <div className={`${LABEL} mb-2`}>Case</div>
-            <div className="flex gap-1">
-              {(
-                [
-                  ["upper", "All Caps"],
-                  ["mixed", "Mixed"],
-                ] as const
-              ).map(([v, label]) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setSongTemplate({ textCase: v })}
-                  className={`${PILL} flex-1 ${(songTemplate.textCase ?? "mixed") === v ? on : off}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="flex gap-3">
+          {splitSetting(
+            "Position",
+            [
+              ["top", "Top"],
+              ["centre", "Centre"],
+            ],
+            songTemplate.position ?? "centre",
+            (v) => setSongTemplate({ position: v as "top" | "centre" }),
+          )}
+          {splitSetting(
+            "Case",
+            [
+              ["upper", "All Caps"],
+              ["mixed", "Mixed"],
+            ],
+            songTemplate.textCase ?? "mixed",
+            (v) => setSongTemplate({ textCase: v as "upper" | "mixed" }),
+          )}
+        </div>
+      )}
+
+      {isScripture && (
+        <div className="flex gap-3">
+          {splitSetting(
+            "Reference",
+            [
+              ["above", <ChevronUp key="u" className="h-3.5 w-3.5" />, "Above"],
+              ["below", <ChevronDown key="d" className="h-3.5 w-3.5" />, "Below"],
+            ],
+            scriptureTemplate.referencePosition ?? "below",
+            (v) => setScriptureTemplate({ referencePosition: v as "above" | "below" }),
+          )}
+          {splitSetting(
+            "Alignment",
+            [
+              ["left", "L", "Left"],
+              ["center", "C", "Centre"],
+            ],
+            scriptureTemplate.align ?? "left",
+            (v) => setScriptureTemplate({ align: v as "left" | "center" }),
+          )}
         </div>
       )}
 
@@ -1246,8 +1216,9 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
   );
 }
 
-/** The gathering's sets as a scrolling row of tabs (the /g live link's), the
- *  one in view underlined and kept in sight. */
+/** Quicknav: the gathering's sets as a scrolling row of tabs (the /g live
+ *  link's), the one in view marked by a thick bar ABOVE its name (his ask)
+ *  and kept in sight. */
 function SetTabs({
   setIds,
   sets,
@@ -1278,10 +1249,10 @@ function SetTabs({
             type="button"
             disabled={empty}
             onClick={() => onPick(slot)}
-            className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm transition-colors disabled:opacity-40 ${
+            className={`shrink-0 whitespace-nowrap border-t-[3px] px-4 pb-3 pt-2.5 text-sm transition-colors disabled:opacity-40 ${
               slot === activeSlot
-                ? "border-b-2 border-foreground text-foreground"
-                : "text-muted-foreground"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground"
             }`}
           >
             {d?.name ?? "(missing)"}

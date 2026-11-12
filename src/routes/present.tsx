@@ -209,6 +209,8 @@ const searchSchema = z.object({
   view: z.enum(["slides", "mobile"]).optional(),
   /** Phone: opened from a live link's menu (Edit Gathering). */
   link: z.boolean().optional(),
+  /** Phone: opened from the remote (Present tab): Back returns there. */
+  remote: z.boolean().optional(),
 });
 
 /** The sidebar's colour dot for a set, or a warning triangle in its place when
@@ -235,7 +237,7 @@ export const Route = createFileRoute("/present")({
  *  editor, and anything else the home. */
 function PresentRoute() {
   const phone = usePhoneLayout();
-  const { set, gathering, view, link } = Route.useSearch();
+  const { set, gathering, view, link, remote } = Route.useSearch();
   const navigate = useNavigate();
   useEffect(() => {
     if (!phone || gathering) return;
@@ -249,6 +251,7 @@ function PresentRoute() {
         gatheringId={gathering}
         view={view === "mobile" ? "phone" : view === "slides" ? "slides" : "sets"}
         fromLink={!!link}
+        fromRemote={!!remote}
       />
     ) : null;
   }
