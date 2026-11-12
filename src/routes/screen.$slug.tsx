@@ -22,6 +22,9 @@ import {
 } from "@/lib/remote-protocol";
 import { isHandheld, screenDevice, type ScreenDevice } from "@/lib/screen-device";
 import { visibleVersions } from "@/lib/versions";
+import { supabase } from "@/lib/supabase";
+import { parseShareView, shareViewVersion } from "@/lib/share-view";
+import { isLiveNow } from "@/lib/live-session";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import type { Set as PhytoSet, Slide } from "@/lib/types";
 
@@ -125,6 +128,46 @@ function ScreenView({ slug }: { slug: string }) {
     };
   }, [slug]);
 
+  // Before a remote connects: is a gathering live on this link at all?
+  // Asked through the /g viewer's RPC, with its version so repeat asks come
+  // back "unchanged"; every 20 s while waiting, never while hidden, and not
+  // at all once the remote is sending.
+  const [gatheringLive, setGatheringLive] = useState<boolean | null>(null);
+  const waitingForRemote = !meta;
+  useEffect(() => {
+    if (!waitingForRemote) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let version: string | null = null;
+    const ask = async () => {
+      if (stopped || document.hidden) return;
+      const { data, error } = await supabase.rpc("get_share_view_v2", {
+        p_token: slug,
+        p_version: version,
+      });
+      if (stopped) return;
+      if (!error) {
+        const view = parseShareView(data);
+        if (view?.kind === "waiting" || view === null) setGatheringLive(false);
+        else if (view.kind === "gathering") setGatheringLive(isLiveNow(view.gathering));
+        version = shareViewVersion(data) ?? version;
+      }
+      timer = setTimeout(ask, 20_000);
+    };
+    void ask();
+    const onVisible = () => {
+      if (document.hidden) return;
+      if (timer) clearTimeout(timer);
+      void ask();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [slug, waitingForRemote]);
+
   useWakeLock();
   useEffect(() => {
     const prev = document.body.style.background;
@@ -222,10 +265,17 @@ function ScreenView({ slug }: { slug: string }) {
           Turn this phone sideways
         </p>
       )}
-      {waiting && popup === null && (
+      {/* Nothing until the live check answers, so it never flips. */}
+      {waiting && popup === null && gatheringLive !== null && (
         <p className="mono pointer-events-none absolute inset-x-0 bottom-[max(2rem,env(safe-area-inset-bottom))] text-center text-[10px] uppercase tracking-wider text-white/40">
-          Looking for remote
-          <LoadingDots />
+          {gatheringLive ? (
+            <>
+              Looking for remote
+              <LoadingDots />
+            </>
+          ) : (
+            "Gathering is not live"
+          )}
         </p>
       )}
 
