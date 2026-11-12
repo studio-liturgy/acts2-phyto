@@ -79,7 +79,7 @@ function useNoInputZoom() {
 }
 
 /** A main screen's header: the big title like the desktop home, actions on the right. */
-export function PhoneTitleHeader({ title, actions }: { title: string; actions?: ReactNode }) {
+export function PhoneTitleHeader({ title, actions }: { title: ReactNode; actions?: ReactNode }) {
   return (
     <header className="flex shrink-0 items-center gap-2 px-5 pb-3 pt-[max(1.25rem,env(safe-area-inset-top))]">
       <h1 className="min-w-0 flex-1 truncate text-4xl leading-tight">{title}</h1>

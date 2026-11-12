@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import { useAccountSlug } from "@/hooks/use-account-slug";
 import { liveLinkUrl } from "@/lib/testers";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
@@ -24,6 +25,7 @@ export function PhoneShareSheet({
   const goLive = useLibrary((s) => s.goLive);
   const endSession = useLibrary((s) => s.endSession);
   const isSignedIn = useIsSignedIn();
+  const navigate = useNavigate();
   const open = step !== null;
   const share = useAccountSlug({
     scope: { groupId: g?.group_id ?? null },
@@ -54,6 +56,14 @@ export function PhoneShareSheet({
       isLive={isLive}
       slug={share.slug}
       onSlugSave={!g.shared && share.canCustomize ? share.save : undefined}
+      onPresent={
+        isLive
+          ? () => {
+              onClose();
+              void navigate({ to: "/", search: { tab: "present" } });
+            }
+          : undefined
+      }
     />
   );
 }

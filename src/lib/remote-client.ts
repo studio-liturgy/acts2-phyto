@@ -54,6 +54,8 @@ let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let pingTimer: ReturnType<typeof setInterval> | null = null;
 let unsubs: (() => void)[] = [];
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectingTimer: ReturnType<typeof setTimeout> | null = null;
+let screensGoneTimer: ReturnType<typeof setTimeout> | null = null;
 /** What the room holds: set id -> content hash. */
 let roomHas: Record<string, string> = {};
 let lastMeta = "";
@@ -174,10 +176,27 @@ function connect() {
       lastMeta = "";
       syncDeck();
       syncLive(true);
+      if (reconnectingTimer) clearTimeout(reconnectingTimer);
+      reconnectingTimer = null;
       useRemote.setState({ reconnecting: false });
     } else if (m.t === "screens") {
-      // The last screen closed: back to the link page.
-      useRemote.setState({ screens: m.n, status: m.n > 0 ? "connected" : "waiting" });
+      // The last screen closed: back to the link page, unless it's only a
+      // blip (the screen reconnecting) that comes back within a few seconds.
+      if (screensGoneTimer) clearTimeout(screensGoneTimer);
+      screensGoneTimer = null;
+      if (m.n > 0) {
+        useRemote.setState({ screens: m.n, status: "connected" });
+      } else if (useRemote.getState().status === "connected") {
+        useRemote.setState({ screens: 0 });
+        screensGoneTimer = setTimeout(() => {
+          screensGoneTimer = null;
+          if (useRemote.getState().screens === 0 && useRemote.getState().status === "connected") {
+            useRemote.setState({ status: "waiting" });
+          }
+        }, 4000);
+      } else {
+        useRemote.setState({ screens: 0, status: "waiting" });
+      }
     } else if (m.t === "ended") {
       const live = useLive.getState();
       if (live.videoCmd?.nonce === m.nonce && !live.videoEnded) live.videoFinished();
@@ -189,8 +208,14 @@ function connect() {
     stopTimers();
     const s = useRemote.getState();
     if (s.status === "idle" || s.status === "denied") return;
-    useRemote.setState({ reconnecting: true });
-    retryTimer = setTimeout(connect, reconnectDelay(attempts++));
+    // A quick reconnect (the usual case) never shows "Reconnecting".
+    if (!reconnectingTimer) {
+      reconnectingTimer = setTimeout(() => useRemote.setState({ reconnecting: true }), 2500);
+    }
+    // First retry almost at once, then back off.
+    const wait = attempts === 0 ? 250 : reconnectDelay(attempts - 1);
+    attempts++;
+    retryTimer = setTimeout(connect, wait);
   };
 }
 
@@ -239,6 +264,9 @@ export const useRemote = create<RemoteStore>((set, get) => ({
     const sock = ws;
     ws = null;
     stopTimers();
+    if (reconnectingTimer) clearTimeout(reconnectingTimer);
+    if (screensGoneTimer) clearTimeout(screensGoneTimer);
+    reconnectingTimer = screensGoneTimer = null;
     unsubs.forEach((u) => u());
     unsubs = [];
     if (typeof document !== "undefined")

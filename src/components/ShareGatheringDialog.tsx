@@ -32,6 +32,7 @@ export function ShareGatheringDialog({
   onEndSession,
   showPreview = true,
   phone = false,
+  onPresent,
 }: {
   /** The phone layout: a full-screen sheet, one column, the QR code above its
    *  colours, the phone's own share menu under the link, and End Session. */
@@ -58,6 +59,8 @@ export function ShareGatheringDialog({
   /** Provided only when the viewer may customize the link (the owner). Absent =
    *  the slug is shown as a static, read-only part of the URL. */
   onSlugSave?: (slug: string) => Promise<SlugSaveResult>;
+  /** Phone, while live: a Present button under Download PNG. */
+  onPresent?: () => void;
 }) {
   const [step, setStep] = useState(startStep);
   const [goingLive, setGoingLive] = useState(false);
@@ -314,6 +317,16 @@ export function ShareGatheringDialog({
         >
           Download PNG
         </button>
+        {/* Phone, live: over to the Present tab (this phone as the remote). */}
+        {phone && onPresent && (
+          <button
+            type="button"
+            onClick={onPresent}
+            className="mono uppercase mt-2 self-center rounded-full border border-foreground px-4 py-1.5 text-[10px] tracking-wider transition hover:bg-foreground hover:text-background"
+          >
+            Present
+          </button>
+        )}
       </div>
     </div>
   );
@@ -420,8 +433,9 @@ export function ShareGatheringDialog({
         goingLive
           ? "animate-pulse bg-[var(--brand-red)] text-[var(--brand-white)]"
           : phone
-            ? // Phone: no hover to fill it, so it's red from the start.
-              "bg-[var(--brand-red)] text-[var(--brand-white)]"
+            ? // Phone: no hover to fill it, so it's red from the start and
+              // glows in and out (like the remote's Remote circle).
+              "animate-pulse bg-[var(--brand-red)] text-[var(--brand-white)]"
             : "text-[var(--brand-red)]"
       }`}
     >

@@ -1,5 +1,13 @@
 import { Navigate } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Check, Copy, Monitor, SlidersHorizontal } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Monitor,
+  RotateCcw,
+  SlidersHorizontal,
+} from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
@@ -11,6 +19,13 @@ import { BackgroundEditor } from "@/components/BackgroundEditor";
 import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
 import { SongLanguageBar } from "@/components/SongLanguageBar";
 import { kindLiveColor } from "@/lib/kind-live";
+import { balanceRows } from "@/lib/balance-rows";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { songLangs } from "@/lib/multiling";
 import { visibleVersions } from "@/lib/versions";
 import type { Set as PhytoSet } from "@/lib/types";
@@ -36,6 +51,8 @@ import {
   useGatheringSections,
   useLibrary,
   useLive,
+  useScriptureTemplateDraft,
+  useSongTemplateDraft,
 } from "@/lib/store";
 
 // Present from a phone (n133): the phone as the remote. The Remote button,
@@ -88,20 +105,24 @@ export function PhonePresent() {
   if (status === "idle" || status === "denied") {
     return (
       <PhoneScreen tab="present" header={<PhoneTitleHeader title="Present" />}>
-        <div className="flex h-full flex-col items-center justify-center gap-6 px-6">
-          <button
-            type="button"
-            disabled={!share.slug}
-            onClick={() => share.slug && useRemote.getState().start(liveId, share.slug)}
-            className="mono flex aspect-square w-full max-w-[16rem] items-center justify-center rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
-          >
-            Remote
-          </button>
-          {status === "denied" && (
-            <p className={`${NOTE} text-center`}>
-              Couldn&apos;t connect as the remote. Sign in again, then tap Remote.
-            </p>
-          )}
+        {/* Laid out like Go live: the circle mid-screen (glowing in and out
+            like it), the note at the foot. */}
+        <div className="flex h-full flex-col px-6 pb-6">
+          <div className="flex flex-1 items-center justify-center">
+            <button
+              type="button"
+              disabled={!share.slug}
+              onClick={() => share.slug && useRemote.getState().start(liveId, share.slug)}
+              className="mono flex aspect-square w-full max-w-[16rem] animate-pulse items-center justify-center rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
+            >
+              Remote
+            </button>
+          </div>
+          <p className={`${NOTE} mt-8 w-full`}>
+            {status === "denied"
+              ? "Couldn't connect as the remote. Sign in again, then tap Remote."
+              : "Control the slides from this phone. Next, open the screen link on the computer or device connected to your TV or projector."}
+          </p>
         </div>
       </PhoneScreen>
     );
@@ -144,7 +165,17 @@ function RemoteView({ gatheringId, slug }: { gatheringId: string; slug: string }
   return (
     <PhoneScreen
       tab="present"
-      header={<PhoneTitleHeader title="Present" actions={showControls ? toggle : undefined} />}
+      header={
+        <PhoneTitleHeader
+          title={
+            <span className="flex items-center gap-3">
+              Present
+              <DisconnectButton />
+            </span>
+          }
+          actions={showControls ? toggle : undefined}
+        />
+      }
     >
       {showControls ? <Deck gatheringId={gatheringId} view={view} /> : <ScreenLink slug={slug} />}
     </PhoneScreen>
@@ -203,22 +234,52 @@ function ScreenLink({ slug }: { slug: string }) {
         Open this link on the computer or device connected to your TV or projector. The controls
         appear here once it connects.
       </p>
-      <div className="mt-auto pt-8">
-        <DisconnectButton />
-      </div>
     </div>
   );
 }
 
+/** Disconnect, beside the title: asks first, like End Session. */
 function DisconnectButton() {
+  const [asking, setAsking] = useState(false);
   return (
-    <button
-      type="button"
-      onClick={() => useRemote.getState().stop()}
-      className="mono w-full rounded-full border border-[var(--brand-red)] py-3 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
-    >
-      Disconnect
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setAsking(true)}
+        className="mono flex h-8 items-center rounded-full border border-[var(--brand-red)] px-3 text-[10px] uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
+      >
+        Disconnect
+      </button>
+      <AlertDialog open={asking} onOpenChange={setAsking}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            Disconnect the remote?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            The screen goes black until a remote connects again. The gathering stays live.
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setAsking(false);
+                useRemote.getState().stop();
+              }}
+              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background"
+            >
+              Disconnect
+            </button>
+            <button
+              type="button"
+              onClick={() => setAsking(false)}
+              className="mono uppercase flex-1 rounded-full border border-foreground py-2 text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -263,9 +324,25 @@ function StatusLine() {
   );
 }
 
+/** The template a set's slides are drawn with, as in the presenter: the
+ *  Song or Scripture Template (or its draft), else the set's own. */
+function useSetTemplate(set: PhytoSet | undefined) {
+  const songTemplate = useLibrary((s) => s.songTemplate);
+  const songDraft = useSongTemplateDraft((s) => s.draft);
+  const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
+  const scriptureDraft = useScriptureTemplateDraft((s) => s.draft);
+  if (!set) return undefined;
+  return set.kind === "song"
+    ? (songDraft ?? songTemplate)
+    : set.kind === "scripture" || set.kind === "message"
+      ? (scriptureDraft ?? scriptureTemplate)
+      : set.template;
+}
+
 /** A slide thumbnail as the presenter shows it: a 2px border inside the
  *  box (the kind's colour when live, white in dark mode; never clipped), and
- *  its number with the live dot in the corner. */
+ *  its number with the live dot in the corner. Drawn with the current
+ *  templates, so template changes show here too. */
 function Thumb({
   set,
   slideIndex,
@@ -282,6 +359,7 @@ function Thumb({
   label: string;
 }) {
   const slide = set.slides[slideIndex];
+  const template = useSetTemplate(set);
   return (
     <button
       type="button"
@@ -292,7 +370,12 @@ function Thumb({
       } ${className}`}
       style={isLive ? ({ "--live-color": kindLiveColor(set.kind) } as CSSProperties) : undefined}
     >
-      <SlideView slide={slide} versions={visibleVersions(set)} variant="thumb" />
+      <SlideView
+        slide={slide}
+        versions={visibleVersions(set)}
+        variant="thumb"
+        template={template}
+      />
       <span className="mono absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
         {isLive && (
           <span
@@ -303,6 +386,85 @@ function Thumb({
         {slideIndex + 1}
       </span>
     </button>
+  );
+}
+
+/** The browsed set's sections as coloured pills, right-aligned, in rows that
+ *  never leave one pill alone when that can be helped (lib/balance-rows). */
+function SectionPills({
+  sections,
+  labels,
+  liveAt,
+  onPick,
+}: {
+  sections: { entryKey: string; sectionKey: string; start: number; end: number }[];
+  labels: Map<string, { label: string; index: number }>;
+  liveAt: number;
+  onPick: (start: number) => void;
+}) {
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const measureRef = useRef<HTMLDivElement | null>(null);
+  const [rows, setRows] = useState<number[]>([sections.length]);
+  const sig = sections.map((s) => s.entryKey).join("|");
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const measure = measureRef.current;
+    if (!box || !measure) return;
+    const run = () => {
+      const widths = Array.from(measure.children).map(
+        (c) => (c as HTMLElement).getBoundingClientRect().width,
+      );
+      setRows(balanceRows(widths, 6, box.clientWidth));
+    };
+    run();
+    const ro = new ResizeObserver(run);
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [sig]);
+
+  const pill = (sec: (typeof sections)[number], interactive: boolean) => {
+    const opt = labels.get(sec.sectionKey);
+    const tint = SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
+    const isLive = liveAt >= sec.start && liveAt <= sec.end;
+    return (
+      <button
+        key={sec.entryKey}
+        type="button"
+        tabIndex={interactive ? 0 : -1}
+        onClick={interactive ? () => onPick(sec.start) : undefined}
+        className={`pill mono flex h-7 shrink-0 items-center whitespace-nowrap border px-3 text-[10px] uppercase tracking-wider ${
+          isLive ? "border-foreground" : "border-transparent"
+        }`}
+        style={{ backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }}
+      >
+        {opt?.label ?? "Untitled"}
+      </button>
+    );
+  };
+
+  let at = 0;
+  return (
+    <div ref={boxRef} className="relative min-w-0 flex-1">
+      {/* Unseen copy at natural width, to measure each pill. */}
+      <div
+        ref={measureRef}
+        aria-hidden
+        className="pointer-events-none invisible absolute left-0 top-0 flex gap-1.5"
+      >
+        {sections.map((sec) => pill(sec, false))}
+      </div>
+      <div className="flex flex-col items-end gap-1.5">
+        {rows.map((len, r) => {
+          const row = sections.slice(at, at + len);
+          at += len;
+          return (
+            <div key={r} className="flex justify-end gap-1.5">
+              {row.map((sec) => pill(sec, true))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -322,32 +484,44 @@ function Controls({
   const opening = () =>
     sharedBrowse >= 0 && sharedBrowse < run.length ? sharedBrowse : Math.max(0, liveAt);
   const [browse, setBrowse] = useState(opening);
-  // The row is gliding to the live slide (after a tap, Previous / Next or
-  // Back to current slide): Back to current slide stays hidden on the way.
-  const [gliding, setGliding] = useState(false);
-  const glideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Back to current slide only shows once the row has come to rest away
+  // from the live slide: never while it glides there (across sections too)
+  // or while a finger is still swiping.
+  const [settled, setSettled] = useState(true);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleSoon = (ms: number) => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => setSettled(true), ms);
+  };
+  // A new live slide hides it in the same render, before the glide starts.
+  const [seenLive, setSeenLive] = useState(liveAt);
+  if (seenLive !== liveAt) {
+    setSeenLive(liveAt);
+    setSettled(false);
+  }
+  useEffect(
+    () => () => {
+      if (settleTimer.current) clearTimeout(settleTimer.current);
+    },
+    [],
+  );
 
   const centreOn = (i: number, smooth: boolean) => {
     const row = rowRef.current;
     const el = row?.children[i] as HTMLElement | undefined;
     if (!row || !el) return;
     if (smooth) {
-      setGliding(true);
-      if (glideTimer.current) clearTimeout(glideTimer.current);
-      // A fallback in case the row never lands exactly (a swipe interrupts).
-      glideTimer.current = setTimeout(() => setGliding(false), 900);
+      setSettled(false);
+      // Rest is declared by the scroll events; this only covers a glide
+      // that never starts (already in place).
+      settleSoon(700);
     }
     row.scrollTo({
       left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2,
       behavior: smooth ? "smooth" : "instant",
     });
   };
-  useEffect(
-    () => () => {
-      if (glideTimer.current) clearTimeout(glideTimer.current);
-    },
-    [],
-  );
   // Open on the shared browse position (or the live slide).
   useLayoutEffect(() => {
     centreOn(opening(), false);
@@ -357,11 +531,15 @@ function Controls({
   const prevLive = useRef(liveAt);
   useEffect(() => {
     if (liveAt >= 0 && liveAt !== prevLive.current) centreOn(liveAt, true);
+    else settleSoon(150);
     prevLive.current = liveAt;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveAt]);
   const onScroll = () => {
     const row = rowRef.current;
     if (!row) return;
+    setSettled(false);
+    settleSoon(150);
     const items = Array.from(row.children).map((c) => {
       const el = c as HTMLElement;
       return { left: el.offsetLeft, width: el.offsetWidth };
@@ -371,12 +549,6 @@ function Controls({
       sharedBrowse = i;
       setBrowse(i);
     }
-    if (gliding && i === liveAt) setGliding(false);
-  };
-  // A finger on the row is browsing, not gliding.
-  const onTouchStart = () => {
-    if (glideTimer.current) clearTimeout(glideTimer.current);
-    setGliding(false);
   };
 
   const liveSlide =
@@ -394,9 +566,16 @@ function Controls({
   const labels = new Map(
     browsedSet ? sectionOptions(browsedSet.slides).map((o) => [o.key, o]) : [],
   );
+  // Each slide's section colour in the row (named sections only), so the
+  // slides of one section sit on one band.
+  const tintOf = (p: RunPos) => {
+    if (!p.named) return null;
+    const d = sets[p.setId];
+    const opt = d ? sectionOptions(d.slides).find((o) => o.key === p.sectionKey) : undefined;
+    return SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
+  };
 
-  const ROUND =
-    "flex h-16 w-16 shrink-0 items-center justify-center rounded-full transition disabled:opacity-30";
+  const ROUND = "flex h-16 w-16 shrink-0 items-center justify-center rounded-full transition";
 
   return (
     <div className="flex min-h-full flex-col pb-6 pt-1">
@@ -408,82 +587,89 @@ function Controls({
       ) : (
         <>
           {/* One row of slides, the browsed one in the middle and its
-              neighbours faded. Swiping only looks; a tap puts it live. */}
+              neighbours faded, each section's slides on one band of its
+              colour. Swiping only looks; a tap puts it live. */}
           <div
             ref={rowRef}
             onScroll={onScroll}
-            onTouchStart={onTouchStart}
-            className="relative mt-2 flex snap-x snap-mandatory gap-3 overflow-x-auto px-[12.5%] [scrollbar-width:none]"
+            className="relative mt-2 flex snap-x snap-mandatory overflow-x-auto px-[12.5%] [scrollbar-width:none]"
           >
             {run.map((p, i) => {
               const d = sets[p.setId];
               const at = d ? d.slides.findIndex((s) => s.id === p.slideId) : -1;
               const key = `${p.slot}:${p.slideId}:${p.occ}`;
-              if (!d || at < 0) return <div key={key} />;
+              const prevP = run[i - 1];
+              const nextP = run[i + 1];
+              const first = !prevP || prevP.slot !== p.slot || prevP.entryKey !== p.entryKey;
+              const last = !nextP || nextP.slot !== p.slot || nextP.entryKey !== p.entryKey;
+              const tint = tintOf(p);
               return (
-                <Thumb
+                <div
                   key={key}
-                  set={d}
-                  slideIndex={at}
-                  isLive={i === liveAt}
-                  onClick={() => go(p)}
-                  label={`${d.name}, slide ${at + 1}`}
-                  className={`w-3/4 shrink-0 snap-center transition-opacity duration-200 ${
-                    i === browse ? "opacity-100" : "opacity-50"
-                  }`}
-                />
+                  className={`w-3/4 shrink-0 snap-center p-1.5 ${first && i > 0 ? "ml-3" : ""} ${
+                    first ? "rounded-l-xl" : ""
+                  } ${last ? "rounded-r-xl" : ""}`}
+                  style={
+                    tint
+                      ? { backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }
+                      : undefined
+                  }
+                >
+                  {d && at >= 0 && (
+                    <Thumb
+                      set={d}
+                      slideIndex={at}
+                      isLive={i === liveAt}
+                      onClick={() => go(p)}
+                      label={`${d.name}, slide ${at + 1}`}
+                      className={`w-full transition-opacity duration-200 ${
+                        i === browse ? "opacity-100" : "opacity-50"
+                      }`}
+                    />
+                  )}
+                </div>
               );
             })}
           </div>
-          <p className="mono mt-3 truncate px-6 text-center text-[10px] uppercase tracking-wider text-muted-foreground">
-            {browsedSet?.name ?? "\u00a0"}
-          </p>
-          {/* Sections: a tap puts the first slide of that section live. */}
-          {sections.length > 0 && (
-            <div className="mt-2 flex flex-wrap justify-center gap-1.5 px-6">
-              {sections.map((sec) => {
-                const opt = labels.get(sec.sectionKey);
-                const tint = SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
-                const isLive = liveAt >= sec.start && liveAt <= sec.end;
-                return (
-                  <button
-                    key={sec.entryKey}
-                    type="button"
-                    onClick={() => go(run[sec.start])}
-                    className={`pill mono flex h-7 items-center border px-3 text-[10px] uppercase tracking-wider ${
-                      isLive ? "border-foreground" : "border-transparent"
-                    }`}
-                    style={{ backgroundColor: `color-mix(in oklab, ${tint} 45%, transparent)` }}
-                  >
-                    {opt?.label ?? "Untitled"}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          <div className="mt-2 flex h-8 justify-center">
+          {/* Back to current slide, right under the row. */}
+          <div className="mt-1 flex h-8 justify-center">
             <BackToCurrent
-              hidden={liveAt < 0 || liveAt === browse || gliding}
+              hidden={liveAt < 0 || liveAt === browse || !settled}
               onClick={() => centreOn(liveAt, true)}
             />
           </div>
+          {/* The set's name on the left; its sections on the right, level
+              with it. A tap on a section puts its first slide live. */}
+          <div className="mt-1 flex items-start gap-3 px-6">
+            <p className="mono min-w-0 max-w-[45%] shrink-0 truncate pt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+              {browsedSet?.name ?? "\u00a0"}
+            </p>
+            {sections.length > 0 && (
+              <SectionPills
+                sections={sections}
+                labels={labels}
+                liveAt={liveAt}
+                onPick={(start) => go(run[start] ?? null)}
+              />
+            )}
+          </div>
 
           {/* Previous / Clear / Next. */}
-          <div className="mt-4 flex items-center gap-3 px-6">
+          <div className="mt-3 flex items-center gap-3 px-6">
             <button
               type="button"
               disabled={!prev}
               onClick={() => go(prev)}
-              className={`${ROUND} border border-foreground active:bg-foreground active:text-background`}
+              className={`${ROUND} border border-foreground active:bg-foreground active:text-background disabled:opacity-30`}
               aria-label="Previous slide"
               title="Previous slide"
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ChevronLeft className="h-7 w-7" />
             </button>
             <button
               type="button"
               onClick={() => live.toggleBlackout()}
-              className={`mono h-12 flex-1 rounded-full border text-xs uppercase tracking-wider transition ${
+              className={`mono h-16 flex-1 rounded-full border text-xs uppercase tracking-wider transition ${
                 live.blackout
                   ? "border-[var(--brand-red)] bg-[var(--brand-red)] text-[var(--brand-white)]"
                   : "border-foreground"
@@ -496,11 +682,11 @@ function Controls({
               type="button"
               disabled={!next}
               onClick={() => go(next)}
-              className={`${ROUND} bg-foreground text-background active:opacity-80`}
+              className={`${ROUND} bg-foreground text-background active:opacity-80 disabled:opacity-30`}
               aria-label="Next slide"
               title="Next slide"
             >
-              <ArrowRight className="h-6 w-6" />
+              <ChevronRight className="h-7 w-7" />
             </button>
           </div>
           {liveSlide?.kind === "video" && (
@@ -525,24 +711,27 @@ function Controls({
           <SlideSettings set={browsedSet} />
         </>
       )}
-      <div className="mt-auto px-6 pt-8">
-        <DisconnectButton />
-      </div>
     </div>
   );
 }
 
 /** The presenter's settings for the set in view (the one browsed to, which
  *  may not be live yet): fade time, Media Functions, Languages, the Song or
- *  Scripture Template, and Background. They change the setting itself, as on
- *  desktop, and reach the screen on the next slide or a tap on the live one. */
+ *  Scripture Template, and Background (one of those two open at a time).
+ *  They change the setting itself, as on desktop, and reach the screen on
+ *  the next slide or a tap on the live one. */
 function SlideSettings({ set }: { set: PhytoSet | undefined }) {
   const fadeMs = useLibrary((s) => s.fadeMs);
   const setFadeMs = useLibrary((s) => s.setFadeMs);
   const langs = set ? songLangs(set) : [];
+  const [openCard, setOpenCard] = useState<"template" | "background" | null>(null);
+  const cardProps = (card: "template" | "background") => ({
+    open: openCard === card,
+    onOpenChange: (o: boolean) => setOpenCard(o ? card : null),
+  });
   return (
-    <div className="mt-6 space-y-2 px-6">
-      <div className="flex h-10 items-center justify-between rounded-[20px] border border-foreground px-4">
+    <div className="mt-5 space-y-2 px-6">
+      <div className="flex h-10 items-center justify-between px-4">
         <span className="mono text-[10px] uppercase tracking-wider">Fade time</span>
         <div className="flex items-center gap-1">
           <NumberStepper
@@ -568,25 +757,39 @@ function SlideSettings({ set }: { set: PhytoSet | undefined }) {
       )}
       {/* One rounded box with a line between each card, as in Settings. */}
       <div className="overflow-hidden rounded-[20px] border border-foreground [&_[data-fold-card]+[data-fold-card]]:border-t [&_[data-fold-card]]:rounded-none [&_[data-fold-card]]:border-0">
-        {set?.kind === "song" && <SongTemplateEditor />}
-        {(set?.kind === "scripture" || set?.kind === "message") && <ScriptureTemplateEditor />}
-        <BackgroundEditor phone />
+        {set?.kind === "song" && <SongTemplateEditor {...cardProps("template")} />}
+        {(set?.kind === "scripture" || set?.kind === "message") && (
+          <ScriptureTemplateEditor {...cardProps("template")} />
+        )}
+        <BackgroundEditor phone {...cardProps("background")} />
       </div>
     </div>
   );
 }
 
-function BackToCurrent({ hidden, onClick }: { hidden: boolean; onClick: () => void }) {
+/** Back to current slide: a plain reset icon. */
+function BackToCurrent({
+  hidden,
+  onClick,
+  floating = false,
+}: {
+  hidden: boolean;
+  onClick: () => void;
+  /** Over the Slides list: on the page colour so it reads over slides. */
+  floating?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`mono rounded-full border border-foreground bg-background px-4 text-[10px] uppercase tracking-wider transition-opacity duration-200 active:bg-foreground active:text-background ${
-        hidden ? "pointer-events-none opacity-0" : "opacity-100"
-      }`}
+      title="Back to current slide"
+      aria-label="Back to current slide"
+      className={`flex h-8 w-8 items-center justify-center rounded-full transition-opacity duration-200 hover:bg-foreground/15 active:bg-foreground/15 ${
+        floating ? "bg-background" : ""
+      } ${hidden ? "pointer-events-none opacity-0" : "opacity-100"}`}
       tabIndex={hidden ? -1 : 0}
     >
-      Back to current slide
+      <RotateCcw className="h-4 w-4" />
     </button>
   );
 }
@@ -729,7 +932,7 @@ function SlidesList({
       </div>
       <div className="pointer-events-none fixed inset-x-0 bottom-[calc(54px+env(safe-area-inset-bottom)+1rem)] z-20 flex h-8 justify-center">
         <div className="pointer-events-auto">
-          <BackToCurrent hidden={liveInView} onClick={() => scrollToItem(liveAt, true)} />
+          <BackToCurrent floating hidden={liveInView} onClick={() => scrollToItem(liveAt, true)} />
         </div>
       </div>
     </div>
