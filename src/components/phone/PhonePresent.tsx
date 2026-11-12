@@ -49,6 +49,7 @@ import type { Set as PhytoSet } from "@/lib/types";
 import { useAccountSlug } from "@/hooks/use-account-slug";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { arrangedEntries, effectiveArrangement, sectionOptions } from "@/lib/arrangements";
+import { centeredTabScroll } from "@/lib/phone-viewer";
 import { isLiveNow } from "@/lib/live-session";
 import { NO_GATHERINGS, NO_IDS, NO_SETS, presentGatheringId } from "@/lib/phone-layout";
 import { useRemote } from "@/lib/remote-client";
@@ -433,7 +434,10 @@ function SectionRow({
     });
   }, [current]);
   return (
-    <div ref={rowRef} className="flex gap-3 overflow-x-auto px-[27%] [scrollbar-width:none]">
+    <div
+      ref={rowRef}
+      className="relative flex gap-3 overflow-x-auto px-[27%] [scrollbar-width:none]"
+    >
       {sections.map((sec) => {
         const opt = labels.get(sec.sectionKey);
         const tint = SECTION_TINTS[(opt?.index ?? 0) % SECTION_TINTS.length];
@@ -1185,8 +1189,7 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
 }
 
 /** Quicknav: the gathering's sets as a scrolling row of tabs (the /g live
- *  link's), the one in view marked by a thick bar ABOVE its name (his ask)
- *  and kept in sight. */
+ *  link's), the one in view marked by a thick bar above its name. */
 function SetTabs({
   setIds,
   sets,
@@ -1203,9 +1206,15 @@ function SetTabs({
   resetDim: boolean;
 }) {
   const barRef = useRef<HTMLDivElement | null>(null);
+  // The set in view is centred where possible, as on the /g link.
   useEffect(() => {
-    const el = barRef.current?.children[activeSlot] as HTMLElement | undefined;
-    el?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    const bar = barRef.current;
+    const el = bar?.children[activeSlot] as HTMLElement | undefined;
+    if (!bar || !el) return;
+    bar.scrollTo({
+      left: centeredTabScroll(el.offsetLeft, el.offsetWidth, bar.clientWidth, bar.scrollWidth),
+      behavior: "smooth",
+    });
   }, [activeSlot]);
   return (
     // (reset) stays put on the left, like the /g link's menu button; the
@@ -1220,7 +1229,10 @@ function SetTabs({
       >
         <RotateCcw className="h-[18px] w-[18px]" />
       </button>
-      <div ref={barRef} className="flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
+      <div
+        ref={barRef}
+        className="relative flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]"
+      >
         {setIds.map((id, slot) => {
           const d = sets[id];
           const empty = !d || d.slides.length === 0;
