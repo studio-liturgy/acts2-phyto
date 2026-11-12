@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DissolveSlide } from "@/components/SlideView";
 import { BackgroundOverride } from "@/lib/background-override";
 import {
@@ -26,6 +26,9 @@ import { supabase } from "@/lib/supabase";
 import { parseShareView, shareViewVersion } from "@/lib/share-view";
 import { isLiveNow } from "@/lib/live-session";
 import { useWakeLock } from "@/hooks/use-wake-lock";
+import { usePreloadImages } from "@/hooks/use-preload-images";
+import { PreloadVideos } from "@/components/PreloadVideos";
+import { setsAround, setsMedia } from "@/lib/media-preload";
 import type { Set as PhytoSet, Slide } from "@/lib/types";
 
 // Present from a phone (n133): the screen link. Opened on the computer or
@@ -224,6 +227,23 @@ function ScreenView({ slug }: { slug: string }) {
   const hideContent = !meta || !live || live.clear || !slide;
   const waiting = !meta;
 
+  // Everything the gathering shows, fetched ahead of time: every picture,
+  // and the video files of the live set and the next.
+  const media = useMemo(() => {
+    const ids = meta?.setIds ?? [];
+    return {
+      images: setsMedia(
+        ids.map((id) => sets[id]),
+        meta?.background,
+      ).images,
+      videos: setsMedia(
+        setsAround(ids, live?.setId ?? null).map((id) => sets[id]),
+        meta?.background,
+      ).videos,
+    };
+  }, [meta, sets, live?.setId]);
+  usePreloadImages(media.images);
+
   const sendEnded = () => {
     const nonce = live?.videoCmd?.nonce ?? 0;
     const m: ScreenToRoom = { t: "ended", nonce };
@@ -250,6 +270,7 @@ function ScreenView({ slug }: { slug: string }) {
           />
         </BackgroundOverride.Provider>
       )}
+      <PreloadVideos urls={media.videos} />
       <div
         className="pointer-events-none absolute inset-0 bg-black"
         style={{

@@ -5,6 +5,9 @@ import { DissolveSlide } from "@/components/SlideView";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Slide } from "@/lib/types";
 import { APP_NAME } from "@/lib/appConfig";
+import { setsAround, setsMedia } from "@/lib/media-preload";
+import { usePreloadImages } from "@/hooks/use-preload-images";
+import { PreloadVideos } from "@/components/PreloadVideos";
 
 const ARMED_KEY = "phyto-video-armed";
 
@@ -45,6 +48,37 @@ function Output() {
       document.body.style.background = prev;
     };
   }, []);
+
+  // Pictures for every set of the gathering(s) the live set is in, and the
+  // video files of the live set and the next, fetched ahead of time so a
+  // slide never loads while it's on screen.
+  const sets = useLibrary((s) => s.sets);
+  const gatherings = useLibrary((s) => s.gatherings);
+  const background = useLibrary((s) => s.background);
+  const media = useMemo(() => {
+    const around = Object.values(gatherings ?? {}).filter(
+      (g) => live.setId && g.setIds.includes(live.setId),
+    );
+    const all = around.length
+      ? [...new Set(around.flatMap((g) => g.setIds))]
+      : live.setId
+        ? [live.setId]
+        : [];
+    const near = around.length
+      ? [...new Set(around.flatMap((g) => setsAround(g.setIds, live.setId)))]
+      : all;
+    return {
+      images: setsMedia(
+        all.map((id) => sets[id]),
+        background,
+      ).images,
+      videos: setsMedia(
+        near.map((id) => sets[id]),
+        background,
+      ).videos,
+    };
+  }, [gatherings, sets, background, live.setId]);
+  usePreloadImages(media.images);
 
   const globalFadeMs = useLibrary((s) => s.fadeMs);
   const blackoutFadeMs = live.blackoutFadeMs ?? 0;
@@ -107,6 +141,7 @@ function Output() {
           </span>
         </button>
       )}
+      <PreloadVideos urls={media.videos} />
       {/* Blackout overlay — fades in/out when blackoutFadeMs > 0. */}
       <div
         className="pointer-events-none absolute inset-0 bg-black"

@@ -5,6 +5,7 @@ import { useLibrary } from "@/lib/store";
 import { displayLinesForVersions } from "@/lib/versions";
 import { shownReference } from "@/lib/verse-ref";
 import { renderInline } from "@/lib/inline-format";
+import { whenSlideReady, youtubePosterUrl } from "@/lib/media-preload";
 import { renderRoleLine } from "@/lib/role-line";
 import { startsRoleRun, type Role } from "@/lib/song-roles";
 
@@ -78,9 +79,7 @@ interface Props {
 }
 
 /** YouTube thumbnail URL for a video id. */
-function youtubePoster(id: string): string {
-  return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-}
+const youtubePoster = youtubePosterUrl;
 
 /**
  * Renders a video slide. On the stage (output) it reacts to `videoCmd` to
@@ -709,6 +708,24 @@ export function DissolveSlide({
     shownTemplate.current = t;
     cancelPending.current();
     cancelPending.current = () => {};
+    // Its picture decoded first (lib/media-preload.ts; usually already done
+    // ahead of time), so the slide never paints in while it's on screen. A
+    // missing picture holds it 1.5 s at most.
+    const waiting = whenSlideReady(s, t?.background);
+    if (waiting) {
+      let cancelled = false;
+      cancelPending.current = () => {
+        cancelled = true;
+      };
+      void waiting.then(() => {
+        if (!cancelled) show(s, t);
+      });
+      return;
+    }
+    show(s, t);
+  };
+
+  const show = (s: Slide | null | undefined, t: Props["template"]) => {
     // A dissolve is only worth staging for when there are frames to draw it
     // with. A hidden tab gets no animation frames at all, and Chrome throttles
     // then freezes one that has been backgrounded for a few minutes — which is
