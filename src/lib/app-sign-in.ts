@@ -80,3 +80,65 @@ export async function signInWithGoogleInApp(): Promise<AppSignIn> {
     return { ok: false, cancelled: code === "CANCELLED", error: "Google sign in didn't finish." };
   }
 }
+
+type AppleSignIn = {
+  signIn: (o: { nonce: string }) => Promise<{ identityToken: string }>;
+};
+
+function appleSignInPlugin(): AppleSignIn | null {
+  if (typeof window === "undefined") return null;
+  const cap = (
+    window as unknown as {
+      Capacitor?: {
+        Plugins?: { AppleSignIn?: AppleSignIn };
+        registerPlugin?: (name: string) => AppleSignIn;
+        isPluginAvailable?: (name: string) => boolean;
+      };
+    }
+  ).Capacitor;
+  if (!cap) return null;
+  if (cap.Plugins?.AppleSignIn) return cap.Plugins.AppleSignIn;
+  if (cap.isPluginAvailable && !cap.isPluginAvailable("AppleSignIn")) return null;
+  return cap.registerPlugin?.("AppleSignIn") ?? null;
+}
+
+/** Whether this app build has the native Sign in with Apple sheet. */
+export function canSignInWithApple(): boolean {
+  return appleSignInPlugin() !== null;
+}
+
+/** Hex SHA-256, for the nonce Apple signs (Supabase checks the raw one). */
+export async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Sign in with Apple in the iPhone app: the native sheet (Face ID, Hide My
+ * Email) returns Apple's identity token, which Supabase turns into a session
+ * here in the page (Supabase's Apple provider lists `live.phyto.app` as a
+ * client id). No browser round trip.
+ */
+export async function signInWithAppleInApp(): Promise<
+  { ok: true } | { ok: false; cancelled: boolean; error: string }
+> {
+  const plugin = appleSignInPlugin();
+  if (!plugin) return { ok: false, cancelled: false, error: "Sign in with Apple isn't available." };
+  const raw = crypto.randomUUID() + crypto.randomUUID();
+  let token: string;
+  try {
+    ({ identityToken: token } = await plugin.signIn({ nonce: await sha256Hex(raw) }));
+  } catch (e) {
+    const code = (e as { code?: string } | null)?.code;
+    return { ok: false, cancelled: code === "CANCELLED", error: "Apple sign in didn't finish." };
+  }
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: "apple",
+    token,
+    nonce: raw,
+  });
+  if (error || !data.session) {
+    return { ok: false, cancelled: false, error: error?.message ?? "Apple sign in didn't finish." };
+  }
+  return { ok: true };
+}

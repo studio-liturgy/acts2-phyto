@@ -11,7 +11,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { APP_NAME } from "@/lib/appConfig";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import { useNativeApp } from "@/hooks/use-native-app";
-import { signInWithGoogleInApp } from "@/lib/app-sign-in";
+import { canSignInWithApple, signInWithAppleInApp, signInWithGoogleInApp } from "@/lib/app-sign-in";
 import { PHONE_UI } from "@/lib/phone-layout";
 import wordmark from "@/assets/wordmark.svg";
 import wordmarkTestBlack from "@/assets/wordmark-test-black.svg";
@@ -35,7 +35,10 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { error: callbackError, next } = Route.useSearch();
   const navigate = useNavigate();
-  const nativeApp = useNativeApp() !== null;
+  const native = useNativeApp();
+  const nativeApp = native !== null;
+  // Sign in with Apple: the iPhone app's native sheet (a build that has it).
+  const appleIn = native === "ios" && canSignInWithApple();
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
   const [code, setCode] = useState("");
@@ -267,6 +270,34 @@ function LoginPage() {
                 >
                   sign in with Google
                 </button>
+
+                {/* The iPhone app: Sign in with Apple, full width under Google,
+                    same size and shape (the native sheet). */}
+                {appleIn && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sessionStorage.setItem("phyto-subscribe", String(subscribe));
+                      void signInWithAppleInApp().then(async (r) => {
+                        if (!r.ok) {
+                          if (!r.cancelled) setError(r.error);
+                          return;
+                        }
+                        const { data } = await supabase.auth.getUser();
+                        const user = data.user;
+                        if (
+                          user &&
+                          (!TESTERS_ONLY || (await isTesterEmail(user.email ?? "")) === true)
+                        ) {
+                          await sendWelcomeIfNew(user);
+                        }
+                      });
+                    }}
+                    className={`mono uppercase ${btnText} w-full rounded-full px-6 py-3 transition hover:opacity-90 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
+                  >
+                    sign in with Apple
+                  </button>
+                )}
 
                 {error && (
                   <p
