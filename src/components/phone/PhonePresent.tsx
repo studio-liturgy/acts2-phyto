@@ -1,7 +1,6 @@
 import { Link, Navigate, useNavigate } from "@tanstack/react-router";
 import {
-  AlignVerticalJustifyCenter,
-  AlignVerticalJustifyStart,
+  ArrowUpToLine,
   CaseSensitive,
   CaseUpper,
   Check,
@@ -33,6 +32,7 @@ import { RemoteIcon } from "@/components/RemoteIcon";
 import { NumberStepper } from "@/components/NumberStepper";
 import { SongLanguageBar } from "@/components/SongLanguageBar";
 import { AutoAdvanceStepper, LoopSwitches } from "@/components/MediaTemplateEditor";
+import { MediaAutoAdvance } from "@/components/MediaAutoAdvance";
 import { TapRange } from "@/components/TapRange";
 import { VideoBar } from "@/components/VideoBar";
 import { FONT_OPTIONS } from "@/lib/template-fonts";
@@ -87,6 +87,9 @@ const SECTION_TINTS = ["var(--brand-blue)", "var(--brand-green)", "var(--brand-o
 // The Go live sheet's note: full width, at the foot of the screen.
 const NOTE =
   "mono mt-8 w-full text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
+// The same note before and after tapping Remote.
+const REMOTE_NOTE =
+  "Open the screen link on a computer or device connected to your TV or projector. Control the slides from this phone.";
 
 export function PhonePresent() {
   const gatherings = useLibrary((s) => s.gatherings ?? NO_GATHERINGS);
@@ -144,7 +147,7 @@ export function PhonePresent() {
           <p className={NOTE}>
             {status === "denied"
               ? "Couldn't connect as the remote. Sign in again, then tap Remote."
-              : "Open the screen link on a computer or device connected to your TV or projector. Control the slides from this phone."}
+              : REMOTE_NOTE}
           </p>
         </div>
       </PhoneScreen>
@@ -248,10 +251,7 @@ function ScreenLink({ slug }: { slug: string }) {
           <DisconnectButton wide />
         </div>
       </div>
-      <p className={NOTE}>
-        Open this link on the computer or device connected to your TV or projector. The controls
-        appear here once it connects.
-      </p>
+      <p className={NOTE}>{REMOTE_NOTE}</p>
     </div>
   );
 }
@@ -330,7 +330,12 @@ function Deck({ gatheringId }: { gatheringId: string }) {
   const liveAt = runIndex(run, live);
   const go = (p: RunPos | null) => p && live.go(p.setId, p.slideId, p.occ);
 
-  return <Controls setIds={setIds} run={run} liveAt={liveAt} go={go} />;
+  return (
+    <>
+      <MediaAutoAdvance />
+      <Controls setIds={setIds} run={run} liveAt={liveAt} go={go} />
+    </>
+  );
 }
 
 function StatusLine() {
@@ -502,13 +507,18 @@ function Controls({
     settleTimer.current = setTimeout(() => {
       setSettled(true);
       setTarget(null);
+      setFollowing(false);
     }, ms);
   };
   // A new live slide hides it in the same render, before the glide starts.
+  // While the row follows a new live slide, reset stays off the whole way
+  // (it lit up and faded on every Next); a finger on the row ends that.
+  const [following, setFollowing] = useState(false);
   const [seenLive, setSeenLive] = useState(liveAt);
   if (seenLive !== liveAt) {
     setSeenLive(liveAt);
     setSettled(false);
+    setFollowing(liveAt >= 0);
   }
   useEffect(
     () => () => {
@@ -630,6 +640,7 @@ function Controls({
             <div
               ref={rowRef}
               onScroll={onScroll}
+              onTouchStart={() => setFollowing(false)}
               className="relative mt-2 flex snap-x snap-mandatory overflow-x-auto px-[12.5%] [scrollbar-width:none]"
             >
               {run.map((p, i) => {
@@ -680,7 +691,7 @@ function Controls({
             onReset={() => centreOn(liveAt, true)}
             // Off only once the row rests on the live slide: never flickering
             // off and on while slides scroll past.
-            resetDim={liveAt < 0 || (settled && shown === liveAt)}
+            resetDim={liveAt < 0 || following || (settled && shown === liveAt)}
             onPick={(slot) => {
               const i = run.findIndex((p) => p.slot === slot);
               if (i >= 0) centreOn(i, true);
@@ -1066,8 +1077,8 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
           {splitSetting(
             "Position",
             [
-              ["top", <AlignVerticalJustifyStart key="t" className="h-3.5 w-3.5" />, "Top"],
-              ["centre", <AlignVerticalJustifyCenter key="c" className="h-3.5 w-3.5" />, "Centre"],
+              ["top", <ArrowUpToLine key="t" className="h-3.5 w-3.5" />, "Top"],
+              ["centre", <ArrowsToLine key="c" className="h-3.5 w-3.5" />, "Centre"],
             ],
             songTemplate.position ?? "centre",
             (v) => setSongTemplate({ position: v as "top" | "centre" }),
@@ -1266,5 +1277,29 @@ function SetTabs({
         })}
       </div>
     </div>
+  );
+}
+
+/** Centre position: a downward arrow above a line above an upward arrow,
+ *  drawn like the lucide icons beside it. */
+function ArrowsToLine({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M5 12h14" />
+      <path d="M12 2v7" />
+      <path d="m8 5 4 4 4-4" />
+      <path d="M12 22v-7" />
+      <path d="m8 19 4-4 4 4" />
+    </svg>
   );
 }

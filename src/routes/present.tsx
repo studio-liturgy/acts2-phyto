@@ -22,6 +22,7 @@ import { SlideView, DissolveSlide } from "@/components/SlideView";
 import { ExportGatheringButton } from "@/components/ExportGatheringButton";
 import { ScrollingName } from "@/components/ScrollingName";
 import { MediaTemplateEditor } from "@/components/MediaTemplateEditor";
+import { MediaAutoAdvance } from "@/components/MediaAutoAdvance";
 import { SongTemplateEditor } from "@/components/SongTemplateEditor";
 import { ScriptureTemplateEditor } from "@/components/ScriptureTemplateEditor";
 import { BackgroundEditor } from "@/components/BackgroundEditor";
@@ -1867,45 +1868,6 @@ function Presenter() {
       </AlertDialog>
     </div>
   );
-}
-
-function MediaAutoAdvance() {
-  const setId = useLive((s) => s.setId);
-  const slideId = useLive((s) => s.slideId);
-  const blackout = useLive((s) => s.blackout);
-  const videoEnded = useLive((s) => s.videoEnded);
-  const phytoSet = useLibrary((s) => (setId ? s.sets[setId] : null));
-  useEffect(() => {
-    if (!phytoSet || phytoSet.kind !== "media") return;
-    const ms = phytoSet.autoAdvanceMs ?? 0;
-    if (ms <= 0 || !slideId || blackout) return;
-    const idx = phytoSet.slides.findIndex((s) => s.id === slideId);
-    if (idx === -1) return;
-    // For video slides, hold off the auto-advance delay until the video has
-    // finished playing — then wait `ms` before moving on. The effect re-runs
-    // when `videoEnded` flips to true (set by the output window).
-    if (phytoSet.slides[idx].kind === "video" && !videoEnded) return;
-    const t = setTimeout(() => {
-      const go = useLive.getState().go;
-      const slides = phytoSet.slides;
-      const next = slides[idx + 1];
-      // Loop within the section: a divider after this slide (or the end of the
-      // set) sends playback back to the section's first slide.
-      if (phytoSet.loop && phytoSet.loopSection) {
-        const atSectionEnd = slides[idx].sectionAfter !== undefined || !next;
-        if (atSectionEnd) {
-          let start = idx;
-          while (start > 0 && slides[start - 1].sectionAfter === undefined) start -= 1;
-          go(phytoSet.id, slides[start].id);
-          return;
-        }
-      }
-      if (next) go(phytoSet.id, next.id);
-      else if (phytoSet.loop && slides[0]) go(phytoSet.id, slides[0].id);
-    }, ms);
-    return () => clearTimeout(t);
-  }, [phytoSet, slideId, blackout, videoEnded]);
-  return null;
 }
 
 // Only one slide may be fast-edited at a time across the whole presenter, so the
