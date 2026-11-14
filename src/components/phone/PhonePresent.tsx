@@ -31,6 +31,10 @@ import { RemoteIcon } from "@/components/RemoteIcon";
 import { NumberStepper } from "@/components/NumberStepper";
 import { SongLanguageBar } from "@/components/SongLanguageBar";
 import { AutoAdvanceStepper, LoopSwitches } from "@/components/MediaTemplateEditor";
+import {
+  PhoneBackgroundControls,
+  PhoneTemplateControls,
+} from "@/components/phone/PhoneSlideControls";
 import { MediaAutoAdvance } from "@/components/MediaAutoAdvance";
 import { TapRange } from "@/components/TapRange";
 import { VideoBar } from "@/components/VideoBar";
@@ -939,74 +943,15 @@ function QuickEdit({
 function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
   const fadeMs = useLibrary((s) => s.fadeMs);
   const setFadeMs = useLibrary((s) => s.setFadeMs);
-  const songTemplate = useLibrary((s) => s.songTemplate);
-  const setSongTemplate = useLibrary((s) => s.setSongTemplate);
-  const scriptureTemplate = useLibrary((s) => s.scriptureTemplate);
-  const setScriptureTemplate = useLibrary((s) => s.setScriptureTemplate);
-  const background = useLibrary((s) => s.background);
-  const setBackground = useLibrary((s) => s.setBackground);
-  const [imageBusy, setImageBusy] = useState(false);
-  const [imageErr, setImageErr] = useState<string | null>(null);
-
   const kind = set?.kind;
   const isSong = kind === "song";
   const isScripture = kind === "scripture" || kind === "message";
   const langs = set ? songLangs(set) : [];
-  const t = isSong ? songTemplate : scriptureTemplate;
-  const setT = isSong ? setSongTemplate : setScriptureTemplate;
-  const font = t.fontFamily ?? FONT_OPTIONS[0].value;
-
   const LABEL = "mono text-[10px] uppercase tracking-wider";
-  const PILL =
-    "mono flex h-7 items-center justify-center rounded-full border px-3 text-[10px] uppercase tracking-wider transition";
-  const on = "border-foreground bg-foreground text-background";
-  const off = "border-foreground/40";
-  // A setting with two choices as the two halves of one pill, its label
-  // above (Position, Case, Reference, Alignment), half the row each.
-  const splitSetting = (
-    label: string,
-    options: [string, ReactNode, string?][],
-    value: string,
-    onPick: (v: string) => void,
-  ) => (
-    <div className="min-w-0 flex-1">
-      <div className={`${LABEL} mb-2`}>{label}</div>
-      <div className="mono flex overflow-hidden rounded-full border border-foreground/40">
-        {options.map(([v, content, name], i) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => onPick(v)}
-            aria-label={name}
-            title={name}
-            className={`flex h-7 flex-1 items-center justify-center text-[10px] uppercase tracking-wider transition ${
-              i > 0 ? "border-l border-foreground/40" : ""
-            } ${value === v ? "bg-foreground text-background" : ""}`}
-          >
-            {content}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
 
-  const pickImage = async (file?: File) => {
-    if (!file) return;
-    setImageBusy(true);
-    setImageErr(null);
-    let full = false;
-    try {
-      const prepared = await prepareImageFile(file, () => {
-        full = true;
-        setImageErr("Out of storage. Remove a background or some media first.");
-      });
-      if (prepared) setBackground({ bgImage: prepared.url });
-      else if (!full) setImageErr("That image could not be read.");
-    } finally {
-      setImageBusy(false);
-    }
-  };
-
+  // The template and Background controls are shared with phone Settings
+  // (PhoneSlideControls); fade time, auto advance, languages and loop are
+  // the remote's own.
   return (
     <div className="space-y-6 px-[5%] pt-5">
       {/* Each setting on its own row. */}
@@ -1033,89 +978,7 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
           <AutoAdvanceStepper setId={set.id} />
         </div>
       )}
-      {(isSong || isScripture) && (
-        <div className="flex items-center gap-4">
-          <span className={`${LABEL} shrink-0`}>Font size</span>
-          <TapRange
-            min={1}
-            max={2}
-            step={0.05}
-            value={t.fontScale ?? 1}
-            onValue={(v) => setT({ fontScale: v })}
-            className="min-w-0 flex-1"
-          />
-        </div>
-      )}
-
-      {(isSong || isScripture) && (
-        <div>
-          <div className={`${LABEL} mb-2`}>Font type</div>
-          {/* Three big circles, together as wide as the screen. */}
-          <div className="grid grid-cols-3 gap-3">
-            {FONT_OPTIONS.map((f) => (
-              <button
-                key={f.label}
-                type="button"
-                onClick={() => setT({ fontFamily: f.value })}
-                aria-label={f.label}
-                title={f.label}
-                style={{ fontFamily: f.value }}
-                className={`flex aspect-square items-center justify-center rounded-full border text-2xl transition ${
-                  font === f.value ? on : off
-                }`}
-              >
-                {f.short}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {isSong && (
-        <div className="flex gap-3">
-          {splitSetting(
-            "Position",
-            [
-              ["top", <PositionIcon key="t" pos="top" className="h-3.5 w-3.5" />, "Top"],
-              ["centre", <PositionIcon key="c" pos="centre" className="h-3.5 w-3.5" />, "Centre"],
-            ],
-            songTemplate.position ?? "centre",
-            (v) => setSongTemplate({ position: v as "top" | "centre" }),
-          )}
-          {splitSetting(
-            "Case",
-            [
-              ["upper", <CaseUpper key="u" className="h-4 w-4" />, "All caps"],
-              ["mixed", <CaseSensitive key="m" className="h-4 w-4" />, "Mixed case"],
-            ],
-            songTemplate.textCase ?? "mixed",
-            (v) => setSongTemplate({ textCase: v as "upper" | "mixed" }),
-          )}
-        </div>
-      )}
-
-      {isScripture && (
-        <div className="flex gap-3">
-          {splitSetting(
-            "Reference",
-            [
-              ["above", <ChevronUp key="u" className="h-3.5 w-3.5" />, "Above"],
-              ["below", <ChevronDown key="d" className="h-3.5 w-3.5" />, "Below"],
-            ],
-            scriptureTemplate.referencePosition ?? "below",
-            (v) => setScriptureTemplate({ referencePosition: v as "above" | "below" }),
-          )}
-          {splitSetting(
-            "Alignment",
-            [
-              ["left", "L", "Left"],
-              ["center", "C", "Centre"],
-            ],
-            scriptureTemplate.align ?? "left",
-            (v) => setScriptureTemplate({ align: v as "left" | "center" }),
-          )}
-        </div>
-      )}
+      {(isSong || isScripture) && <PhoneTemplateControls kind={isSong ? "song" : "scripture"} />}
 
       {set && langs.length > 0 && (
         <div>
@@ -1130,82 +993,7 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
         </div>
       )}
 
-      {/* Background: Black, White or an image (with its Dim). */}
-      <div>
-        <div className={`${LABEL} mb-2`}>Background</div>
-        <div className="grid grid-cols-3 gap-1">
-          {(
-            [
-              ["black", "Black", "bg-black text-white"],
-              ["white", "White", "bg-white text-black"],
-            ] as const
-          ).map(([v, label, look]) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setBackground({ bg: v, bgImage: undefined })}
-              className={`mono flex h-[30px] items-center justify-center rounded-full text-[10px] uppercase tracking-wider transition ${look} ${
-                !background.bgImage && background.bg === v
-                  ? "border-2 border-foreground"
-                  : "border border-foreground/40"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-          <label
-            className={`mono flex h-[30px] cursor-pointer items-center justify-center rounded-full text-[10px] uppercase tracking-wider transition ${
-              background.bgImage ? "border-2 border-foreground" : "border border-foreground/40"
-            }`}
-          >
-            {imageBusy ? "Uploading" : "Image"}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={imageBusy}
-              onChange={(e) => {
-                void pickImage(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-          </label>
-        </div>
-        {background.bgImage && (
-          <div className="mt-3 flex items-center gap-3">
-            <span className={`${LABEL} shrink-0`}>Dim</span>
-            <TapRange
-              min={0}
-              max={90}
-              step={5}
-              value={background.bgDim}
-              onValue={(v) => setBackground({ bgDim: v })}
-              className="min-w-0 flex-1"
-            />
-            <span className="mono w-8 text-right text-[10px] tabular-nums">
-              {background.bgDim}%
-            </span>
-          </div>
-        )}
-        {imageErr && <p className="mt-2 text-[10px] text-destructive">{imageErr}</p>}
-      </div>
-
-      {/* Aspect ratio: the screen's shape. */}
-      <div>
-        <div className={`${LABEL} mb-2`}>Aspect ratio</div>
-        <div className="flex flex-wrap gap-2">
-          {SLIDE_ASPECTS.map((a) => (
-            <button
-              key={a}
-              type="button"
-              onClick={() => setBackground({ aspect: a })}
-              className={`${PILL} tabular-nums ${(background.aspect ?? "16:9") === a ? on : off}`}
-            >
-              {a}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PhoneBackgroundControls />
     </div>
   );
 }
@@ -1276,37 +1064,5 @@ function SetTabs({
         })}
       </div>
     </div>
-  );
-}
-
-/** The song Position icons: chevrons and lines, drawn like the Reference
- *  chevrons beside them. Top: a chevron up under a line. Centre: a chevron
- *  down above a line above a chevron up. */
-function PositionIcon({ pos, className }: { pos: "top" | "centre"; className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      {pos === "top" ? (
-        <>
-          <path d="M5 6h14" />
-          <path d="m6 17 6-6 6 6" />
-        </>
-      ) : (
-        <>
-          <path d="m6 3 6 6 6-6" />
-          <path d="M5 12h14" />
-          <path d="m6 21 6-6 6 6" />
-        </>
-      )}
-    </svg>
   );
 }

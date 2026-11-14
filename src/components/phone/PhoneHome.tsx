@@ -1262,16 +1262,22 @@ function SettingsTab({
           </div>
         )}
 
-        {/* Slide settings: the presenter's Song Template, Scripture Template
-            and Background cards, one open at a time, each over a sample slide.
+        {/* Slide settings: the Song Template, Scripture Template and
+            Background cards with the remote's controls, one open at a time,
+            each over a sample slide.
             While this phone is a remote they live in Present instead. */}
         {!remoteConnected && (
           <div className={SECTION}>
             <div className={HEADING}>Slide settings</div>
             {/* One rounded box around the three, a line between each. */}
             <div className="overflow-hidden rounded-[20px] border border-foreground [&_[data-fold-card]]:rounded-none [&_[data-fold-card]]:border-0 [&_[data-fold-card]+[data-fold-card]]:border-t">
-              <SongTemplateEditor {...cardProps("song")} preview={<SamplePreview kind="song" />} />
+              <SongTemplateEditor
+                phone
+                {...cardProps("song")}
+                preview={<SamplePreview kind="song" />}
+              />
               <ScriptureTemplateEditor
+                phone
                 {...cardProps("scripture")}
                 preview={<SamplePreview kind="scripture" />}
               />

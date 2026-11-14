@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { FoldCard } from "@/components/FoldCard";
+import { PhoneBackgroundControls } from "@/components/phone/PhoneSlideControls";
 import { TapRange } from "@/components/TapRange";
 import { SLIDE_ASPECTS } from "@/lib/background";
 import { prepareImageFile } from "@/lib/image-upload";
@@ -29,19 +30,14 @@ export function BackgroundEditor({
   return (
     <FoldCard title="Background" ariaLabel="the background" open={open} onOpenChange={onOpenChange}>
       {preview}
-      <BackgroundControls phone={phone} />
+      {phone ? <PhoneBackgroundControls inCard /> : <BackgroundControls />}
     </FoldCard>
   );
 }
 
 /** The Background card's controls, also in the export dialog. They edit the
  *  same setting wherever they're shown. */
-export function BackgroundControls({
-  phone = false,
-}: {
-  /** The phone's Settings: the card's title already says Background. */
-  phone?: boolean;
-} = {}) {
+export function BackgroundControls() {
   const background = useLibrary((s) => s.background);
   const setBackground = useLibrary((s) => s.setBackground);
   // With an image behind the slide the solid colour is hidden, so the same
@@ -68,9 +64,7 @@ export function BackgroundControls({
   return (
     <div className="space-y-4 text-sm">
       <div>
-        {(hasImage || !phone) && (
-          <div className={LABEL}>{hasImage ? "Font colour" : "Background"}</div>
-        )}
+        <div className={LABEL}>{hasImage ? "Font colour" : "Background"}</div>
         <div className="grid grid-cols-2 gap-2">
           {hasImage ? (
             <>

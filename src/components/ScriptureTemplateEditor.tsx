@@ -1,16 +1,20 @@
 import type { ReactNode } from "react";
 import { useLibrary } from "@/lib/store";
 import { FoldCard } from "@/components/FoldCard";
+import { PhoneTemplateControls } from "@/components/phone/PhoneSlideControls";
 import { TapRange } from "@/components/TapRange";
 
 import { FONT_OPTIONS } from "@/lib/template-fonts";
 
 /** Changes apply as they're made: no Apply step. */
 export function ScriptureTemplateEditor({
+  phone = false,
   open,
   onOpenChange,
   preview,
 }: {
+  /** The phone's Settings: the remote's controls (PhoneSlideControls). */
+  phone?: boolean;
   /** The phone's Settings: one card open at a time, a sample slide on top. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -34,93 +38,97 @@ export function ScriptureTemplateEditor({
       onOpenChange={onOpenChange}
     >
       {preview}
-      <div className="space-y-4 text-sm">
-        {/* Font size */}
-        <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span>Font size</span>
-            <span className="text-muted-foreground">{t.fontScale.toFixed(2)}×</span>
+      {phone ? (
+        <PhoneTemplateControls kind="scripture" />
+      ) : (
+        <div className="space-y-4 text-sm">
+          {/* Font size */}
+          <div>
+            <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>Font size</span>
+              <span className="text-muted-foreground">{t.fontScale.toFixed(2)}×</span>
+            </div>
+            <TapRange
+              min={1}
+              max={2}
+              step={0.05}
+              value={t.fontScale}
+              onValue={(v) => update({ fontScale: v })}
+              className="w-full"
+            />
           </div>
-          <TapRange
-            min={1}
-            max={2}
-            step={0.05}
-            value={t.fontScale}
-            onValue={(v) => update({ fontScale: v })}
-            className="w-full"
-          />
-        </div>
 
-        {/* Font type */}
-        <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            Font type
+          {/* Font type */}
+          <div>
+            <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+              Font type
+            </div>
+            <div className="grid grid-cols-1 gap-1">
+              {FONT_OPTIONS.map((f) => {
+                const active = t.fontFamily === f.value;
+                return (
+                  <button
+                    key={f.label}
+                    onClick={() => update({ fontFamily: f.value })}
+                    style={{ fontFamily: f.value }}
+                    className={`rounded-lg border px-3 py-1.5 text-left text-sm transition ${
+                      active
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-foreground/20 hover:border-foreground"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="grid grid-cols-1 gap-1">
-            {FONT_OPTIONS.map((f) => {
-              const active = t.fontFamily === f.value;
-              return (
+
+          {/* Alignment */}
+          <div>
+            <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+              Alignment
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(["left", "center"] as const).map((a) => (
                 <button
-                  key={f.label}
-                  onClick={() => update({ fontFamily: f.value })}
-                  style={{ fontFamily: f.value }}
-                  className={`rounded-lg border px-3 py-1.5 text-left text-sm transition ${
-                    active
+                  key={a}
+                  onClick={() => update({ align: a })}
+                  className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                    t.align === a
                       ? "border-foreground bg-foreground text-background"
                       : "border-foreground/20 hover:border-foreground"
                   }`}
                 >
-                  {f.label}
+                  {a === "center" ? "Centre" : "Left"}
                 </button>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Alignment */}
-        <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            Alignment
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {(["left", "center"] as const).map((a) => (
-              <button
-                key={a}
-                onClick={() => update({ align: a })}
-                className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                  t.align === a
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-foreground/20 hover:border-foreground"
-                }`}
-              >
-                {a === "center" ? "Centre" : "Left"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Reference position */}
-        <div>
-          <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            Reference
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {(["above", "below"] as const).map((pos) => (
-              <button
-                key={pos}
-                onClick={() => update({ referencePosition: pos })}
-                className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
-                  t.referencePosition === pos
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-foreground/20 hover:border-foreground"
-                }`}
-              >
-                {pos}
-              </button>
-            ))}
+          {/* Reference position */}
+          <div>
+            <div className="mono mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+              Reference
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(["above", "below"] as const).map((pos) => (
+                <button
+                  key={pos}
+                  onClick={() => update({ referencePosition: pos })}
+                  className={`mono rounded-lg border px-3 py-2 text-[10px] uppercase transition ${
+                    t.referencePosition === pos
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-foreground/20 hover:border-foreground"
+                  }`}
+                >
+                  {pos}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </FoldCard>
   );
 }
