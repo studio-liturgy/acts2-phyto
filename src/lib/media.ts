@@ -70,3 +70,10 @@ export function isUploadableVideo(type: string): boolean {
 export function isUploadableImage(type: string): boolean {
   return type.toLowerCase() in IMAGE_EXT_BY_TYPE;
 }
+
+/** File types the media editor's picker offers. */
+export const MEDIA_ACCEPT =
+  "image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm";
+/** The same without video files (no account: uploads need one). */
+export const MEDIA_ACCEPT_NO_VIDEO =
+  "image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf";

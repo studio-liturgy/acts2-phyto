@@ -2,3 +2,8 @@
 # build always ships new names: browsers can keep these for a year.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+# The phyto app's offline cache: always fetch the newest worker and file list.
+/sw.js
+  Cache-Control: no-cache
+/sw-assets.json
+  Cache-Control: no-cache

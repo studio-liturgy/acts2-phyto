@@ -14,6 +14,8 @@ import {
 
 import appCss from "../styles.css?url";
 import { APP_NAME } from "@/lib/appConfig";
+import { isNativeApp, nativeAppInitScript, registerAppServiceWorker } from "@/lib/native-app";
+import { clearNoAccount } from "@/lib/no-account";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
 const domain = isTest ? "https://phytoexp.live" : "https://phyto.live";
@@ -195,6 +197,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: nativeAppInitScript }} />
       </head>
       <body>
         {children}
@@ -346,6 +349,14 @@ function RootComponent() {
   const [applying, setApplying] = useState(false);
   const authLoading = useAuthStore((st) => st.isLoading);
   const [testerOk, setTesterOk] = useState<boolean | null>(null);
+  // Inside the phyto app, phytoexp.live opens signed out too ("Use without an
+  // account"); signed-in accounts still go through the tester check. Read after
+  // mount so the server render and hydration agree.
+  const [nativeApp, setNativeApp] = useState(false);
+  useEffect(() => {
+    setNativeApp(isNativeApp());
+    registerAppServiceWorker();
+  }, []);
   // Phone: pop-up dialogs move above the keyboard while typing in them.
   useDialogKeyboard(PHONE_UI);
   const [notTester, setNotTester] = useState(false);
@@ -531,6 +542,8 @@ function RootComponent() {
         stopGroupChannels();
       }
       if (event === "SIGNED_IN" && s) {
+        // Signed in: "Use without an account" is over (sign out returns to the landing).
+        clearNoAccount();
         // Not awaited: an awaited Supabase call inside this callback deadlocks
         // the auth lock.
         if (TESTERS_ONLY) void testerGate(s).then((ok) => ok && afterSignIn(s));
@@ -548,7 +561,7 @@ function RootComponent() {
 
   // phytoexp.live: signed out, only sign in (and the pages it needs) opens.
   useEffect(() => {
-    if (!TESTERS_ONLY || authLoading || session || isOpenOnTest(pathname)) return;
+    if (!TESTERS_ONLY || authLoading || session || isOpenOnTest(pathname) || isNativeApp()) return;
     const here = pathname + window.location.search;
     navigate({ to: "/login", search: pathname === "/" ? {} : { next: here } });
   }, [session, authLoading, pathname, navigate]);
@@ -697,7 +710,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {TESTERS_ONLY && !isOpenOnTest(pathname) && !(session && testerOk) ? null : <Outlet />}
+      {TESTERS_ONLY && !isOpenOnTest(pathname) && !(session ? testerOk : nativeApp) ? null : (
+        <Outlet />
+      )}
       <SignedOutDialog />
       {TESTERS_ONLY && <TestersOnlyDialog open={notTester} onOpenChange={setNotTester} />}
       <Dialog

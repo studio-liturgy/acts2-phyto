@@ -66,6 +66,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ShareSetDialog } from "@/components/ShareSetDialog";
+import { ACCOUNT_NOTE_CLASS, NO_ACCOUNT_SHORT, REQUIRES_ACCOUNT } from "@/lib/account-notes";
 import { SharedInboxList } from "@/components/SharedInboxList";
 import { GroupPanelDialog } from "@/components/GroupPanelDialog";
 import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
@@ -627,6 +628,13 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
               {liveIds.length === 0 && otherIds.map((id) => renderCard(id, true))}
             </>
           )}
+          {/* Without an account (the app): Go live and Share are hidden; say why. */}
+          {!isSignedIn && (
+            <div className="space-y-2 pt-4">
+              <p className={ACCOUNT_NOTE_CLASS}>{REQUIRES_ACCOUNT.goLive}</p>
+              <p className={ACCOUNT_NOTE_CLASS}>{REQUIRES_ACCOUNT.share}</p>
+            </div>
+          )}
         </div>
       </div>
       {sheet && (
@@ -1010,6 +1018,8 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
             })}
           </ul>
         )}
+        {/* Without an account (the app): say why sets have no Share. */}
+        {!isSignedIn && <p className={`mt-4 ${ACCOUNT_NOTE_CLASS}`}>{REQUIRES_ACCOUNT.shareSet}</p>}
       </div>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
@@ -1254,11 +1264,16 @@ function SettingsTab({
             ))}
           </div>
         ) : (
-          <div className="flex items-center justify-between py-4">
-            <span className={LABEL}>Not signed in</span>
-            <Link to="/login" className={S_FILLED}>
-              Sign in
-            </Link>
+          <div className="space-y-2 py-4">
+            <div className="flex items-center justify-between">
+              <span className={LABEL}>Not signed in</span>
+              <Link to="/login" className={S_FILLED}>
+                Sign in
+              </Link>
+            </div>
+            {/* The library lives only on this device; groups need an account. */}
+            <p className={ACCOUNT_NOTE_CLASS}>{NO_ACCOUNT_SHORT}</p>
+            <p className={ACCOUNT_NOTE_CLASS}>{REQUIRES_ACCOUNT.groups}</p>
           </div>
         )}
 
@@ -1299,7 +1314,7 @@ function SettingsTab({
                 { to: "/?intro=true", label: "Intro" },
                 { to: "/about", label: "About" },
                 { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
-                { href: "/donate", label: "Donate" },
+                { href: "/donate", label: "Donate", giving: true },
               ],
               [
                 // phytoexp.live has no Updates page.
@@ -1308,11 +1323,14 @@ function SettingsTab({
                 { to: "/feedback", label: "Feedback" },
                 { to: "/terms", label: "Legal" },
               ],
-            ] as ({ to: string; label: string } | { href: string; label: string })[][]
+            ] as (
+              | { to: string; label: string }
+              | { href: string; label: string; giving?: boolean }
+            )[][]
           ).map((links, col) => (
             <ul key={col} className="flex flex-col gap-2.5">
               {links.map((l) => (
-                <li key={l.label}>
+                <li key={l.label} data-giving={"giving" in l && l.giving ? "" : undefined}>
                   {"to" in l ? (
                     <Link
                       to={l.to === "/?intro=true" ? "/" : l.to}

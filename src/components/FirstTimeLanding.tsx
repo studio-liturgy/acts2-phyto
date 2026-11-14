@@ -16,6 +16,8 @@ import wordmarkTest from "@/assets/wordmark-test.svg";
 import { PHONE_UI } from "@/lib/phone-layout";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
+import { NoAccountChoice } from "@/components/NoAccountChoice";
+import { useNoAccount } from "@/lib/no-account";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
 const aboutBg = "/about-bg.jpg";
@@ -283,6 +285,8 @@ export function FirstTimeLanding({
   const backSearch = useBackHomeSearch();
   // Phone: Updates' plain Back, no account chrome, back to top in the footer.
   const phone = usePhoneLayout() === true;
+  // The app's "Use without an account": gatherings work on the device.
+  const noAccount = useNoAccount();
 
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -670,12 +674,16 @@ export function FirstTimeLanding({
           className={`mt-10 flex-wrap items-center justify-center gap-3 ${PHONE_UI ? "flex" : "hidden md:flex"}`}
         >
           {signInOnly ? (
-            <Link
-              to="/login"
-              className="pill mono uppercase flex items-center gap-2 bg-foreground px-6 py-3 text-xs tracking-wider text-background transition hover:opacity-90"
-            >
-              Sign In
-            </Link>
+            // In the phyto app, "Use without an account" sits fainter under it.
+            <div className="flex flex-col items-center gap-3">
+              <Link
+                to="/login"
+                className="pill mono uppercase flex items-center gap-2 bg-foreground px-6 py-3 text-xs tracking-wider text-background transition hover:opacity-90"
+              >
+                Sign In
+              </Link>
+              <NoAccountChoice />
+            </div>
           ) : (
             <>
               <DropdownMenu>
@@ -705,7 +713,7 @@ export function FirstTimeLanding({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {isSignedIn || !isEmpty ? (
+              {isSignedIn || !isEmpty || noAccount ? (
                 <button
                   onClick={onNewGathering}
                   className="pill mono uppercase flex items-center gap-2 border border-foreground px-6 py-3 text-sm tracking-wider transition hover:bg-foreground hover:text-background"
@@ -1181,13 +1189,17 @@ export function FirstTimeLanding({
           <h2 className="mx-auto max-w-none text-3xl leading-tight md:text-5xl">
             This project will always be free and open source.
           </h2>
-          <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-[var(--brand-white)]/85 md:text-lg">
+          <p
+            data-giving
+            className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-[var(--brand-white)]/85 md:text-lg"
+          >
             If you feel God's prompting, I invite you to partner with me financially by giving
             generously and cheerfully!
           </p>
           <div className="mt-10 flex flex-col items-stretch gap-4 md:flex-row md:flex-wrap md:items-center md:justify-center">
             <a
               href="/donate"
+              data-giving
               target="_blank"
               rel="noopener noreferrer"
               className="pill flex items-center justify-between gap-3 border border-[var(--brand-white)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"

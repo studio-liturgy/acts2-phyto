@@ -5,6 +5,7 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { readdirSync } from "node:fs";
 import { loadEnv, type Plugin } from "vite";
 
 // Abort the build if the public Supabase client vars are missing. They are inlined
@@ -27,6 +28,35 @@ function requireSupabaseEnv(): Plugin {
   };
 }
 
+// The phyto app's offline cache (public/sw.js) precaches every client file listed
+// in /sw-assets.json: the build's hashed /assets files plus the fonts.
+function swAssetList(): Plugin {
+  return {
+    name: "sw-asset-list",
+    apply: "build",
+    enforce: "post",
+    generateBundle(_options, bundle) {
+      if (this.environment?.name !== "client") return;
+      const assets = Object.keys(bundle)
+        .filter((f) => f.startsWith("assets/") && !f.endsWith(".map"))
+        .map((f) => `/${f}`);
+      let fonts: string[] = [];
+      try {
+        fonts = readdirSync("public/fonts", { recursive: true, withFileTypes: true })
+          .filter((d) => d.isFile() && !d.name.startsWith("."))
+          .map((d) => `/${`${d.parentPath}/${d.name}`.replace(/^public\//, "")}`);
+      } catch {
+        // No fonts folder.
+      }
+      this.emitFile({
+        type: "asset",
+        fileName: "sw-assets.json",
+        source: JSON.stringify({ files: [...assets, ...fonts].sort() }),
+      });
+    },
+  };
+}
+
 // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
 // @cloudflare/vite-plugin builds from this — wrangler.jsonc main alone is insufficient.
 export default defineConfig({
@@ -34,7 +64,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [requireSupabaseEnv()],
+    plugins: [requireSupabaseEnv(), swAssetList()],
     // The export's PDF worker (lib/pdf-build.worker.ts) loads pdf-lib on demand,
     // which needs ES module workers (the default IIFE can't code-split).
     worker: { format: "es" },

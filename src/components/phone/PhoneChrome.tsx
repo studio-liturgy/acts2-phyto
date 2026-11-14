@@ -6,6 +6,7 @@ import { caretAtPoint, glideBy, revealDelta } from "@/lib/phone-dock";
 import { holdDelay, lineHold } from "@/lib/line-select";
 import { pickCellAt } from "@/lib/row-pick";
 import { useAuthStore } from "@/lib/authStore";
+import { useNoAccount } from "@/lib/no-account";
 import { useLibrary } from "@/lib/store";
 import { isLiveNow } from "@/lib/live-session";
 
@@ -35,8 +36,10 @@ export function PhoneScreen({
   useNoInputZoom();
   const bodyRef = useRef<HTMLDivElement>(null);
   // Signed out, a phone shows only the intro (sign in to edit anything).
+  // Inside the phyto app, "Use without an account" opens every screen.
   const signedOut = useAuthStore((s) => !s.isLoading && s.session === null);
-  if (signedOut) return <Navigate to="/" search={{}} replace />;
+  const noAccount = useNoAccount();
+  if (signedOut && !noAccount) return <Navigate to="/" search={{}} replace />;
   return (
     // --vvh: the part of the screen above the keyboard, while typing in an
     // editor (useKeyboardInset).

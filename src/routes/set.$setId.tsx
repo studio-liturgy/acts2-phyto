@@ -134,6 +134,9 @@ import {
 } from "lucide-react";
 import { NumberStepper } from "@/components/NumberStepper";
 import { useIsSignedIn } from "@/lib/authStore";
+import { useNativeApp } from "@/hooks/use-native-app";
+import { ACCOUNT_NOTE_CLASS, REQUIRES_ACCOUNT } from "@/lib/account-notes";
+import { MEDIA_ACCEPT, MEDIA_ACCEPT_NO_VIDEO } from "@/lib/media";
 import { ShareSetDialog } from "@/components/ShareSetDialog";
 import {
   AlertDialog,
@@ -542,6 +545,11 @@ function SetHeader({
 
 function SetEditor() {
   const phone = usePhoneLayout();
+  // The app without an account: video files need an account (the upload
+  // route checks the user), so the media picker offers pictures and PDFs only.
+  const nativeApp = useNativeApp();
+  const signedInHere = useIsSignedIn();
+  const noVideoUpload = nativeApp !== null && !signedInHere;
   const { setId } = Route.useParams();
   const { redirectTo } = Route.useSearch();
   // Edited from a live link's gathering: keep the link's light or dark.
@@ -1126,7 +1134,7 @@ function SetEditor() {
         <input
           ref={mediaFileRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm"
+          accept={noVideoUpload ? MEDIA_ACCEPT_NO_VIDEO : MEDIA_ACCEPT}
           multiple
           disabled={converting || uploading}
           className="hidden"
@@ -1139,6 +1147,9 @@ function SetEditor() {
           <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
             {videoErr}
           </p>
+        )}
+        {noVideoUpload && (
+          <p className={`mt-2 ${ACCOUNT_NOTE_CLASS}`}>{REQUIRES_ACCOUNT.videoUpload}</p>
         )}
       </div>
 
@@ -1163,12 +1174,14 @@ function SetEditor() {
               </>
             ) : fileOver ? (
               "Drop to upload"
+            ) : noVideoUpload ? (
+              "Drop images or PDFs here or click to browse"
             ) : (
               "Drop images, PDFs or videos here or click to browse"
             )}
             <input
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,video/mp4,video/quicktime,video/webm"
+              accept={noVideoUpload ? MEDIA_ACCEPT_NO_VIDEO : MEDIA_ACCEPT}
               multiple
               disabled={converting || uploading}
               className="hidden"

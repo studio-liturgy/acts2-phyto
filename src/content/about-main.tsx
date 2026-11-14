@@ -54,9 +54,9 @@ export default function AboutMain() {
               As I built it, I started to see who else it could bless: the underground church,
               voluntary pastors with no budget for software, impromptu home gatherings that just
               need something simple and focused. So I've kept it completely free for anyone to use.
-              I'll keep maintaining and improving it as I'm able. If you'd like to donate (only
-              cheerfully!) or share testimonies, bug reports, feedback, or feature requests, I'd
-              love to hear from you.
+              I'll keep maintaining and improving it as I'm able. If you'd like to{" "}
+              <span data-giving>donate (only cheerfully!) or </span>share testimonies, bug reports,
+              feedback, or feature requests, I'd love to hear from you.
             </p>
           </div>
 
@@ -64,6 +64,7 @@ export default function AboutMain() {
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <a
               href="/donate"
+              data-giving
               target="_blank"
               rel="noopener noreferrer"
               className="pill flex items-center border border-[var(--brand-white)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"

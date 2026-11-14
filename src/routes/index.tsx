@@ -47,7 +47,11 @@ import type { Set as PhytoSet, SetKind } from "@/lib/types";
 import { Footer } from "@/components/Footer";
 import { PhoneHome } from "@/components/phone/PhoneHome";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
-import { parsePhoneTab, phoneHomeTab, type PhoneTab } from "@/lib/phone-layout";
+import { useNoAccount } from "@/lib/no-account";
+import { useNativeApp } from "@/hooks/use-native-app";
+import { ACCOUNT_NOTE_CLASS, NO_ACCOUNT_BROWSER, NO_ACCOUNT_NOTICE } from "@/lib/account-notes";
+import { isIpadBrowser, isNativeApp } from "@/lib/native-app";
+import { parsePhoneTab, phoneHomeTab, PHONE_UI, type PhoneTab } from "@/lib/phone-layout";
 import { HOME_SEO_TITLE, homeTitle } from "@/lib/home-title";
 import { FirstTimeLanding } from "@/components/FirstTimeLanding";
 import { ShareGatheringDialog } from "@/components/ShareGatheringDialog";
@@ -182,6 +186,9 @@ function Home() {
   const activeWorkspace = useLibrary((s) => s.activeWorkspace) ?? "personal";
   const groups = useLibrary((s) => s.groups) ?? [];
   const isSignedIn = useIsSignedIn();
+  // In the phyto app, "Use without an account" opens the library signed out.
+  const noAccount = useNoAccount();
+  const canUseLibrary = isSignedIn || noAccount;
   const accountPull = useAccountPull();
   const isEmpty = gatheringOrder.length === 0 && order.length === 0;
   const landing = !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
@@ -192,14 +199,27 @@ function Home() {
   const libraryLoaded = useLibrary((s) => s.libraryLoaded);
   // The server renders the SEO title; once signed in, the tab reads like the
   // other app pages (lib/home-title.ts).
-  const phoneTab = phone && isSignedIn && !landing && !pulling ? phoneHomeTab(tab, isEmpty) : null;
+  const phoneTab =
+    phone && canUseLibrary && !landing && !pulling ? phoneHomeTab(tab, isEmpty) : null;
   const title = homeTitle({ signedIn: isSignedIn, landing, phoneTab });
   useEffect(() => {
     document.title = title;
   }, [title]);
   // Phone, signed out: only the intro, with Sign in. No library to browse.
+  // (In the app, the intro also offers "Use without an account".)
   if (phone && authLoading) return <div className="min-h-screen bg-background" />;
-  if (phone && !isSignedIn) return <Library signInOnly />;
+  if (phone && !canUseLibrary) return <Library signInOnly />;
+  // iPad browsers need an account too (test only, like the phone layout);
+  // the iPad app doesn't.
+  if (
+    PHONE_UI &&
+    phone === false &&
+    !authLoading &&
+    !isSignedIn &&
+    isIpadBrowser() &&
+    !isNativeApp()
+  )
+    return <Library signInOnly />;
   // Not read from this device yet: blank, so an empty-looking library isn't
   // taken for an empty account (which would open on the Catalogue).
   if (phone && !libraryLoaded) return <div className="min-h-screen bg-background" />;
@@ -270,6 +290,7 @@ function kindChip(kind: KindFilter, active: boolean): string {
 
 function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
   const navigate = useNavigate();
+  const nativeApp = useNativeApp();
   const {
     // Default the array/record fields: during SSR + first client render the
     // zustand store is populated from Dexie in a useEffect, so these selectors
@@ -887,6 +908,12 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
               </Link>
             </div>
           </div>
+          {/* Signed out, the library lives only here: say so by Sign in. */}
+          {!isSignedIn && (
+            <p className={`mx-auto mt-4 w-full max-w-6xl px-6 ${ACCOUNT_NOTE_CLASS}`}>
+              {nativeApp ? NO_ACCOUNT_NOTICE : NO_ACCOUNT_BROWSER}
+            </p>
+          )}
         </header>
       )}
 
