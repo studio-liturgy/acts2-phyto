@@ -1,6 +1,5 @@
 import { Link, Navigate, useNavigate } from "@tanstack/react-router";
 import {
-  ArrowUpToLine,
   CaseSensitive,
   CaseUpper,
   Check,
@@ -1077,8 +1076,8 @@ function RemoteSettings({ set }: { set: PhytoSet | undefined }) {
           {splitSetting(
             "Position",
             [
-              ["top", <ArrowUpToLine key="t" className="h-3.5 w-3.5" />, "Top"],
-              ["centre", <ArrowsToLine key="c" className="h-3.5 w-3.5" />, "Centre"],
+              ["top", <PositionIcon key="t" pos="top" className="h-3.5 w-3.5" />, "Top"],
+              ["centre", <PositionIcon key="c" pos="centre" className="h-3.5 w-3.5" />, "Centre"],
             ],
             songTemplate.position ?? "centre",
             (v) => setSongTemplate({ position: v as "top" | "centre" }),
@@ -1280,9 +1279,10 @@ function SetTabs({
   );
 }
 
-/** Centre position: a downward arrow above a line above an upward arrow,
- *  drawn like the lucide icons beside it. */
-function ArrowsToLine({ className }: { className?: string }) {
+/** The song Position icons: chevrons and lines, drawn like the Reference
+ *  chevrons beside them. Top: a chevron up under a line. Centre: a chevron
+ *  down above a line above a chevron up. */
+function PositionIcon({ pos, className }: { pos: "top" | "centre"; className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -1295,11 +1295,18 @@ function ArrowsToLine({ className }: { className?: string }) {
       className={className}
       aria-hidden="true"
     >
-      <path d="M5 12h14" />
-      <path d="M12 2v7" />
-      <path d="m8 5 4 4 4-4" />
-      <path d="M12 22v-7" />
-      <path d="m8 19 4-4 4 4" />
+      {pos === "top" ? (
+        <>
+          <path d="M5 6h14" />
+          <path d="m6 17 6-6 6 6" />
+        </>
+      ) : (
+        <>
+          <path d="m6 3 6 6 6-6" />
+          <path d="M5 12h14" />
+          <path d="m6 21 6-6 6 6" />
+        </>
+      )}
     </svg>
   );
 }
