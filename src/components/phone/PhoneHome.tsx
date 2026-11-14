@@ -481,20 +481,23 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
   const liveRef = useRef<HTMLDivElement | null>(null);
   const [livePad, setLivePad] = useState(0);
   const hasLive = featuredIds.length > 0;
+  // Without an account the one gathering sits a touch above the middle (its
+  // note under it).
+  const lift = liveIds.length > 0 ? 0 : 40;
   useLayoutEffect(() => {
     const el = scroller();
     const card = liveRef.current;
     if (!el || !card || !hasLive) return;
     const measure = () => {
       const above = arrivalsRef.current?.offsetHeight ?? 0;
-      setLivePad(Math.max(0, Math.round((el.clientHeight - card.offsetHeight) / 2 - above)));
+      setLivePad(Math.max(0, Math.round((el.clientHeight - card.offsetHeight) / 2 - above - lift)));
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     ro.observe(card);
     return () => ro.disconnect();
-  }, [hasLive]);
+  }, [hasLive, lift]);
 
   // Gone live: back to the top, so the live gathering is what's there when
   // the Share screen closes.
@@ -880,7 +883,7 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
             }
           />
           {/* Search and sort, then the kind filter. */}
-          <div className="shrink-0 space-y-3 px-5 pb-3">
+          <div className="shrink-0 space-y-3 px-5 pb-3 pt-2">
             <div className="flex items-center gap-2">
               <div className="pill flex flex-1 items-center gap-2 border border-foreground px-4 py-2">
                 <Search className="h-4 w-4 shrink-0" />
@@ -964,7 +967,7 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
         </>
       }
     >
-      <div className="px-5 pb-8">
+      <div className="px-5 pb-8 pt-3">
         {rows.length === 0 ? (
           <div className="mono uppercase whitespace-pre-line rounded-3xl border border-dashed border-foreground p-8 text-center text-xs tracking-wider text-muted-foreground">
             {query.trim() ? `Nothing matches "${query}"` : EMPTY_LABEL[kindFilter]}

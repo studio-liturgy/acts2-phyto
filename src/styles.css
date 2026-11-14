@@ -512,3 +512,16 @@ html[data-native-app] [data-giving] {
 .phone-sheet > button.absolute.right-4.top-4 {
   top: calc(env(safe-area-inset-top, 0px) + 1.5rem);
 }
+
+/* Present / Remote circles (PhonePresent): bright, then deep dim, lingering at
+   each end and swapping quickly, half a cycle apart so one is lit while the
+   other is dim. */
+@keyframes present-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}

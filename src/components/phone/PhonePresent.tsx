@@ -25,7 +25,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { PhoneBackHeader, PhoneScreen, PhoneTitleHeader } from "@/components/phone/PhoneChrome";
+import { PhoneBackHeader, PhoneScreen } from "@/components/phone/PhoneChrome";
 import { SlideView } from "@/components/SlideView";
 import { RemoteIcon } from "@/components/RemoteIcon";
 import { NumberStepper } from "@/components/NumberStepper";
@@ -142,11 +142,7 @@ export function PhonePresent() {
   const loaded = useLibrary((s) => s.libraryLoaded);
 
   if (!loaded) {
-    return (
-      <PhoneScreen tab="present" header={<PhoneTitleHeader title="Present" />}>
-        {null}
-      </PhoneScreen>
-    );
+    return <PhoneScreen tab="present">{null}</PhoneScreen>;
   }
   if (localId && gatherings[localId]) return <LocalPresent gatheringId={localId} />;
   if (!targetId) return <Navigate to="/" search={{ tab: "gatherings" }} replace />;
@@ -273,7 +269,7 @@ function PresentCircle({
           onClick={onClick}
           aria-label={`${label}: ${arcText}`}
           style={offset ? { animationDelay: "-4s" } : undefined}
-          className="mono absolute inset-[12%] flex animate-[pulse_8s_cubic-bezier(0.4,0,0.6,1)_infinite] items-center justify-center rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
+          className="mono absolute inset-[12%] flex animate-[present-glow_8s_cubic-bezier(0.83,0,0.17,1)_infinite] items-center justify-center rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
         >
           {label}
         </button>
@@ -333,8 +329,8 @@ function LocalPresent({ gatheringId }: { gatheringId: string }) {
   };
   if (!tv) {
     return (
-      <PhoneScreen tab="present" header={<PhoneTitleHeader title="Present" />}>
-        <div className="flex h-full flex-col items-center justify-center px-6 pb-6">
+      <PhoneScreen tab="present">
+        <div className="flex h-full flex-col items-center justify-center px-6 pb-6 pt-[env(safe-area-inset-top,0px)]">
           {/* Cancel spans the steps' own width. */}
           <div className="flex flex-col">
             <ol className="flex flex-col gap-5">
@@ -369,8 +365,8 @@ function LocalPresent({ gatheringId }: { gatheringId: string }) {
       title={<GatheringTitle gatheringId={gatheringId} />}
       actions={
         <ConfirmPill
-          label="Stop"
-          title="Stop presenting?"
+          label="Disconnect"
+          title="Disconnect the TV?"
           body="The TV goes black until you present again."
           onConfirm={stop}
         />
@@ -397,9 +393,7 @@ function RemoteView({ gatheringId, slug }: { gatheringId: string; slug: string }
       title={<GatheringTitle gatheringId={gatheringId} />}
       actions={<DisconnectButton />}
     />
-  ) : (
-    <PhoneTitleHeader title="Remote" />
-  );
+  ) : undefined;
 
   return (
     // Connected, the remote fills the screen itself and its Controls /
@@ -419,7 +413,7 @@ function ScreenLink({ slug }: { slug: string }) {
   return (
     // The same frame as the Remote button's screen, so the note sits in the
     // same place: the QR code about mid-screen, then the link, then Share.
-    <div className="flex h-full flex-col px-6 pb-6">
+    <div className="flex h-full flex-col px-6 pb-6 pt-[env(safe-area-inset-top,0px)]">
       <div className="flex flex-1 flex-col items-center justify-center">
         <div className="rounded-2xl bg-white p-3">
           <QRCodeCanvas
