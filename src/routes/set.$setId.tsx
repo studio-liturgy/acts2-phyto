@@ -1251,6 +1251,15 @@ function SetEditor() {
                   ),
                 })
               }
+              onRemoveOnly={() =>
+                updateSet(phytoSet.id, {
+                  slides: phytoSet.slides.map((sl) => ({
+                    ...sl,
+                    sectionBefore: undefined,
+                    sectionAfter: undefined,
+                  })),
+                })
+              }
               dense={dense}
               single={!!phone}
               kind={phytoSet.kind}
@@ -1414,6 +1423,7 @@ function SlideGrid({
   onRenameDivider,
   onRemoveDivider,
   onRenameFirst,
+  onRemoveOnly,
   dense,
   single = false,
   kind,
@@ -1436,6 +1446,8 @@ function SlideGrid({
   onRemoveDivider?: (id: string) => void;
   /** Name the first section (kept on the first slide; media only). */
   onRenameFirst?: (name: string) => void;
+  /** The last section left: removing it leaves the slides without sections. */
+  onRemoveOnly?: () => void;
   dense?: boolean;
   kind?: SetKind;
 }) {
@@ -1627,7 +1639,8 @@ function SlideGrid({
   // Sections: each is a coloured area (the presenter's colours) with its name
   // at the top left and, for every section but the first, its delete at the
   // top right (removing the divider folds it into the section above). The
-  // first section's name is kept on the first slide.
+  // first section's name is kept on the first slide. A lone section can be
+  // removed too, leaving the slides without sections.
   const sections: { start: number; slides: Slide[] }[] = [];
   displaySlides.forEach((sl, i) => {
     if (i === 0 || displaySlides[i - 1].sectionAfter !== undefined) {
@@ -1666,16 +1679,21 @@ function SlideGrid({
                 placeholder="Section name"
                 className="mono w-48 bg-transparent text-[10px] uppercase tracking-wider outline-none placeholder:text-muted-foreground/60"
               />
-              {gi > 0 && (
+              {(gi > 0 || (sections.length === 1 && onRemoveOnly)) && (
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onRemoveDivider?.(opener!.id);
+                    if (gi > 0) onRemoveDivider?.(opener!.id);
+                    else onRemoveOnly?.();
                   }}
                   className="rounded-full p-1 text-foreground/60 transition hover:bg-foreground/15 hover:text-foreground"
                   aria-label="Remove section"
-                  title="Remove section (its slides join the section above)"
+                  title={
+                    gi > 0
+                      ? "Remove section (its slides join the section above)"
+                      : "Remove section (its slides stay)"
+                  }
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
