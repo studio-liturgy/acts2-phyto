@@ -10,6 +10,8 @@ import { safeNextPath } from "@/lib/session-lost";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { APP_NAME } from "@/lib/appConfig";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
+import { useNativeApp } from "@/hooks/use-native-app";
+import { signInWithGoogleInApp } from "@/lib/app-sign-in";
 import { PHONE_UI } from "@/lib/phone-layout";
 import wordmark from "@/assets/wordmark.svg";
 import wordmarkTestBlack from "@/assets/wordmark-test-black.svg";
@@ -33,6 +35,7 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { error: callbackError, next } = Route.useSearch();
   const navigate = useNavigate();
+  const nativeApp = useNativeApp() !== null;
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
   const [code, setCode] = useState("");
@@ -244,6 +247,15 @@ function LoginPage() {
                   type="button"
                   onClick={() => {
                     sessionStorage.setItem("phyto-subscribe", String(subscribe));
+                    // The app: Google's page opens in the system sign-in sheet
+                    // and comes straight back (Google refuses app web views).
+                    if (nativeApp) {
+                      void signInWithGoogleInApp().then((r) => {
+                        if (r.ok) window.location.assign(r.callbackPath);
+                        else if (!r.cancelled) setError(r.error);
+                      });
+                      return;
+                    }
                     supabase.auth.signInWithOAuth({
                       provider: "google",
                       options: { redirectTo: window.location.origin + "/auth/callback" },
@@ -313,6 +325,18 @@ function LoginPage() {
                   </Link>
                   .
                 </p>
+                {/* The app has no browser Back: leave sign in from here. */}
+                {nativeApp && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      window.history.length > 1 ? window.history.back() : navigate({ to: "/" })
+                    }
+                    className={`mono mx-auto block pt-3 text-xs uppercase tracking-wider transition hover:opacity-60 ${isTest ? "text-black/70" : "text-white/70"}`}
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
             )}
           </div>
