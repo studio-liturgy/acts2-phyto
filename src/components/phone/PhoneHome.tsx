@@ -451,12 +451,15 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
     );
   };
   const liveIds = order.filter((id) => gatherings[id] && isLiveNow(gatherings[id]));
-  const otherIds = liveIds.length ? order.filter((id) => !liveIds.includes(id)) : order;
+  // Centred big on the screen: the live gathering, or without an account
+  // (the app) the one gathering there is.
+  const featuredIds = liveIds.length ? liveIds : !isSignedIn ? order.slice(0, 1) : [];
+  const otherIds = featuredIds.length ? order.filter((id) => !featuredIds.includes(id)) : order;
   const [othersOpen, setOthersOpen] = useState(false);
 
   // While one is live: scrolling down (a swipe up, or the wheel) splays the
   // other gatherings out; back at the very top, they fold away again.
-  const canSplay = liveIds.length > 0 && otherIds.length > 0;
+  const canSplay = featuredIds.length > 0 && otherIds.length > 0;
   const listRef = useRef<HTMLDivElement | null>(null);
   const touch = useRef<{ y: number; atTop: boolean } | null>(null);
   const scroller = () => listRef.current?.parentElement ?? null;
@@ -477,7 +480,7 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
   const arrivalsRef = useRef<HTMLDivElement | null>(null);
   const liveRef = useRef<HTMLDivElement | null>(null);
   const [livePad, setLivePad] = useState(0);
-  const hasLive = liveIds.length > 0;
+  const hasLive = featuredIds.length > 0;
   useLayoutEffect(() => {
     const el = scroller();
     const card = liveRef.current;
@@ -573,7 +576,7 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
             gatherings open below it, extending the page downward. */}
         <div
           className="space-y-2 px-5 pb-8"
-          style={liveIds.length > 0 ? { paddingTop: livePad } : undefined}
+          style={featuredIds.length > 0 ? { paddingTop: livePad } : undefined}
         >
           {order.length === 0 ? (
             <div className="mono uppercase rounded-3xl border border-dashed border-foreground p-8 text-center text-xs tracking-wider text-muted-foreground">
@@ -584,10 +587,10 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
           ) : (
             <>
               <div ref={liveRef} className="space-y-2">
-                {liveIds.map((id) => renderCard(id))}
+                {featuredIds.map((id) => renderCard(id))}
               </div>
               {/* While one is live, the rest wait behind one row. */}
-              {liveIds.length > 0 && otherIds.length > 0 && (
+              {featuredIds.length > 0 && otherIds.length > 0 && (
                 <>
                   <button
                     type="button"
@@ -636,12 +639,14 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
                   </div>
                 </>
               )}
-              {liveIds.length === 0 && otherIds.map((id) => renderCard(id, true))}
+              {featuredIds.length === 0 && otherIds.map((id) => renderCard(id, true))}
             </>
           )}
           {/* Without an account (the app): one gathering; say why New is gone. */}
           {!canAddGathering(isSignedIn, gatheringOrder.length) && (
-            <p className={`pt-4 ${ACCOUNT_NOTE_CLASS}`}>{REQUIRES_ACCOUNT.moreGatherings}</p>
+            <p className={`pt-4 text-center ${ACCOUNT_NOTE_CLASS}`}>
+              {REQUIRES_ACCOUNT.moreGatherings}
+            </p>
           )}
         </div>
       </div>
@@ -989,7 +994,7 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
               return (
                 <li
                   key={d.id}
-                  className={`pill flex items-center gap-2 pr-1.5 ${phoneKindBg(d.kind)}`}
+                  className={`pill flex items-center gap-2 ${isSignedIn ? "pr-1.5" : "pr-5"} ${phoneKindBg(d.kind)}`}
                   style={songPatternStyle(songPatterns(d), 9, 0.07)}
                 >
                   {editMode ? (
@@ -1009,18 +1014,22 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
                       {body}
                     </Link>
                   )}
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center">
-                    {!editMode && !d.shared && isSignedIn && (
-                      <button
-                        onClick={() => setShareSet(d)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full transition active:bg-foreground/15"
-                        title="Share set"
-                        aria-label="Share set"
-                      >
-                        <Share2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </span>
+                  {/* Signed out there's no Share, so no space kept for it:
+                      the slide count sits at the pill's right edge. */}
+                  {isSignedIn && (
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center">
+                      {!editMode && !d.shared && (
+                        <button
+                          onClick={() => setShareSet(d)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full transition active:bg-foreground/15"
+                          title="Share set"
+                          aria-label="Share set"
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </span>
+                  )}
                 </li>
               );
             })}

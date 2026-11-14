@@ -189,9 +189,8 @@ export function ShareGatheringDialog({
   // The two-panel view only with the phone; the presenter (its own preview)
   // gets the single-column dialog for everything.
   const twoPanel = liveView && showPreview && !phone;
-  // text-pretty: no word left alone on the last line ("days").
-  const NOTE =
-    "mono text-pretty text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
+  // Full width (his rule): no text-pretty, which left a gap on the right.
+  const NOTE = "mono w-full text-[10px] uppercase leading-snug tracking-wider text-foreground/80";
   const STAYS_LIVE =
     "This gathering will stay live until you end it or go live on another one. If it's left running, it ends on its own after 14 days.";
   const swatch = (selected: boolean): React.CSSProperties => ({

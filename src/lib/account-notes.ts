@@ -4,9 +4,10 @@
  * and the desktop home can't drift apart.
  */
 
-/** Small all-caps mono note, the share dialogs' note style. */
+/** Small all-caps mono note. Full width: no text-pretty / text-balance,
+ *  which pull lines in and leave a gap on the right (his rule, Nov 14). */
 export const ACCOUNT_NOTE_CLASS =
-  "mono text-pretty text-[10px] uppercase leading-snug tracking-wider text-foreground/60";
+  "mono w-full text-[10px] uppercase leading-snug tracking-wider text-foreground/60";
 
 /** One-time notice on tapping "Use without an account" (the app). */
 export const NO_ACCOUNT_NOTICE =

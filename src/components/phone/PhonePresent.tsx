@@ -238,7 +238,7 @@ function PresentCircle({
   arcText: string;
   onClick: () => void;
   disabled?: boolean;
-  /** The second circle: glows while the first fades (half a pulse later),
+  /** The second circle: glows while the first fades (half of the 8 s pulse later),
    *  and its words start on the opposite side. */
   offset?: boolean;
   className?: string;
@@ -272,8 +272,8 @@ function PresentCircle({
           disabled={disabled}
           onClick={onClick}
           aria-label={`${label}: ${arcText}`}
-          style={offset ? { animationDelay: "-1s" } : undefined}
-          className="mono absolute inset-[12%] flex animate-pulse items-center justify-center rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
+          style={offset ? { animationDelay: "-4s" } : undefined}
+          className="mono absolute inset-[12%] flex animate-[pulse_8s_cubic-bezier(0.4,0,0.6,1)_infinite] items-center justify-center rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
         >
           {label}
         </button>
@@ -304,7 +304,7 @@ function GatheringTitle({ gatheringId }: { gatheringId: string }) {
 
 // Present from this device: the steps page until a TV connects (like the
 // screen link page before a screen connects), then the controls.
-const TV_STEPS = ["Open Control Center", "Tap Screen Mirroring", "Pick your TV"];
+const TV_STEPS = ["Open Control Center", "Tap Screen Mirroring", "Select your AirPlay device"];
 
 /** True once a TV is connected; a disconnect only counts after 2 s, so a
  *  blip doesn't flash the steps page. */
