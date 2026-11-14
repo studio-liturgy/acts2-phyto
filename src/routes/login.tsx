@@ -341,7 +341,7 @@ function LoginPage() {
             onClick={() =>
               window.history.length > 1 ? window.history.back() : navigate({ to: "/" })
             }
-            className={`mono uppercase ${btnText} w-full max-w-sm rounded-full px-6 py-3 transition hover:opacity-90 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
+            className={`mono uppercase ${btnText} w-full max-w-sm rounded-full border px-6 py-3 transition hover:opacity-70 ${isTest ? "border-[var(--brand-black)] text-[var(--brand-black)]" : "border-white text-white"}`}
           >
             Cancel
           </button>

@@ -7,3 +7,6 @@
   Cache-Control: no-cache
 /sw-assets.json
   Cache-Control: no-cache
+# iOS Universal Links: phyto links open the phyto app when it's installed.
+/.well-known/apple-app-site-association
+  Content-Type: application/json

@@ -1,0 +1,34 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "U6CKR43ZU8.live.phyto.app"
+        ],
+        "components": [
+          {
+            "/": "/donate*",
+            "exclude": true,
+            "comment": "Giving stays out of the app"
+          },
+          {
+            "/": "/api/*",
+            "exclude": true
+          },
+          {
+            "/": "/.well-known/*",
+            "exclude": true
+          },
+          {
+            "/": "/assets/*",
+            "exclude": true
+          },
+          {
+            "/": "*",
+            "comment": "Every other phyto link opens the app when it's installed"
+          }
+        ]
+      }
+    ]
+  }
+}
