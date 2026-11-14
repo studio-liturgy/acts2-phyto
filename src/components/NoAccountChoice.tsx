@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   AlertDialog,
@@ -19,6 +19,11 @@ export function NoAccountChoice() {
   const nativeApp = useNativeApp();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  // Continue only closes the notice; the library opens once the close has
+  // finished. Switching screens mid-close unmounted this dialog before Radix
+  // could hand taps back to the page (body stays pointer-events: none), so
+  // nothing on the next screen answered a tap.
+  const continuing = useRef(false);
   if (!nativeApp) return null;
   return (
     <>
@@ -30,7 +35,19 @@ export function NoAccountChoice() {
         Use without an account
       </button>
       <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+        <AlertDialogContent
+          className="gap-0 rounded-3xl p-8"
+          onCloseAutoFocus={(e) => {
+            if (!continuing.current) return;
+            continuing.current = false;
+            e.preventDefault();
+            setTimeout(() => {
+              document.body.style.pointerEvents = "";
+              chooseNoAccount();
+              navigate({ to: "/", search: {} });
+            }, 0);
+          }}
+        >
           <AlertDialogTitle className="text-2xl font-normal leading-tight">
             Use without an account?
           </AlertDialogTitle>
@@ -41,9 +58,8 @@ export function NoAccountChoice() {
             <button
               type="button"
               onClick={() => {
+                continuing.current = true;
                 setOpen(false);
-                chooseNoAccount();
-                navigate({ to: "/", search: {} });
               }}
               className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background"
             >
