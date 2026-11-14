@@ -193,14 +193,12 @@ export function PhonePresent() {
                 <PresentCircle
                   label="Present"
                   arcText="From this device"
-                  arc="top"
                   onClick={startPresent}
                   className="absolute right-0 top-0 w-[min(70cqw,48cqh)]"
                 />
                 <PresentCircle
                   label="Remote"
                   arcText="Control another device's screen"
-                  arc="bottom"
                   disabled={!share.slug}
                   onClick={startRemote}
                   className="absolute bottom-0 left-0 w-[min(70cqw,48cqh)]"
@@ -211,7 +209,6 @@ export function PhonePresent() {
                 <PresentCircle
                   label="Present"
                   arcText="From this device"
-                  arc="top"
                   onClick={startPresent}
                   className="w-[min(86cqw,80cqh)]"
                 />
@@ -230,46 +227,40 @@ export function PhonePresent() {
 }
 
 /** A big filled circle with its word in the middle and a line of small mono
- *  capitals curving around the outside edge: along the top, or (reading
- *  left to right) along the bottom. */
+ *  capitals travelling slowly around the outside edge, nonstop. */
 function PresentCircle({
   label,
   arcText,
-  arc,
   onClick,
   disabled = false,
   className = "",
 }: {
   label: string;
   arcText: string;
-  arc: "top" | "bottom";
   onClick: () => void;
   disabled?: boolean;
   className?: string;
 }) {
-  const id = `arc-${label.toLowerCase()}`;
-  // In a 100 x 100 box: the circle has radius 38; the words ride just
-  // outside it (a bigger radius below, where the letters face inward).
-  const path = arc === "top" ? "M 7 50 A 43 43 0 0 1 93 50" : "M 3.5 50 A 46.5 46.5 0 0 0 96.5 50";
+  const id = `ring-${label.toLowerCase()}`;
+  // In a 100 x 100 box: the circle has radius 38; the words ride a ring of
+  // radius 43 just outside it, starting at the top, going clockwise.
   return (
     <div className={`aspect-square ${className}`}>
       <div className="relative h-full w-full">
         <svg
           viewBox="0 0 100 100"
-          className="pointer-events-none absolute inset-0 h-full w-full overflow-visible text-foreground"
+          className="pointer-events-none absolute inset-0 h-full w-full animate-[spin_40s_linear_infinite] overflow-visible text-foreground motion-reduce:animate-none"
           aria-hidden
         >
           <defs>
-            <path id={id} d={path} fill="none" />
+            <path id={id} d="M 50 7 A 43 43 0 1 1 49.99 7" fill="none" />
           </defs>
           <text
             className="mono uppercase"
             fill="currentColor"
             style={{ fontSize: 4.2, letterSpacing: "0.08em" }}
           >
-            <textPath href={`#${id}`} startOffset="50%" textAnchor="middle">
-              {arcText}
-            </textPath>
+            <textPath href={`#${id}`}>{arcText}</textPath>
           </text>
         </svg>
         <button
