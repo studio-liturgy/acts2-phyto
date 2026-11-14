@@ -279,7 +279,7 @@ export function PhoneHome({ tab }: { tab: PhoneTab }) {
 
       <Dialog open={inboxOpen} onOpenChange={setInboxOpen}>
         <DialogContent
-          className="left-0 top-0 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-0 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100"
+          className="left-0 top-0 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-0 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100"
           aria-describedby={undefined}
         >
           <DialogTitle className="mb-6 pr-10 text-2xl font-normal leading-tight">
@@ -576,8 +576,10 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
           style={liveIds.length > 0 ? { paddingTop: livePad } : undefined}
         >
           {order.length === 0 ? (
-            <div className="mono uppercase rounded-3xl border border-foreground p-8 text-center text-xs tracking-wider text-muted-foreground">
-              No gatherings yet. Tap New to plan a gathering!
+            <div className="mono uppercase rounded-3xl border border-dashed border-foreground p-8 text-center text-xs tracking-wider text-muted-foreground">
+              No gatherings yet.
+              <br />
+              Tap New to plan a gathering!
             </div>
           ) : (
             <>
@@ -637,15 +639,9 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
               {liveIds.length === 0 && otherIds.map((id) => renderCard(id, true))}
             </>
           )}
-          {/* Without an account (the app): Go live and Share are hidden; say why. */}
-          {!isSignedIn && (
-            <div className="space-y-2 pt-4">
-              {!canAddGathering(isSignedIn, gatheringOrder.length) && (
-                <p className={ACCOUNT_NOTE_CLASS}>{REQUIRES_ACCOUNT.moreGatherings}</p>
-              )}
-              <p className={ACCOUNT_NOTE_CLASS}>{REQUIRES_ACCOUNT.goLive}</p>
-              <p className={ACCOUNT_NOTE_CLASS}>{REQUIRES_ACCOUNT.share}</p>
-            </div>
+          {/* Without an account (the app): one gathering; say why New is gone. */}
+          {!canAddGathering(isSignedIn, gatheringOrder.length) && (
+            <p className={`pt-4 ${ACCOUNT_NOTE_CLASS}`}>{REQUIRES_ACCOUNT.moreGatherings}</p>
           )}
         </div>
       </div>
@@ -693,7 +689,7 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
 /* ── Catalogue ──────────────────────────────────────────────────────────── */
 
 const EMPTY_LABEL: Record<string, string> = {
-  all: "Nothing in the catalogue yet. Tap New to add your first set",
+  all: "Nothing in the catalogue yet.\nTap New to add your first set!",
   song: "No Songs yet!",
   scripture: "No Scriptures yet!",
   media: "No Media yet!",
@@ -965,7 +961,7 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
     >
       <div className="px-5 pb-8">
         {rows.length === 0 ? (
-          <div className="mono uppercase rounded-3xl border border-foreground p-8 text-center text-xs tracking-wider text-muted-foreground">
+          <div className="mono uppercase whitespace-pre-line rounded-3xl border border-dashed border-foreground p-8 text-center text-xs tracking-wider text-muted-foreground">
             {query.trim() ? `Nothing matches "${query}"` : EMPTY_LABEL[kindFilter]}
           </div>
         ) : (
@@ -1030,8 +1026,6 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
             })}
           </ul>
         )}
-        {/* Without an account (the app): say why sets have no Share. */}
-        {!isSignedIn && <p className={`mt-4 ${ACCOUNT_NOTE_CLASS}`}>{REQUIRES_ACCOUNT.shareSet}</p>}
       </div>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
@@ -1276,16 +1270,11 @@ function SettingsTab({
             ))}
           </div>
         ) : (
-          <div className="space-y-2 py-4">
-            <div className="flex items-center justify-between">
-              <span className={LABEL}>Not signed in</span>
-              <Link to="/login" className={S_FILLED}>
-                Sign in
-              </Link>
-            </div>
-            {/* The library lives only on this device; groups need an account. */}
-            <p className={ACCOUNT_NOTE_CLASS}>{NO_ACCOUNT_SHORT}</p>
-            <p className={ACCOUNT_NOTE_CLASS}>{REQUIRES_ACCOUNT.groups}</p>
+          <div className="flex items-center justify-between py-4">
+            <span className={LABEL}>Not signed in</span>
+            <Link to="/login" className={S_FILLED}>
+              Sign in
+            </Link>
           </div>
         )}
 
@@ -1367,6 +1356,10 @@ function SettingsTab({
             </ul>
           ))}
         </div>
+        {/* Signed out (the app): where the library lives, at the foot. */}
+        {!isSignedIn && (
+          <p className={`mt-10 !leading-tight ${ACCOUNT_NOTE_CLASS}`}>{NO_ACCOUNT_SHORT}</p>
+        )}
 
         {isSignedIn && (
           <>

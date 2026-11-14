@@ -445,7 +445,7 @@ export function ShareGatheringDialog({
         // Full screen. Go live: the circle in the middle of the screen. Live or
         // Share: Share link, the link bar, then the QR code and its colours.
         <DialogContent
-          className="left-0 top-0 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-0 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(3.5rem,env(safe-area-inset-top))] data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100"
+          className="left-0 top-0 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-0 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] phone-sheet pt-[calc(env(safe-area-inset-top,0px)+4.5rem)] data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100"
           aria-describedby={undefined}
         >
           <DialogTitle className="sr-only">

@@ -143,7 +143,9 @@ function LoginPage() {
         </div>
 
         {/* Right — form or success */}
-        <div className="flex w-full items-center justify-center px-8 pb-20 lg:px-16 lg:py-0">
+        <div
+          className={`flex w-full items-center justify-center px-8 ${nativeApp ? "pb-32" : "pb-20"} lg:px-16 lg:py-0`}
+        >
           <div className="w-full max-w-sm">
             {step === "code" ? (
               <div className={`space-y-4 text-center ${isTest ? "text-black" : "text-white"}`}>
@@ -325,23 +327,26 @@ function LoginPage() {
                   </Link>
                   .
                 </p>
-                {/* The app has no browser Back: leave sign in from here. */}
-                {nativeApp && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      window.history.length > 1 ? window.history.back() : navigate({ to: "/" })
-                    }
-                    className={`mono mx-auto block pt-3 text-xs uppercase tracking-wider transition hover:opacity-60 ${isTest ? "text-black/70" : "text-white/70"}`}
-                  >
-                    Cancel
-                  </button>
-                )}
               </div>
             )}
           </div>
         </div>
       </div>
+      {/* The app has no browser Back: leave sign in from here, at the foot,
+          in the same pill as Sign in with Google. */}
+      {nativeApp && (
+        <div className="absolute inset-x-0 bottom-0 flex justify-center px-8 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
+          <button
+            type="button"
+            onClick={() =>
+              window.history.length > 1 ? window.history.back() : navigate({ to: "/" })
+            }
+            className={`mono uppercase ${btnText} w-full max-w-sm rounded-full px-6 py-3 transition hover:opacity-90 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
       {TESTERS_ONLY && <TestersOnlyDialog open={notTester} onOpenChange={setNotTester} />}
     </div>
   );

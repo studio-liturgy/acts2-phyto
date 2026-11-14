@@ -19,7 +19,7 @@ export default function AboutMain() {
           backgroundRepeat: "no-repeat",
         }}
       >
-        <div className="mx-auto w-full max-w-6xl px-6 pt-10 pb-24 md:pt-14 md:pb-32">
+        <div className="mx-auto w-full max-w-6xl px-6 pt-[calc(env(safe-area-inset-top,0px)+2.5rem)] pb-24 md:pt-14 md:pb-32">
           <Link
             to="/"
             className="mono inline-flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--brand-white)] opacity-90 transition-opacity hover:opacity-60"

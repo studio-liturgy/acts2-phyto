@@ -155,22 +155,20 @@ export function PhonePresent() {
     const startRemote = () =>
       liveId && share.slug && useRemote.getState().start(liveId, share.slug);
     const startPresent = () => useLocalPresent.getState().start(targetId);
-    // The browser: Remote alone, as before (no way to reach a TV from here).
+    // The browser: Remote alone (no way to reach a TV from here), its words
+    // travelling around it as in the app.
     if (!choices.present) {
       return (
-        <PhoneScreen tab="present" header={<PhoneTitleHeader title="Present" />}>
-          {/* Laid out like Go live: the circle mid-screen (glowing in and out
-              like it), the note at the foot. */}
-          <div className="flex h-full flex-col px-6 pb-6">
-            <div className="flex flex-1 items-center justify-center">
-              <button
-                type="button"
+        <PhoneScreen tab="present">
+          <div className="flex h-full flex-col px-6 pb-6 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)]">
+            <div className="flex min-h-0 flex-1 items-center justify-center [container-type:size]">
+              <PresentCircle
+                label="Remote"
+                arcText="Control another device's screen"
                 disabled={!share.slug}
                 onClick={startRemote}
-                className="mono flex aspect-square w-full max-w-[16rem] animate-pulse items-center justify-center rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
-              >
-                Remote
-              </button>
+                className="w-[min(92cqw,80cqh)]"
+              />
             </div>
             <p className={NOTE}>
               {status === "denied"
@@ -181,11 +179,11 @@ export function PhonePresent() {
         </PhoneScreen>
       );
     }
-    // The app: Present (this device) top right, Remote bottom left; without
-    // an account, Present alone in the middle.
+    // The app: Present (this device) top right, Remote bottom left, glowing
+    // in turn; without an account, Present alone in the middle. No header.
     return (
-      <PhoneScreen tab="present" header={<PhoneTitleHeader title="Present" />}>
-        <div className="flex h-full flex-col px-5 pb-6">
+      <PhoneScreen tab="present">
+        <div className="flex h-full flex-col px-4 pb-6 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)]">
           <div className="relative min-h-0 flex-1 [container-type:size]">
             {choices.remote ? (
               <>
@@ -193,14 +191,15 @@ export function PhonePresent() {
                   label="Present"
                   arcText="From this device"
                   onClick={startPresent}
-                  className="absolute right-0 top-0 w-[min(70cqw,48cqh)]"
+                  className="absolute right-0 top-0 w-[min(84cqw,54cqh)]"
                 />
                 <PresentCircle
                   label="Remote"
                   arcText="Control another device's screen"
                   disabled={!share.slug}
                   onClick={startRemote}
-                  className="absolute bottom-0 left-0 w-[min(70cqw,48cqh)]"
+                  offset
+                  className="absolute bottom-0 left-0 w-[min(84cqw,54cqh)]"
                 />
               </>
             ) : (
@@ -209,7 +208,7 @@ export function PhonePresent() {
                   label="Present"
                   arcText="From this device"
                   onClick={startPresent}
-                  className="w-[min(86cqw,80cqh)]"
+                  className="w-[min(92cqw,80cqh)]"
                 />
               </div>
             )}
@@ -232,12 +231,16 @@ function PresentCircle({
   arcText,
   onClick,
   disabled = false,
+  offset = false,
   className = "",
 }: {
   label: string;
   arcText: string;
   onClick: () => void;
   disabled?: boolean;
+  /** The second circle: glows while the first fades (half a pulse later),
+   *  and its words start on the opposite side. */
+  offset?: boolean;
   className?: string;
 }) {
   const id = `ring-${label.toLowerCase()}`;
@@ -259,7 +262,9 @@ function PresentCircle({
             fill="currentColor"
             style={{ fontSize: 4.2, letterSpacing: "0.08em" }}
           >
-            <textPath href={`#${id}`}>{arcText}</textPath>
+            <textPath href={`#${id}`} startOffset={offset ? "50%" : "0%"}>
+              {arcText}
+            </textPath>
           </text>
         </svg>
         <button
@@ -267,6 +272,7 @@ function PresentCircle({
           disabled={disabled}
           onClick={onClick}
           aria-label={`${label}: ${arcText}`}
+          style={offset ? { animationDelay: "-1s" } : undefined}
           className="mono absolute inset-[12%] flex animate-pulse items-center justify-center rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
         >
           {label}
@@ -329,24 +335,30 @@ function LocalPresent({ gatheringId }: { gatheringId: string }) {
     return (
       <PhoneScreen tab="present" header={<PhoneTitleHeader title="Present" />}>
         <div className="flex h-full flex-col items-center justify-center px-6 pb-6">
-          <ol className="flex flex-col gap-5">
-            {TV_STEPS.map((step, i) => (
-              <li key={step} className="flex items-center gap-4 text-xl tracking-[-0.045em]">
-                <span className="mono flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-foreground text-xs tracking-normal">
-                  {i + 1}
-                </span>
-                {step}
-              </li>
-            ))}
-          </ol>
-          {/* Nothing is on a TV yet, so Stop needs no asking. */}
-          <button
-            type="button"
-            onClick={stop}
-            className="mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-3 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
-          >
-            Stop
-          </button>
+          {/* Cancel spans the steps' own width. */}
+          <div className="flex flex-col">
+            <ol className="flex flex-col gap-5">
+              {TV_STEPS.map((step, i) => (
+                <li
+                  key={step}
+                  className="mono flex items-center gap-4 text-sm uppercase tracking-wider"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-foreground text-xs">
+                    {i + 1}
+                  </span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+            {/* Nothing is on a TV yet, so Cancel needs no asking. */}
+            <button
+              type="button"
+              onClick={stop}
+              className="mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-3 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </PhoneScreen>
     );
@@ -386,7 +398,7 @@ function RemoteView({ gatheringId, slug }: { gatheringId: string; slug: string }
       actions={<DisconnectButton />}
     />
   ) : (
-    <PhoneTitleHeader title="Present" />
+    <PhoneTitleHeader title="Remote" />
   );
 
   return (
@@ -447,21 +459,25 @@ function ScreenLink({ slug }: { slug: string }) {
             Share link
           </button>
         )}
-        <div className="mt-3 w-full">
-          <DisconnectButton wide />
-        </div>
+        {/* No screen yet, so Cancel needs no asking. */}
+        <button
+          type="button"
+          onClick={() => useRemote.getState().stop()}
+          className="mono mt-3 w-full rounded-full border border-[var(--brand-red)] py-3 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
+        >
+          Cancel
+        </button>
       </div>
       <p className={NOTE}>{REMOTE_NOTE}</p>
     </div>
   );
 }
 
-/** Disconnect: beside the gathering's name once connected, under Share link
- *  on the link page. Asks first, like End Session. */
-function DisconnectButton({ wide = false }: { wide?: boolean }) {
+/** Disconnect: beside the gathering's name once connected. Asks first, like
+ *  End Session. (Before a screen connects, the link page has Cancel.) */
+function DisconnectButton() {
   return (
     <ConfirmPill
-      wide={wide}
       label="Disconnect"
       title="Disconnect the remote?"
       body="The screen goes black until a remote connects again. The gathering stays live."

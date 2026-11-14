@@ -84,7 +84,7 @@ function useNoInputZoom() {
 /** A main screen's header: the big title like the desktop home, actions on the right. */
 export function PhoneTitleHeader({ title, actions }: { title: ReactNode; actions?: ReactNode }) {
   return (
-    <header className="flex shrink-0 items-center gap-2 px-5 pb-3 pt-[max(1.25rem,env(safe-area-inset-top))]">
+    <header className="flex shrink-0 items-center gap-2 px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)]">
       <h1 className="min-w-0 flex-1 truncate text-4xl leading-tight">{title}</h1>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </header>
@@ -107,7 +107,7 @@ export function PhoneBackHeader({
 }) {
   return (
     <header
-      className={`flex shrink-0 items-center gap-3 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] ${
+      className={`flex shrink-0 items-center gap-3 px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] ${
         border ? "border-b border-foreground" : ""
       }`}
     >
@@ -147,7 +147,13 @@ export function PhoneTabBar({ tab, onReselect }: { tab: PhoneTab; onReselect?: (
   const signedOut = useAuthStore((s) => s.session === null);
   const noAccount = useNoAccount() && signedOut;
   const showPresent = presentTabShown(anyLive, noAccount, gatheringCount);
-  const tabs = TABS.filter((t) => t.tab !== "present" || showPresent || tab === "present");
+  // An empty catalogue: make a set first, so no Gatherings tab yet.
+  const setCount = useLibrary((s) => s.order?.length ?? 0);
+  const tabs = TABS.filter(
+    (t) =>
+      (t.tab !== "present" || showPresent || tab === "present") &&
+      (t.tab !== "gatherings" || setCount > 0 || gatheringCount > 0 || tab === "gatherings"),
+  );
   return (
     <nav className="flex shrink-0 border-t border-foreground/15 bg-background px-1.5 pb-[env(safe-area-inset-bottom)]">
       {tabs.map(({ tab: t, label, Icon }) => (

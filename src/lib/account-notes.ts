@@ -17,15 +17,11 @@ export const NO_ACCOUNT_BROWSER =
   "Without an account, your library is saved only in this browser. Clearing your browser data deletes it for good. Export a .phyto file to keep a backup, or sign in to keep a copy in your account.";
 
 /** The app's Settings top row, by Sign in. */
-export const NO_ACCOUNT_SHORT = "Saved only on this device. Sign in to keep a copy.";
+export const NO_ACCOUNT_SHORT =
+  "Your data is saved on this device. To sync your data and access more features, sign in.";
 
 /** What each account-only control shows in its place when signed out. */
 export const REQUIRES_ACCOUNT = {
-  goLive: "Going live on a gathering (mobile viewing and presenting) requires an account.",
-  share: "Sharing a gathering requires an account.",
   moreGatherings: "More than one gathering requires an account.",
-  remote: "Presenting as a remote requires an account.",
-  shareSet: "Sharing sets requires an account.",
-  groups: "Groups require an account.",
   videoUpload: "Uploading videos requires an account.",
 } as const;

@@ -583,7 +583,7 @@ export function FirstTimeLanding({
             An invisible Present placeholder reserves the same row height the real Present
             button gives the normal header, so the pills sit at the identical position. */}
         <div className="absolute inset-x-0 top-0">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 pt-6 md:pt-10">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] md:pt-10">
             {!isEmpty && !signInOnly && phone && (
               <Link
                 to="/"

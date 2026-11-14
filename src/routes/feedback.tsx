@@ -177,7 +177,7 @@ function FeedbackPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="mx-auto w-full max-w-3xl px-6 pt-10">
+      <header className="mx-auto w-full max-w-3xl px-6 pt-[calc(env(safe-area-inset-top,0px)+2.5rem)]">
         <Link
           to="/"
           search={backSearch}

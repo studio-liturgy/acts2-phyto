@@ -42,7 +42,7 @@ export function PhoneAddSetSheet({
         className="left-0 top-0 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 p-0 data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100"
         aria-describedby={undefined}
       >
-        <div className="shrink-0 px-5 pb-3 pt-[max(1.5rem,env(safe-area-inset-top))]">
+        <div className="shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)]">
           <DialogTitle className="pr-10 text-2xl font-normal leading-tight">Add a set</DialogTitle>
           <div className="pill mt-5 flex items-center gap-2 border border-foreground px-4 py-2">
             <Search className="h-4 w-4 shrink-0" />

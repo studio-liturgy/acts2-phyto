@@ -359,7 +359,7 @@ function SetHeader({
     const fromGathering = !!redirectTo?.startsWith("/present");
     const ICON = "pill flex h-9 w-9 shrink-0 items-center justify-center transition";
     return (
-      <header className="shrink-0 border-b border-foreground px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <header className="shrink-0 border-b border-foreground px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
         <div className="flex items-center gap-3">
           <Link
             to={redirectTo ?? "/?tab=catalogue"}

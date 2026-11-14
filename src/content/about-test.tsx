@@ -22,7 +22,7 @@ export default function AboutTest() {
           backgroundRepeat: "no-repeat",
         }}
       >
-        <div className="mx-auto w-full max-w-6xl px-6 pt-10 pb-24 md:pt-14 md:pb-32">
+        <div className="mx-auto w-full max-w-6xl px-6 pt-[calc(env(safe-area-inset-top,0px)+2.5rem)] pb-24 md:pt-14 md:pb-32">
           <Link
             to="/"
             search={backSearch}
