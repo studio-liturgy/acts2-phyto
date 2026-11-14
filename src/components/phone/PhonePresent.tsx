@@ -69,7 +69,6 @@ import { useExternalDisplay, useLocalPresent } from "@/lib/local-present";
 import { useNativeApp } from "@/hooks/use-native-app";
 import { useNoAccount } from "@/lib/no-account";
 import { useIsSignedIn } from "@/lib/authStore";
-import { ACCOUNT_NOTE_CLASS } from "@/lib/account-notes";
 import { useRemote } from "@/lib/remote-client";
 import { screenLinkUrl } from "@/lib/remote-protocol";
 import {
@@ -297,16 +296,61 @@ function GatheringTitle({ gatheringId }: { gatheringId: string }) {
   );
 }
 
-// Present from this device: the steps until a TV connects, then a line that
-// says the slides are on it. Two lines' height either way, so nothing moves.
-const TV_STEPS =
-  "To show the slides on your TV, open Control Center, tap Screen Mirroring, then pick your TV.";
-const TV_CONNECTED = "Showing the slides on your TV.";
+// Present from this device: the steps page until a TV connects (like the
+// screen link page before a screen connects), then the controls.
+const TV_STEPS = ["Open Control Center", "Tap Screen Mirroring", "Pick your TV"];
+
+/** True once a TV is connected; a disconnect only counts after 2 s, so a
+ *  blip doesn't flash the steps page. */
+function useTvConnected(): boolean {
+  const tv = useExternalDisplay() === true;
+  const [shown, setShown] = useState(tv);
+  useEffect(() => {
+    if (tv) {
+      setShown(true);
+      return;
+    }
+    const t = setTimeout(() => setShown(false), 2000);
+    return () => clearTimeout(t);
+  }, [tv]);
+  return shown;
+}
 
 /** Present from this device: the Remote's controls, driving this phone's own
- *  live slides, which the app puts on a TV connected by AirPlay or a cable. */
+ *  live slides, which the app puts on a TV connected by AirPlay or a cable.
+ *  Until a TV connects (and again if it drops), the steps to connect one. */
 function LocalPresent({ gatheringId }: { gatheringId: string }) {
-  const tv = useExternalDisplay();
+  const tv = useTvConnected();
+  const stop = () => {
+    useLocalPresent.getState().stop();
+    useLive.getState().clearLive();
+  };
+  if (!tv) {
+    return (
+      <PhoneScreen tab="present" header={<PhoneTitleHeader title="Present" />}>
+        <div className="flex h-full flex-col items-center justify-center px-6 pb-6">
+          <ol className="flex flex-col gap-5">
+            {TV_STEPS.map((step, i) => (
+              <li key={step} className="flex items-center gap-4 text-xl tracking-[-0.045em]">
+                <span className="mono flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-foreground text-xs tracking-normal">
+                  {i + 1}
+                </span>
+                {step}
+              </li>
+            ))}
+          </ol>
+          {/* Nothing is on a TV yet, so Stop needs no asking. */}
+          <button
+            type="button"
+            onClick={stop}
+            className="mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-3 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
+          >
+            Stop
+          </button>
+        </div>
+      </PhoneScreen>
+    );
+  }
   const header = (
     <PhoneBackHeader
       back="/"
@@ -316,26 +360,14 @@ function LocalPresent({ gatheringId }: { gatheringId: string }) {
           label="Stop"
           title="Stop presenting?"
           body="The TV goes black until you present again."
-          onConfirm={() => {
-            useLocalPresent.getState().stop();
-            useLive.getState().clearLive();
-          }}
+          onConfirm={stop}
         />
       }
     />
   );
   return (
     <PhoneScreen header={header} scroll={false}>
-      <div className="flex h-full flex-col">
-        <p
-          className={`flex h-9 shrink-0 items-center justify-center px-8 text-center ${ACCOUNT_NOTE_CLASS}`}
-        >
-          {tv ? TV_CONNECTED : TV_STEPS}
-        </p>
-        <div className="min-h-0 flex-1">
-          <Deck gatheringId={gatheringId} />
-        </div>
-      </div>
+      <Deck gatheringId={gatheringId} />
     </PhoneScreen>
   );
 }
