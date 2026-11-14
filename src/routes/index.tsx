@@ -191,7 +191,11 @@ function Home() {
   const canUseLibrary = isSignedIn || noAccount;
   const accountPull = useAccountPull();
   const isEmpty = gatheringOrder.length === 0 && order.length === 0;
-  const landing = !!intro || (activeWorkspace === "personal" && isEmpty && groups.length === 0);
+  // "Use without an account" on a phone has just come from the intro (its
+  // landing), so an empty library opens the tabs, not the intro again.
+  const autoIntro = !(phone && noAccount && !isSignedIn);
+  const landing =
+    !!intro || (autoIntro && activeWorkspace === "personal" && isEmpty && groups.length === 0);
   // A device downloading the account from nothing keeps the loading view
   // for the whole pull (gatherings can arrive before their sets).
   const pulling = isSignedIn && !!accountPull && (isEmpty || !!accountPull.fresh);
