@@ -74,3 +74,18 @@ export function registerAppServiceWorker(): void {
     .then((reg) => (reg.active ?? reg.waiting ?? reg.installing)?.postMessage("phyto-sw-refresh"))
     .catch(() => {});
 }
+
+/** The phyto app keeps its launch screen up until the page has drawn
+ *  (capacitor.config SplashScreen, launchShowDuration as a fallback), so the
+ *  first launch never sits on a blank web view. */
+export function hideAppSplash(): void {
+  if (typeof window === "undefined") return;
+  const cap = (
+    window as unknown as {
+      Capacitor?: {
+        Plugins?: { SplashScreen?: { hide: (o?: { fadeOutDuration?: number }) => Promise<void> } };
+      };
+    }
+  ).Capacitor;
+  void cap?.Plugins?.SplashScreen?.hide({ fadeOutDuration: 250 }).catch(() => {});
+}

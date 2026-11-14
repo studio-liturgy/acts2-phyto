@@ -143,7 +143,7 @@ p{margin:0;max-width:22rem;line-height:1.5}
 .row{display:flex;gap:12px}
 a,button{font:inherit;letter-spacing:inherit;text-transform:inherit;text-decoration:none;border-radius:999px;padding:10px 20px;border:1px solid var(--fg);color:var(--fg);background:none}
 .fill{background:var(--fg);color:var(--bg)}
-</style></head><body><p>You're offline. Connect to the internet, then try again.</p><div class="row"><button class="fill" onclick="location.reload()">Try again</button>${
+</style></head><body><script>try{Capacitor.Plugins.SplashScreen.hide()}catch(e){}</script><p>You're offline. Connect to the internet, then try again.</p><div class="row"><button class="fill" onclick="location.reload()">Try again</button>${
     hasShell ? '<a href="/">Open your library</a>' : ""
   }</div></body></html>`;
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });

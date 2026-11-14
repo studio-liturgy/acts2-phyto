@@ -9,6 +9,7 @@ import { postVideoTime, throttleLatest } from "@/lib/video-time";
 import { setsAround, setsMedia } from "@/lib/media-preload";
 import { usePreloadImages } from "@/hooks/use-preload-images";
 import { PreloadVideos } from "@/components/PreloadVideos";
+import { isNativeApp } from "@/lib/native-app";
 
 const ARMED_KEY = "phyto-video-armed";
 
@@ -92,7 +93,9 @@ function Output() {
   // received a user gesture. Arm once via a click; persist for the session.
   const [armed, setArmed] = useState(false);
   useEffect(() => {
-    setArmed(sessionStorage.getItem(ARMED_KEY) === "1");
+    // The phyto app's TV screen can't be tapped, and its web view plays
+    // without one (phyto-app ExternalDisplayPlugin).
+    setArmed(sessionStorage.getItem(ARMED_KEY) === "1" || isNativeApp());
   }, []);
   const arm = () => {
     sessionStorage.setItem(ARMED_KEY, "1");

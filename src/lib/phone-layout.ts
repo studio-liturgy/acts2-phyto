@@ -26,6 +26,35 @@ export function parsePhoneTab(v: unknown): PhoneTab | undefined {
     : undefined;
 }
 
+/** Without an account (the app), the library keeps one gathering. */
+export const NO_ACCOUNT_GATHERINGS = 1;
+
+/** Whether New Gathering is offered: always with an account; without one,
+ *  until the one gathering exists. */
+export function canAddGathering(signedIn: boolean, gatheringCount: number): boolean {
+  return signedIn || gatheringCount < NO_ACCOUNT_GATHERINGS;
+}
+
+/** Whether the bottom bar shows Present: while a gathering is live, and in
+ *  the app without an account once its gathering exists (Present from this
+ *  device needs no live gathering). */
+export function presentTabShown(
+  anyLive: boolean,
+  noAccount: boolean,
+  gatheringCount: number,
+): boolean {
+  return anyLive || (noAccount && gatheringCount > 0);
+}
+
+/** The Present tab's circles: Present (this device) only in the app; Remote
+ *  only signed in with a gathering live (the screen link is the account's). */
+export function presentChoices(opts: { nativeApp: boolean; signedIn: boolean; live: boolean }): {
+  present: boolean;
+  remote: boolean;
+} {
+  return { present: opts.nativeApp, remote: opts.signedIn && opts.live };
+}
+
 /** The gathering the Present tab drives: the first live one in the list. */
 export function presentGatheringId(
   order: string[],

@@ -23,6 +23,7 @@ export const NO_ACCOUNT_SHORT = "Saved only on this device. Sign in to keep a co
 export const REQUIRES_ACCOUNT = {
   goLive: "Going live on a gathering (mobile viewing and presenting) requires an account.",
   share: "Sharing a gathering requires an account.",
+  moreGatherings: "More than one gathering requires an account.",
   remote: "Presenting as a remote requires an account.",
   shareSet: "Sharing sets requires an account.",
   groups: "Groups require an account.",

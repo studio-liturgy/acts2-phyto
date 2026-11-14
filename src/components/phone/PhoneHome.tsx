@@ -46,7 +46,14 @@ import {
   type InboxShare,
   type GroupInvite,
 } from "@/lib/sync";
-import { NO_GATHERINGS, NO_IDS, NO_SETS, phoneKindBg, type PhoneTab } from "@/lib/phone-layout";
+import {
+  canAddGathering,
+  NO_GATHERINGS,
+  NO_IDS,
+  NO_SETS,
+  phoneKindBg,
+  type PhoneTab,
+} from "@/lib/phone-layout";
 import type { Set as PhytoSet, SetKind, Slide } from "@/lib/types";
 import { SlideView } from "@/components/SlideView";
 import { PhonePresent } from "@/components/phone/PhonePresent";
@@ -548,9 +555,11 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
                   <Share2 className="h-4 w-4" />
                 </button>
               )}
-              <button onClick={newGathering} className={PILL_FILLED}>
-                <Plus className="h-4 w-4" /> New
-              </button>
+              {canAddGathering(isSignedIn, gatheringOrder.length) && (
+                <button onClick={newGathering} className={PILL_FILLED}>
+                  <Plus className="h-4 w-4" /> New
+                </button>
+              )}
             </>
           }
         />
@@ -631,6 +640,9 @@ function GatheringsTab({ arrivals }: { arrivals: React.ReactNode }) {
           {/* Without an account (the app): Go live and Share are hidden; say why. */}
           {!isSignedIn && (
             <div className="space-y-2 pt-4">
+              {!canAddGathering(isSignedIn, gatheringOrder.length) && (
+                <p className={ACCOUNT_NOTE_CLASS}>{REQUIRES_ACCOUNT.moreGatherings}</p>
+              )}
               <p className={ACCOUNT_NOTE_CLASS}>{REQUIRES_ACCOUNT.goLive}</p>
               <p className={ACCOUNT_NOTE_CLASS}>{REQUIRES_ACCOUNT.share}</p>
             </div>

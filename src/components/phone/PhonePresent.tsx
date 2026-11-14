@@ -58,7 +58,18 @@ import { useWakeLock } from "@/hooks/use-wake-lock";
 import { arrangedEntries, effectiveArrangement, sectionOptions } from "@/lib/arrangements";
 import { centeredTabScroll } from "@/lib/phone-viewer";
 import { isLiveNow } from "@/lib/live-session";
-import { NO_GATHERINGS, NO_IDS, NO_SETS, presentGatheringId } from "@/lib/phone-layout";
+import {
+  NO_GATHERINGS,
+  NO_IDS,
+  NO_SETS,
+  presentChoices,
+  presentGatheringId,
+} from "@/lib/phone-layout";
+import { useExternalDisplay, useLocalPresent } from "@/lib/local-present";
+import { useNativeApp } from "@/hooks/use-native-app";
+import { useNoAccount } from "@/lib/no-account";
+import { useIsSignedIn } from "@/lib/authStore";
+import { ACCOUNT_NOTE_CLASS } from "@/lib/account-notes";
 import { useRemote } from "@/lib/remote-client";
 import { screenLinkUrl } from "@/lib/remote-protocol";
 import {
@@ -107,6 +118,15 @@ export function PhonePresent() {
   const status = useRemote((s) => s.status);
   const remoteSlug = useRemote((s) => s.slug);
   const remoteGathering = useRemote((s) => s.gatheringId);
+  const isSignedIn = useIsSignedIn();
+  const nativeApp = useNativeApp() !== null;
+  const noAccount = useNoAccount() && !isSignedIn;
+  const localId = useLocalPresent((s) => s.gatheringId);
+  // Without an account (the app) there's one gathering, presented from this
+  // device with no going live.
+  const ownId = noAccount ? (gatheringOrder.find((id) => gatherings[id]) ?? null) : null;
+  const targetId = liveId ?? ownId;
+  const choices = presentChoices({ nativeApp, signedIn: isSignedIn, live: !!liveId });
 
   // Follow the live gathering: another one going live moves the remote over;
   // a different link (another workspace) disconnects it.
@@ -119,7 +139,7 @@ export function PhonePresent() {
     if (liveId !== remoteGathering) useRemote.getState().start(liveId, share.slug);
   }, [status, liveId, share.slug, remoteSlug, remoteGathering]);
 
-  useWakeLock(status !== "idle");
+  useWakeLock(status !== "idle" || !!localId);
   const loaded = useLibrary((s) => s.libraryLoaded);
 
   if (!loaded) {
@@ -129,63 +149,217 @@ export function PhonePresent() {
       </PhoneScreen>
     );
   }
-  if (!g || !liveId) return <Navigate to="/" search={{ tab: "gatherings" }} replace />;
+  if (localId && gatherings[localId]) return <LocalPresent gatheringId={localId} />;
+  if (!targetId) return <Navigate to="/" search={{ tab: "gatherings" }} replace />;
 
   if (status === "idle" || status === "denied") {
+    const startRemote = () =>
+      liveId && share.slug && useRemote.getState().start(liveId, share.slug);
+    const startPresent = () => useLocalPresent.getState().start(targetId);
+    // The browser: Remote alone, as before (no way to reach a TV from here).
+    if (!choices.present) {
+      return (
+        <PhoneScreen tab="present" header={<PhoneTitleHeader title="Present" />}>
+          {/* Laid out like Go live: the circle mid-screen (glowing in and out
+              like it), the note at the foot. */}
+          <div className="flex h-full flex-col px-6 pb-6">
+            <div className="flex flex-1 items-center justify-center">
+              <button
+                type="button"
+                disabled={!share.slug}
+                onClick={startRemote}
+                className="mono flex aspect-square w-full max-w-[16rem] animate-pulse items-center justify-center rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
+              >
+                Remote
+              </button>
+            </div>
+            <p className={NOTE}>
+              {status === "denied"
+                ? "Couldn't connect as the remote. Sign in again, then tap Remote."
+                : REMOTE_NOTE}
+            </p>
+          </div>
+        </PhoneScreen>
+      );
+    }
+    // The app: Present (this device) top right, Remote bottom left; without
+    // an account, Present alone in the middle.
     return (
       <PhoneScreen tab="present" header={<PhoneTitleHeader title="Present" />}>
-        {/* Laid out like Go live: the circle mid-screen (glowing in and out
-            like it), the note at the foot. */}
-        <div className="flex h-full flex-col px-6 pb-6">
-          <div className="flex flex-1 items-center justify-center">
-            <button
-              type="button"
-              disabled={!share.slug}
-              onClick={() => share.slug && useRemote.getState().start(liveId, share.slug)}
-              className="mono flex aspect-square w-full max-w-[16rem] animate-pulse items-center justify-center rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
-            >
-              Remote
-            </button>
+        <div className="flex h-full flex-col px-5 pb-6">
+          <div className="relative min-h-0 flex-1 [container-type:size]">
+            {choices.remote ? (
+              <>
+                <PresentCircle
+                  label="Present"
+                  arcText="From this device"
+                  arc="top"
+                  onClick={startPresent}
+                  className="absolute right-0 top-0 w-[min(70cqw,48cqh)]"
+                />
+                <PresentCircle
+                  label="Remote"
+                  arcText="Control another device's screen"
+                  arc="bottom"
+                  disabled={!share.slug}
+                  onClick={startRemote}
+                  className="absolute bottom-0 left-0 w-[min(70cqw,48cqh)]"
+                />
+              </>
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <PresentCircle
+                  label="Present"
+                  arcText="From this device"
+                  arc="top"
+                  onClick={startPresent}
+                  className="w-[min(86cqw,80cqh)]"
+                />
+              </div>
+            )}
           </div>
-          <p className={NOTE}>
-            {status === "denied"
-              ? "Couldn't connect as the remote. Sign in again, then tap Remote."
-              : REMOTE_NOTE}
-          </p>
+          {status === "denied" && (
+            <p className={NOTE}>Couldn't connect as the remote. Sign in again, then tap Remote.</p>
+          )}
         </div>
       </PhoneScreen>
     );
   }
 
-  return <RemoteView gatheringId={liveId} slug={share.slug ?? remoteSlug ?? ""} />;
+  return <RemoteView gatheringId={liveId ?? targetId} slug={share.slug ?? remoteSlug ?? ""} />;
+}
+
+/** A big filled circle with its word in the middle and a line of small mono
+ *  capitals curving around the outside edge: along the top, or (reading
+ *  left to right) along the bottom. */
+function PresentCircle({
+  label,
+  arcText,
+  arc,
+  onClick,
+  disabled = false,
+  className = "",
+}: {
+  label: string;
+  arcText: string;
+  arc: "top" | "bottom";
+  onClick: () => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const id = `arc-${label.toLowerCase()}`;
+  // In a 100 x 100 box: the circle has radius 38; the words ride just
+  // outside it (a bigger radius below, where the letters face inward).
+  const path = arc === "top" ? "M 7 50 A 43 43 0 0 1 93 50" : "M 3.5 50 A 46.5 46.5 0 0 0 96.5 50";
+  return (
+    <div className={`aspect-square ${className}`}>
+      <div className="relative h-full w-full">
+        <svg
+          viewBox="0 0 100 100"
+          className="pointer-events-none absolute inset-0 h-full w-full overflow-visible text-foreground"
+          aria-hidden
+        >
+          <defs>
+            <path id={id} d={path} fill="none" />
+          </defs>
+          <text
+            className="mono uppercase"
+            fill="currentColor"
+            style={{ fontSize: 4.2, letterSpacing: "0.08em" }}
+          >
+            <textPath href={`#${id}`} startOffset="50%" textAnchor="middle">
+              {arcText}
+            </textPath>
+          </text>
+        </svg>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onClick}
+          aria-label={`${label}: ${arcText}`}
+          className="mono absolute inset-[12%] flex animate-pulse items-center justify-center rounded-full bg-foreground text-sm uppercase tracking-wider text-background transition active:opacity-80 disabled:opacity-40"
+        >
+          {label}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** The gathering's name and its edit circle, in the bar over the controls. */
+function GatheringTitle({ gatheringId }: { gatheringId: string }) {
+  const g = useLibrary((s) => s.gatherings[gatheringId]);
+  return (
+    <span className="flex min-w-0 items-center gap-0.5">
+      <span className="mr-0.5 min-w-0 truncate text-xl tracking-[-0.045em]">{g?.name}</span>
+      {/* Edit the gathering, coming back here (as from the live link). */}
+      <Link
+        to="/present"
+        search={{ gathering: gatheringId, remote: true }}
+        className="pill flex h-9 w-9 shrink-0 items-center justify-center transition active:bg-foreground/15"
+        title="Edit gathering"
+        aria-label="Edit gathering"
+      >
+        <Pencil className="h-4 w-4" />
+      </Link>
+    </span>
+  );
+}
+
+// Present from this device: the steps until a TV connects, then a line that
+// says the slides are on it. Two lines' height either way, so nothing moves.
+const TV_STEPS =
+  "To show the slides on your TV, open Control Center, tap Screen Mirroring, then pick your TV.";
+const TV_CONNECTED = "Showing the slides on your TV.";
+
+/** Present from this device: the Remote's controls, driving this phone's own
+ *  live slides, which the app puts on a TV connected by AirPlay or a cable. */
+function LocalPresent({ gatheringId }: { gatheringId: string }) {
+  const tv = useExternalDisplay();
+  const header = (
+    <PhoneBackHeader
+      back="/"
+      title={<GatheringTitle gatheringId={gatheringId} />}
+      actions={
+        <ConfirmPill
+          label="Stop"
+          title="Stop presenting?"
+          body="The TV goes black until you present again."
+          onConfirm={() => {
+            useLocalPresent.getState().stop();
+            useLive.getState().clearLive();
+          }}
+        />
+      }
+    />
+  );
+  return (
+    <PhoneScreen header={header} scroll={false}>
+      <div className="flex h-full flex-col">
+        <p
+          className={`flex h-9 shrink-0 items-center justify-center px-8 text-center ${ACCOUNT_NOTE_CLASS}`}
+        >
+          {tv ? TV_CONNECTED : TV_STEPS}
+        </p>
+        <div className="min-h-0 flex-1">
+          <Deck gatheringId={gatheringId} />
+        </div>
+      </div>
+    </PhoneScreen>
+  );
 }
 
 function RemoteView({ gatheringId, slug }: { gatheringId: string; slug: string }) {
   const status = useRemote((s) => s.status);
   // The last screen closing goes back to the link page.
   const showControls = status === "connected";
-  const g = useLibrary((s) => s.gatherings[gatheringId]);
   // Connected: back to Gatherings (the remote stays connected), the
   // gathering's name in the gathering editor's smaller bar with its line
   // underneath, Disconnect on the right. Before that: Present, like the tab.
   const header = showControls ? (
     <PhoneBackHeader
       back="/"
-      title={
-        <span className="flex min-w-0 items-center gap-0.5">
-          <span className="mr-0.5 min-w-0 truncate text-xl tracking-[-0.045em]">{g?.name}</span>
-          {/* Edit the gathering, coming back here (as from the live link). */}
-          <Link
-            to="/present"
-            search={{ gathering: gatheringId, remote: true }}
-            className="pill flex h-9 w-9 shrink-0 items-center justify-center transition active:bg-foreground/15"
-            title="Edit gathering"
-            aria-label="Edit gathering"
-          >
-            <Pencil className="h-4 w-4" />
-          </Link>
-        </span>
-      }
+      title={<GatheringTitle gatheringId={gatheringId} />}
       actions={<DisconnectButton />}
     />
   ) : (
@@ -262,6 +436,31 @@ function ScreenLink({ slug }: { slug: string }) {
 /** Disconnect: beside the gathering's name once connected, under Share link
  *  on the link page. Asks first, like End Session. */
 function DisconnectButton({ wide = false }: { wide?: boolean }) {
+  return (
+    <ConfirmPill
+      wide={wide}
+      label="Disconnect"
+      title="Disconnect the remote?"
+      body="The screen goes black until a remote connects again. The gathering stays live."
+      onConfirm={() => useRemote.getState().stop()}
+    />
+  );
+}
+
+/** A red outlined pill that asks first (a copy of End this session). */
+function ConfirmPill({
+  label,
+  title,
+  body,
+  onConfirm,
+  wide = false,
+}: {
+  label: string;
+  title: string;
+  body: string;
+  onConfirm: () => void;
+  wide?: boolean;
+}) {
   const [asking, setAsking] = useState(false);
   return (
     <>
@@ -272,26 +471,26 @@ function DisconnectButton({ wide = false }: { wide?: boolean }) {
           wide ? "w-full py-3 text-xs" : "h-8 px-3 text-[10px]"
         }`}
       >
-        Disconnect
+        {label}
       </button>
       <AlertDialog open={asking} onOpenChange={setAsking}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">
-            Disconnect the remote?
+            {title}
           </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
-            The screen goes black until a remote connects again. The gathering stays live.
+            {body}
           </AlertDialogDescription>
           <div className="mt-8 flex gap-3">
             <button
               type="button"
               onClick={() => {
                 setAsking(false);
-                useRemote.getState().stop();
+                onConfirm();
               }}
               className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background"
             >
-              Disconnect
+              {label}
             </button>
             <button
               type="button"

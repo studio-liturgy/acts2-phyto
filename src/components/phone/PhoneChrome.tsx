@@ -1,7 +1,7 @@
 import { Link, Navigate } from "@tanstack/react-router";
 import { ArrowUpLeft, ArrowUpRight, ChevronDown, Layers, Library, Settings } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { PhoneTab } from "@/lib/phone-layout";
+import { presentTabShown, type PhoneTab } from "@/lib/phone-layout";
 import { caretAtPoint, glideBy, revealDelta } from "@/lib/phone-dock";
 import { holdDelay, lineHold } from "@/lib/line-select";
 import { pickCellAt } from "@/lib/row-pick";
@@ -137,11 +137,17 @@ const TABS: { tab: PhoneTab; label: string; Icon: typeof Library }[] = [
 /**
  * Icon-only tab bar along the bottom edge, like the Shiro app's. Tapping the
  * tab already showing scrolls its page back to the top, as iOS apps do.
- * Present (the remote) is there only while a gathering is live.
+ * Present is there while a gathering is live, and in the app without an
+ * account once its one gathering exists (presentTabShown).
  */
 export function PhoneTabBar({ tab, onReselect }: { tab: PhoneTab; onReselect?: () => void }) {
   const anyLive = useLibrary((s) => Object.values(s.gatherings ?? {}).some((g) => isLiveNow(g)));
-  const tabs = TABS.filter((t) => t.tab !== "present" || anyLive || tab === "present");
+  const gatheringCount = useLibrary((s) => s.gatheringOrder?.length ?? 0);
+  // The app without an account presents from this device, no going live.
+  const signedOut = useAuthStore((s) => s.session === null);
+  const noAccount = useNoAccount() && signedOut;
+  const showPresent = presentTabShown(anyLive, noAccount, gatheringCount);
+  const tabs = TABS.filter((t) => t.tab !== "present" || showPresent || tab === "present");
   return (
     <nav className="flex shrink-0 border-t border-foreground/15 bg-background px-1.5 pb-[env(safe-area-inset-bottom)]">
       {tabs.map(({ tab: t, label, Icon }) => (

@@ -14,7 +14,12 @@ import {
 
 import appCss from "../styles.css?url";
 import { APP_NAME } from "@/lib/appConfig";
-import { isNativeApp, nativeAppInitScript, registerAppServiceWorker } from "@/lib/native-app";
+import {
+  hideAppSplash,
+  isNativeApp,
+  nativeAppInitScript,
+  registerAppServiceWorker,
+} from "@/lib/native-app";
 import { clearNoAccount } from "@/lib/no-account";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
@@ -356,6 +361,8 @@ function RootComponent() {
   useEffect(() => {
     setNativeApp(isNativeApp());
     registerAppServiceWorker();
+    // Two frames: the first screen has painted under the launch screen.
+    requestAnimationFrame(() => requestAnimationFrame(hideAppSplash));
   }, []);
   // Phone: pop-up dialogs move above the keyboard while typing in them.
   useDialogKeyboard(PHONE_UI);

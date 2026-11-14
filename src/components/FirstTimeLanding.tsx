@@ -13,11 +13,12 @@ import type { SetKind } from "@/lib/types";
 import type { SyncState } from "@/hooks/use-sync-status";
 import wordmark from "@/assets/wordmark.svg";
 import wordmarkTest from "@/assets/wordmark-test.svg";
-import { PHONE_UI } from "@/lib/phone-layout";
+import { canAddGathering, PHONE_UI } from "@/lib/phone-layout";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import { NoAccountChoice } from "@/components/NoAccountChoice";
 import { useNoAccount } from "@/lib/no-account";
+import { useLibrary } from "@/lib/store";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
 const aboutBg = "/about-bg.jpg";
@@ -287,6 +288,8 @@ export function FirstTimeLanding({
   const phone = usePhoneLayout() === true;
   // The app's "Use without an account": gatherings work on the device.
   const noAccount = useNoAccount();
+  // Without an account the app keeps one gathering (no New Gathering after it).
+  const gatheringCount = useLibrary((s) => s.gatheringOrder?.length ?? 0);
 
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -713,7 +716,9 @@ export function FirstTimeLanding({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {isSignedIn || !isEmpty || noAccount ? (
+              {noAccount && !canAddGathering(isSignedIn, gatheringCount) ? null : isSignedIn ||
+                !isEmpty ||
+                noAccount ? (
                 <button
                   onClick={onNewGathering}
                   className="pill mono uppercase flex items-center gap-2 border border-foreground px-6 py-3 text-sm tracking-wider transition hover:bg-foreground hover:text-background"
