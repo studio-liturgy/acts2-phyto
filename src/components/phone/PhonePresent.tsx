@@ -144,7 +144,7 @@ export function PhonePresent() {
           <p className={NOTE}>
             {status === "denied"
               ? "Couldn't connect as the remote. Sign in again, then tap Remote."
-              : "Control the slides from this phone. Next, open the screen link on the computer or device connected to your TV or projector."}
+              : "Open the screen link on a computer or device connected to your TV or projector. Control the slides from this phone."}
           </p>
         </div>
       </PhoneScreen>
