@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useNativeApp } from "@/hooks/use-native-app";
 import { chooseNoAccount } from "@/lib/no-account";
-import { NO_ACCOUNT_NOTICE } from "@/lib/account-notes";
+import { NO_ACCOUNT_NOTICE, NO_ACCOUNT_WARNING } from "@/lib/account-notes";
 
 /**
  * The app landing's second option, under Sign In: "Use without an account",
@@ -73,6 +73,9 @@ export function NoAccountChoice() {
               Back
             </button>
           </div>
+          <p className="mono mt-4 text-center text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+            {NO_ACCOUNT_WARNING}
+          </p>
         </AlertDialogContent>
       </AlertDialog>
     </>

@@ -11,7 +11,9 @@ export const ACCOUNT_NOTE_CLASS =
 
 /** One-time notice on tapping "Use without an account" (the app). */
 export const NO_ACCOUNT_NOTICE =
-  "Without an account, your library is saved only on this device. Deleting the app or losing the device deletes it for good. Sign in any time to keep a copy in your account.";
+  "Your data will only be saved on this device. To sync your data and access online features, sign in.";
+/** Under the notice's buttons, in red. */
+export const NO_ACCOUNT_WARNING = "Deleting the app loses your data permanently.";
 
 /** Signed-out desktop home in a browser, near Sign in. */
 export const NO_ACCOUNT_BROWSER =
@@ -19,7 +21,7 @@ export const NO_ACCOUNT_BROWSER =
 
 /** The app's Settings top row, by Sign in. */
 export const NO_ACCOUNT_SHORT =
-  "Your data is saved on this device. To sync your data and access more features, sign in.";
+  "Your data is saved only on this device. To sync your data and access online features, sign in.";
 
 /** What each account-only control shows in its place when signed out. */
 export const REQUIRES_ACCOUNT = {
