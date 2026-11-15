@@ -31,10 +31,13 @@ export function PillSwitch({
       onClick={() => onCheckedChange(!checked)}
       // Off reads dimmer than on, so the state is legible without a label.
       // pill-switch: the phone layout draws it smaller (styles.css).
+      // The knob animates only `left`: `transition-all` also eased its
+      // visibility, and iOS left the knob painted over the next tab when a
+      // phone tab hid it (his recording, Nov 15).
       className={`pill-switch relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-current/40 bg-transparent transition-opacity duration-200 hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 ${checked || !dimWhenOff ? "" : "opacity-50"} ${className}`}
     >
       <span
-        className="pill-switch-knob absolute top-1/2 h-[var(--knob,1.25rem)] w-[var(--knob,1.25rem)] -translate-y-1/2 rounded-full bg-current transition-all duration-200"
+        className="pill-switch-knob absolute top-1/2 h-[var(--knob,1.25rem)] w-[var(--knob,1.25rem)] -translate-y-1/2 rounded-full bg-current transition-[left] duration-200"
         style={{ left: checked ? "calc(100% - var(--knob, 1.25rem) - 2px)" : "2px" }}
       />
     </button>
