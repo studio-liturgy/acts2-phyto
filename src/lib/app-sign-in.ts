@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { APPLE_NAME_KEY } from "@/lib/profile";
 
 /**
  * Sign in with Google inside the phyto app. Google refuses sign-in inside an
@@ -82,7 +83,9 @@ export async function signInWithGoogleInApp(): Promise<AppSignIn> {
 }
 
 type AppleSignIn = {
-  signIn: (o: { nonce: string }) => Promise<{ identityToken: string }>;
+  signIn: (o: {
+    nonce: string;
+  }) => Promise<{ identityToken: string; givenName?: string; familyName?: string }>;
 };
 
 function appleSignInPlugin(): AppleSignIn | null {
@@ -127,7 +130,11 @@ export async function signInWithAppleInApp(): Promise<
   const raw = crypto.randomUUID() + crypto.randomUUID();
   let token: string;
   try {
-    ({ identityToken: token } = await plugin.signIn({ nonce: await sha256Hex(raw) }));
+    const r = await plugin.signIn({ nonce: await sha256Hex(raw) });
+    token = r.identityToken;
+    // Apple gives the name only the first time: keep it for the username.
+    const name = [r.givenName, r.familyName].filter(Boolean).join(" ").trim();
+    if (name) localStorage.setItem(APPLE_NAME_KEY, name);
   } catch (e) {
     const code = (e as { code?: string } | null)?.code;
     return { ok: false, cancelled: code === "CANCELLED", error: "Apple sign in didn't finish." };

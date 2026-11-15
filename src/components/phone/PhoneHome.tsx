@@ -73,6 +73,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ShareSetDialog } from "@/components/ShareSetDialog";
+import { useProfile } from "@/lib/profile";
 import { ACCOUNT_NOTE_CLASS, NO_ACCOUNT_SHORT, REQUIRES_ACCOUNT } from "@/lib/account-notes";
 import { SharedInboxList } from "@/components/SharedInboxList";
 import { GroupPanelDialog } from "@/components/GroupPanelDialog";
@@ -1108,6 +1109,9 @@ function SettingsTab({
 }) {
   const navigate = useNavigate();
   const isSignedIn = useIsSignedIn();
+  const myHandle = useProfile((st) =>
+    st.profile && st.profile !== "error" ? st.profile.handle : null,
+  );
   const userEmail = useUserEmail();
   const syncStatus = useSyncStatus();
   const activeWorkspace = useLibrary((s) => s.activeWorkspace) ?? "personal";
@@ -1194,11 +1198,16 @@ function SettingsTab({
             group), then the sync dot beside the email. */}
         {isSignedIn ? (
           <div className="space-y-3 py-2">
-            {/* One row: email, the sync dot, then the group switcher. */}
+            {/* One row: the @username (tap to change), the sync dot, then the
+                group switcher. The email until the username has loaded. */}
             <div className="flex items-center gap-2">
-              <span className="mono min-w-0 truncate text-[10px] uppercase tracking-wider text-foreground/60">
-                {userEmail}
-              </span>
+              <Link
+                to="/welcome"
+                search={{ change: true, next: "/?tab=settings" }}
+                className="mono min-w-0 truncate text-[10px] tracking-wider text-foreground/60"
+              >
+                {myHandle ? `@${myHandle}` : <span className="uppercase">{userEmail}</span>}
+              </Link>
               {syncStatus !== "offline" && (
                 <span
                   data-sync={syncStatus}

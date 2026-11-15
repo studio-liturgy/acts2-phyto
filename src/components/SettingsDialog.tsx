@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useProfile } from "@/lib/profile";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
@@ -27,6 +28,9 @@ export function SettingsDialog({
   const navigate = useNavigate();
   const isSignedIn = useIsSignedIn();
   const userEmail = useUserEmail();
+  const handle = useProfile((st) =>
+    st.profile && st.profile !== "error" ? st.profile.handle : null,
+  );
   const refreshWorkspaceSettings = useLibrary((s) => s.refreshWorkspaceSettings);
 
   const [usage, setUsage] = useState<StorageUsage | null>(null);
@@ -79,6 +83,18 @@ export function SettingsDialog({
 
         {isSignedIn && (
           <div className={GROUP}>
+            {/* The @username others see (shared with antho). */}
+            <div className={SETTING_ROW}>
+              <div className={LABEL}>Username</div>
+              <Link
+                to="/welcome"
+                search={{ change: true }}
+                onClick={() => onOpenChange(false)}
+                className="mono text-[10px] tracking-wider underline-offset-2 hover:underline"
+              >
+                {handle ? `@${handle}` : "Choose"}
+              </Link>
+            </div>
             <div className="py-2">
               <div className="flex items-center justify-between gap-4">
                 <div className={LABEL}>Storage</div>

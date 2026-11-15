@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as UpdatesRouteImport } from './routes/updates'
 import { Route as TransparencyRouteImport } from './routes/transparency'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -38,6 +39,11 @@ import { Route as ApiGroupsInviteRouteImport } from './routes/api/groups/invite'
 import { Route as ApiAuthWelcomeRouteImport } from './routes/api/auth/welcome'
 import { Route as ApiAccountDeleteRouteImport } from './routes/api/account/delete'
 
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UpdatesRoute = UpdatesRouteImport.update({
   id: '/updates',
   path: '/updates',
@@ -193,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
   '/updates': typeof UpdatesRoute
+  '/welcome': typeof WelcomeRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
@@ -223,6 +230,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
   '/updates': typeof UpdatesRoute
+  '/welcome': typeof WelcomeRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
   '/updates': typeof UpdatesRoute
+  '/welcome': typeof WelcomeRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
@@ -286,6 +295,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/transparency'
     | '/updates'
+    | '/welcome'
     | '/auth/callback'
     | '/g/$token'
     | '/s/$shareId'
@@ -316,6 +326,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/transparency'
     | '/updates'
+    | '/welcome'
     | '/auth/callback'
     | '/g/$token'
     | '/s/$shareId'
@@ -346,6 +357,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/transparency'
     | '/updates'
+    | '/welcome'
     | '/auth/callback'
     | '/g/$token'
     | '/s/$shareId'
@@ -377,6 +389,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   TransparencyRoute: typeof TransparencyRoute
   UpdatesRoute: typeof UpdatesRoute
+  WelcomeRoute: typeof WelcomeRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   GTokenRoute: typeof GTokenRoute
   SShareIdRoute: typeof SShareIdRoute
@@ -396,6 +409,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/updates': {
       id: '/updates'
       path: '/updates'
@@ -609,6 +629,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   TransparencyRoute: TransparencyRoute,
   UpdatesRoute: UpdatesRoute,
+  WelcomeRoute: WelcomeRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   GTokenRoute: GTokenRoute,
   SShareIdRoute: SShareIdRoute,

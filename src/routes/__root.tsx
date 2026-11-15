@@ -21,6 +21,7 @@ import {
   registerAppServiceWorker,
 } from "@/lib/native-app";
 import { clearNoAccount } from "@/lib/no-account";
+import { clearMyProfile, loadMyProfile, needsWelcome, useProfile } from "@/lib/profile";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
 const domain = isTest ? "https://phytoexp.live" : "https://phyto.live";
@@ -467,6 +468,8 @@ function RootComponent() {
   // every page load, independent of the diff-dialog gate and the /g/ guard.
   const startSignedIn = () => {
     refreshLiveState();
+    const uid = useAuthStore.getState().session?.user.id;
+    if (uid) void loadMyProfile(uid);
     if (!diffRanThisSession) {
       diffRanThisSession = true;
       seedGroups(useAuthStore.getState().session?.user.id);
@@ -482,6 +485,7 @@ function RootComponent() {
     // Welcome email is sent from auth.callback.tsx (respects mailing-list opt-in).
     const isFirstLogin = s.user.created_at === s.user.last_sign_in_at;
     refreshLiveState();
+    void loadMyProfile(s.user.id);
     if (!diffRanThisSession) {
       diffRanThisSession = true;
       seedGroups(s.user.id);
@@ -547,6 +551,7 @@ function RootComponent() {
         useLibrary.setState({ groups: [], workspaceSettings: readLocalPersonalSettings() });
         clearCachedGroups(window.localStorage);
         stopGroupChannels();
+        clearMyProfile();
       }
       if (event === "SIGNED_IN" && s) {
         // Signed in: "Use without an account" is over (sign out returns to the landing).
@@ -565,6 +570,15 @@ function RootComponent() {
     // render. They're invoked imperatively here, so intentionally omitted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setSession]);
+
+  // Signed in with no username yet: choose one first (once per account).
+  const profile = useProfile((st) => st.profile);
+  useEffect(() => {
+    if (!needsWelcome(pathname, !!session, profile)) return;
+    if (TESTERS_ONLY && !testerOk) return;
+    const here = pathname + window.location.search;
+    navigate({ to: "/welcome", search: here === "/" ? {} : { next: here }, replace: true });
+  }, [session, profile, pathname, testerOk, navigate]);
 
   // phytoexp.live: signed out, only sign in (and the pages it needs) opens.
   useEffect(() => {
