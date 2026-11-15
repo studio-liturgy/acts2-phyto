@@ -11,7 +11,6 @@ import { deleteAccount, fetchStorageUsage, formatBytes, type StorageUsage } from
 /** A setting row: the same height as WorkspaceSettingsRows / Arrangements. */
 const SETTING_ROW = "flex min-h-11 items-center justify-between gap-4";
 const LABEL = "mono text-xs uppercase tracking-wider";
-const GROUP = "mt-2";
 
 /**
  * Settings, opened from the home header while in the Personal workspace (a
@@ -74,6 +73,21 @@ export function SettingsDialog({
         {/* Personal workspace settings work signed out too (kept on the device).
             The setting rows share one height, so they're evenly spaced. */}
         <div className="mt-4">
+          {/* The username others see (shared with antho), first. Every row is
+              one SETTING_ROW high, so the titles sit evenly spaced. */}
+          {isSignedIn && (
+            <div className={SETTING_ROW}>
+              <div className={LABEL}>Username</div>
+              <Link
+                to="/welcome"
+                search={{ change: true }}
+                onClick={() => onOpenChange(false)}
+                className="mono text-xs uppercase tracking-wider underline-offset-2 hover:underline"
+              >
+                {handle ?? "Choose"}
+              </Link>
+            </div>
+          )}
           <WorkspaceSettingsRows />
           <div className={SETTING_ROW}>
             <div className={LABEL}>Light / dark mode</div>
@@ -82,29 +96,17 @@ export function SettingsDialog({
         </div>
 
         {isSignedIn && (
-          <div className={GROUP}>
-            {/* The @username others see (shared with antho). */}
-            <div className={SETTING_ROW}>
-              <div className={LABEL}>Username</div>
-              <Link
-                to="/welcome"
-                search={{ change: true }}
-                onClick={() => onOpenChange(false)}
-                className="mono text-[10px] uppercase tracking-wider underline-offset-2 hover:underline"
-              >
-                {handle ?? "Choose"}
-              </Link>
-            </div>
-            <div className="py-2">
-              <div className="flex items-center justify-between gap-4">
+          <div>
+            <div>
+              <div className={SETTING_ROW}>
                 <div className={LABEL}>Storage</div>
-                <div className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                <div className="mono text-xs uppercase tracking-wider text-muted-foreground">
                   {usage
                     ? `${formatBytes(usage.used)} of ${formatBytes(usage.quota)} (${Math.round(pct)}%)`
                     : "Checking"}
                 </div>
               </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-foreground/15">
+              <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-foreground/15">
                 <div
                   className="h-full rounded-full bg-foreground transition-[width] duration-500"
                   style={{ width: `${usage ? Math.max(pct, usage.used > 0 ? 1 : 0) : 0}%` }}
