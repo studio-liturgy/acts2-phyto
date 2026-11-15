@@ -92,7 +92,7 @@ export function PhoneSetTabs({
               none), so the grid's measured rows are there the moment you
               come back instead of re-measuring from zero. */}
           <div
-            className={`h-full ${tab === "editor" ? "" : "pointer-events-none invisible absolute inset-0"}`}
+            className={`h-full ${tab === "editor" ? "" : "pointer-events-none invisible absolute inset-0 opacity-0"}`}
           >
             {editor}
           </div>
