@@ -584,7 +584,7 @@ export function FirstTimeLanding({
             button gives the normal header, so the pills sit at the identical position. */}
         <div className="absolute inset-x-0 top-0">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] md:pt-10">
-            {!isEmpty && !signInOnly && phone && (
+            {(!isEmpty || noAccount) && !signInOnly && phone && (
               <Link
                 to="/"
                 search={backSearch}
@@ -687,6 +687,15 @@ export function FirstTimeLanding({
               </Link>
               <NoAccountChoice />
             </div>
+          ) : phone && !isSignedIn ? (
+            // Phone, signed out (the app's "Use without an account"): Sign in
+            // instead of New Set / New Gathering.
+            <Link
+              to="/login"
+              className="pill mono uppercase flex items-center gap-2 bg-foreground px-6 py-3 text-xs tracking-wider text-background transition hover:opacity-90"
+            >
+              Sign In
+            </Link>
           ) : (
             <>
               <DropdownMenu>
