@@ -80,7 +80,7 @@ function WelcomePage() {
     );
   }, [session, existing]);
 
-  const problem = handle ? handleProblem(handle) : "too-short";
+  const problem = handle ? handleProblem(handle, session?.user.email) : "too-short";
   const unchanged = !!existing && existing.handle === handle;
 
   // Check it's free once typing pauses.

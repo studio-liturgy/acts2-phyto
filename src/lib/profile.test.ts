@@ -41,3 +41,10 @@ describe("needsWelcome", () => {
     expect(needsWelcome("/login", true, null)).toBe(false);
   });
 });
+
+describe("reserved names", () => {
+  it("are blocked, except for the studio's own account", () => {
+    expect(handleProblem("studioliturgy", "someone@gmail.com")).toBe("reserved");
+    expect(handleProblem("studioliturgy", "Hello@StudioLiturgy.com")).toBeNull();
+  });
+});

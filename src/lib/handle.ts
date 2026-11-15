@@ -1,6 +1,7 @@
 /**
  * @usernames, shared with antho (its `profiles` table, same accounts): unique,
- * lowercase. A copy of antho's src/lib/handle.ts: keep the two the same. The
+ * lowercase. A copy of antho's src/lib/handle.ts: keep the two the same, apart
+ * from RESERVED_ALLOWED. The
  * database enforces the pattern, so these checks are for friendly messages.
  */
 
@@ -39,12 +40,19 @@ export function normalizeHandle(input: string): string {
 
 export type HandleProblem = "too-short" | "too-long" | "characters" | "reserved";
 
+/** The studio's own account may take the reserved names (his call, Nov 15:
+ *  @studioliturgy for hello@studioliturgy.com). phyto only for now; antho's
+ *  copy still blocks them. */
+const RESERVED_ALLOWED = new Set(["hello@studioliturgy.com"]);
+
 /** Returns what's wrong with a normalized handle, or null when it's usable. */
-export function handleProblem(handle: string): HandleProblem | null {
+export function handleProblem(handle: string, email?: string | null): HandleProblem | null {
   if (handle.length < HANDLE_MIN) return "too-short";
   if (handle.length > HANDLE_MAX) return "too-long";
   if (!HANDLE_PATTERN.test(handle)) return "characters";
-  if (RESERVED.has(handle)) return "reserved";
+  if (RESERVED.has(handle) && !RESERVED_ALLOWED.has((email ?? "").toLowerCase())) {
+    return "reserved";
+  }
   return null;
 }
 
