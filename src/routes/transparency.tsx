@@ -234,9 +234,7 @@ function TransparencyPage() {
           <p>All amounts are in CAD.</p>
         </div>
 
-        <div className="mt-12">
-          <BackToTop />
-        </div>
+        <BackToTop />
       </main>
 
       <Footer className="mt-0" />

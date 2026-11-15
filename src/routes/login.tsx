@@ -48,7 +48,8 @@ function LoginPage() {
   const [notTester, setNotTester] = useState(false);
   // Phone: button words in the big button size (Delete gathering's).
   const phone = usePhoneLayout() === true && PHONE_UI;
-  const btnText = phone ? "text-xs tracking-wider" : "text-sm";
+  // Phone: the Settings pills' small mono (Sign out, Delete Account).
+  const btnText = phone ? "text-[10px] tracking-wider" : "text-sm";
   // Phone: "Keep me in the loop" sized to run edge to edge under the buttons.
   const loopRow = useRef<HTMLLabelElement>(null);
   const loopText = useRef<HTMLSpanElement>(null);
@@ -275,6 +276,7 @@ function LoginPage() {
                     same size and shape (the native sheet). */}
                 {appleIn && (
                   <button
+                    style={{ marginTop: "0.5rem" }}
                     type="button"
                     onClick={() => {
                       sessionStorage.setItem("phyto-subscribe", String(subscribe));

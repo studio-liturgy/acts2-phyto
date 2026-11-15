@@ -74,9 +74,7 @@ export function LegalLayout({
 
         <div className="mt-3">{children}</div>
 
-        <div className="mt-12">
-          <BackToTop />
-        </div>
+        <BackToTop />
       </main>
       <Footer />
     </div>

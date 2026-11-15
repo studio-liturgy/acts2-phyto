@@ -1151,7 +1151,6 @@ function SettingsTab({
     }
   };
 
-  const LABEL = "mono text-xs uppercase tracking-wider";
   const SECTION = "py-4";
   // Section titles in the page's small mono, quieter than the controls.
   const HEADING = "mono mb-3 text-[10px] uppercase tracking-wider text-foreground/40";
@@ -1292,7 +1291,7 @@ function SettingsTab({
           </div>
         ) : (
           <div className="flex items-center justify-between py-4">
-            <span className={LABEL}>Not signed in</span>
+            <span className="mono text-[10px] uppercase tracking-wider">Not signed in</span>
             <Link to="/login" className={S_FILLED}>
               Sign in
             </Link>

@@ -1194,7 +1194,6 @@ export function FirstTimeLanding({
           </Link>
           .
         </p>
-        {!phone && <BackToTop />}
       </div>
 
       {/* ── Partnership band + slim footer (one continuous blue band) ── */}

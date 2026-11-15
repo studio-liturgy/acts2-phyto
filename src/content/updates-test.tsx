@@ -120,9 +120,7 @@ export default function UpdatesTest() {
             </ul>
           </li>
         </ul>
-        <div className="mt-12">
-          <BackToTop />
-        </div>
+        <BackToTop />
       </main>
       <Footer />
     </div>

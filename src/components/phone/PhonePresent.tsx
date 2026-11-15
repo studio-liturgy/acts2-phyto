@@ -300,7 +300,38 @@ function GatheringTitle({ gatheringId }: { gatheringId: string }) {
 
 // Present from this device: the steps page until a TV connects (like the
 // screen link page before a screen connects), then the controls.
-const TV_STEPS = ["Open Control Center", "Tap Screen Mirroring", "Select your AirPlay device"];
+/** iOS's Screen Mirroring glyph (two overlapping screens), drawn in lucide's
+ *  style: Apple's own symbols can't be used on the web. */
+function ScreenMirroringIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M8 6V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-1" />
+      <rect x="3" y="9" width="13" height="11" rx="2" />
+    </svg>
+  );
+}
+
+const TV_STEPS: { key: string; label: ReactNode }[] = [
+  { key: "control-center", label: "Open Control Center" },
+  {
+    key: "mirroring",
+    label: (
+      <span className="flex items-center gap-2">
+        Tap <ScreenMirroringIcon className="h-5 w-5 shrink-0" /> Screen Mirroring
+      </span>
+    ),
+  },
+  { key: "airplay", label: "Select your AirPlay device" },
+];
 
 /** True once a TV is connected; a disconnect only counts after 2 s, so a
  *  blip doesn't flash the steps page. */
@@ -336,13 +367,13 @@ function LocalPresent({ gatheringId }: { gatheringId: string }) {
             <ol className="flex flex-col gap-5">
               {TV_STEPS.map((step, i) => (
                 <li
-                  key={step}
+                  key={step.key}
                   className="mono flex items-center gap-4 text-sm uppercase tracking-wider"
                 >
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-foreground text-xs">
                     {i + 1}
                   </span>
-                  {step}
+                  {step.label}
                 </li>
               ))}
             </ol>

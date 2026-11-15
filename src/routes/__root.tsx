@@ -376,7 +376,8 @@ function RootComponent() {
     // empty device is still downloading the account. fetchRemote fills in the
     // real done/total counts once it knows how many sets need content.
     const { setPull, setStatus } = useSyncStatusStore.getState();
-    setPull({ done: 0, total: 0 });
+    // Keep a sign-in's loading view (fresh) if one is already showing.
+    setPull({ done: 0, total: 0, fresh: useSyncStatusStore.getState().pull?.fresh });
     // Nothing on this device yet (a first sign-in, or after a phone sign out
     // cleared it): gatherings can land before their sets, so the home keeps
     // the loading view until the whole pull is done instead of "(missing)".
@@ -506,6 +507,7 @@ function RootComponent() {
       writeVerifiedTester(window.localStorage, null);
       setTesterOk(false);
       setNotTester(true);
+      useSyncStatusStore.getState().setPull(null);
       await signOut();
       return false;
     }
@@ -536,6 +538,14 @@ function RootComponent() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, s) => {
+      // A real sign-in (no account a moment ago): the loading view shows from
+      // this instant until the account pull finishes, every time, so the tabs
+      // never show empty and fill in piece by piece. (Supabase also sends
+      // SIGNED_IN when a session is merely refreshed: those keep the screen.)
+      const wasSignedIn = !!useAuthStore.getState().session;
+      if (event === "SIGNED_IN" && s && !wasSignedIn && !diffRanThisSession) {
+        useSyncStatusStore.getState().setPull({ done: 0, total: 0, fresh: true });
+      }
       setSession(s);
       if (event === "SIGNED_OUT") {
         // Not the user's own Sign out: phyto lost the login (expired, revoked).
@@ -558,8 +568,12 @@ function RootComponent() {
         clearNoAccount();
         // Not awaited: an awaited Supabase call inside this callback deadlocks
         // the auth lock.
-        if (TESTERS_ONLY) void testerGate(s).then((ok) => ok && afterSignIn(s));
-        else afterSignIn(s);
+        if (TESTERS_ONLY) {
+          void testerGate(s).then((ok) => {
+            if (ok) afterSignIn(s);
+            else useSyncStatusStore.getState().setPull(null);
+          });
+        } else afterSignIn(s);
       }
     });
 
