@@ -139,10 +139,7 @@ function WelcomePage() {
           People see it when you share sets and gatherings or invite them to a group, and they can
           share with you by it.
         </p>
-        <label className="mt-8 flex items-center gap-1 rounded-full border border-foreground px-4 py-2">
-          <span className="text-foreground/50" aria-hidden>
-            @
-          </span>
+        <label className="mt-8 flex items-center rounded-full border border-foreground px-4 py-2">
           <input
             autoCapitalize="none"
             autoCorrect="off"
@@ -156,7 +153,7 @@ function WelcomePage() {
             }}
             disabled={saving}
             aria-label="Username"
-            className="min-w-0 flex-1 bg-transparent text-base outline-none"
+            className="mono min-w-0 flex-1 bg-transparent text-base uppercase tracking-wider outline-none"
           />
         </label>
         {/* Space kept, so nothing moves when the hint changes. */}

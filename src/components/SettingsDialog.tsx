@@ -90,9 +90,9 @@ export function SettingsDialog({
                 to="/welcome"
                 search={{ change: true }}
                 onClick={() => onOpenChange(false)}
-                className="mono text-[10px] tracking-wider underline-offset-2 hover:underline"
+                className="mono text-[10px] uppercase tracking-wider underline-offset-2 hover:underline"
               >
-                {handle ? `@${handle}` : "Choose"}
+                {handle ?? "Choose"}
               </Link>
             </div>
             <div className="py-2">

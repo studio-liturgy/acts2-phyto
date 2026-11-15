@@ -1204,9 +1204,9 @@ function SettingsTab({
               <Link
                 to="/welcome"
                 search={{ change: true, next: "/?tab=settings" }}
-                className="mono min-w-0 truncate text-[10px] tracking-wider text-foreground/60"
+                className="mono min-w-0 truncate text-[10px] uppercase tracking-wider text-foreground"
               >
-                {myHandle ? `@${myHandle}` : <span className="uppercase">{userEmail}</span>}
+                {myHandle ?? userEmail}
               </Link>
               {syncStatus !== "offline" && (
                 <span
