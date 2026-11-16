@@ -20,6 +20,10 @@ interface Props {
   role?: Role | null;
   /** Show role: this line starts a reader's run, so it gets the L / P mark. */
   roleMark?: boolean;
+  /** The line's language tag, when known. */
+  lang?: string;
+  /** Inline style for the line (the viewer's per-line serif for Chinese). */
+  style?: CSSProperties;
 }
 
 /**
@@ -40,6 +44,8 @@ export function ChordLine({
   chordStyle,
   role,
   roleMark = false,
+  lang,
+  style,
 }: Props) {
   // Call and Response: the role label stays in front of the words, outside
   // the chord columns, and People lines are bold.
@@ -51,7 +57,7 @@ export function ChordLine({
   if (!visible) {
     if (!parsed.text) return null;
     return (
-      <p className={lineClass}>
+      <p className={lineClass} lang={lang} style={style}>
         <span className="relative">
           {label}
           {parsed.text}
@@ -65,7 +71,7 @@ export function ChordLine({
   // Instrumental line — chords with no lyric under them.
   if (!parsed.text) {
     return (
-      <p className={className}>
+      <p className={className} lang={lang} style={style}>
         <span className={chordClassName}>
           {parsed.chords.map((c) => render(c.chord)).join(" ")}
         </span>
@@ -74,7 +80,7 @@ export function ChordLine({
   }
 
   return (
-    <p className={lineClass}>
+    <p className={lineClass} lang={lang} style={style}>
       <span className="relative">
         {label}
         {toChordSegments(parsed, render).map((seg, i) => (

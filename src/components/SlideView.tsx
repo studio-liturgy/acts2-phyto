@@ -10,7 +10,14 @@ import { renderRoleLine } from "@/lib/role-line";
 import { startsRoleRun, type Role } from "@/lib/song-roles";
 
 import { scriptOfTranslation, versionLangTag } from "@/lib/bible";
-import { langDef, langFontStack, langWordBreak, typesetLine } from "@/lib/langs";
+import {
+  cjkSerifStack,
+  langDef,
+  langFontStack,
+  langWordBreak,
+  serifBaseStack,
+  typesetLine,
+} from "@/lib/langs";
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackgroundOverride } from "@/lib/background-override";
 
@@ -562,7 +569,7 @@ export function SlideView({
           width: stage.w,
           height: stage.h,
           transform: `translate(${fitStage.x}px, ${fitStage.y}px) scale(${scale})`,
-          fontFamily: template?.fontFamily,
+          fontFamily: template?.fontFamily && serifBaseStack(template.fontFamily),
           ...(backdrop ? {} : bg),
         }}
       >
@@ -627,7 +634,12 @@ export function SlideView({
                               lineBreak: "strict",
                               fontFamily: vLang
                                 ? langFontStack(vLang, template?.fontFamily)
-                                : undefined,
+                                : template?.fontFamily &&
+                                  cjkSerifStack(
+                                    template.fontFamily,
+                                    l.text,
+                                    versionLangTag(l.version),
+                                  ),
                             }}
                           >
                             {renderInline(vLang ? typesetLine(vLang, l.text) : l.text)}
@@ -664,7 +676,11 @@ export function SlideView({
                                   lineBreak: "strict" as const,
                                   fontFamily: langFontStack(lang, template?.fontFamily),
                                 }
-                              : {}),
+                              : // Untagged Japanese keeps its own serif.
+                                {
+                                  fontFamily:
+                                    template?.fontFamily && cjkSerifStack(template.fontFamily, l),
+                                }),
                           }}
                         >
                           {slide?.kind === "lyric"

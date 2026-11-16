@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ChordLine } from "@/components/ChordLine";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { TapRange } from "@/components/TapRange";
-import { guessKey, KEYS, transposeLyrics, type SongChords } from "@/lib/chords";
+import { guessKey, KEYS, stripChords, transposeLyrics, type SongChords } from "@/lib/chords";
 import { groupSlides, hiddenSlideIndices, opensSection } from "@/lib/sections";
 import { arrangedEntries, effectiveArrangement } from "@/lib/arrangements";
 import { renderInline } from "@/lib/inline-format";
 import { MAX_SHOWN_LANGS, shownLangs } from "@/lib/multiling";
-import { isLangCode, langDef, type LangCode } from "@/lib/langs";
+import { cjkSerifStack, isLangCode, langDef, serifBaseStack, type LangCode } from "@/lib/langs";
 import { startsRoleRun, type Role } from "@/lib/song-roles";
 import {
   DropdownMenu,
@@ -70,7 +70,8 @@ function passageByVersion(
 
 const FONT_FAMILY_CSS: Record<FontFamily, string> = {
   sans: "ui-sans-serif, system-ui, sans-serif",
-  serif: "Georgia, serif",
+  // Chinese lines get phyto's own Chinese serif (see serifBaseStack).
+  serif: serifBaseStack("Georgia, serif"),
   mono: "'Space Mono', monospace",
 };
 
@@ -656,6 +657,7 @@ export function PhoneViewer({
               isDark={prefs.isDark}
               showChords={showChords}
               chordConfig={activeChordConfig}
+              serifFont={prefs.fontFamily === "serif" ? "Georgia, serif" : undefined}
             />
           )}
         </div>
@@ -825,6 +827,7 @@ function SetContent({
   isDark,
   showChords,
   chordConfig,
+  serifFont,
 }: {
   set: PhoneSet;
   hiddenKeys: string[];
@@ -832,6 +835,9 @@ function SetContent({
   isDark: boolean;
   showChords: boolean;
   chordConfig: ChordViewConfig | null;
+  /** The viewer's serif stack when Serif is picked: Japanese song lines then
+   *  keep the Japanese serif instead of the page's Chinese one. */
+  serifFont?: string;
 }) {
   // Drop the sections the leader hid before anything is grouped or rendered —
   // the phone mirrors the presenter's visibility exactly.
@@ -908,13 +914,20 @@ function SetContent({
     // Call and Response roles ride along, one per line.
     const rolesOf = (slide: PhoneSlide) =>
       (slide.lines ?? []).map((_, i) => slide.roles?.[i] ?? null);
-    const groups: { section: string | undefined; lines: string[]; roles: (Role | null)[] }[] = [];
+    const langsOf = (slide: PhoneSlide) => (slide.lines ?? []).map((_, i) => slide.lineLangs?.[i]);
+    const groups: {
+      section: string | undefined;
+      lines: string[];
+      roles: (Role | null)[];
+      langs: (string | undefined)[];
+    }[] = [];
     if (arranged.length > 0) {
       for (const e of arranged) {
         groups.push({
           section: e.group.section ?? undefined,
           lines: e.group.items.flatMap(({ slide }) => slide.lines ?? []),
           roles: e.group.items.flatMap(({ slide }) => rolesOf(slide)),
+          langs: e.group.items.flatMap(({ slide }) => langsOf(slide)),
         });
       }
     }
@@ -926,11 +939,13 @@ function SetContent({
       if (last && !opens) {
         last.lines.push(...(slide.lines ?? []));
         last.roles.push(...rolesOf(slide));
+        last.langs.push(...langsOf(slide));
       } else {
         groups.push({
           section: slide.section,
           lines: [...(slide.lines ?? [])],
           roles: rolesOf(slide),
+          langs: langsOf(slide),
         });
       }
     }
@@ -945,6 +960,8 @@ function SetContent({
             section={group.section}
             lines={group.lines}
             roles={group.roles}
+            langs={group.langs}
+            serifFont={serifFont}
             roleStyle={{
               marks: slides.some((sl) => sl.roleMarks),
               align: slides.find((sl) => sl.roleAlign)?.roleAlign,
@@ -1156,10 +1173,23 @@ function roleLineClass(
   return `${gap} ${side}`.trim();
 }
 
+/** A song line's own serif when it is Japanese (kana or tagged), Traditional
+ *  Chinese or another CJK tag; plain lines keep the page's stack. */
+function lineSerifStyle(
+  serifFont: string | undefined,
+  line: string,
+  lang: string | undefined,
+): CSSProperties | undefined {
+  const stack = serifFont && cjkSerifStack(serifFont, stripChords(line), lang);
+  return stack ? { fontFamily: stack } : undefined;
+}
+
 function SlideBlock({
   section,
   lines,
   roles,
+  langs,
+  serifFont,
   roleStyle,
   isDark,
   chordConfig,
@@ -1168,6 +1198,8 @@ function SlideBlock({
   section: string | undefined;
   lines: string[];
   roles?: (Role | null)[];
+  langs?: (string | undefined)[];
+  serifFont?: string;
   roleStyle?: { marks: boolean; align?: "left" | "split" };
   isDark: boolean;
   chordConfig: ChordViewConfig | null;
@@ -1193,6 +1225,8 @@ function SlideBlock({
           chords={chords}
           show={showChords}
           role={roles?.[j]}
+          lang={langs?.[j]}
+          style={lineSerifStyle(serifFont, line, langs?.[j])}
           roleMark={!!roleStyle?.marks && !!roles && startsRoleRun(roles, j)}
           className={`leading-relaxed ${roleLineClass(roles, j, roleStyle?.align)}`}
           chordClassName="text-[0.7em] font-semibold"

@@ -1,6 +1,10 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+/* Chinese serif, self-hosted and split by character: a device downloads only
+   the pieces for characters it shows, and only when a serif is in use. */
+@import "@fontsource-variable/noto-serif-sc";
+@import "@fontsource-variable/noto-serif-tc";
 
 @custom-variant dark (&:is(.dark *));
 

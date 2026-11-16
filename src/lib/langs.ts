@@ -364,7 +364,61 @@ export function langCodeForTag(tag: string): LangCode | undefined {
  */
 export function langFontStack(code: LangCode, templateFont?: string): string {
   const fallback = langDef(code).fontFallback;
+  const serif = SERIF_FALLBACK[fallback];
+  if (serif && templateFont && endsWithSerif(templateFont)) {
+    return withSerifFallback(templateFont, serif);
+  }
   return [templateFont, fallback].filter(Boolean).join(", ");
+}
+
+// Chinese and Japanese in a serif typeface. Phones ship no complete Chinese
+// serif font (iOS has only the Japanese Hiragino Mincho, which lacks many
+// Chinese characters, so the gaps fell back to a sans font mid-line), so
+// phyto serves Noto Serif SC/TC itself (self-hosted, split by character, so
+// a device downloads only the pieces for the characters it shows).
+const SC_SERIF = "'Noto Serif SC Variable', 'Songti SC', STSong, SimSun";
+const TC_SERIF = "'Noto Serif TC Variable', 'Songti TC', PMingLiU";
+const JP_SERIF = "'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP'";
+const SERIF_FALLBACK: Record<string, string> = { [SC]: SC_SERIF, [TC]: TC_SERIF, [JP]: JP_SERIF };
+
+/** True for a stack that ends in the generic `serif` (not `sans-serif`). */
+export function endsWithSerif(stack: string): boolean {
+  const last = stack.split(",").pop()?.trim().toLowerCase();
+  return last === "serif";
+}
+
+/** The stack with `fallback` put in before its closing generic family: a
+ *  generic in the middle claims every character, so nothing after it is used. */
+function withSerifFallback(stack: string, fallback: string): string {
+  const head = stack.split(",").slice(0, -1).join(",").trim();
+  return [head, fallback, "serif"].filter(Boolean).join(", ");
+}
+
+/** A serif stack for a whole slide or page whose lines aren't all tagged:
+ *  untagged Chinese (and anything else Han) gets the Chinese serif instead of
+ *  whatever the device picks per character. Other stacks come back as is. */
+export function serifBaseStack(stack: string): string {
+  return endsWithSerif(stack) ? withSerifFallback(stack, SC_SERIF) : stack;
+}
+
+const HAN_OR_KANA = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
+const KANA = /[\u3040-\u30ff]/;
+
+/**
+ * The font stack for a line of Chinese or Japanese under a serif typeface
+ * (`base`), so every character of the line comes from one serif font.
+ * `lang` is the line's language when known; otherwise kana make it Japanese
+ * and any other Han text is set in the Simplified Chinese serif (which has the
+ * traditional characters too). Undefined when `base` isn't serif or the line
+ * has no Han or kana, so the caller keeps its own font.
+ */
+export function cjkSerifStack(base: string, text: string, lang?: string): string | undefined {
+  if (!endsWithSerif(base) || !HAN_OR_KANA.test(text)) return undefined;
+  if (lang && isLangCode(lang)) {
+    const serif = SERIF_FALLBACK[langDef(lang).fontFallback];
+    return serif ? withSerifFallback(base, serif) : undefined;
+  }
+  return withSerifFallback(base, KANA.test(text) ? JP_SERIF : SC_SERIF);
 }
 
 /**
