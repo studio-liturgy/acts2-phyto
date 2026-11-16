@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, Monitor, Pencil, Smartphone } from "lucide-react";
+import { ArrowUp, Monitor, Pencil, SlidersHorizontal, Smartphone } from "lucide-react";
 import { useLibrary } from "@/lib/store";
 import { toPhoneSet } from "@/lib/gathering-phone-sets";
 import { chordChangePatch } from "@/lib/chord-change";
 import { loadPrefs, type ViewerPrefs } from "@/lib/phone-viewer";
 import type { Set as PhytoSet } from "@/lib/types";
-import { PhoneViewer } from "@/components/PhoneViewer";
+import { PhoneViewer, ViewerSettings } from "@/components/PhoneViewer";
 import { RoleAlignRow } from "@/components/RoleAlignRow";
 import { songLayoutOf } from "@/lib/song-layout";
 import { PhoneScreen } from "@/components/phone/PhoneChrome";
@@ -50,6 +50,65 @@ function SlidesScroller({ children }: { children: ReactNode }) {
         <ArrowUp className="h-4 w-4" />
       </button>
     </div>
+  );
+}
+
+/**
+ * The Phone tab's display controls (font size, font type, theme, chords): a
+ * round button at the bottom right, where the Slides tab's back to top sits,
+ * opening the phone menu's panel above it. Tap outside to close.
+ */
+function PreviewControls({
+  prefs,
+  setPrefs,
+  hasChords,
+}: {
+  prefs: ViewerPrefs;
+  setPrefs: (updater: (p: ViewerPrefs) => ViewerPrefs) => void;
+  hasChords: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const close = () => {
+    setClosing(true);
+    timer.current = setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+    }, 150);
+  };
+  const dark = prefs.isDark;
+  return (
+    <>
+      {open && <div className="absolute inset-0 z-20" onClick={close} aria-hidden />}
+      {open && (
+        <div
+          className={`absolute bottom-[4.25rem] right-4 z-30 w-[240px] origin-bottom-right rounded-2xl border p-4 shadow-xl duration-150 ${
+            closing
+              ? "animate-out fade-out-0 zoom-out-95 slide-out-to-bottom-2 fill-mode-forwards"
+              : "animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2"
+          } ${dark ? "dark border-white/10 bg-neutral-900 text-white" : "border-black/10 bg-white text-black"}`}
+        >
+          <ViewerSettings prefs={prefs} setPrefs={setPrefs} hasChords={hasChords} dark={dark} />
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => (open ? close() : setOpen(true))}
+        className="pill absolute bottom-4 right-4 z-30 flex h-11 w-11 items-center justify-center border border-foreground bg-background text-foreground transition active:opacity-80"
+        title="Display settings"
+        aria-label="Display settings"
+        aria-expanded={open}
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+      </button>
+    </>
   );
 }
 
@@ -119,6 +178,7 @@ export function PhoneSetTabs({
                       if (p) updateSet(setId, p);
                     }}
                   />
+                  <PreviewControls prefs={prefs} setPrefs={setPrefs} hasChords={!chordsOff} />
                 </div>
               </div>
             ))}

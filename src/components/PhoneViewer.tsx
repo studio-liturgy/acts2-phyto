@@ -32,6 +32,13 @@ import {
 
 /** QR overlay fade, in and out. */
 const QR_FADE_MS = 200;
+
+/** The font circles' letters, as on the remote's Template settings. */
+const FONT_SHORT: Record<FontFamily, { label: string; short: string }> = {
+  sans: { label: "Sans", short: "Sa" },
+  serif: { label: "Serif", short: "Se" },
+  mono: { label: "Mono", short: "Mo" },
+};
 /** Settings menu open/close animation (matches the duration-150 class). */
 const MENU_ANIM_MS = 150;
 
@@ -741,15 +748,19 @@ export function ViewerSettings({
       {/* Font type */}
       <div>
         <div className="mb-2 text-[10px] uppercase tracking-wider">Font type</div>
-        <div className="grid grid-cols-1 gap-1">
+        {/* Three circles in a row, as on the remote, sized to the panel. */}
+        <div className="flex justify-between">
           {(["sans", "serif", "mono"] as FontFamily[]).map((f) => {
             const active = prefs.fontFamily === f;
             return (
               <button
                 key={f}
+                type="button"
                 onClick={() => setPrefs((p) => ({ ...p, fontFamily: f }))}
                 style={{ fontFamily: FONT_FAMILY_CSS[f] }}
-                className={`rounded-lg border px-3 py-1.5 text-left text-sm capitalize transition ${
+                aria-label={FONT_SHORT[f].label}
+                title={FONT_SHORT[f].label}
+                className={`flex h-12 w-12 items-center justify-center rounded-full border text-base transition ${
                   active
                     ? dark
                       ? "border-white bg-white text-black"
@@ -759,7 +770,7 @@ export function ViewerSettings({
                       : "border-black/40 hover:border-black"
                 }`}
               >
-                {f}
+                {FONT_SHORT[f].short}
               </button>
             );
           })}
