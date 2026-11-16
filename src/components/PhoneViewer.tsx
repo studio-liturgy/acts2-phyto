@@ -748,8 +748,8 @@ export function ViewerSettings({
       {/* Font type */}
       <div>
         <div className="mb-2 text-[10px] uppercase tracking-wider">Font type</div>
-        {/* Three circles in a row, as on the remote, sized to the panel. */}
-        <div className="flex justify-between">
+        {/* Three circles in a row, 12px apart as on the remote. */}
+        <div className="flex gap-3">
           {(["sans", "serif", "mono"] as FontFamily[]).map((f) => {
             const active = prefs.fontFamily === f;
             return (
