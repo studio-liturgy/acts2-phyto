@@ -791,21 +791,21 @@ export function ViewerSettings({
       {hasChords && (
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-wider">Chords</span>
-          {/* Toggle themed to the phone view: light track + dark thumb on a dark
-              phone, dark track + light thumb on a light one. */}
+          {/* The Theme toggle's shape and size (outlined track, solid knob),
+              without an icon; dimmer when off. */}
           <button
+            type="button"
             role="switch"
             aria-checked={prefs.showChords}
             aria-label="Show chords"
             onClick={() => setPrefs((p) => ({ ...p, showChords: !p.showChords }))}
-            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
-              dark ? "bg-white" : "bg-black"
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-current/40 bg-transparent transition-opacity duration-200 hover:opacity-80 ${
+              prefs.showChords ? "" : "opacity-50"
             }`}
           >
             <span
-              className={`inline-block h-4 w-4 rounded-full transition-transform ${
-                dark ? "bg-black" : "bg-white"
-              } ${prefs.showChords ? "translate-x-[18px]" : "translate-x-0.5"}`}
+              className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-current transition-[left] duration-200"
+              style={{ left: prefs.showChords ? "calc(100% - 1.25rem - 2px)" : "2px" }}
             />
           </button>
         </div>
