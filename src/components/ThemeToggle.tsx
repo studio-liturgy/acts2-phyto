@@ -6,13 +6,27 @@ import { Sun, Moon } from "lucide-react";
 // the icon inside it takes the background colour: black on dark, white on light.
 const iconColor = "text-background";
 
-export function ThemeToggle({ className = "" }: { className?: string }) {
-  const { mode, toggle } = useTheme();
+export function ThemeToggle({
+  className = "",
+  dark,
+  onToggle,
+}: {
+  className?: string;
+  /** Controlled: another theme than the app's (the phone view's Theme). */
+  dark?: boolean;
+  onToggle?: () => void;
+}) {
+  const { mode, toggle: toggleApp } = useTheme();
   // Only reflect the real theme after hydration to avoid SSR/client mismatch.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const isDark = mounted && mode === "dark";
+  const controlled = dark !== undefined;
+  const isDark = controlled ? dark : mounted && mode === "dark";
+  const toggle = controlled ? (onToggle ?? (() => {})) : toggleApp;
+  // Controlled, the knob is the surrounding text colour (white on a dark
+  // panel), so the icon is the opposite one rather than the app's background.
+  const icon = controlled ? (isDark ? "text-black" : "text-white") : iconColor;
   return (
     <button
       type="button"
@@ -29,11 +43,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
         style={{ left: isDark ? "calc(100% - 1.25rem - 2px)" : "2px" }}
         suppressHydrationWarning
       >
-        {isDark ? (
-          <Moon className={`h-3 w-3 ${iconColor}`} />
-        ) : (
-          <Sun className={`h-3 w-3 ${iconColor}`} />
-        )}
+        {isDark ? <Moon className={`h-3 w-3 ${icon}`} /> : <Sun className={`h-3 w-3 ${icon}`} />}
       </span>
     </button>
   );

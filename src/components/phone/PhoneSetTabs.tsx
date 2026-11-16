@@ -89,7 +89,7 @@ function PreviewControls({
       {open && <div className="absolute inset-0 z-20" onClick={close} aria-hidden />}
       {open && (
         <div
-          className={`absolute bottom-[4.25rem] right-4 z-30 w-[240px] origin-bottom-right rounded-2xl border p-4 shadow-xl duration-150 ${
+          className={`absolute bottom-[4.25rem] right-4 z-30 w-[192px] origin-bottom-right rounded-2xl border p-4 shadow-xl duration-150 ${
             closing
               ? "animate-out fade-out-0 zoom-out-95 slide-out-to-bottom-2 fill-mode-forwards"
               : "animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2"

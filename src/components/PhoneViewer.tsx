@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ChordLine } from "@/components/ChordLine";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { TapRange } from "@/components/TapRange";
 import { guessKey, KEYS, transposeLyrics, type SongChords } from "@/lib/chords";
 import { groupSlides, hiddenSlideIndices, opensSection } from "@/lib/sections";
@@ -408,7 +409,7 @@ export function PhoneViewer({
                   (fade + slight zoom + slide from the hamburger). */}
               {menuOpen && (
                 <div
-                  className={`absolute left-0 top-full z-50 mt-1 w-[240px] origin-top-left rounded-2xl border p-4 shadow-xl duration-150 ${
+                  className={`absolute left-0 top-full z-50 mt-1 w-[192px] origin-top-left rounded-2xl border p-4 shadow-xl duration-150 ${
                     menuClosing
                       ? "animate-out fade-out-0 zoom-out-95 slide-out-to-top-2 fill-mode-forwards"
                       : "animate-in fade-in-0 zoom-in-95 slide-in-from-top-2"
@@ -748,8 +749,8 @@ export function ViewerSettings({
       {/* Font type */}
       <div>
         <div className="mb-2 text-[10px] uppercase tracking-wider">Font type</div>
-        {/* Three circles in a row, 12px apart as on the remote. */}
-        <div className="flex gap-3">
+        {/* Three circles in a row, 8px apart. */}
+        <div className="flex gap-2">
           {(["sans", "serif", "mono"] as FontFamily[]).map((f) => {
             const active = prefs.fontFamily === f;
             return (
@@ -777,30 +778,13 @@ export function ViewerSettings({
         </div>
       </div>
 
-      {/* Theme (of the phone view) — swatches keep their fixed colours; the
-          selected one is ringed in the surrounding chrome colour. */}
-      <div>
-        <div className="mb-2 text-[10px] uppercase tracking-wider">Theme</div>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => setPrefs((p) => ({ ...p, isDark: true }))}
-            style={{ fontFamily: "Arial, sans-serif" }}
-            className={`rounded-lg border px-3 py-2 text-xs transition bg-black text-white ${
-              prefs.isDark ? "border-white" : "border-white/30 hover:border-white"
-            }`}
-          >
-            Dark
-          </button>
-          <button
-            onClick={() => setPrefs((p) => ({ ...p, isDark: false }))}
-            style={{ fontFamily: "Arial, sans-serif" }}
-            className={`rounded-lg border px-3 py-2 text-xs transition bg-white text-black ${
-              !prefs.isDark ? "border-black" : "border-black/30 hover:border-black"
-            }`}
-          >
-            Light
-          </button>
-        </div>
+      {/* Theme (of the phone view): the Settings Light / Dark Mode toggle. */}
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-wider">Theme</span>
+        <ThemeToggle
+          dark={prefs.isDark}
+          onToggle={() => setPrefs((p) => ({ ...p, isDark: !p.isDark }))}
+        />
       </div>
 
       {/* Chords — a toggle, only when a set actually has any. */}
