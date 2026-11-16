@@ -267,9 +267,9 @@ function LoginPage() {
                       options: { redirectTo: window.location.origin + "/auth/callback" },
                     });
                   }}
-                  // With Apple under it: 8px apart, like Sign out and Delete
-                  // Account (the column's space-y-3 puts 12px under this one).
-                  style={appleIn ? { marginBlockEnd: "0.5rem" } : undefined}
+                  // With Apple under it: 4px apart (his call: closer than Sign out and
+                  // Delete Account; the column's space-y-3 puts 12px under this one).
+                  style={appleIn ? { marginBlockEnd: "0.25rem" } : undefined}
                   className={`mono uppercase ${btnText} w-full rounded-full px-6 py-3 transition hover:opacity-90 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
                 >
                   sign in with Google
