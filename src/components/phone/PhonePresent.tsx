@@ -103,6 +103,10 @@ const NOTE =
 // The same note before and after tapping Remote.
 const REMOTE_NOTE =
   "Open the screen link on a computer or device connected to your TV or projector. Control the slides from this phone.";
+// Present from this device: iOS mirrors the phone's own screen to the TV
+// whenever phyto isn't the app in front.
+const MIRRORING_NOTE =
+  "Switching to another app shows your phone's screen on the TV until you come back to phyto.";
 
 export function PhonePresent() {
   const gatherings = useLibrary((s) => s.gatherings ?? NO_GATHERINGS);
@@ -361,31 +365,35 @@ function LocalPresent({ gatheringId }: { gatheringId: string }) {
   if (!tv) {
     return (
       <PhoneScreen tab="present">
-        <div className="flex h-full flex-col items-center justify-center px-6 pb-6 pt-[env(safe-area-inset-top,0px)]">
-          {/* Cancel spans the steps' own width. */}
-          <div className="flex flex-col">
-            <ol className="flex flex-col gap-5">
-              {TV_STEPS.map((step, i) => (
-                <li
-                  key={step.key}
-                  className="mono flex items-center gap-4 text-sm uppercase tracking-wider"
-                >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-foreground text-xs">
-                    {i + 1}
-                  </span>
-                  {step.label}
-                </li>
-              ))}
-            </ol>
-            {/* Nothing is on a TV yet, so Cancel needs no asking. */}
-            <button
-              type="button"
-              onClick={stop}
-              className="mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-3 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
-            >
-              Cancel
-            </button>
+        {/* The Remote link page's frame: steps mid-screen, the note at the foot. */}
+        <div className="flex h-full flex-col px-6 pb-6 pt-[env(safe-area-inset-top,0px)]">
+          <div className="flex flex-1 flex-col items-center justify-center">
+            {/* Cancel spans the steps' own width. */}
+            <div className="flex flex-col">
+              <ol className="flex flex-col gap-5">
+                {TV_STEPS.map((step, i) => (
+                  <li
+                    key={step.key}
+                    className="mono flex items-center gap-4 text-sm uppercase tracking-wider"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-foreground text-xs">
+                      {i + 1}
+                    </span>
+                    {step.label}
+                  </li>
+                ))}
+              </ol>
+              {/* Nothing is on a TV yet, so Cancel needs no asking. */}
+              <button
+                type="button"
+                onClick={stop}
+                className="mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-3 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
+          <p className={NOTE}>{MIRRORING_NOTE}</p>
         </div>
       </PhoneScreen>
     );
