@@ -120,7 +120,7 @@ export default function UpdatesTest() {
             </ul>
           </li>
         </ul>
-        <BackToTop />
+        <BackToTop arrow="var(--brand-orange)" />
       </main>
       <Footer />
     </div>

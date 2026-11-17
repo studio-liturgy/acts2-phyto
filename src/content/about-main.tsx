@@ -90,7 +90,7 @@ export default function AboutMain() {
             phyto is the Greek prefix for plants. Organisms that freely receive, freely give away
             and grow over time. Our times of worship together should work the same way.
           </p>
-          <BackToTop />
+          <BackToTop arrow="var(--brand-blue)" />
         </div>
       </section>
 

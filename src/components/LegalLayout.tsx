@@ -74,7 +74,7 @@ export function LegalLayout({
 
         <div className="mt-3">{children}</div>
 
-        <BackToTop />
+        <BackToTop arrow={accent} />
       </main>
       <Footer />
     </div>

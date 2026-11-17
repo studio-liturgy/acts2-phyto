@@ -473,7 +473,7 @@ export default function UpdatesMain() {
             <p className="mt-3">Released beta for test users.</p>
           </li>
         </ul>
-        <BackToTop />
+        <BackToTop arrow="var(--brand-blue)" />
       </main>
       <Footer />
     </div>

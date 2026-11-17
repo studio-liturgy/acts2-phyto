@@ -234,7 +234,7 @@ function TransparencyPage() {
           <p>All amounts are in CAD.</p>
         </div>
 
-        <BackToTop />
+        <BackToTop arrow="var(--brand-blue)" />
       </main>
 
       <Footer className="mt-0" />
