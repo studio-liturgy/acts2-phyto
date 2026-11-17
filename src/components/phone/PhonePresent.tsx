@@ -375,9 +375,7 @@ function LocalPresent({ gatheringId }: { gatheringId: string }) {
       setWarn(true);
     }
   }
-  useEffect(() => {
-    if (warn) haptic("success");
-  }, [warn]);
+  // (The connect / disconnect rhythms play from lib/local-present.ts, on any tab.)
   const stop = () => {
     tvWarned = false;
     useLocalPresent.getState().stop();

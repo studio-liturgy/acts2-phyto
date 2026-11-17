@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
+import { hapticRhythm } from "./haptics";
 
 /**
  * Present from this device (the phyto app): the phone drives its own live
@@ -68,13 +69,83 @@ export function useExternalDisplay(): boolean | null {
 }
 
 /** The gathering being presented from this device, if any. Module level, so
- *  leaving the Present tab and coming back keeps it. */
+ *  leaving the Present tab and coming back keeps it. While presenting, the TV
+ *  connection is watched from here (any tab): his connect rhythm when a TV
+ *  connects, the disconnect rhythm when it drops (after the same 2 s grace
+ *  the steps page uses, so a blip stays quiet) or when presenting stops. */
 export const useLocalPresent = create<{
   gatheringId: string | null;
   start: (gatheringId: string) => void;
   stop: () => void;
 }>((set) => ({
   gatheringId: null,
-  start: (gatheringId) => set({ gatheringId }),
-  stop: () => set({ gatheringId: null }),
+  start: (gatheringId) => {
+    set({ gatheringId });
+    startTvWatch();
+  },
+  stop: () => {
+    stopTvWatch(true);
+    set({ gatheringId: null });
+  },
 }));
+
+/** A TV drop only counts after this long (matches the steps page). */
+export const TV_DROP_GRACE_MS = 2000;
+
+type TvWatch = {
+  listener: Listener | null;
+  dropTimer: ReturnType<typeof setTimeout> | null;
+  /** The connection as counted (drops only after the grace). */
+  connected: boolean;
+  alive: boolean;
+};
+
+let tvWatch: TvWatch | null = null;
+
+function startTvWatch() {
+  if (tvWatch) return;
+  const p = plugin();
+  if (!p) return;
+  const w: TvWatch = {
+    listener: null,
+    dropTimer: null,
+    connected: false,
+    alive: true,
+  };
+  tvWatch = w;
+  const seen = (connected: boolean) => {
+    if (!w.alive) return;
+    if (connected) {
+      if (w.dropTimer) clearTimeout(w.dropTimer);
+      w.dropTimer = null;
+      if (!w.connected) {
+        w.connected = true;
+        hapticRhythm("connect");
+      }
+    } else if (w.connected && !w.dropTimer) {
+      w.dropTimer = setTimeout(() => {
+        w.dropTimer = null;
+        if (!w.alive || !w.connected) return;
+        w.connected = false;
+        hapticRhythm("disconnect");
+      }, TV_DROP_GRACE_MS);
+    }
+  };
+  p.status()
+    .then((s) => seen(s.connected))
+    .catch(() => {});
+  void Promise.resolve(p.addListener("change", (d) => seen(d.connected))).then((l) => {
+    if (w.alive) w.listener = l;
+    else void l.remove();
+  });
+}
+
+function stopTvWatch(buzz: boolean) {
+  const w = tvWatch;
+  if (!w) return;
+  tvWatch = null;
+  w.alive = false;
+  if (w.dropTimer) clearTimeout(w.dropTimer);
+  void w.listener?.remove();
+  if (buzz && w.connected) hapticRhythm("disconnect");
+}

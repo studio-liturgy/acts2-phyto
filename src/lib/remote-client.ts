@@ -19,7 +19,7 @@ import {
   type RoomToRemote,
 } from "./remote-protocol";
 import { isLiveNow } from "./live-session";
-import { haptic } from "./haptics";
+import { hapticRhythm } from "./haptics";
 import { useVideoTime } from "./video-time";
 import type { LiveState } from "./types";
 
@@ -213,14 +213,15 @@ function connect() {
       if (screensGoneTimer) clearTimeout(screensGoneTimer);
       screensGoneTimer = null;
       if (m.n > 0) {
-        // A screen joining a remote that had none: the success buzz.
-        if (useRemote.getState().status !== "connected") haptic("success");
+        // A screen joining a remote that had none: the connect rhythm.
+        if (useRemote.getState().status !== "connected") hapticRhythm("connect");
         useRemote.setState({ screens: m.n, status: "connected" });
       } else if (useRemote.getState().status === "connected") {
         useRemote.setState({ screens: 0 });
         screensGoneTimer = setTimeout(() => {
           screensGoneTimer = null;
           if (useRemote.getState().screens === 0 && useRemote.getState().status === "connected") {
+            hapticRhythm("disconnect");
             useRemote.setState({ status: "waiting" });
           }
         }, 4000);
@@ -312,6 +313,7 @@ export const useRemote = create<RemoteStore>((set, get) => ({
     connect();
   },
   stop: () => {
+    const wasConnected = get().status === "connected";
     const sock = ws;
     ws = null;
     stopTimers();
@@ -332,5 +334,6 @@ export const useRemote = create<RemoteStore>((set, get) => ({
       } catch {}
     }
     set({ status: "idle", screens: 0, reconnecting: false });
+    if (wasConnected) hapticRhythm("disconnect");
   },
 }));

@@ -67,6 +67,7 @@ import { isInlineImage } from "./image-upload";
 import { moveSlideKeepingSections, movedSlideId } from "./sections";
 import { hasInlineImages, migrateSetImagesToR2 } from "./migrate-images";
 import { pushRetryDelay } from "./push-retry";
+import { hapticRhythm } from "./haptics";
 
 function uid() {
   return crypto.randomUUID();
@@ -1263,6 +1264,8 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       console.error("[goLive] live write error:", liveErr);
       throw liveErr;
     }
+    // His going-live rhythm (-.-.-), wherever Go live was tapped.
+    hapticRhythm("goLive");
 
     // ── Reflect into Dexie + Zustand (do NOT bump updatedAt — is_live is not a
     //    synced content change, and bumping it would trigger a false conflict).

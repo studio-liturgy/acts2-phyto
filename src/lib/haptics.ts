@@ -77,3 +77,71 @@ export function haptic(kind: HapticKind = "tap"): void {
     // Haptics are a nicety; never break the action they decorate.
   }
 }
+
+/**
+ * His rhythms (Nov 17), written as he wrote them: "-" a heavy tap, "." a
+ * light one. Going live is dramatic but short; connecting and getting
+ * disconnected (the remote's screen, or the TV when presenting from this
+ * device) each have their own.
+ */
+export const RHYTHMS = {
+  goLive: "-.-.-",
+  connect: ".-.-",
+  disconnect: "..-..-",
+} as const;
+
+export type RhythmName = keyof typeof RHYTHMS;
+
+/** Gap after a beat (ms): a heavy beat holds a little longer than a light
+ *  one, so the pattern reads as a rhythm rather than an even buzz. */
+export const RHYTHM_GAP_MS = { heavy: 110, light: 70 } as const;
+
+/** Android browsers: how long each beat vibrates (ms). */
+export const RHYTHM_VIBRATE_MS = { heavy: 35, light: 12 } as const;
+
+/** The beats of a rhythm: when each starts (ms from the first) and its weight. */
+export function rhythmBeats(pattern: string): { at: number; heavy: boolean }[] {
+  const beats: { at: number; heavy: boolean }[] = [];
+  let at = 0;
+  for (const ch of pattern) {
+    if (ch !== "-" && ch !== ".") continue;
+    const heavy = ch === "-";
+    beats.push({ at, heavy });
+    at += heavy ? RHYTHM_GAP_MS.heavy : RHYTHM_GAP_MS.light;
+  }
+  return beats;
+}
+
+/** `navigator.vibrate` pattern for a rhythm: on, off, on, ... */
+export function rhythmVibration(pattern: string): number[] {
+  const out: number[] = [];
+  const beats = rhythmBeats(pattern);
+  beats.forEach((b, i) => {
+    const on = b.heavy ? RHYTHM_VIBRATE_MS.heavy : RHYTHM_VIBRATE_MS.light;
+    out.push(on);
+    const next = beats[i + 1];
+    if (next) out.push(Math.max(0, next.at - b.at - on));
+  });
+  return out;
+}
+
+/** Plays one of his rhythms where the device supports haptics. Never throws. */
+export function hapticRhythm(name: RhythmName): void {
+  try {
+    const pattern = RHYTHMS[name];
+    const h = plugin();
+    if (h) {
+      for (const b of rhythmBeats(pattern)) {
+        setTimeout(() => {
+          void h.impact?.({ style: b.heavy ? "HEAVY" : "LIGHT" })?.catch(() => {});
+        }, b.at);
+      }
+      return;
+    }
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(rhythmVibration(pattern));
+    }
+  } catch {
+    // Never break the action it decorates.
+  }
+}
