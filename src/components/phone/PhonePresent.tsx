@@ -66,6 +66,7 @@ import {
   presentGatheringId,
 } from "@/lib/phone-layout";
 import { useExternalDisplay, useLocalPresent } from "@/lib/local-present";
+import { haptic } from "@/lib/haptics";
 import { useNativeApp } from "@/hooks/use-native-app";
 import { useNoAccount } from "@/lib/no-account";
 import { useIsSignedIn } from "@/lib/authStore";
@@ -104,9 +105,13 @@ const NOTE =
 const REMOTE_NOTE =
   "Open the screen link on a computer or device connected to your TV or projector. Control the slides from this phone.";
 // Present from this device: iOS mirrors the phone's own screen to the TV
-// whenever phyto isn't the app in front.
+// whenever phyto isn't the app in front. A pop-up once the TV connects.
+const MIRRORING_TITLE = "Keep phyto open";
 const MIRRORING_NOTE =
   "Switching to another app shows your phone's screen on the TV until you come back to phyto.";
+/** Whether this TV connection has had its pop-up (module level, so coming
+ *  back to the Present tab doesn't show it again). */
+let tvWarned = false;
 
 export function PhonePresent() {
   const gatherings = useLibrary((s) => s.gatherings ?? NO_GATHERINGS);
@@ -358,42 +363,54 @@ function useTvConnected(): boolean {
  *  Until a TV connects (and again if it drops), the steps to connect one. */
 function LocalPresent({ gatheringId }: { gatheringId: string }) {
   const tv = useTvConnected();
+  // Once per TV connection (not on every visit to the tab): a pop-up that
+  // iOS shows the phone's own screen on the TV while another app is open.
+  const [warn, setWarn] = useState(false);
+  const [seenTv, setSeenTv] = useState(tv);
+  if (seenTv !== tv) {
+    setSeenTv(tv);
+    if (!tv) tvWarned = false;
+    else if (!tvWarned) {
+      tvWarned = true;
+      setWarn(true);
+    }
+  }
+  useEffect(() => {
+    if (warn) haptic("success");
+  }, [warn]);
   const stop = () => {
+    tvWarned = false;
     useLocalPresent.getState().stop();
     useLive.getState().clearLive();
   };
   if (!tv) {
     return (
       <PhoneScreen tab="present">
-        {/* The Remote link page's frame: steps mid-screen, the note at the foot. */}
-        <div className="flex h-full flex-col px-6 pb-6 pt-[env(safe-area-inset-top,0px)]">
-          <div className="flex flex-1 flex-col items-center justify-center">
-            {/* Cancel spans the steps' own width. */}
-            <div className="flex flex-col">
-              <ol className="flex flex-col gap-5">
-                {TV_STEPS.map((step, i) => (
-                  <li
-                    key={step.key}
-                    className="mono flex items-center gap-4 text-sm uppercase tracking-wider"
-                  >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-foreground text-xs">
-                      {i + 1}
-                    </span>
-                    {step.label}
-                  </li>
-                ))}
-              </ol>
-              {/* Nothing is on a TV yet, so Cancel needs no asking. */}
-              <button
-                type="button"
-                onClick={stop}
-                className="mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-3 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
-              >
-                Cancel
-              </button>
-            </div>
+        <div className="flex h-full flex-col items-center justify-center px-6 pb-6 pt-[env(safe-area-inset-top,0px)]">
+          {/* Cancel spans the steps' own width. */}
+          <div className="flex flex-col">
+            <ol className="flex flex-col gap-5">
+              {TV_STEPS.map((step, i) => (
+                <li
+                  key={step.key}
+                  className="mono flex items-center gap-4 text-sm uppercase tracking-wider"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-foreground text-xs">
+                    {i + 1}
+                  </span>
+                  {step.label}
+                </li>
+              ))}
+            </ol>
+            {/* Nothing is on a TV yet, so Cancel needs no asking. */}
+            <button
+              type="button"
+              onClick={stop}
+              className="mono mt-12 w-full rounded-full border border-[var(--brand-red)] py-3 text-xs uppercase tracking-wider text-[var(--brand-red)] transition active:bg-[var(--brand-red)] active:text-[var(--brand-white)]"
+            >
+              Cancel
+            </button>
           </div>
-          <p className={NOTE}>{MIRRORING_NOTE}</p>
         </div>
       </PhoneScreen>
     );
@@ -415,6 +432,25 @@ function LocalPresent({ gatheringId }: { gatheringId: string }) {
   return (
     <PhoneScreen header={header} scroll={false}>
       <Deck gatheringId={gatheringId} />
+      <AlertDialog open={warn} onOpenChange={setWarn}>
+        <AlertDialogContent className="gap-0 rounded-3xl p-8">
+          <AlertDialogTitle className="text-2xl font-normal leading-tight">
+            {MIRRORING_TITLE}
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mt-4 text-base text-foreground">
+            {MIRRORING_NOTE}
+          </AlertDialogDescription>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              onClick={() => setWarn(false)}
+              className="mono uppercase flex-1 rounded-full bg-foreground py-2 text-sm text-background"
+            >
+              OK
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </PhoneScreen>
   );
 }
@@ -602,7 +638,13 @@ function Deck({ gatheringId }: { gatheringId: string }) {
   );
   const live = useLive();
   const liveAt = runIndex(run, live);
-  const go = (p: RunPos | null) => p && live.go(p.setId, p.slideId, p.occ);
+  // Every live change from the remote is the firm tap (his pick: the remote
+  // is the most clicky; Previous feels the same as Next).
+  const go = (p: RunPos | null) => {
+    if (!p) return;
+    haptic("firm");
+    live.go(p.setId, p.slideId, p.occ);
+  };
 
   return (
     <>
@@ -841,6 +883,9 @@ function Controls({
     });
     const i = centredIndex(items, row.scrollLeft, row.clientWidth);
     if (i >= 0 && i !== browse) {
+      // A finger swiping the row ticks on each slide it passes, like a
+      // picker wheel; a glide to the live slide or a tapped set stays quiet.
+      if (target === null && !following) haptic("select");
       sharedBrowse = i;
       setBrowse(i);
     }
@@ -968,7 +1013,10 @@ function Controls({
             resetDim={liveAt < 0 || following || (settled && shown === liveAt)}
             onPick={(slot) => {
               const i = run.findIndex((p) => p.slot === slot);
-              if (i >= 0) centreOn(i, true);
+              if (i >= 0) {
+                haptic("tap");
+                centreOn(i, true);
+              }
             }}
           />
           {tab === "settings" ? (
@@ -1024,7 +1072,10 @@ function Controls({
                     <div className="relative h-[var(--d)] w-[var(--d)]">
                       <button
                         type="button"
-                        onClick={() => live.restartVideo()}
+                        onClick={() => {
+                          haptic("firm");
+                          live.restartVideo();
+                        }}
                         title="Restart video"
                         aria-label="Restart video"
                         className={`${CIRCLE} absolute right-0 top-0 w-[47%] border border-foreground active:bg-foreground/15`}
@@ -1033,7 +1084,10 @@ function Controls({
                       </button>
                       <button
                         type="button"
-                        onClick={() => live.setVideoPlaying(!playing)}
+                        onClick={() => {
+                          haptic("firm");
+                          live.setVideoPlaying(!playing);
+                        }}
                         title={playing ? "Pause video" : "Play video"}
                         aria-label={playing ? "Pause video" : "Play video"}
                         className={`${CIRCLE} absolute bottom-[3%] left-[5%] w-[47%] border border-foreground active:bg-foreground/15`}
@@ -1055,7 +1109,10 @@ function Controls({
                   )}
                   <button
                     type="button"
-                    onClick={() => live.toggleBlackout()}
+                    onClick={() => {
+                      haptic("firm");
+                      live.toggleBlackout();
+                    }}
                     className={`${CIRCLE} mono w-[var(--d)] text-sm uppercase tracking-wider ${
                       live.blackout
                         ? "bg-[var(--brand-red)] text-[var(--brand-white)]"
@@ -1101,7 +1158,10 @@ function Controls({
               <button
                 key={v}
                 type="button"
-                onClick={() => setTab(v)}
+                onClick={() => {
+                  if (tab !== v) haptic("tap");
+                  setTab(v);
+                }}
                 aria-label={label}
                 title={label}
                 aria-pressed={tab === v}

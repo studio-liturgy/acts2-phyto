@@ -19,6 +19,7 @@ import {
   type RoomToRemote,
 } from "./remote-protocol";
 import { isLiveNow } from "./live-session";
+import { haptic } from "./haptics";
 import { useVideoTime } from "./video-time";
 import type { LiveState } from "./types";
 
@@ -212,6 +213,8 @@ function connect() {
       if (screensGoneTimer) clearTimeout(screensGoneTimer);
       screensGoneTimer = null;
       if (m.n > 0) {
+        // A screen joining a remote that had none: the success buzz.
+        if (useRemote.getState().status !== "connected") haptic("success");
         useRemote.setState({ screens: m.n, status: "connected" });
       } else if (useRemote.getState().status === "connected") {
         useRemote.setState({ screens: 0 });

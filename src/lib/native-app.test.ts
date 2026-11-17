@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { appSimParam, isIpadBrowser, nativePlatformFromUA } from "./native-app";
+import { appSimParam, isIpadBrowser, isTablet, nativePlatformFromUA } from "./native-app";
 import { noAccountAllowed } from "./no-account";
-import { VIBRATE_MS } from "./haptics";
+import { NATIVE_FEEL, VIBRATE_MS } from "./haptics";
 
 const IPHONE_SAFARI =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 26_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.1 Mobile/15E148 Safari/604.1";
@@ -44,6 +44,26 @@ describe("isIpadBrowser", () => {
   });
 });
 
+describe("isTablet", () => {
+  it("spots iPads in Safari and inside the app", () => {
+    expect(isTablet(IPAD_SAFARI, 5)).toBe(true);
+    expect(isTablet(`${IPAD_SAFARI} phyto-app/ios`, 5)).toBe(true);
+    expect(isTablet("Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X)", 5)).toBe(true);
+  });
+  it("spots Android tablets, not Android phones", () => {
+    expect(isTablet("Mozilla/5.0 (Linux; Android 15; SM-X710) Chrome/141 Safari/537.36", 5)).toBe(
+      true,
+    );
+    expect(
+      isTablet("Mozilla/5.0 (Linux; Android 15; Pixel 9) Chrome/141 Mobile Safari/537.36", 5),
+    ).toBe(false);
+  });
+  it("leaves iPhones and Macs alone", () => {
+    expect(isTablet(`${IPHONE_SAFARI} phyto-app/ios`, 5)).toBe(false);
+    expect(isTablet(IPAD_SAFARI, 0)).toBe(false);
+  });
+});
+
 describe("noAccountAllowed", () => {
   it("needs both the app and the choice", () => {
     expect(noAccountAllowed(true, true)).toBe(true);
@@ -54,6 +74,11 @@ describe("noAccountAllowed", () => {
 
 describe("haptics", () => {
   it("has a vibration for every kind", () => {
-    expect(Object.keys(VIBRATE_MS).sort()).toEqual(["select", "success", "tap", "warning"]);
+    expect(Object.keys(VIBRATE_MS).sort()).toEqual(["firm", "select", "success", "tap", "warning"]);
+  });
+  it("makes the remote's live changes firmer than a plain tap", () => {
+    expect(NATIVE_FEEL.firm).toEqual({ impact: "MEDIUM" });
+    expect(NATIVE_FEEL.tap).toEqual({ impact: "LIGHT" });
+    expect(Object.keys(NATIVE_FEEL).sort()).toEqual(Object.keys(VIBRATE_MS).sort());
   });
 });

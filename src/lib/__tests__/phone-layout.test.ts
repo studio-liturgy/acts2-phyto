@@ -4,6 +4,7 @@ import {
   moveItem,
   ownLiveGathering,
   parsePhoneTab,
+  phoneLayoutFor,
   presentGatheringId,
   phoneHomeTab,
   phoneLangPair,
@@ -135,5 +136,23 @@ describe("ownLiveGathering", () => {
   it("is null for someone else's gathering", () => {
     expect(ownLiveGathering(gatherings, live, "Sunday", ["s9"])).toBeNull();
     expect(ownLiveGathering(gatherings, () => false, "Sunday", ["s3"])).toBeNull();
+  });
+});
+
+describe("phoneLayoutFor", () => {
+  it("gives phones the phone layout and wide screens the desktop", () => {
+    expect(phoneLayoutFor(375, false)).toBe(true);
+    expect(phoneLayoutFor(767, false)).toBe(true);
+    expect(phoneLayoutFor(768, false)).toBe(false);
+  });
+
+  it("keeps an upright iPad mini (744) on the desktop", () => {
+    expect(phoneLayoutFor(744, true)).toBe(false);
+    expect(phoneLayoutFor(700, true)).toBe(false);
+  });
+
+  it("gives a narrow tablet Split View the phone layout", () => {
+    expect(phoneLayoutFor(699, true)).toBe(true);
+    expect(phoneLayoutFor(320, true)).toBe(true);
   });
 });

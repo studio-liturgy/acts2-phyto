@@ -6,6 +6,7 @@ import { GatheringPhonePreview } from "@/components/GatheringPhonePreview";
 import { ColorPicker } from "@/components/ColorPicker";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { normalizeSlug, slugErrorMessage, validateSlug, type SlugError } from "@/lib/slug";
+import { haptic } from "@/lib/haptics";
 
 type SlugSaveResult = { ok: true } | { ok: false; reason: SlugError | "taken" | "offline" };
 
@@ -410,6 +411,7 @@ export function ShareGatheringDialog({
         setGoingLive(true);
         try {
           await onGoLive();
+          haptic("success");
           // The effect above moves on once the link is ready.
           setWentLive(true);
         } catch (err) {

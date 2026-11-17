@@ -14,6 +14,20 @@ export const PHONE_MAX_WIDTH = 767;
 
 export const PHONE_QUERY = `(max-width: ${PHONE_MAX_WIDTH}px)`;
 
+/** Tablets keep the desktop layout down to this width (his pick, Nov 17: an
+ *  upright iPad mini, 744 wide, gets the desktop). Narrower than this, a
+ *  tablet in Split View or Slide Over gets the phone layout. */
+export const TABLET_MIN_DESKTOP = 700;
+
+export const TABLET_DESKTOP_QUERY = `(min-width: ${TABLET_MIN_DESKTOP}px)`;
+
+/** Whether a screen gets the phone layout: under the phone breakpoint,
+ *  except a tablet still at least TABLET_MIN_DESKTOP wide. */
+export function phoneLayoutFor(width: number, tablet: boolean): boolean {
+  if (width > PHONE_MAX_WIDTH) return false;
+  return !(tablet && width >= TABLET_MIN_DESKTOP);
+}
+
 /** The screens of the bottom tab bar on the phone home. Present (the
  *  remote) only shows while a gathering is live. */
 export type PhoneTab = "gatherings" | "catalogue" | "present" | "settings";

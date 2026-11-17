@@ -2,6 +2,7 @@ import { Link, Navigate } from "@tanstack/react-router";
 import { ArrowUpLeft, ArrowUpRight, ChevronDown, Layers, Library, Settings } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { presentTabShown, type PhoneTab } from "@/lib/phone-layout";
+import { haptic } from "@/lib/haptics";
 import { caretAtPoint, glideBy, revealDelta } from "@/lib/phone-dock";
 import { holdDelay, lineHold } from "@/lib/line-select";
 import { pickCellAt } from "@/lib/row-pick";
@@ -167,7 +168,10 @@ export function PhoneTabBar({ tab, onReselect }: { tab: PhoneTab; onReselect?: (
           aria-label={label}
           aria-current={tab === t ? "page" : undefined}
           onClick={(e) => {
-            if (tab !== t) return;
+            if (tab !== t) {
+              haptic("tap");
+              return;
+            }
             e.preventDefault();
             onReselect?.();
           }}

@@ -53,6 +53,18 @@ export function isNativeApp(): boolean {
   return nativePlatform() !== null;
 }
 
+/** A tablet, in a browser or inside the app: iPadOS reports a Mac (a touch
+ *  screen on a "Mac" is an iPad), older iPads say iPad, and Android tablets
+ *  leave "Mobile" out of the user agent. */
+export function isTablet(
+  ua: string = typeof navigator === "undefined" ? "" : navigator.userAgent,
+  maxTouchPoints: number = typeof navigator === "undefined" ? 0 : navigator.maxTouchPoints,
+): boolean {
+  if (/\biPad\b/.test(ua)) return true;
+  if (/\bMacintosh\b/.test(ua) && maxTouchPoints > 1) return true;
+  return /\bAndroid\b/.test(ua) && !/\bMobile\b/.test(ua);
+}
+
 /** An iPad browser: iPadOS Safari reports a Mac, so a touch screen on a "Mac"
  *  means an iPad (Macs have no touch screen). Never true inside the app. */
 export function isIpadBrowser(
