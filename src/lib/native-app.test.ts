@@ -85,31 +85,18 @@ describe("haptics", () => {
 
 describe("haptic rhythms", () => {
   it("keeps his three rhythms as he wrote them", () => {
-    expect(RHYTHMS).toEqual({ goLive: "-.-.-", connect: ".-.-", disconnect: "..-..-" });
+    expect(RHYTHMS).toEqual({ goLive: "-.-.", connect: ".-.-", disconnect: "..-" });
   });
   it("plays a dash as a held buzz and a dot as a tap, in order", () => {
-    expect(rhythmBeats(RHYTHMS.goLive).map((b) => b.dash)).toEqual([
-      true,
-      false,
-      true,
-      false,
-      true,
-    ]);
-    expect(rhythmBeats(RHYTHMS.disconnect).map((b) => b.dash)).toEqual([
-      false,
-      false,
-      true,
-      false,
-      false,
-      true,
-    ]);
+    expect(rhythmBeats(RHYTHMS.goLive).map((b) => b.dash)).toEqual([true, false, true, false]);
+    expect(rhythmBeats(RHYTHMS.disconnect).map((b) => b.dash)).toEqual([false, false, true]);
   });
   it("spaces the beats out so each one is felt on its own", () => {
     const beats = rhythmBeats(RHYTHMS.goLive);
-    expect(beats.map((b) => b.at)).toEqual([0, 370, 520, 890, 1040]);
-    // Short still: the last dash ends well within a second and a half.
+    expect(beats.map((b) => b.at)).toEqual([0, 370, 520, 890]);
+    // Short still: the last beat lands under a second in.
     const last = beats[beats.length - 1];
-    expect(last.at + last.ms).toBe(1260);
+    expect(last.at + last.ms).toBe(890);
   });
   it("gives Android browsers the same rhythm as on, off pairs", () => {
     expect(rhythmVibration(RHYTHMS.connect)).toEqual([40, 110, 220, 150, 40, 110, 220]);

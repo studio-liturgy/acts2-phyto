@@ -90,9 +90,9 @@ export function haptic(kind: HapticKind = "tap"): void {
  * when presenting from this device) each have their own.
  */
 export const RHYTHMS = {
-  goLive: "-.-.-",
+  goLive: "-.-.",
   connect: ".-.-",
-  disconnect: "..-..-",
+  disconnect: "..-",
 } as const;
 
 export type RhythmName = keyof typeof RHYTHMS;

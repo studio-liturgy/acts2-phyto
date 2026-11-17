@@ -1264,7 +1264,7 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
       console.error("[goLive] live write error:", liveErr);
       throw liveErr;
     }
-    // His going-live rhythm (-.-.-), wherever Go live was tapped.
+    // His going-live rhythm (-.-.), wherever Go live was tapped.
     hapticRhythm("goLive");
 
     // ── Reflect into Dexie + Zustand (do NOT bump updatedAt — is_live is not a
