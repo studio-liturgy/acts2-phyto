@@ -300,7 +300,7 @@ function GatheringTitle({ gatheringId }: { gatheringId: string }) {
 
 // Present from this device: the steps page until a TV connects (like the
 // screen link page before a screen connects), then the controls.
-/** iOS's Screen Mirroring glyph (two overlapping screens), drawn in lucide's
+/** iOS's Screen Mirroring glyph (two overlapping screens, the front one on the right), drawn in lucide's
  *  style: Apple's own symbols can't be used on the web. */
 function ScreenMirroringIcon({ className = "" }: { className?: string }) {
   return (
@@ -314,8 +314,8 @@ function ScreenMirroringIcon({ className = "" }: { className?: string }) {
       className={className}
       aria-hidden
     >
-      <path d="M8 6V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-1" />
-      <rect x="3" y="9" width="13" height="11" rx="2" />
+      <path d="M16 6V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h1" />
+      <rect x="8" y="9" width="13" height="11" rx="2" />
     </svg>
   );
 }
