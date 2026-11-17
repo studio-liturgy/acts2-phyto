@@ -2,9 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/appConfig";
 import AboutTest from "@/content/about-test";
 import AboutMain from "@/content/about-main";
+import loginBgOr from "@/assets/login-bg-or.jpg";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
-const aboutBg = isTest ? "/login-bg-or.jpg" : "/about-bg.jpg";
+const aboutBg = isTest ? loginBgOr : "/about-bg.jpg";
 
 export const Route = createFileRoute("/about")({
   head: () => ({

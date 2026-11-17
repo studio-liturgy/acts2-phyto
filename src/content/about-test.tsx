@@ -4,9 +4,10 @@ import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
+import loginBgOr from "@/assets/login-bg-or.jpg";
 
 // Same picture as the test sign-in page.
-const aboutBg = "/login-bg-or.jpg";
+const aboutBg = loginBgOr;
 
 export default function AboutTest() {
   const backSearch = useBackHomeSearch();

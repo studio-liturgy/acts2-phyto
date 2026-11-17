@@ -15,8 +15,17 @@ import { canSignInWithApple, signInWithAppleInApp, signInWithGoogleInApp } from 
 import { PHONE_UI } from "@/lib/phone-layout";
 import wordmark from "@/assets/wordmark.svg";
 import wordmarkTestBlack from "@/assets/wordmark-test-black.svg";
+import loginBg from "@/assets/login-bg.jpg";
+import loginBgOr from "@/assets/login-bg-or.jpg";
+import { useImageReady } from "@/hooks/use-image-ready";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
+
+// Bundled (hashed, cached for good, and in the app's offline cache), so it's
+// already on the device on every visit after the first.
+const LOGIN_BG = isTest ? loginBgOr : loginBg;
+// The picture's average colour, shown until it has fully decoded.
+const LOGIN_BG_FILL = isTest ? "#c08060" : "#407fa1";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { error?: string; next?: string } => {
@@ -28,6 +37,7 @@ export const Route = createFileRoute("/login")({
   },
   head: () => ({
     meta: [{ title: `Sign In | ${APP_NAME}` }, { name: "robots", content: "noindex" }],
+    links: [{ rel: "preload", as: "image", href: LOGIN_BG }],
   }),
   component: LoginPage,
 });
@@ -35,6 +45,7 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { error: callbackError, next } = Route.useSearch();
   const navigate = useNavigate();
+  const bgReady = useImageReady(LOGIN_BG);
   const native = useNativeApp();
   const nativeApp = native !== null;
   // Sign in with Apple: the iPhone app's native sheet (a build that has it).
@@ -129,12 +140,18 @@ function LoginPage() {
   };
 
   return (
-    <div
-      className="relative min-h-screen bg-cover bg-center"
-      style={{ backgroundImage: `url('${isTest ? "/login-bg-or.jpg" : "/login-bg.jpg"}')` }}
-    >
+    <div className="relative min-h-screen" style={{ backgroundColor: LOGIN_BG_FILL }}>
+      {/* The picture appears whole, never painting in strips: hidden until
+          decoded (at once when it's already cached, else a short fade). */}
+      <div
+        aria-hidden
+        className={`absolute inset-0 bg-cover bg-center ${
+          bgReady === "instant" ? "" : "transition-opacity duration-300"
+        } ${bgReady ? "opacity-100" : "opacity-0"}`}
+        style={{ backgroundImage: `url('${LOGIN_BG}')` }}
+      />
       {/* Mobile: single centered column. Desktop: two-column grid */}
-      <div className="flex min-h-screen flex-col items-center justify-center lg:grid lg:grid-cols-2 lg:items-stretch lg:justify-normal">
+      <div className="relative flex min-h-screen flex-col items-center justify-center lg:grid lg:grid-cols-2 lg:items-stretch lg:justify-normal">
         {/* Left — wordmark */}
         <div className="mb-8 flex justify-center lg:mb-0 lg:items-center lg:px-16">
           <Link to="/">
