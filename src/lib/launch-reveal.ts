@@ -1,18 +1,18 @@
 /**
  * The phyto app's launch animation (components/LaunchReveal.tsx), his spec
  * Nov 18: the blurred blue sign-in picture as large blocks that halve in size
- * in steps (12, 24, 48, 96 across) while still grain rises from none to
- * strong, then the white wordmark bursts in at the centre, then everything
- * fades out to reveal the app. Times are milliseconds from the first frame.
+ * in steps (6, 12, 24, 48 across) while still grain rises from none to
+ * strong, then the white wordmark bursts in at the centre and holds for
+ * about a second, then everything fades out to reveal the app. Times are milliseconds from the first frame.
  */
 
 /** Blocks across the screen, and when each size starts. The steps lengthen
  *  so the change slows down towards the end. */
 export const BLOCK_STEPS: readonly { at: number; across: number }[] = [
-  { at: 0, across: 12 },
-  { at: 200, across: 24 },
-  { at: 500, across: 48 },
-  { at: 900, across: 96 },
+  { at: 0, across: 6 },
+  { at: 200, across: 12 },
+  { at: 500, across: 24 },
+  { at: 900, across: 48 },
 ];
 
 /** Grain rises over the block steps, then holds. */
@@ -21,7 +21,7 @@ export const GRAIN_END = 1400;
 export const LOGO_AT = 1400;
 export const LOGO_MS = 300;
 /** Picture and wordmark fade out together. */
-export const FADE_AT = 1700;
+export const FADE_AT = 2600;
 export const FADE_MS = 500;
 export const LAUNCH_END = FADE_AT + FADE_MS;
 

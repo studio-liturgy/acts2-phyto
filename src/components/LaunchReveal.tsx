@@ -18,7 +18,7 @@ import {
  *  shows (capacitor.config SplashScreen, hideAppSplash). */
 const SPLASH_FADE = 250;
 /** Grain at full strength (overlay blend opacity). */
-const GRAIN_MAX = 0.55;
+const GRAIN_MAX = 0.3;
 /** Give up waiting for the picture after this long. */
 const LOAD_TIMEOUT = 3000;
 /** The picture's average colour, shown until the first frame draws. */

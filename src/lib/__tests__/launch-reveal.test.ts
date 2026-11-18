@@ -9,9 +9,9 @@ import {
 } from "../launch-reveal";
 
 describe("launch reveal timeline", () => {
-  it("halves the blocks in steps and holds at 96 across", () => {
+  it("halves the blocks in steps and holds at 48 across", () => {
     expect([0, 199, 200, 499, 500, 899, 900, 1400, 2200].map(blocksAcross)).toEqual([
-      12, 12, 24, 24, 48, 48, 96, 96, 96,
+      6, 6, 12, 12, 24, 24, 48, 48, 48,
     ]);
   });
 
@@ -24,8 +24,8 @@ describe("launch reveal timeline", () => {
   });
 
   it("keeps blocks square on a portrait phone", () => {
-    expect(blocksDown(12, 390, 844)).toBe(26);
-    expect(blocksDown(96, 390, 844)).toBe(208);
+    expect(blocksDown(6, 390, 844)).toBe(13);
+    expect(blocksDown(48, 390, 844)).toBe(104);
   });
 });
 
