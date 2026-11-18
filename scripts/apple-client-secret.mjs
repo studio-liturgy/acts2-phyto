@@ -39,11 +39,26 @@ const ask = async (q) => {
   const { value } = await lines.next();
   return (value ?? "").trim();
 };
-const teamId = await ask("Team ID (10 characters, top right of developer.apple.com): ");
-const servicesId = await ask("Services ID (e.g. live.phyto.web): ");
+// Forgiving: capitals, and spaces or invisible characters from a copy dropped.
+const teamId = (await ask("Team ID (10 characters, top right of developer.apple.com): "))
+  .toUpperCase()
+  .replace(/[^A-Z0-9]/g, "");
+const servicesId = (await ask("Services ID (e.g. live.phyto.web): ")).replace(
+  /[^A-Za-z0-9.-]/g,
+  "",
+);
 rl.close();
-if (!/^[A-Z0-9]{10}$/.test(teamId) || !servicesId) {
-  console.error("That Team ID or Services ID doesn't look right. Nothing was made.");
+if (!/^[A-Z0-9]{10}$/.test(teamId)) {
+  console.error(
+    `The Team ID should be 10 letters and numbers; this has ${teamId.length} ("${teamId}"). Nothing was made.`,
+  );
+  console.error("It's under your name at the top right of developer.apple.com (Account).");
+  process.exit(1);
+}
+if (!/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(servicesId)) {
+  console.error(
+    `The Services ID should look like live.phyto.web; this was "${servicesId}". Nothing was made.`,
+  );
   process.exit(1);
 }
 
