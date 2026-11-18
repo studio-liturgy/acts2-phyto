@@ -459,6 +459,48 @@ html[data-kb] body {
   }
 }
 
+/* App chrome can't be highlighted (all screens): buttons, headings, labels,
+   tabs, menus, switches, tooltips and the small mono capital labels. Text
+   people read or copy (lyrics, verses, links on the /g viewer, paragraphs)
+   stays selectable, and so does anything being typed in. In the base layer
+   so a `select-text` utility still wins. */
+@layer base {
+  :is(
+    button,
+    [role="button"],
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    label,
+    nav,
+    summary,
+    [role="tab"],
+    [role="tablist"],
+    [role="menu"],
+    [role="menuitem"],
+    [role="menuitemradio"],
+    [role="menuitemcheckbox"],
+    [role="listbox"],
+    [role="option"],
+    [role="switch"],
+    [role="checkbox"],
+    [role="radio"],
+    [role="slider"],
+    [role="tooltip"],
+    .mono.uppercase
+  ) {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  :is(input, textarea, select, [contenteditable]:not([contenteditable="false"])) {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
 /* Phone editors: a line that isn't being typed in takes no touches itself
    (they land on its cell), so the phone's own press-and-hold (focus, word
    pick, magnifier) can't start on it: holding picks whole lines instead
