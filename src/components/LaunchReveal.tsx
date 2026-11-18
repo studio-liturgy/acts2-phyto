@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import launchBg from "@/assets/launch-bg.jpg";
 import wordmark from "@/assets/wordmark.svg";
+import { haptic } from "@/lib/haptics";
 import {
   BLOCK_STEPS,
   FADE_AT,
@@ -79,6 +80,8 @@ export function LaunchReveal({
       let drawn = 0;
       const draw = (across: number) => {
         if (across === drawn) return;
+        // A light tick each time the blocks halve (not on the first frame).
+        if (drawn !== 0) haptic("tap");
         drawn = across;
         const down = blocksDown(across, W, H);
         small.width = across;
