@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import type { PhoneTab } from "@/lib/phone-layout";
 
 /** The plain mono "Back" at the top left of About, Updates, Terms, Privacy,
  *  Transparency, Feedback and the phone Intro. One look everywhere; pages
@@ -9,7 +10,7 @@ export function BackLink({
   search,
   tone = "opacity-80",
 }: {
-  search?: { tab?: "settings" };
+  search?: { tab?: PhoneTab };
   tone?: string;
 }) {
   return (

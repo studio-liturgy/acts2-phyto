@@ -49,6 +49,7 @@ import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import { useNoAccount } from "@/lib/no-account";
 import { useNativeApp } from "@/hooks/use-native-app";
 import { useMyHandle } from "@/lib/profile";
+import { PhoneIntro } from "@/components/phone/PhoneIntro";
 import { ACCOUNT_NOTE_CLASS, NO_ACCOUNT_BROWSER, NO_ACCOUNT_NOTICE } from "@/lib/account-notes";
 import { isIpadBrowser, isNativeApp } from "@/lib/native-app";
 import { parsePhoneTab, phoneHomeTab, PHONE_UI, type PhoneTab } from "@/lib/phone-layout";
@@ -193,7 +194,7 @@ function Home() {
   const isEmpty = gatheringOrder.length === 0 && order.length === 0;
   // "Use without an account" on a phone has just come from the intro (its
   // landing), so an empty library opens the tabs, not the intro again.
-  const autoIntro = !(phone && noAccount && !isSignedIn);
+  const autoIntro = !(phone && noAccount && !isSignedIn) && !(phone && tab);
   const landing =
     !!intro || (autoIntro && activeWorkspace === "personal" && isEmpty && groups.length === 0);
   // A device downloading the account from nothing keeps the loading view
@@ -212,7 +213,8 @@ function Home() {
   // Phone, signed out: only the intro, with Sign in. No library to browse.
   // (In the app, the intro also offers "Use without an account".)
   if (phone && authLoading) return <div className="min-h-screen bg-background" />;
-  if (phone && !canUseLibrary) return <Library signInOnly />;
+  if (phone && !canUseLibrary)
+    return <PhoneIntro signedIn={false} signInOnly emptyLibrary={isEmpty} />;
   // iPad browsers need an account too (test only, like the phone layout);
   // the iPad app doesn't.
   if (
@@ -230,6 +232,10 @@ function Home() {
   // Phone: an empty personal account auto-opens the intro too, same as
   // desktop (`landing` already covers ?intro and the empty-account case).
   if (phoneTab) return <PhoneHome tab={phoneTab} />;
+  // Phone intro (?intro, or an empty account): the six-page carousel. Back
+  // names a tab, which keeps an empty account from opening it again.
+  if (phone && landing && !pulling)
+    return <PhoneIntro signedIn={isSignedIn} signInOnly={false} emptyLibrary={isEmpty} />;
   if (phone === null && !landing) return <div className="min-h-screen bg-background" />;
   return <Library />;
 }

@@ -15,7 +15,7 @@ import { NO_ACCOUNT_NOTICE, NO_ACCOUNT_WARNING } from "@/lib/account-notes";
  * then a one-time notice (a copy of the "End this session?" dialog) before
  * the library opens. Renders nothing outside the phyto app.
  */
-export function NoAccountChoice() {
+export function NoAccountChoice({ className }: { className?: string } = {}) {
   const nativeApp = useNativeApp();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -30,7 +30,10 @@ export function NoAccountChoice() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mono uppercase px-6 py-2 text-xs tracking-wider text-foreground/60 transition hover:text-foreground"
+        className={
+          className ??
+          "mono uppercase px-6 py-2 text-xs tracking-wider text-foreground/60 transition hover:text-foreground"
+        }
       >
         Use without an account
       </button>
