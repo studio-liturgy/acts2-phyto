@@ -599,6 +599,17 @@ function SetEditor() {
   const photoFileRef = useRef<HTMLInputElement>(null);
   const docFileRef = useRef<HTMLInputElement>(null);
   const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number } | null>(null);
+  // Phone: the media Settings fold (link, Fit, Section, Add an image, Upload
+  // a PDF). Like the song editor, a set that already has slides opens folded.
+  const [mediaOpen, setMediaOpen] = useState(() => (phytoSet?.slides.length ?? 0) === 0);
+  // The library can arrive a moment after the page (a cold launch): decide
+  // once, when the set is first known.
+  const mediaOpenSet = useRef(!!phytoSet);
+  useEffect(() => {
+    if (mediaOpenSet.current || !phytoSet) return;
+    mediaOpenSet.current = true;
+    setMediaOpen(phytoSet.slides.length === 0);
+  }, [phytoSet]);
   const [groupView, setGroupView] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [showFileSizeDialog, setShowFileSizeDialog] = useState(false);
@@ -1095,142 +1106,157 @@ function SetEditor() {
         if (e.dataTransfer.files?.length) handleMediaFiles(e.dataTransfer.files);
       }}
     >
-      <div className="shrink-0 border-b border-foreground/20 p-4">
-        <div className="flex items-center gap-0.5">
-          <div className="pill flex min-w-0 flex-1 items-center gap-2 border border-foreground bg-background px-3 py-1.5">
-            <input
-              value={videoLink}
-              onChange={(e) => setVideoLink(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addVideoLink();
-                }
-              }}
-              placeholder="PASTE A YOUTUBE OR VIDEO LINK"
-              className="mono w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-            />
-            <button
-              onClick={addVideoLink}
-              disabled={!videoLink.trim()}
-              className="flex items-center transition disabled:opacity-20"
-              aria-label="Add video link"
-            >
-              <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
-            </button>
-          </div>
-          {/* Phone: Fit and Section on the link's row; Add an image and
+      <div
+        className={`shrink-0 border-b border-foreground/20 ${phoneFoldBoxClass(!!phone, mediaOpen)}`}
+      >
+        <PhoneFold
+          enabled={!!phone}
+          title="Settings"
+          open={mediaOpen}
+          onToggle={() => setMediaOpen((o) => !o)}
+        >
+          {/* Phone: held at the icon buttons' height, so the row doesn't grow
+            when Fit and Section appear. */}
+          <div className={`flex items-center gap-0.5 ${phone ? "min-h-9" : ""}`}>
+            <div className="pill flex min-w-0 flex-1 items-center gap-2 border border-foreground bg-background px-3 py-1.5">
+              <input
+                value={videoLink}
+                onChange={(e) => setVideoLink(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addVideoLink();
+                  }
+                }}
+                placeholder="PASTE A YOUTUBE OR VIDEO LINK"
+                className="mono w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+              />
+              <button
+                onClick={addVideoLink}
+                disabled={!videoLink.trim()}
+                className="flex items-center transition disabled:opacity-20"
+                aria-label="Add video link"
+              >
+                <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
+              </button>
+            </div>
+            {/* Phone: Fit and Section on the link's row; Add an image and
               Upload a PDF sit in their own row below. */}
-          {phone && (
-            <>
-              {phytoSet.slides.length > 0 && <span className="w-1.5 shrink-0" />}
-              {hasImages && (
-                <button
-                  type="button"
-                  onClick={fitAllImages}
-                  className={ICONBTN}
-                  title={allCover ? "Fit every image" : "Fill the frame with every image"}
-                  aria-label={allCover ? "Fit image" : "Fill frame"}
-                >
-                  {allCover ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                </button>
-              )}
-              {phytoSet.slides.length > 0 && (
-                <button
-                  type="button"
-                  onClick={addMediaSection}
-                  className={ICONBTN}
-                  title="Add section"
-                  aria-label="Add section"
-                >
-                  <SeparatorHorizontal className="h-4 w-4" />
-                </button>
-              )}
-            </>
-          )}
-        </div>
-        <input
-          ref={mediaFileRef}
-          type="file"
-          accept={noVideoUpload ? MEDIA_ACCEPT_NO_VIDEO : MEDIA_ACCEPT}
-          multiple
-          disabled={converting || uploading}
-          className="hidden"
-          onChange={(e) => {
-            handleMediaFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-        {/* Phone: Add an image (photo library) and Upload a PDF (Files), side
+            {phone && (
+              <>
+                {phytoSet.slides.length > 0 && <span className="w-1.5 shrink-0" />}
+                {hasImages && (
+                  <button
+                    type="button"
+                    onClick={fitAllImages}
+                    className={ICONBTN}
+                    title={allCover ? "Fit every image" : "Fill the frame with every image"}
+                    aria-label={allCover ? "Fit image" : "Fill frame"}
+                  >
+                    {allCover ? (
+                      <Minimize2 className="h-4 w-4" />
+                    ) : (
+                      <Maximize2 className="h-4 w-4" />
+                    )}
+                  </button>
+                )}
+                {phytoSet.slides.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={addMediaSection}
+                    className={ICONBTN}
+                    title="Add section"
+                    aria-label="Add section"
+                  >
+                    <SeparatorHorizontal className="h-4 w-4" />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+          <input
+            ref={mediaFileRef}
+            type="file"
+            accept={noVideoUpload ? MEDIA_ACCEPT_NO_VIDEO : MEDIA_ACCEPT}
+            multiple
+            disabled={converting || uploading}
+            className="hidden"
+            onChange={(e) => {
+              handleMediaFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          {/* Phone: Add an image (photo library) and Upload a PDF (Files), side
             by side under the link. Separate pickers, so the app opens the
             right one straight away; each shows its own progress. */}
-        {phone && (
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              onClick={() => photoFileRef.current?.click()}
-              disabled={converting || uploading}
-              className={PHONE_MEDIA_BTN}
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
-                </>
-              ) : (
-                "Add an image"
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => docFileRef.current?.click()}
-              disabled={converting || uploading}
-              className={PHONE_MEDIA_BTN}
-            >
-              {converting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
-                  {pdfProgress && pdfProgress.total > 0
-                    ? `Page ${Math.min(pdfProgress.done + 1, pdfProgress.total)} of ${pdfProgress.total}`
-                    : "Opening…"}
-                </>
-              ) : (
-                "Upload a PDF"
-              )}
-            </button>
-          </div>
-        )}
-        <input
-          ref={photoFileRef}
-          type="file"
-          accept={photoAccept(!noVideoUpload)}
-          multiple
-          disabled={converting || uploading}
-          className="hidden"
-          onChange={(e) => {
-            handleMediaFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-        <input
-          ref={docFileRef}
-          type="file"
-          accept=".pdf"
-          multiple
-          disabled={converting || uploading}
-          className="hidden"
-          onChange={(e) => {
-            handleMediaFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-        {videoErr && (
-          <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
-            {videoErr}
-          </p>
-        )}
-        {noVideoUpload && (
-          <p className={`mt-2 ${ACCOUNT_NOTE_CLASS}`}>{REQUIRES_ACCOUNT.videoUpload}</p>
-        )}
+          {phone && (
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => photoFileRef.current?.click()}
+                disabled={converting || uploading}
+                className={PHONE_MEDIA_BTN}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
+                  </>
+                ) : (
+                  "Add an image"
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => docFileRef.current?.click()}
+                disabled={converting || uploading}
+                className={PHONE_MEDIA_BTN}
+              >
+                {converting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
+                    {pdfProgress && pdfProgress.total > 0
+                      ? `Page ${Math.min(pdfProgress.done + 1, pdfProgress.total)} of ${pdfProgress.total}`
+                      : "Opening…"}
+                  </>
+                ) : (
+                  "Upload a PDF"
+                )}
+              </button>
+            </div>
+          )}
+          <input
+            ref={photoFileRef}
+            type="file"
+            accept={photoAccept(!noVideoUpload)}
+            multiple
+            disabled={converting || uploading}
+            className="hidden"
+            onChange={(e) => {
+              handleMediaFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={docFileRef}
+            type="file"
+            accept=".pdf"
+            multiple
+            disabled={converting || uploading}
+            className="hidden"
+            onChange={(e) => {
+              handleMediaFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          {videoErr && (
+            <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+              {videoErr}
+            </p>
+          )}
+          {noVideoUpload && (
+            <p className={`mt-2 ${ACCOUNT_NOTE_CLASS}`}>{REQUIRES_ACCOUNT.videoUpload}</p>
+          )}
+        </PhoneFold>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
