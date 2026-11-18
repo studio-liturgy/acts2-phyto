@@ -14,6 +14,8 @@ import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 import type { SetKind } from "@/lib/types";
 import type { SyncState } from "@/hooks/use-sync-status";
 import wordmark from "@/assets/wordmark.svg";
+import introHero from "@/assets/intro-hero.jpg";
+import { useImageReady } from "@/hooks/use-image-ready";
 import wordmarkTest from "@/assets/wordmark-test.svg";
 import { canAddGathering, PHONE_UI } from "@/lib/phone-layout";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
@@ -23,7 +25,6 @@ import { useNoAccount } from "@/lib/no-account";
 import { useLibrary } from "@/lib/store";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
-const aboutBg = "/about-bg.jpg";
 const linkCls = "mono uppercase transition-opacity duration-200 hover:opacity-60";
 const MOBILE_POPUP_DISMISSED_KEY = "phyto-mobile-popup-dismissed";
 const MOBILE_POPUP_SUBSCRIBED_KEY = "phyto-mobile-popup-subscribed";
@@ -569,18 +570,21 @@ export function FirstTimeLanding({
     return () => io.disconnect();
   }, []);
 
+  const heroReady = useImageReady(introHero);
+
   return (
     <main className="flex-1">
       {/* ── Top band: about-page background + overlay chrome + centered wordmark ── */}
-      <section
-        className="relative flex min-h-[60svh] w-full flex-col justify-center bg-[var(--brand-blue)] text-[var(--brand-white)] md:block md:min-h-0"
-        style={{
-          backgroundImage: `url(${aboutBg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      >
+      <section className="relative flex min-h-[60svh] w-full flex-col justify-center bg-[var(--brand-blue)] text-[var(--brand-white)] md:block md:min-h-0">
+        {/* The cyanotype (Callithamnion roseum), slightly faded into the blue;
+            appears whole once decoded, never painting in strips. */}
+        <div
+          aria-hidden
+          className={`absolute inset-0 bg-cover bg-center ${
+            heroReady === "instant" ? "" : "transition-opacity duration-300"
+          } ${heroReady ? "opacity-85" : "opacity-0"}`}
+          style={{ backgroundImage: `url('${introHero}')` }}
+        />
         {/* Overlay chrome — aligned to the content column, like the regular home header.
             An invisible Present placeholder reserves the same row height the real Present
             button gives the normal header, so the pills sit at the identical position. */}
@@ -643,7 +647,7 @@ export function FirstTimeLanding({
           </div>
         </div>
 
-        <div className="mx-auto max-w-6xl px-6 pb-16 pt-24 text-center md:pb-24 md:pt-28">
+        <div className="relative mx-auto max-w-6xl px-6 pb-16 pt-24 text-center md:pb-24 md:pt-28">
           <Link to="/" className="intro-wordmark inline-block">
             <img
               src={isTest ? wordmarkTest : wordmark}
