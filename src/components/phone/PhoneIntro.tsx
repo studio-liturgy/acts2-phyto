@@ -5,7 +5,7 @@ import { NoAccountChoice } from "@/components/NoAccountChoice";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 import { BACK_PAGE_TOP } from "@/lib/page-top";
-import { INTRO_AUTO_MS, loopJump, pageAt, swipeStep } from "@/lib/intro-carousel";
+import { INTRO_AUTO_MS, pageAt, slideOffset, slides, swipeStep } from "@/lib/intro-carousel";
 import { PHONE_BTN, PHONE_BTN_COLUMN, PHONE_BTN_COLUMN_PAD } from "@/lib/phone-buttons";
 import type { PhoneTab } from "@/lib/phone-layout";
 
@@ -52,8 +52,6 @@ const PAGES: IntroPage[] = [
 ];
 
 const N = PAGES.length;
-// The track: a copy of the last page, the pages, then a copy of the first.
-const TRACK = [PAGES[N - 1], ...PAGES, PAGES[0]];
 const SLIDE_MS = 450;
 // The card's shape (from the mock-up) and its share of the screen's width.
 const CARD_RATIO = 698 / 807;
@@ -82,7 +80,13 @@ export function PhoneIntro({
   // intro again.
   const backTab: PhoneTab = backSearch.tab ?? (emptyLibrary ? "catalogue" : "gatherings");
 
-  const [pos, setPos] = useState(1);
+  // Steps taken, unwrapped (it goes below 0 or past the last page); the
+  // page showing is `pos` wrapped. Every page is one element, so nothing is
+  // swapped at the loop's seam.
+  const [pos, setPos] = useState(0);
+  // The position before the last step, to tell which page wraps round the
+  // far side (that one moves without animation, off screen).
+  const [fromPos, setFromPos] = useState(0);
   const [animate, setAnimate] = useState(true);
   const [dragX, setDragX] = useState<number | null>(null);
   const drag = useRef<{ x: number; t: number; id: number } | null>(null);
@@ -94,37 +98,12 @@ export function PhoneIntro({
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const go = (next: number) => {
-    if (reduceMotion()) {
-      // No slide: straight to the real page (no transition end to wait for).
-      setAnimate(false);
-      setPos(loopJump(next, N) ?? next);
-      return;
-    }
-    setAnimate(true);
+    setAnimate(!reduceMotion());
+    setFromPos(pos);
     setPos(next);
   };
 
-  // After sliding onto a copy, jump to the real page without animation.
-  const onTransitionEnd = () => {
-    const real = loopJump(pos, N);
-    if (real === null) return;
-    setAnimate(false);
-    setPos(real);
-  };
-  // Animation back on once the jump has painted.
-  useEffect(() => {
-    if (animate) return;
-    let b = 0;
-    const a = requestAnimationFrame(() => {
-      b = requestAnimationFrame(() => setAnimate(true));
-    });
-    return () => {
-      cancelAnimationFrame(a);
-      cancelAnimationFrame(b);
-    };
-  }, [animate]);
-
-  // Moves on by itself; any swipe or dot tap restarts the wait.
+  // Moves on by itself; any swipe restarts the wait.
   useEffect(() => {
     if (dragX !== null) return;
     const t = window.setTimeout(() => go(pos + 1), INTRO_AUTO_MS);
@@ -132,25 +111,29 @@ export function PhoneIntro({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pos, dragX]);
 
-  // Only the page in view plays its recording, from the start each time.
+  // Only the page in view plays its recording. A page that leaves is set
+  // back to its start once it has slid away, so it comes back in on its
+  // first frame instead of the frame it stopped on.
   useEffect(() => {
+    const timers: number[] = [];
     videos.current.forEach((v, i) => {
       if (!v) return;
-      if (i === pos) {
-        v.currentTime = 0;
+      if (i === page) {
         v.play().catch(() => {});
-      } else v.pause();
+      } else if (!v.paused || v.currentTime > 0) {
+        v.pause();
+        timers.push(
+          window.setTimeout(() => {
+            if (v.paused) v.currentTime = 0;
+          }, SLIDE_MS),
+        );
+      }
     });
-  }, [pos]);
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [page]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (drag.current) return;
-    // Mid-loop on a copy: settle on the real page first.
-    const real = loopJump(pos, N);
-    if (real !== null) {
-      setAnimate(false);
-      setPos(real);
-    }
     drag.current = { x: e.clientX, t: performance.now(), id: e.pointerId };
     e.currentTarget.setPointerCapture(e.pointerId);
     setDragX(0);
@@ -216,68 +199,69 @@ export function PhoneIntro({
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
         >
-          <div
-            className="flex h-full"
-            style={{
-              transform: `translateX(calc(${-pos * 100}% + ${dragX ?? 0}px))`,
-              transition: sliding
-                ? `transform ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
-                : "none",
-            }}
-            onTransitionEnd={onTransitionEnd}
-          >
-            {TRACK.map((p, i) => (
-              <div
-                key={i}
-                aria-hidden={i !== pos}
-                className="flex h-full w-full shrink-0 items-center justify-center"
-              >
+          <div className="relative h-full">
+            {PAGES.map((p, i) => {
+              const offset = slideOffset(i, pos, N);
+              const glide = sliding && slides(i, fromPos, pos, N);
+              return (
                 <div
-                  className="relative overflow-hidden rounded-[2rem] border border-foreground/60"
+                  key={p.title}
+                  aria-hidden={i !== page}
+                  className="absolute inset-0 flex items-center justify-center"
                   style={{
-                    width: `min(${CARD_WIDTH * 100}cqw, calc(100cqh * ${CARD_RATIO}))`,
-                    aspectRatio: `${CARD_RATIO}`,
+                    transform: `translateX(calc(${offset * 100}% + ${dragX ?? 0}px))`,
+                    transition: glide
+                      ? `transform ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
+                      : "none",
                   }}
                 >
-                  {p.image && (
-                    <img
-                      src={p.image}
-                      alt=""
-                      aria-hidden
-                      decoding="async"
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                  )}
-                  {p.clip && (
-                    <>
-                      {/* The first frame shows until the recording plays. */}
+                  <div
+                    className="relative overflow-hidden rounded-[2rem] border border-foreground/60"
+                    style={{
+                      width: `min(${CARD_WIDTH * 100}cqw, calc(100cqh * ${CARD_RATIO}))`,
+                      aspectRatio: `${CARD_RATIO}`,
+                    }}
+                  >
+                    {p.image && (
                       <img
-                        src={p.clip.replace(/\.mp4$/, "-poster.webp")}
+                        src={p.image}
                         alt=""
                         aria-hidden
                         decoding="async"
                         className="absolute inset-0 h-full w-full object-cover"
                       />
-                      <video
-                        ref={(el) => {
-                          videos.current[i] = el;
-                        }}
-                        src={p.clip}
-                        muted
-                        loop
-                        playsInline
-                        preload="metadata"
-                        onPlaying={(e) => {
-                          e.currentTarget.style.opacity = "1";
-                        }}
-                        style={{ opacity: 0 }}
-                        className="absolute inset-0 h-full w-full object-cover"
-                      />
-                    </>
-                  )}
+                    )}
+                    {p.clip && (
+                      <>
+                        {/* The first frame shows until the recording plays. */}
+                        <img
+                          src={p.clip.replace(/\.mp4$/, "-poster.webp")}
+                          alt=""
+                          aria-hidden
+                          decoding="async"
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                        <video
+                          ref={(el) => {
+                            videos.current[i] = el;
+                          }}
+                          src={p.clip}
+                          muted
+                          loop
+                          playsInline
+                          preload="metadata"
+                          onPlaying={(e) => {
+                            e.currentTarget.style.opacity = "1";
+                          }}
+                          style={{ opacity: 0 }}
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

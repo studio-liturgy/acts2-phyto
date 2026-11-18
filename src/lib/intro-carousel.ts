@@ -1,27 +1,35 @@
 /**
  * The phone intro's looping carousel (components/phone/PhoneIntro.tsx).
  *
- * The track holds the pages with a copy of the last page before the first and
- * a copy of the first after the last: [P_last, P_1 ... P_n, P_1]. Track
- * positions 1..n are the real pages. Sliding onto a copy (0 or n + 1) plays
- * the slide, then jumps without animation to the real page it copies, so the
- * loop never shows a seam.
+ * Each page has exactly one element (never a copy), so a recording keeps
+ * playing smoothly across the loop. `pos` counts steps without wrapping
+ * (it can go below 0 or past the last page); each page sits at its offset
+ * from `pos`, wrapped so the pages next to the current one are always ±1.
+ * A page whose offset wraps round the far side moves off screen, unanimated.
  */
 
 /** How long (ms) a page stays before the carousel moves on by itself: one
  *  fixed time for every page, long enough for the longest recording (11.9 s). */
 export const INTRO_AUTO_MS = 12000;
 
-/** The page (0-based) shown at a track position. */
+/** The page (0-based) showing at an unwrapped position. */
 export function pageAt(pos: number, count: number): number {
-  return (((pos - 1) % count) + count) % count;
+  return ((pos % count) + count) % count;
 }
 
-/** The real track position a copy stands for, or null when `pos` is real. */
-export function loopJump(pos: number, count: number): number | null {
-  if (pos <= 0) return count;
-  if (pos >= count + 1) return 1;
-  return null;
+/** Where page `i` sits relative to the current position, in slide widths:
+ *  0 is in view, -1 to the left, 1 to the right (wrapped into
+ *  1 - count/2 .. count/2 for an even count). */
+export function slideOffset(i: number, pos: number, count: number): number {
+  const o = pageAt(i - pos, count);
+  return o > count / 2 ? o - count : o;
+}
+
+/** Whether page `i` slides (animates) going from one position to another:
+ *  only when it moves a single step. A jump round the far side happens off
+ *  screen, without animation. */
+export function slides(i: number, from: number, to: number, count: number): boolean {
+  return Math.abs(slideOffset(i, to, count) - slideOffset(i, from, count)) <= 1;
 }
 
 /** Where a finished swipe goes: -1 back, 1 forward, 0 stays.
