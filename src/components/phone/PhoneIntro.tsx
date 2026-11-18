@@ -20,18 +20,22 @@ const PAGES: IntroPage[] = [
   {
     title: "Create Sets",
     text: "Import lyrics, scriptures or your own media, and add message slides. Add chords to songs and display songs and scriptures in more than one language",
+    clip: "/intro-set.mp4",
   },
   {
     title: "Create Gatherings",
     text: "Arrange sets into gatherings to present later on phones and screens",
+    clip: "/intro-gathering.mp4",
   },
   {
     title: "Go Live",
     text: "Generate a link / QR code so that friends can follow along on their own phones",
+    clip: "/intro-golive.mp4",
   },
   {
     title: "Present",
     text: "Connect to a TV with AirPlay, or remote control another device's screen through a link / QR code",
+    clip: "/intro-remote.mp4",
   },
   {
     title: "Go Online",
@@ -124,12 +128,14 @@ export function PhoneIntro({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pos, dragX]);
 
-  // Only the page in view plays its recording.
+  // Only the page in view plays its recording, from the start each time.
   useEffect(() => {
     videos.current.forEach((v, i) => {
       if (!v) return;
-      if (i === pos) v.play().catch(() => {});
-      else v.pause();
+      if (i === pos) {
+        v.currentTime = 0;
+        v.play().catch(() => {});
+      } else v.pause();
     });
   }, [pos]);
 
@@ -230,17 +236,31 @@ export function PhoneIntro({
                   }}
                 >
                   {p.clip && (
-                    <video
-                      ref={(el) => {
-                        videos.current[i] = el;
-                      }}
-                      src={p.clip}
-                      muted
-                      loop
-                      playsInline
-                      preload="metadata"
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
+                    <>
+                      {/* The first frame shows until the recording plays. */}
+                      <img
+                        src={p.clip.replace(/\.mp4$/, "-poster.webp")}
+                        alt=""
+                        aria-hidden
+                        decoding="async"
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                      <video
+                        ref={(el) => {
+                          videos.current[i] = el;
+                        }}
+                        src={p.clip}
+                        muted
+                        loop
+                        playsInline
+                        preload="metadata"
+                        onPlaying={(e) => {
+                          e.currentTarget.style.opacity = "1";
+                        }}
+                        style={{ opacity: 0 }}
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                    </>
                   )}
                 </div>
               </div>
