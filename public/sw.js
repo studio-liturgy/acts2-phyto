@@ -38,15 +38,19 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
+  // Activation must stay quick: while it runs, the page's requests wait, so
+  // waiting here for a new build's downloads (the intro clips alone are
+  // ~10 MB) held the app on its blue launch screen. Take over, then fill
+  // the cache in the background (each launch's "phyto-sw-refresh" resumes it).
   event.waitUntil(
     (async () => {
       for (const key of await caches.keys()) {
         if (key !== CACHE && key !== PICTURES) await caches.delete(key);
       }
-      await precache().catch(() => {});
       await self.clients.claim();
     })(),
   );
+  precache().catch(() => {});
 });
 
 self.addEventListener("message", (event) => {
@@ -100,16 +104,21 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  // Keeping a copy never holds up the answer: the page gets the response at
+  // once and the copy is stored in the background.
+  const keep = (cache, key, res) => event.waitUntil(cache.put(key, res).catch(() => {}));
+  // Whatever goes wrong in here, the page still gets the network's answer.
+  const answer = (p) => event.respondWith(p.catch(() => fetch(req)));
   if (url.origin !== self.location.origin) {
-    if (isPictureRequest(req, url)) event.respondWith(picture(req, url));
+    if (isPictureRequest(req, url)) answer(picture(req, url));
     return;
   }
   if (req.mode === "navigate") {
-    event.respondWith(navigate(req, url));
+    event.respondWith(navigate(req, url, keep));
   } else if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/fonts/")) {
-    event.respondWith(cacheFirst(req));
+    answer(cacheFirst(req, keep));
   } else if (DATA.includes(url.pathname)) {
-    event.respondWith(networkFirst(req));
+    answer(networkFirst(req, keep));
   }
 });
 
@@ -129,12 +138,14 @@ function withTimeout(promise, ms) {
   });
 }
 
-async function navigate(req, url) {
+const noKeep = (cache, key, res) => cache.put(key, res).catch(() => {});
+
+async function navigate(req, url, keep = noKeep) {
   const cache = await caches.open(CACHE);
   const page = PAGES.includes(url.pathname) ? url.pathname : null;
   try {
     const res = await withTimeout(fetch(req), 6000);
-    if (res.ok && page) await cache.put(page, res.clone());
+    if (res.ok && page) keep(cache, page, res.clone());
     return res;
   } catch {
     const copy = page ? await cache.match(page) : undefined;
@@ -143,7 +154,7 @@ async function navigate(req, url) {
   }
 }
 
-async function cacheFirst(req) {
+async function cacheFirst(req, keep = noKeep) {
   const cache = await caches.open(CACHE);
   const range = req.headers.get("range");
   const hit = await cache.match(req.url);
@@ -152,7 +163,7 @@ async function cacheFirst(req) {
   // precache reached it): straight from the network. A 206 can't be cached.
   if (range) return fetch(req);
   const res = await fetch(req);
-  if (res.status === 200) await cache.put(req, res.clone());
+  if (res.status === 200) keep(cache, req, res.clone());
   return res;
 }
 
@@ -247,11 +258,11 @@ async function syncPictures(urls) {
   }
 }
 
-async function networkFirst(req) {
+async function networkFirst(req, keep = noKeep) {
   const cache = await caches.open(CACHE);
   try {
     const res = await fetch(req);
-    if (res.ok) await cache.put(req, res.clone());
+    if (res.ok) keep(cache, req, res.clone());
     return res;
   } catch {
     const hit = await cache.match(req);

@@ -106,6 +106,44 @@ describe("offline cache: precache order", () => {
 });
 
 describe("offline cache: pages", () => {
+  it("takes over at once on activate, without waiting for the downloads", async () => {
+    const listeners: Record<string, (e: unknown) => void> = {};
+    const caches = fakeCaches();
+    let claimed = false;
+    const sandbox: Record<string, unknown> = {
+      self: {
+        addEventListener: (type: string, fn: (e: unknown) => void) => (listeners[type] = fn),
+        location: { origin: ORIGIN },
+        clients: { claim: async () => void (claimed = true) },
+        skipWaiting: () => {},
+      },
+      caches: caches.api,
+      // The network never answers: activation must not wait for it.
+      fetch: () => new Promise(() => {}),
+      Response,
+      Blob,
+      URL,
+      setTimeout,
+      clearTimeout,
+    };
+    runInNewContext(readFileSync(resolve(__dirname, "../../../public/sw.js"), "utf8"), sandbox);
+    let waited: Promise<unknown> | undefined;
+    listeners.activate({ waitUntil: (p: Promise<unknown>) => (waited = p) });
+    await waited;
+    expect(claimed).toBe(true);
+  });
+
+  it("answers the page before its copy is stored", async () => {
+    let stored = false;
+    const { sw } = loadSw(async () => new Response("<p>home</p>"));
+    const keep = () => {
+      // A slow store (a streamed page) must not hold the answer.
+      setTimeout(() => (stored = true), 50);
+    };
+    const res = await sw.navigate({ url: `${ORIGIN}/` }, new URL(`${ORIGIN}/`), keep);
+    expect(await res.text()).toBe("<p>home</p>");
+    expect(stored).toBe(false);
+  });
   it("keeps the TV screen and serves it offline", async () => {
     let online = true;
     const { sw } = loadSw(async () => {
