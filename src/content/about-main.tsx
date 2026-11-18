@@ -44,11 +44,11 @@ export default function AboutMain() {
           <div className="mt-[28rem] max-w-5xl space-y-6 text-sm md:text-[0.95rem] leading-relaxed">
             <p>
               For more than five years I worked as the "creative / production guy" at a church in
-              downtown Vancouver. Then God led me to Hong Kong, where I found myself in a small
-              house church community. No gear, no budget. Just an acoustic guitar, a cheap piano,
-              and sometimes a TV or projector on the wall. What I noticed was that our pastor was
-              dealing with slides last minute, while also keeping an eye on his kids and welcoming
-              people through the door. I wanted to make this process just a little easier.
+              downtown Vancouver. Then God led me to a small house church community. No gear, no
+              budget. Just an acoustic guitar, a cheap piano, and sometimes a TV or projector on the
+              wall. What I noticed was that our pastor was dealing with slides last minute, while
+              also keeping an eye on his kids and welcoming people through the door. I wanted to
+              make this process just a little easier.
             </p>
             <p>
               As I built it, I started to see who else it could bless: the underground church,
