@@ -6,6 +6,7 @@ import { useBackHomeSearch } from "@/hooks/use-back-home";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { INTRO_AUTO_MS, loopJump, pageAt, swipeStep } from "@/lib/intro-carousel";
+import { PHONE_BTN, PHONE_BTN_COLUMN, PHONE_BTN_COLUMN_PAD } from "@/lib/phone-buttons";
 import type { PhoneTab } from "@/lib/phone-layout";
 
 type IntroPage = {
@@ -49,8 +50,6 @@ const SLIDE_MS = 450;
 // The card's shape (from the mock-up) and its share of the screen's width.
 const CARD_RATIO = 698 / 807;
 const CARD_WIDTH = 0.65;
-
-const BIG_BTN = "pill mono uppercase w-full py-3 text-center text-xs tracking-wider transition";
 
 /**
  * The phone intro (app and phone browsers): six pages in a looping
@@ -261,18 +260,22 @@ export function PhoneIntro({
       </div>
 
       {!signedIn && (
-        <div className="flex flex-col gap-2 px-10 pb-[calc(env(safe-area-inset-bottom,0px)+2.25rem)] pt-6">
-          <Link
-            to="/login"
-            className={`${BIG_BTN} bg-foreground text-background active:opacity-80`}
-          >
-            Sign In
-          </Link>
-          {signInOnly && (
-            <NoAccountChoice
-              className={`${BIG_BTN} border border-foreground text-foreground active:bg-foreground active:text-background`}
-            />
-          )}
+        <div
+          className={`${PHONE_BTN_COLUMN_PAD} pb-[calc(env(safe-area-inset-bottom,0px)+2.25rem)] pt-6`}
+        >
+          <div className={`${PHONE_BTN_COLUMN} flex flex-col gap-2`}>
+            <Link
+              to="/login"
+              className={`${PHONE_BTN} bg-foreground text-background active:opacity-80`}
+            >
+              Sign In
+            </Link>
+            {signInOnly && (
+              <NoAccountChoice
+                className={`${PHONE_BTN} border border-foreground text-foreground active:bg-foreground active:text-background`}
+              />
+            )}
+          </div>
         </div>
       )}
       {signedIn && <div className="pb-[calc(env(safe-area-inset-bottom,0px)+2.25rem)]" />}

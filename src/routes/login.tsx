@@ -14,6 +14,7 @@ import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import { useNativeApp } from "@/hooks/use-native-app";
 import { canSignInWithApple, signInWithAppleInApp, signInWithGoogleInApp } from "@/lib/app-sign-in";
 import { PHONE_UI } from "@/lib/phone-layout";
+import { PHONE_BTN_TEXT } from "@/lib/phone-buttons";
 import wordmark from "@/assets/wordmark.svg";
 import wordmarkTestBlack from "@/assets/wordmark-test-black.svg";
 import loginBg from "@/assets/login-bg.jpg";
@@ -68,7 +69,7 @@ function LoginPage() {
   // Phone: button words in the big button size (Delete gathering's).
   const phone = usePhoneLayout() === true && PHONE_UI;
   // Phone: the Settings pills' small mono (Sign out, Delete Account).
-  const btnText = phone ? "text-[10px] tracking-wider" : "text-sm";
+  const btnText = phone ? PHONE_BTN_TEXT : "text-sm";
   // Phone: "Keep me in the loop" sized to run edge to edge under the buttons.
   const loopRow = useRef<HTMLLabelElement>(null);
   const loopText = useRef<HTMLSpanElement>(null);
@@ -176,14 +177,14 @@ function LoginPage() {
             <img
               src={isTest ? wordmarkTestBlack : wordmark}
               alt={isTest ? "phytoexp" : "phyto"}
-              className="w-60 lg:w-80"
+              className="w-45 lg:w-80"
             />
           </Link>
         </div>
 
         {/* Right — form or success */}
         <div
-          className={`flex w-full items-center justify-center px-8 ${nativeApp ? "pb-32" : "pb-20"} lg:px-16 lg:py-0`}
+          className={`flex w-full items-center justify-center px-8 ${nativeApp ? "pb-20" : "pb-8"} lg:px-16 lg:py-0`}
         >
           <div className="w-full max-w-sm">
             {step === "code" ? (

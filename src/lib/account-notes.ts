@@ -12,8 +12,8 @@ export const ACCOUNT_NOTE_CLASS =
 /** One-time notice on tapping "Use without an account" (the app). */
 export const NO_ACCOUNT_NOTICE =
   "Your data will only be saved on this device. To sync your data and access online features, sign in.";
-/** Under the notice's buttons, in red. */
-export const NO_ACCOUNT_WARNING = "Deleting the app loses your data permanently.";
+/** Under the notice's buttons, in red, on one line (no full stop). */
+export const NO_ACCOUNT_WARNING = "Deleting the app loses your data permanently";
 
 /** Signed-out desktop home in a browser, near Sign in. */
 export const NO_ACCOUNT_BROWSER =

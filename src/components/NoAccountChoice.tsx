@@ -76,7 +76,10 @@ export function NoAccountChoice({ className }: { className?: string } = {}) {
               Back
             </button>
           </div>
-          <p className="mono mt-4 text-center text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
+          {/* One line: normal letter spacing, and 12px of the pop-up's side
+              padding on each side, so the 44 characters fit at 11px on every
+              current iPhone (375pt wide and up). */}
+          <p className="mono -mx-3 mt-4 whitespace-nowrap text-center text-[10px] uppercase text-[var(--brand-red)]">
             {NO_ACCOUNT_WARNING}
           </p>
         </AlertDialogContent>
