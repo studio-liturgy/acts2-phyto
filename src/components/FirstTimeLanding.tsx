@@ -576,7 +576,7 @@ export function FirstTimeLanding({
     <main className="flex-1">
       {/* ── Top band: about-page background + overlay chrome + centered wordmark ── */}
       <section className="relative flex min-h-[60svh] w-full flex-col justify-center bg-[var(--brand-blue)] text-[var(--brand-white)] md:block md:min-h-0">
-        {/* The cyanotype (Callithamnion roseum), slightly faded into the blue;
+        {/* The pixelated cyanotype hero, slightly faded into the blue;
             appears whole once decoded, never painting in strips. */}
         <div
           aria-hidden
