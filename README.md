@@ -60,6 +60,8 @@ Copyright (C) 2026 Studio Liturgy.
 
 phyto is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE).
 
+You're welcome to build and run phyto yourself and use it on your own devices. I don't recommend running your own account or sync service from this code (sign in, syncing, groups, sharing, going live). Use phyto.live for those, so your library stays in one place and gets every update.
+
 ## Contact
 
 - Instagram: [@phyto.live](https://www.instagram.com/phyto.live)
