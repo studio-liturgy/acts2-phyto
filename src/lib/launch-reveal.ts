@@ -19,7 +19,7 @@ export const BLOCK_STEPS: readonly { at: number; across: number }[] = [
 export const GRAIN_END = 1400;
 /** The wordmark bursts in (grows, overshoots slightly, settles). */
 export const LOGO_AT = 1400;
-export const LOGO_MS = 300;
+export const LOGO_MS = 700;
 /** Picture and wordmark fade out together. */
 export const FADE_AT = 2600;
 export const FADE_MS = 500;
