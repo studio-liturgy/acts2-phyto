@@ -57,6 +57,11 @@ function LoginPage() {
   const bgReady = useImageReady(LOGIN_BG);
   // Sign in with Apple: the iPhone app's native sheet (a build that has it).
   const appleIn = native === "ios" && canSignInWithApple();
+  // Browsers (phone and computer): Apple's web sign-in through Supabase.
+  // Test build only until it has been tried on phytoexp.live; then this
+  // turns on for phyto.live too.
+  const appleWeb = native === null && isTestBuild;
+  const appleShown = appleIn || appleWeb;
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
   const [code, setCode] = useState("");
@@ -333,19 +338,27 @@ function LoginPage() {
                   }}
                   // With Apple under it: 4px apart (his call: closer than Sign out and
                   // Delete Account; the column's space-y-3 puts 12px under this one).
-                  style={appleIn ? { marginBlockEnd: "0.25rem" } : undefined}
+                  style={appleShown ? { marginBlockEnd: "0.25rem" } : undefined}
                   className={`mono uppercase ${btnText} w-full rounded-full px-6 py-3 transition hover:opacity-90 ${ssoBtn}`}
                 >
                   sign in with Google
                 </button>
 
-                {/* The iPhone app: Sign in with Apple, full width under Google,
-                    same size and shape (the native sheet). */}
-                {appleIn && (
+                {/* Sign in with Apple, full width under Google, same size and
+                    shape: the iPhone app's native sheet, or Apple's page in a
+                    browser. */}
+                {appleShown && (
                   <button
                     type="button"
                     onClick={() => {
                       sessionStorage.setItem("phyto-subscribe", String(subscribe));
+                      if (!appleIn) {
+                        supabase.auth.signInWithOAuth({
+                          provider: "apple",
+                          options: { redirectTo: window.location.origin + "/auth/callback" },
+                        });
+                        return;
+                      }
                       void signInWithAppleInApp().then(async (r) => {
                         if (!r.ok) {
                           if (!r.cancelled) setError(r.error);

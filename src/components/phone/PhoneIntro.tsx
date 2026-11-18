@@ -277,13 +277,15 @@ export function PhoneIntro({
       </div>
 
       {!signedIn && (
+        // The last button sits exactly where Cancel sits on the sign-in
+        // page: same bottom gap (safe area + 24px) and the same 1px border.
         <div
-          className={`${PHONE_BTN_COLUMN_PAD} pb-[calc(env(safe-area-inset-bottom,0px)+2.25rem)] pt-6`}
+          className={`${PHONE_BTN_COLUMN_PAD} pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-6`}
         >
           <div className={`${PHONE_BTN_COLUMN} flex flex-col gap-2`}>
             <Link
               to="/login"
-              className={`${PHONE_BTN} bg-foreground text-background active:opacity-80`}
+              className={`${PHONE_BTN} border border-foreground bg-foreground text-background active:opacity-80`}
             >
               Sign In
             </Link>
