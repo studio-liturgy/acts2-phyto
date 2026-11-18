@@ -87,8 +87,9 @@ export function PhoneGathering({
   const createSet = useLibrary((s) => s.createSet);
 
   // Tapping the search opens the whole catalogue as a list at once, with
-  // the keyboard. The search bar glides to the top of the screen and the
-  // list fills the space between it and the keyboard, scrolling on its own.
+  // the keyboard. The list fills the space between the search bar and the
+  // keyboard, scrolling on its own (the bar's place: see the effect after
+  // listRef).
   const searchBarRef = useRef<HTMLDivElement>(null);
   const [listMax, setListMax] = useState<number | null>(null);
   useEffect(() => {
@@ -102,16 +103,11 @@ export function PhoneGathering({
       // 4px under the bar (mt-1) and 12px clear of the keyboard.
       setListMax(Math.max(160, bottom - bar.getBoundingClientRect().bottom - 16));
     };
-    const glide = window.setTimeout(() => {
-      const top = bar.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 12;
-      if (Math.abs(top) > 2) scroller.scrollBy({ top, behavior: "smooth" });
-    }, 300);
     measure();
     vv?.addEventListener("resize", measure);
     vv?.addEventListener("scroll", measure);
     scroller.addEventListener("scroll", measure, { passive: true });
     return () => {
-      window.clearTimeout(glide);
       vv?.removeEventListener("resize", measure);
       vv?.removeEventListener("scroll", measure);
       scroller.removeEventListener("scroll", measure);
@@ -128,6 +124,39 @@ export function PhoneGathering({
   const [drag, setDrag] = useState<{ order: Slot[]; index: number } | null>(null);
   const setIdsRef = useRef<string[]>([]);
   setIdsRef.current = g?.setIds ?? [];
+
+  // While searching, the bar glides up but keeps the gathering's last few
+  // sets in view above it, and each set added appears right above the bar,
+  // so you can see what you've added. Up to three sets show, fewer when the
+  // list would get under 160px.
+  const setCount = g?.setIds.length ?? 0;
+  const searchFocusedAt = useRef(0);
+  useEffect(() => {
+    if (!searching) return;
+    const wait = Date.now() - searchFocusedAt.current < 400 ? 300 : 60;
+    const t = window.setTimeout(() => {
+      const bar = searchBarRef.current;
+      const scroller = bar?.closest<HTMLElement>(".overflow-y-auto");
+      if (!bar || !scroller) return;
+      const vv = window.visualViewport;
+      const bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const top = scroller.getBoundingClientRect().top + 12;
+      const barTop = bar.getBoundingClientRect().top;
+      const barH = bar.offsetHeight;
+      const rows = Array.from(listRef.current?.children ?? []) as HTMLElement[];
+      let shift = barTop - top;
+      for (let k = Math.min(3, rows.length); k > 0; k--) {
+        const rowTop = rows[rows.length - k].getBoundingClientRect().top;
+        const above = barTop - rowTop;
+        if (bottom - (top + above + barH) - 16 >= 160) {
+          shift = rowTop - top;
+          break;
+        }
+      }
+      if (Math.abs(shift) > 2) scroller.scrollBy({ top: shift, behavior: "smooth" });
+    }, wait);
+    return () => window.clearTimeout(t);
+  }, [searching, setCount]);
 
   const startDrag = (slots: Slot[], index: number) => {
     const state = { order: slots, index };
@@ -491,7 +520,10 @@ export function PhoneGathering({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => setSearching(true)}
+              onFocus={() => {
+                searchFocusedAt.current = Date.now();
+                setSearching(true);
+              }}
               onBlur={() => setTimeout(() => setSearching(false), 150)}
               placeholder="Search for a set to add"
               className="mono uppercase min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
