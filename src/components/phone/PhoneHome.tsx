@@ -1154,7 +1154,7 @@ function SettingsTab({
     onOpenChange: (o: boolean) => setOpenCard(o ? card : null),
   });
   // Settings' pills in the small mono of the Song Template card's title.
-  const SMALL = "!py-[7px] !text-[10px] leading-5";
+  const SMALL = "!py-[7px] !text-[11px] leading-5";
   const S_OUTLINE = `${PILL_OUTLINE} ${SMALL}`;
   const S_FILLED = `${PILL_FILLED} ${SMALL}`;
   const MENU_ITEM = "mono uppercase text-[10px] tracking-wider";
