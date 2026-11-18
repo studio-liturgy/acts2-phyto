@@ -604,7 +604,7 @@ export function FirstTimeLanding({
         {/* Overlay chrome — aligned to the content column, like the regular home header.
             An invisible Present placeholder reserves the same row height the real Present
             button gives the normal header, so the pills sit at the identical position. */}
-        <div className="absolute inset-x-0 top-0">
+        <div className="absolute inset-x-0 top-0 z-10">
           {/* On a phone, Back sits where it does on About, Updates and Legal
               (BACK_PAGE_TOP), so the row drops the desktop header's spacer. */}
           <div
