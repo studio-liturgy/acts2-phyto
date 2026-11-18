@@ -51,7 +51,13 @@ type Step = {
   mobile?: { textA?: React.ReactNode[]; textB?: React.ReactNode; textC?: React.ReactNode };
   /** The phyto app's copy, where it works differently from a browser (presenting
    *  through AirPlay). Falls back to `mobile`, then to the desktop copy. */
-  app?: { textA?: React.ReactNode[]; textB?: React.ReactNode; textC?: React.ReactNode };
+  app?: {
+    textA?: React.ReactNode[];
+    textB?: React.ReactNode;
+    textC?: React.ReactNode;
+    /** The app's clips, when their order differs from `clips`. */
+    clips?: Clip[];
+  };
   /** Two clips (A, B: the original staggered pair) or three (step 1: A beside the textA
    *  stack, B under textA, C staggered below A overlapping B's lower edge). */
   clips: Clip[];
@@ -162,12 +168,17 @@ const STEPS: Step[] = [
         "Connect to a TV or projector, hit Present, then Output and drag it to your extended screen (mobile WIP)",
       ],
     },
+    // In the app, going live comes before presenting.
     app: {
       textA: [
-        "Connect to a TV with AirPlay: open Control Center, tap Screen Mirroring and pick your TV, then tap Present in the Present tab",
+        "Make the gathering go live (needs an account). Friends follow along on their own phones",
       ],
       textB:
-        "Make the gathering go live (needs an account). Friends follow along on their own phones",
+        "Connect to a TV with AirPlay: open Control Center, tap Screen Mirroring and pick your TV, then tap Present in the Present tab",
+      clips: [
+        { src: "/landing-golive.mp4", aspect: "square" },
+        { src: "/landing-5.mp4", aspect: "square" },
+      ],
     },
     desktop: {
       hookEndX: 235,
@@ -582,7 +593,8 @@ export function FirstTimeLanding({
     );
     for (const pair of mobileVideoRefs.current) for (const v of pair) if (v) io.observe(v);
     return () => io.disconnect();
-  }, []);
+    // The app swaps some clips' order (new video elements), so observe again.
+  }, [nativeApp]);
 
   const heroReady = useImageReady(introHero);
   // A Back button (phone: BACK link; desktop: Back pill) shows above the heading.
@@ -1108,6 +1120,7 @@ export function FirstTimeLanding({
         {STEPS.map((step, i) => {
           const mirror = i % 2 === 1;
           const copy = { ...step.mobile, ...(nativeApp ? step.app : undefined) };
+          const clips = copy.clips ?? step.clips;
           return (
             <div key={step.n}>
               <p
@@ -1176,9 +1189,9 @@ export function FirstTimeLanding({
                         {text}
                       </p>
                     ))}
-                    {step.clips.slice(0, step.clips.length - 1).map((clip, j) => (
+                    {clips.slice(0, clips.length - 1).map((clip, j) => (
                       <StepVideo
-                        key={j}
+                        key={clip.src ?? j}
                         clip={clip}
                         className="mt-4 w-full"
                         lazy
@@ -1196,11 +1209,12 @@ export function FirstTimeLanding({
                       {copy.textB ?? step.textB}
                     </p>
                     <StepVideo
-                      clip={step.clips[step.clips.length - 1]}
+                      key={clips[clips.length - 1].src}
+                      clip={clips[clips.length - 1]}
                       className="mt-4 w-full"
                       lazy
                       ref={(el) => {
-                        mobileVideoRefs.current[i][step.clips.length - 1] = el;
+                        mobileVideoRefs.current[i][clips.length - 1] = el;
                       }}
                     />
                   </div>
