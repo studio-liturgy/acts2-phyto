@@ -87,7 +87,7 @@ function FeedbackPage() {
   // Phone: Send Feedback in the small pill size, like Settings' Sign out.
   const phone = usePhoneLayout() === true && PHONE_UI;
   // Phone: the same scale as the phone's Settings and pop-ups (body 14px,
-  // mono pills, labels and buttons 10px, inputs 12px). Desktop unchanged.
+  // mono pills, labels and buttons 11px via styles.css, inputs 12px). Desktop unchanged.
   const sz = phone
     ? {
         main: "py-6",

@@ -352,6 +352,11 @@ input[type="range"].phone-range::-moz-range-thumb {
    Unlayered, so it outranks the dialogs' own Tailwind padding and type sizes.
    Full-screen sheets (no rounded-3xl) are left alone. */
 @media (max-width: 767px) {
+  /* No text under 11px on a phone (Apple's minimum size): the 9px and 10px
+     labels, pills and notes everywhere step up to 11px. */
+  html[data-phone-ui] :is(.text-\[9px\], .text-\[10px\]) {
+    font-size: 0.6875rem;
+  }
   html[data-phone-ui] :is([role="dialog"], [role="alertdialog"]).rounded-3xl {
     width: calc(100vw - 2.5rem);
     max-width: 24rem;
@@ -359,7 +364,7 @@ input[type="range"].phone-range::-moz-range-thumb {
     border-radius: 1.5rem;
   }
   /* Everything inside sized to the phone's other pills and links: titles
-     1.25rem, body copy 14px, mono buttons, labels and rows 10px (inputs 12px),
+     1.25rem, body copy 14px, mono buttons, labels and rows 11px (inputs 12px),
      and the desktop's roomy gaps tightened. Any depth, so panels like Manage
      group follow too. */
   html[data-phone-ui] :is([role="dialog"], [role="alertdialog"]).rounded-3xl .text-2xl {
@@ -372,7 +377,7 @@ input[type="range"].phone-range::-moz-range-thumb {
   html[data-phone-ui]
     :is([role="dialog"], [role="alertdialog"]).rounded-3xl
     .mono:is(.text-sm, .text-xs):not(input, textarea) {
-    font-size: 0.625rem;
+    font-size: 0.6875rem;
     line-height: 1rem;
     letter-spacing: 0.05em;
   }

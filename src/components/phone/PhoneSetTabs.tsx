@@ -197,7 +197,7 @@ export function PhoneSetTabs({
                 key={t}
                 onClick={() => setTab(t)}
                 className={`flex h-[54px] flex-1 items-center justify-center transition-colors ${
-                  tab === t ? "text-foreground" : "text-foreground/35"
+                  tab === t ? "text-foreground" : "text-foreground/50"
                 }`}
                 title={label}
                 aria-label={label}

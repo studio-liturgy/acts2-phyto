@@ -163,7 +163,7 @@ export function PhoneTabBar({ tab, onReselect }: { tab: PhoneTab; onReselect?: (
           to="/"
           search={{ tab: t }}
           className={`relative flex h-[54px] flex-1 items-center justify-center transition-colors ${
-            tab === t ? "text-foreground" : "text-foreground/35"
+            tab === t ? "text-foreground" : "text-foreground/50"
           }`}
           aria-label={label}
           aria-current={tab === t ? "page" : undefined}

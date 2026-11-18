@@ -1164,7 +1164,7 @@ function Controls({
                 title={label}
                 aria-pressed={tab === v}
                 className={`flex h-[54px] flex-1 items-center justify-center transition-colors ${
-                  tab === v ? "text-foreground" : "text-foreground/35"
+                  tab === v ? "text-foreground" : "text-foreground/50"
                 }`}
               >
                 <Icon className="h-[23px] w-[23px]" strokeWidth={1.5} />

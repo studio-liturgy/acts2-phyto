@@ -1153,7 +1153,7 @@ function SettingsTab({
 
   const SECTION = "py-4";
   // Section titles in the page's small mono, quieter than the controls.
-  const HEADING = "mono mb-3 text-[10px] uppercase tracking-wider text-foreground/40";
+  const HEADING = "mono mb-3 text-[10px] uppercase tracking-wider text-foreground/65";
   // One of Song Template, Scripture Template and Background open at a time.
   const [openCard, setOpenCard] = useState<"song" | "scripture" | "background" | null>(null);
   const remoteConnected = useRemote((s) => s.status === "connected");
