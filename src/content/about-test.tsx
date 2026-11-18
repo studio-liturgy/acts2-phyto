@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
+import { BackLink } from "@/components/BackLink";
+import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
-import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
@@ -23,14 +24,8 @@ export default function AboutTest() {
           backgroundRepeat: "no-repeat",
         }}
       >
-        <div className="mx-auto w-full max-w-6xl px-6 pt-[calc(env(safe-area-inset-top,0px)+2.5rem)] pb-24 md:pt-14 md:pb-32">
-          <Link
-            to="/"
-            search={backSearch}
-            className="mono inline-flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--brand-black)] opacity-90 transition-opacity hover:opacity-60"
-          >
-            <ArrowLeft className="h-3 w-3" /> BACK
-          </Link>
+        <div className={`mx-auto w-full max-w-6xl px-6 pb-24 md:pb-32 ${BACK_PAGE_TOP}`}>
+          <BackLink search={backSearch} tone="text-[var(--brand-black)] opacity-90" />
           <h1 className="sr-only">What is phyto?</h1>
 
           {/* Large intro */}

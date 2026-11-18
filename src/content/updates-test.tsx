@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { BackLink } from "@/components/BackLink";
+import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
-import { ArrowLeft, Plus, AlertTriangle } from "lucide-react";
+import { Plus, AlertTriangle } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
@@ -28,14 +29,8 @@ export default function UpdatesTest() {
   usePageBackgroundColor("var(--brand-orange-dark)");
   return (
     <div className="flex min-h-screen flex-col bg-[var(--brand-orange-dark)] text-[var(--brand-white)]">
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
-        <Link
-          to="/"
-          search={backSearch}
-          className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"
-        >
-          <ArrowLeft className="h-3 w-3" /> BACK
-        </Link>
+      <main className={`mx-auto w-full max-w-3xl flex-1 px-6 pb-16 ${BACK_PAGE_TOP}`}>
+        <BackLink search={backSearch} />
         <h1 className="sr-only">Updates</h1>
         {/* The next release's entry, exactly as phyto.live/updates will show it. */}
         {/* No rule above the latest update: the lines only divide entries. */}

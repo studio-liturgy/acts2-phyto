@@ -1,6 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { BackLink } from "@/components/BackLink";
+import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
@@ -118,13 +119,8 @@ function TransparencyPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-16 md:px-10">
-        <Link
-          to="/"
-          className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"
-        >
-          <ArrowLeft className="h-3 w-3" /> BACK
-        </Link>
+      <main className={`mx-auto w-full max-w-6xl flex-1 px-6 pb-16 md:px-10 ${BACK_PAGE_TOP}`}>
+        <BackLink />
 
         {/* Stats */}
         <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-8">

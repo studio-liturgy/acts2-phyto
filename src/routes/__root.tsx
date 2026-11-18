@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { PHONE_UI } from "@/lib/phone-layout";
+import { blockLinkHoldMenu } from "@/lib/link-hold";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -386,6 +387,9 @@ function RootComponent() {
   }, []);
   // Phone: pop-up dialogs move above the keyboard while typing in them.
   useDialogKeyboard(PHONE_UI);
+  // Phone and app: holding a link never opens Android's link menu (iOS is
+  // handled in styles.css).
+  useEffect(() => (PHONE_UI || isNativeApp() ? blockLinkHoldMenu() : undefined), []);
   const [notTester, setNotTester] = useState(false);
 
   const runDiff = async (autoMerge = false) => {

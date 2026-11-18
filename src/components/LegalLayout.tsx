@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
+import { BackLink } from "@/components/BackLink";
+import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { Link } from "@tanstack/react-router";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
-import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
@@ -54,14 +55,8 @@ export function LegalLayout({
     <div
       className={`flex min-h-screen flex-col ${isTest ? "bg-[var(--brand-orange-dark)]" : "bg-[var(--brand-blue)]"} text-[var(--brand-white)]`}
     >
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
-        <Link
-          to="/"
-          search={backSearch}
-          className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"
-        >
-          <ArrowLeft className="h-3 w-3" /> BACK
-        </Link>
+      <main className={`mx-auto w-full max-w-3xl flex-1 px-6 pb-16 ${BACK_PAGE_TOP}`}>
+        <BackLink search={backSearch} />
         <h1 className="sr-only">{active === "terms" ? "Terms of Use" : "Privacy Policy"}</h1>
         <div className="mt-8 flex gap-2">
           <LegalPill to="/terms" active={active === "terms"}>

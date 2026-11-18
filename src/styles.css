@@ -440,6 +440,20 @@ html[data-kb] body {
   overflow: hidden;
 }
 
+/* Phone and app: holding a link (the tab bar icons, Back, page and footer
+   links) never opens the system link preview or its menu, and never starts
+   a text pick on its words. A tap still follows it. Touch screens only, so a
+   mouse can still select link text. Android's menu is stopped in
+   lib/link-hold.ts. */
+@media (hover: none) and (pointer: coarse) {
+  html[data-phone-ui] a,
+  html[data-native-app] a {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
 /* Phone editors: a line that isn't being typed in takes no touches itself
    (they land on its cell), so the phone's own press-and-hold (focus, word
    pick, magnifier) can't start on it: holding picks whole lines instead

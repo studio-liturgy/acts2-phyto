@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Plus, ArrowUpRight, ArrowDown, ArrowLeft, X } from "lucide-react";
+import { BackLink } from "@/components/BackLink";
+import { BACK_PAGE_TOP } from "@/lib/page-top";
+import { Plus, ArrowUpRight, ArrowDown, X } from "lucide-react";
 import { Fragment, forwardRef, useEffect, useRef, useState } from "react";
 import {
   DropdownMenu,
@@ -583,15 +585,13 @@ export function FirstTimeLanding({
             An invisible Present placeholder reserves the same row height the real Present
             button gives the normal header, so the pills sit at the identical position. */}
         <div className="absolute inset-x-0 top-0">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] md:pt-10">
+          {/* On a phone, Back sits where it does on About, Updates and Legal
+              (BACK_PAGE_TOP), so the row drops the desktop header's spacer. */}
+          <div
+            className={`mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 ${phone ? BACK_PAGE_TOP : "pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] md:pt-10"}`}
+          >
             {(!isEmpty || noAccount) && !signInOnly && phone && (
-              <Link
-                to="/"
-                search={backSearch}
-                className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--brand-white)] opacity-80 transition-opacity hover:opacity-60"
-              >
-                <ArrowLeft className="h-3 w-3" /> BACK
-              </Link>
+              <BackLink search={backSearch} tone="text-[var(--brand-white)] opacity-80" />
             )}
             {!isEmpty && !signInOnly && !phone && (
               <Link
@@ -636,7 +636,7 @@ export function FirstTimeLanding({
             {/* invisible — matches the height the Present button adds to the normal header */}
             <span
               aria-hidden
-              className="pill invisible ml-auto flex items-center gap-3 border px-[30px] py-[12px] text-5xl tracking-[-0.045em]"
+              className={`pill invisible ml-auto items-center gap-3 border px-[30px] py-[12px] text-5xl tracking-[-0.045em] ${phone ? "hidden" : "flex"}`}
             >
               Present <ArrowUpRight className="size-[1em]" />
             </span>

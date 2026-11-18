@@ -1,7 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { BackLink } from "@/components/BackLink";
+import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { APP_NAME } from "@/lib/appConfig";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
@@ -177,14 +178,8 @@ function FeedbackPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="mx-auto w-full max-w-3xl px-6 pt-[calc(env(safe-area-inset-top,0px)+2.5rem)]">
-        <Link
-          to="/"
-          search={backSearch}
-          className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> BACK
-        </Link>
+      <header className={`mx-auto w-full max-w-3xl px-6 ${BACK_PAGE_TOP}`}>
+        <BackLink search={backSearch} />
       </header>
 
       <main className={`mx-auto w-full max-w-3xl flex-1 px-6 ${sz.main}`}>
