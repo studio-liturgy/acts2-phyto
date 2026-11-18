@@ -15,9 +15,6 @@ import {
   grainAt,
 } from "@/lib/launch-reveal";
 
-/** The app's launch screen fades out over this long while the first frame
- *  shows (capacitor.config SplashScreen, hideAppSplash). */
-const SPLASH_FADE = 250;
 /** Grain at full strength (overlay blend opacity). */
 const GRAIN_MAX = 0.15;
 /** Give up waiting for the picture after this long. */
@@ -125,7 +122,10 @@ export function LaunchReveal({
         raf = requestAnimationFrame(() => {
           if (!alive) return;
           onFirstFrame();
-          const t0 = performance.now() + SPLASH_FADE;
+          // The clock starts at once, while the native launch screen (the
+          // same blue) is still fading out over it: waiting for that fade
+          // first held the plain blue too long.
+          const t0 = performance.now();
           if (!reduce) {
             const tick = (now: number) => {
               if (!alive) return;
@@ -135,10 +135,10 @@ export function LaunchReveal({
               if (t < LOGO_AT) raf = requestAnimationFrame(tick);
             };
             raf = requestAnimationFrame(tick);
-            timers.push(window.setTimeout(() => alive && setPhase("logo"), SPLASH_FADE + LOGO_AT));
+            timers.push(window.setTimeout(() => alive && setPhase("logo"), LOGO_AT));
           }
-          timers.push(window.setTimeout(() => alive && setPhase("fade"), SPLASH_FADE + FADE_AT));
-          timers.push(window.setTimeout(() => alive && onDone(), SPLASH_FADE + LAUNCH_END));
+          timers.push(window.setTimeout(() => alive && setPhase("fade"), FADE_AT));
+          timers.push(window.setTimeout(() => alive && onDone(), LAUNCH_END));
         });
       });
     };
