@@ -42,7 +42,7 @@ const PAGES: IntroPage[] = [
   {
     title: "Go Online",
     text: "Sign in to access your sets and sync them across devices",
-    image: "/intro-signin.webp",
+    clip: "/intro-signin.mp4",
   },
   {
     title: "Groups + Sharing",
