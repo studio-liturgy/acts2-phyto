@@ -15,6 +15,9 @@ export function useImageReady(src: string): false | true | "instant" {
       setReady("instant");
       return;
     }
+    // A new picture (the sign-in page swaps to the app's after the first
+    // render) waits for its own decode, whatever the last one did.
+    setReady(false);
     let alive = true;
     const show = () => {
       if (alive) setReady(true);

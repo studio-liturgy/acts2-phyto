@@ -34,15 +34,73 @@ export async function fetchMyProfile(userId: string): Promise<Profile | null | "
   return data;
 }
 
-/** Loads the signed-in account's username into `useProfile`. */
+/** Loads the signed-in account's username into `useProfile`. A reload for the
+ *  same account (every sign-in event, page load) keeps the username already
+ *  shown while it asks again, and a failed ask keeps it too: the screen never
+ *  drops back to "no username" (which used to show the email instead). */
 export async function loadMyProfile(userId: string): Promise<void> {
-  useProfile.setState({ userId, profile: undefined });
+  const prev = useProfile.getState();
+  const keep =
+    prev.userId === userId && prev.profile && prev.profile !== "error" ? prev.profile : undefined;
+  useProfile.setState({ userId, profile: keep });
   const profile = await fetchMyProfile(userId);
-  if (useProfile.getState().userId === userId) useProfile.setState({ profile });
+  if (useProfile.getState().userId !== userId) return;
+  if (profile === "error" && keep) return;
+  useProfile.setState({ profile });
+  if (profile && profile !== "error") writeCachedHandle(userId, profile.handle);
 }
 
 export function clearMyProfile(): void {
   useProfile.setState({ userId: null, profile: undefined });
+  writeCachedHandle(null, null);
+}
+
+/** The last username this device saw for the signed-in account
+ *  (localStorage), so it shows at once on the next launch, before (or
+ *  without) the network answer. */
+export const HANDLE_CACHE_KEY = "phyto-my-handle";
+
+type CachedHandle = { userId: string; handle: string };
+
+function readCachedHandle(): CachedHandle | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const v = JSON.parse(window.localStorage.getItem(HANDLE_CACHE_KEY) ?? "null");
+    return v && typeof v.userId === "string" && typeof v.handle === "string" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedHandle(userId: string | null, handle: string | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (userId && handle) {
+      window.localStorage.setItem(HANDLE_CACHE_KEY, JSON.stringify({ userId, handle }));
+    } else window.localStorage.removeItem(HANDLE_CACHE_KEY);
+  } catch {
+    // Private mode: the username still shows once it has loaded.
+  }
+}
+
+/** The username to show for the signed-in account: the loaded one, else the
+ *  one this device saw last for the same account, else null (show nothing,
+ *  never the email). */
+export function myHandleFrom(
+  profile: ProfileState,
+  userId: string | null,
+  cached: CachedHandle | null,
+): string | null {
+  if (profile && profile !== "error") return profile.handle;
+  if (profile === null || !userId) return null;
+  return cached && cached.userId === userId ? cached.handle : null;
+}
+
+/** The signed-in account's username for display (see `myHandleFrom`). */
+export function useMyHandle(): string | null {
+  const profile = useProfile((s) => s.profile);
+  const userId = useProfile((s) => s.userId);
+  return myHandleFrom(profile, userId, readCachedHandle());
 }
 
 export async function isHandleAvailable(handle: string): Promise<boolean | "error"> {
@@ -67,6 +125,7 @@ export async function saveProfile(profile: Profile): Promise<SaveProfileResult> 
     return { ok: false, reason: "error" };
   }
   useProfile.setState({ userId: data.user_id, profile: data });
+  writeCachedHandle(data.user_id, data.handle);
   return { ok: true, profile: data };
 }
 

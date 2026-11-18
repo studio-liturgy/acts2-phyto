@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useProfile } from "@/lib/profile";
+import { useMyHandle } from "@/lib/profile";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
@@ -27,9 +27,7 @@ export function SettingsDialog({
   const navigate = useNavigate();
   const isSignedIn = useIsSignedIn();
   const userEmail = useUserEmail();
-  const handle = useProfile((st) =>
-    st.profile && st.profile !== "error" ? st.profile.handle : null,
-  );
+  const handle = useMyHandle();
   const refreshWorkspaceSettings = useLibrary((s) => s.refreshWorkspaceSettings);
 
   const [usage, setUsage] = useState<StorageUsage | null>(null);

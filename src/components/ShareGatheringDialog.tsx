@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { TESTERS_ONLY, visitUrl } from "@/lib/testers";
+import { useNativeApp } from "@/hooks/use-native-app";
 import { QRCodeCanvas } from "qrcode.react";
 import { Copy, Check } from "lucide-react";
 import { GatheringPhonePreview } from "@/components/GatheringPhonePreview";
@@ -63,6 +64,8 @@ export function ShareGatheringDialog({
   onPresent?: () => void;
 }) {
   const [step, setStep] = useState(startStep);
+  // The app never says "EXP", even on the test build.
+  const nativeApp = useNativeApp() !== null;
   const [goingLive, setGoingLive] = useState(false);
   const [wentLive, setWentLive] = useState(false);
   // Reset on opening, never on closing: changing what's shown while the
@@ -487,7 +490,7 @@ export function ShareGatheringDialog({
                   aria-disabled={!shareUrl}
                   className={`mono flex-1 rounded-full border border-foreground py-3 text-center text-xs uppercase tracking-wider transition active:bg-foreground active:text-background ${shareUrl ? "" : "pointer-events-none opacity-40"}`}
                 >
-                  {TESTERS_ONLY ? "Visit EXP link" : "Visit link"}
+                  {TESTERS_ONLY && !nativeApp ? "Visit EXP link" : "Visit link"}
                 </a>
               </div>
               {linkBlock}

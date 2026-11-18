@@ -72,7 +72,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ShareSetDialog } from "@/components/ShareSetDialog";
-import { useProfile } from "@/lib/profile";
+import { useMyHandle } from "@/lib/profile";
 import { ACCOUNT_NOTE_CLASS, NO_ACCOUNT_SHORT, REQUIRES_ACCOUNT } from "@/lib/account-notes";
 import { SharedInboxList } from "@/components/SharedInboxList";
 import { GroupPanelDialog } from "@/components/GroupPanelDialog";
@@ -1101,9 +1101,7 @@ function SettingsTab({
 }) {
   const navigate = useNavigate();
   const isSignedIn = useIsSignedIn();
-  const myHandle = useProfile((st) =>
-    st.profile && st.profile !== "error" ? st.profile.handle : null,
-  );
+  const myHandle = useMyHandle();
   const userEmail = useUserEmail();
   const syncStatus = useSyncStatus();
   const activeWorkspace = useLibrary((s) => s.activeWorkspace) ?? "personal";
@@ -1190,14 +1188,15 @@ function SettingsTab({
         {isSignedIn ? (
           <div className="space-y-3 py-2">
             {/* One row: the @username (tap to change), the sync dot, then the
-                group switcher. The email until the username has loaded. */}
+                group switcher. Never the email: blank until the username is
+                known (it shows at once from the device's last copy). */}
             <div className="flex items-center gap-2">
               <Link
                 to="/welcome"
                 search={{ change: true, next: "/?tab=settings" }}
                 className="mono min-w-0 truncate text-[10px] uppercase tracking-wider text-foreground"
               >
-                {myHandle ?? userEmail}
+                {myHandle}
               </Link>
               {syncStatus !== "offline" && (
                 <span

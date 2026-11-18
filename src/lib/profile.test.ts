@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { needsWelcome, suggestDisplayName, suggestHandle } from "./profile";
+import { myHandleFrom, needsWelcome, suggestDisplayName, suggestHandle } from "./profile";
 import { handleProblem } from "./handle";
+
+describe("myHandleFrom", () => {
+  const p = { user_id: "u1", handle: "grace", display_name: "Grace" };
+  const cached = { userId: "u1", handle: "grace_old" };
+  it("shows the loaded username", () => {
+    expect(myHandleFrom(p, "u1", cached)).toBe("grace");
+  });
+  it("shows the device's last copy while loading or after a failed load", () => {
+    expect(myHandleFrom(undefined, "u1", cached)).toBe("grace_old");
+    expect(myHandleFrom("error", "u1", cached)).toBe("grace_old");
+  });
+  it("never shows another account's copy", () => {
+    expect(myHandleFrom(undefined, "u2", cached)).toBeNull();
+  });
+  it("shows nothing when the account has no username or nobody is signed in", () => {
+    expect(myHandleFrom(null, "u1", cached)).toBeNull();
+    expect(myHandleFrom(undefined, null, cached)).toBeNull();
+  });
+});
 
 describe("suggestHandle", () => {
   it("starts from the name", () => {

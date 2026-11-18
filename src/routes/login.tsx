@@ -20,13 +20,14 @@ import loginBg from "@/assets/login-bg.jpg";
 import loginBgOr from "@/assets/login-bg-or.jpg";
 import { useImageReady } from "@/hooks/use-image-ready";
 
-const isTest = import.meta.env.VITE_APP_ENV === "test";
+const isTestBuild = import.meta.env.VITE_APP_ENV === "test";
 
 // Bundled (hashed, cached for good, and in the app's offline cache), so it's
-// already on the device on every visit after the first.
-const LOGIN_BG = isTest ? loginBgOr : loginBg;
+// already on the device on every visit after the first. The phyto app always
+// shows the normal picture and wordmark, even on the test build.
+const loginBgFor = (exp: boolean) => (exp ? loginBgOr : loginBg);
 // The picture's average colour, shown until it has fully decoded.
-const LOGIN_BG_FILL = isTest ? "#c08060" : "#407fa1";
+const loginBgFillFor = (exp: boolean) => (exp ? "#c08060" : "#407fa1");
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { error?: string; next?: string } => {
@@ -38,7 +39,7 @@ export const Route = createFileRoute("/login")({
   },
   head: () => ({
     meta: [{ title: `Sign In | ${APP_NAME}` }, { name: "robots", content: "noindex" }],
-    links: [{ rel: "preload", as: "image", href: LOGIN_BG }],
+    links: [{ rel: "preload", as: "image", href: loginBgFor(isTestBuild) }],
   }),
   component: LoginPage,
 });
@@ -46,9 +47,13 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { error: callbackError, next } = Route.useSearch();
   const navigate = useNavigate();
-  const bgReady = useImageReady(LOGIN_BG);
   const native = useNativeApp();
   const nativeApp = native !== null;
+  // The test build's look (orange picture, phytoexp wordmark), except in the app.
+  const isTest = isTestBuild && !nativeApp;
+  const LOGIN_BG = loginBgFor(isTest);
+  const LOGIN_BG_FILL = loginBgFillFor(isTest);
+  const bgReady = useImageReady(LOGIN_BG);
   // Sign in with Apple: the iPhone app's native sheet (a build that has it).
   const appleIn = native === "ios" && canSignInWithApple();
   const [email, setEmail] = useState("");

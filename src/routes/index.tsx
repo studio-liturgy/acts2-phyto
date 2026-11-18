@@ -48,7 +48,7 @@ import { PhoneHome } from "@/components/phone/PhoneHome";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import { useNoAccount } from "@/lib/no-account";
 import { useNativeApp } from "@/hooks/use-native-app";
-import { useProfile } from "@/lib/profile";
+import { useMyHandle } from "@/lib/profile";
 import { ACCOUNT_NOTE_CLASS, NO_ACCOUNT_BROWSER, NO_ACCOUNT_NOTICE } from "@/lib/account-notes";
 import { isIpadBrowser, isNativeApp } from "@/lib/native-app";
 import { parsePhoneTab, phoneHomeTab, PHONE_UI, type PhoneTab } from "@/lib/phone-layout";
@@ -294,9 +294,7 @@ function kindChip(kind: KindFilter, active: boolean): string {
 
 function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
   const navigate = useNavigate();
-  const myHandle = useProfile((st) =>
-    st.profile && st.profile !== "error" ? st.profile.handle : null,
-  );
+  const myHandle = useMyHandle();
   const nativeApp = useNativeApp();
   const {
     // Default the array/record fields: during SSR + first client render the
@@ -891,7 +889,7 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
                 className="mono text-xs uppercase tracking-wider text-foreground/60"
                 title={userEmail ? `Signed in as ${userEmail}` : "Signed in as"}
               >
-                {myHandle ?? userEmail}
+                {myHandle}
               </span>
             )}
 
