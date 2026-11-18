@@ -14,6 +14,8 @@ type IntroPage = {
   text: string;
   /** A screen recording (MP4) for the card; an empty card until recorded. */
   clip?: string;
+  /** A still picture for the card, for a page without a recording. */
+  image?: string;
 };
 
 const PAGES: IntroPage[] = [
@@ -40,10 +42,12 @@ const PAGES: IntroPage[] = [
   {
     title: "Go Online",
     text: "Sign in to access your sets and sync them across devices",
+    image: "/intro-signin.webp",
   },
   {
     title: "Groups + Sharing",
     text: "Create a group to share your catalogue and organize gatherings with friends, or share individual sets",
+    clip: "/intro-groups.mp4",
   },
 ];
 
@@ -57,7 +61,7 @@ const CARD_WIDTH = 0.65;
 
 /**
  * The phone intro (app and phone browsers): six pages in a looping
- * carousel. The card slides sideways with a swipe (or by itself every 5 s),
+ * carousel. The card slides sideways with a swipe (or by itself every 12 s),
  * the title and line above it fade, and nothing scrolls up or down.
  * Signed out it offers Sign In (and, in the app, Use without an account);
  * signed in, only Back.
@@ -235,6 +239,15 @@ export function PhoneIntro({
                     aspectRatio: `${CARD_RATIO}`,
                   }}
                 >
+                  {p.image && (
+                    <img
+                      src={p.image}
+                      alt=""
+                      aria-hidden
+                      decoding="async"
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  )}
                   {p.clip && (
                     <>
                       {/* The first frame shows until the recording plays. */}

@@ -8,8 +8,9 @@
  * loop never shows a seam.
  */
 
-/** How long (ms) a page stays before the carousel moves on by itself. */
-export const INTRO_AUTO_MS = 5000;
+/** How long (ms) a page stays before the carousel moves on by itself: one
+ *  fixed time for every page, long enough for the longest recording (11.9 s). */
+export const INTRO_AUTO_MS = 12000;
 
 /** The page (0-based) shown at a track position. */
 export function pageAt(pos: number, count: number): number {
