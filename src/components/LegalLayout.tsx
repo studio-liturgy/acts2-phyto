@@ -27,6 +27,10 @@ function LegalPill({
   return (
     <Link
       to={to}
+      // The two pills act as tabs: switching doesn't add a history step, so
+      // Back (and the sign-in page's Cancel) still go where the page was
+      // opened from.
+      replace
       className={cls}
       style={active ? { color: accent } : undefined}
       // Match the tab hover: text takes the accent color when the pill fills white.

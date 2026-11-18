@@ -20,8 +20,20 @@ export function BackLink({
   toLogin?: boolean;
 }) {
   if (toLogin) {
+    // Step back in history (the sign-in page pushed this page), rather than
+    // pushing the sign-in page again: otherwise its Cancel (also a step
+    // back) would land on Terms instead of where sign in was opened from.
     return (
-      <Link to="/login" className={`${BACK_CLASS} ${tone}`}>
+      <Link
+        to="/login"
+        onClick={(e) => {
+          if (window.history.length > 1) {
+            e.preventDefault();
+            window.history.back();
+          }
+        }}
+        className={`${BACK_CLASS} ${tone}`}
+      >
         <ArrowLeft className="h-3 w-3" /> BACK
       </Link>
     );
