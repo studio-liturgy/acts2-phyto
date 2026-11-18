@@ -6,6 +6,11 @@ export async function signInWithEmail(email: string) {
   return supabase.auth.signInWithOtp({ email });
 }
 
+/** The App Review account only (lib/review-account.ts): reviewers can't get a code. */
+export async function signInWithPassword(email: string, password: string) {
+  return supabase.auth.signInWithPassword({ email: email.trim(), password });
+}
+
 export async function verifyEmailCode(email: string, token: string) {
   return supabase.auth.verifyOtp({ email, token, type: "email" });
 }

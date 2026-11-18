@@ -510,6 +510,14 @@ html[data-phone-ui] .has-dock [data-editor-scroll] > [data-rich-cells] {
 html[data-native-app] [data-giving] {
   display: none !important;
 }
+/* Legal pages in the app: the giving sections are hidden, so the numbers
+   after them step down (components/LegalNum.tsx). */
+html[data-native-app] .legal-num > span {
+  display: none;
+}
+html[data-native-app] .legal-num::before {
+  content: attr(data-app-num);
+}
 
 /* Full-screen phone sheets (Go live, Share): the close X clears the status
    bar in the app, with room above it in a browser too. */

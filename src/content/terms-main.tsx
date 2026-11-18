@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { LegalNum } from "@/components/LegalNum";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BibleCopyrights } from "@/components/BibleCopyrights";
 
@@ -56,7 +57,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
               </p>
             </section>
 
-            <section>
+            <section data-giving>
               <h2 className="text-2xl">3. Donations</h2>
               <p className="mt-2">
                 phyto accepts voluntary donations via Stripe at{" "}
@@ -80,7 +81,9 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">4. Open Source</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={4} app={3} />. Open Source
+              </h2>
               <p className="mt-2">
                 phyto is free and open-source software licensed under the GNU General Public License
                 v3.0 (GPL-3.0). You are free to use, download, modify, and distribute the software
@@ -91,7 +94,9 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">5. Data Portability</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={5} app={4} />. Data Portability
+              </h2>
               <p className="mt-2">
                 You can export your full catalogue at any time as a <code>.phyto</code> file using
                 the built-in export feature. Exports are generated entirely on your device and saved
@@ -103,7 +108,9 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">6. Music Licensing Is Your Responsibility</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={6} app={5} />. Music Licensing Is Your Responsibility
+              </h2>
               <p className="mt-2">
                 phyto is a presentation tool only. It does not license, distribute, or authorise the
                 public performance, reproduction, or display of copyrighted musical works.
@@ -156,7 +163,9 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">7. Bible Text</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={7} app={6} />. Bible Text
+              </h2>
               <p className="mt-2">
                 Scripture passages are fetched from the YouVersion Platform, and from bolls.life for
                 the versions YouVersion doesn&apos;t offer. Each Bible version remains the copyright
@@ -177,7 +186,9 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">8. Feedback</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={8} app={7} />. Feedback
+              </h2>
               <p className="mt-2">
                 The feedback form at{" "}
                 <Link to="/feedback" className="underline hover:opacity-60">
@@ -194,7 +205,9 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">9. Disclaimer of Warranties</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={9} app={8} />. Disclaimer of Warranties
+              </h2>
               <p className="mt-2 uppercase">
                 The app is provided "as is" and "as available", without warranty of any kind,
                 express or implied, including but not limited to warranties of merchantability,
@@ -205,7 +218,9 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">10. Limitation of Liability</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={10} app={9} />. Limitation of Liability
+              </h2>
               <p className="mt-2 uppercase">
                 To the fullest extent permitted by applicable law, the developer shall not be liable
                 for any indirect, incidental, special, consequential, or punitive damages, including
@@ -220,7 +235,9 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">11. Acceptable Use</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={11} app={10} />. Acceptable Use
+              </h2>
               <p className="mt-2">
                 You agree to use phyto only for lawful purposes. You agree not to:
               </p>
@@ -234,7 +251,9 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">12. Changes to the App and Terms</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={12} app={11} />. Changes to the App and Terms
+              </h2>
               <p className="mt-2">
                 We reserve the right to modify, suspend, or discontinue the app at any time without
                 notice. We may also update these Terms from time to time. Continued use of the app
@@ -243,7 +262,9 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">13. Governing Law</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={13} app={12} />. Governing Law
+              </h2>
               <p className="mt-2">
                 These Terms shall be governed by and construed in accordance with the laws of
                 British Columbia, Canada, without regard to conflict of law principles.
@@ -251,7 +272,9 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
             </section>
 
             <section>
-              <h2 className="text-2xl">14. Contact</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={14} app={13} />. Contact
+              </h2>
               <p className="mt-2">
                 Questions about these Terms can be submitted via the feedback form at{" "}
                 <Link to="/feedback" className="underline hover:opacity-60">
@@ -319,7 +342,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
               <p className="mt-2">
                 If you use the live sharing feature to publicly display copyrighted content such as
                 song lyrics, you remain solely responsible for holding the appropriate licences as
-                described in the offline Terms section 6.
+                described in the offline Terms section <LegalNum web={6} app={5} />.
               </p>
               <p className="mt-2">
                 You are responsible for the content you create and for anything you share with other
@@ -342,10 +365,11 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
               </p>
               <p className="mt-2">
                 You are solely responsible for the content you upload and for holding any licences
-                required to store or display it, as described in the offline Terms section 6. You
-                agree not to upload content that is unlawful, infringing, malicious, or that you do
-                not have the right to use. phyto does not review or moderate uploaded media but may
-                remove content and reserves the right to suspend accounts that abuse this feature.
+                required to store or display it, as described in the offline Terms section{" "}
+                <LegalNum web={6} app={5} />. You agree not to upload content that is unlawful,
+                infringing, malicious, or that you do not have the right to use. phyto does not
+                review or moderate uploaded media but may remove content and reserves the right to
+                suspend accounts that abuse this feature.
               </p>
               <p className="mt-2">
                 You can delete an uploaded video at any time by removing the slide that uses it,

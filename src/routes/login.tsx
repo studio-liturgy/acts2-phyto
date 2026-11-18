@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useLayoutEffect, useRef, useState } from "react";
 import { fitFontSize } from "@/lib/fit-text";
-import { isTesterEmail, signInWithEmail, verifyEmailCode } from "@/lib/auth";
+import { isTesterEmail, signInWithEmail, signInWithPassword, verifyEmailCode } from "@/lib/auth";
+import { isReviewEmail } from "@/lib/review-account";
 import { TESTERS_ONLY } from "@/lib/testers";
 import { TestersOnlyDialog } from "@/components/TestersOnlyDialog";
 import { sendWelcomeIfNew } from "@/lib/welcome";
@@ -53,6 +54,8 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
   const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const review = isReviewEmail(email);
   const [subscribe, setSubscribe] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(callbackError ?? null);
@@ -102,6 +105,16 @@ function LoginPage() {
         else setError("Couldn't check the tester list. Try again.");
         return;
       }
+    }
+    if (review) {
+      const { error } = await signInWithPassword(email, password);
+      if (error) {
+        setSubmitting(false);
+        setError(error.message);
+        return;
+      }
+      navigate({ href: next ?? "/" });
+      return;
     }
     const { error } = await signInWithEmail(email);
     setSubmitting(false);
@@ -249,12 +262,33 @@ function LoginPage() {
                         : "border border-white/60 text-white placeholder-white/50 focus:border-white"
                     }`}
                   />
+                  {review && (
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="password"
+                      autoComplete="current-password"
+                      required
+                      className={`mono text-sm w-full rounded-full bg-transparent px-6 py-3 text-center outline-none ${
+                        isTest
+                          ? "border border-black/40 text-black placeholder-black/50 focus:border-black"
+                          : "border border-white/60 text-white placeholder-white/50 focus:border-white"
+                      }`}
+                    />
+                  )}
                   <button
                     type="submit"
                     disabled={submitting}
                     className={`mono uppercase ${btnText} w-full rounded-full px-6 py-3 transition hover:opacity-90 disabled:opacity-50 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
                   >
-                    {submitting ? "sending…" : "continue"}
+                    {submitting
+                      ? review
+                        ? "signing in…"
+                        : "sending…"
+                      : review
+                        ? "sign in"
+                        : "continue"}
                   </button>
                 </form>
 

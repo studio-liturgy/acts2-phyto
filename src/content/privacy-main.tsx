@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { LegalNum } from "@/components/LegalNum";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function PrivacyMain({ defaultSection }: { defaultSection: "offline" | "online" }) {
@@ -202,7 +203,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
               </p>
             </section>
 
-            <section>
+            <section data-giving>
               <h2 className="text-2xl">7. Stripe</h2>
               <p className="mt-2">
                 The app links to a voluntary donation page hosted by Stripe at{" "}
@@ -227,7 +228,9 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">8. Instagram</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={8} app={7} />. Instagram
+              </h2>
               <p className="mt-2">
                 The app links to phyto's Instagram profile at{" "}
                 <a
@@ -244,7 +247,9 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">9. Children's Privacy</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={9} app={8} />. Children's Privacy
+              </h2>
               <p className="mt-2">
                 We do not knowingly collect personal information from anyone. The feedback form
                 should not be submitted by children without parental guidance.
@@ -252,7 +257,9 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">10. Changes to This Policy</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={10} app={9} />. Changes to This Policy
+              </h2>
               <p className="mt-2">
                 We may update this Privacy Policy from time to time. Updates will be reflected on
                 this page with a revised effective date. Continued use of the app after any change
@@ -261,7 +268,9 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section>
-              <h2 className="text-2xl">11. Contact</h2>
+              <h2 className="text-2xl">
+                <LegalNum web={11} app={10} />. Contact
+              </h2>
               <p className="mt-2">
                 Questions about this Privacy Policy can be submitted via the feedback form at{" "}
                 <Link to="/feedback" className="underline hover:opacity-60">
@@ -414,9 +423,12 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
               <p className="mt-2">
                 We also send transactional emails through Resend when you share a set with someone
                 or invite them to a group (to the address you enter, saying what was shared and by
-                whom), and a thank-you email when you donate (to the email address you gave Stripe
-                at checkout, using the name and amount from that checkout). These are not marketing
-                and are not added to any mailing list.
+                whom)
+                <span data-giving>
+                  , and a thank-you email when you donate (to the email address you gave Stripe at
+                  checkout, using the name and amount from that checkout)
+                </span>
+                . These are not marketing and are not added to any mailing list.
               </p>
               <p className="mt-2">
                 Marketing emails are strictly opt-in. Every such email includes an unsubscribe link,
