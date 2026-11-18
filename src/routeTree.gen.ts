@@ -38,6 +38,7 @@ import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
 import { Route as ApiMediaRawRouteImport } from './routes/api/media/raw'
 import { Route as ApiGroupsInviteRouteImport } from './routes/api/groups/invite'
 import { Route as ApiAuthWelcomeRouteImport } from './routes/api/auth/welcome'
+import { Route as ApiAuthStartRouteImport } from './routes/api/auth/start'
 import { Route as ApiAuthAppleRouteImport } from './routes/api/auth/apple'
 import { Route as ApiAccountDeleteRouteImport } from './routes/api/account/delete'
 
@@ -186,6 +187,11 @@ const ApiAuthWelcomeRoute = ApiAuthWelcomeRouteImport.update({
   path: '/api/auth/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthStartRoute = ApiAuthStartRouteImport.update({
+  id: '/api/auth/start',
+  path: '/api/auth/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthAppleRoute = ApiAuthAppleRouteImport.update({
   id: '/api/auth/apple',
   path: '/api/auth/apple',
@@ -220,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/set/$setId': typeof SetSetIdRoute
   '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/apple': typeof ApiAuthAppleRoute
+  '/api/auth/start': typeof ApiAuthStartRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/raw': typeof ApiMediaRawRoute
@@ -253,6 +260,7 @@ export interface FileRoutesByTo {
   '/set/$setId': typeof SetSetIdRoute
   '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/apple': typeof ApiAuthAppleRoute
+  '/api/auth/start': typeof ApiAuthStartRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/raw': typeof ApiMediaRawRoute
@@ -287,6 +295,7 @@ export interface FileRoutesById {
   '/set/$setId': typeof SetSetIdRoute
   '/api/account/delete': typeof ApiAccountDeleteRoute
   '/api/auth/apple': typeof ApiAuthAppleRoute
+  '/api/auth/start': typeof ApiAuthStartRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/raw': typeof ApiMediaRawRoute
@@ -322,6 +331,7 @@ export interface FileRouteTypes {
     | '/set/$setId'
     | '/api/account/delete'
     | '/api/auth/apple'
+    | '/api/auth/start'
     | '/api/auth/welcome'
     | '/api/groups/invite'
     | '/api/media/raw'
@@ -355,6 +365,7 @@ export interface FileRouteTypes {
     | '/set/$setId'
     | '/api/account/delete'
     | '/api/auth/apple'
+    | '/api/auth/start'
     | '/api/auth/welcome'
     | '/api/groups/invite'
     | '/api/media/raw'
@@ -388,6 +399,7 @@ export interface FileRouteTypes {
     | '/set/$setId'
     | '/api/account/delete'
     | '/api/auth/apple'
+    | '/api/auth/start'
     | '/api/auth/welcome'
     | '/api/groups/invite'
     | '/api/media/raw'
@@ -422,6 +434,7 @@ export interface RootRouteChildren {
   SetSetIdRoute: typeof SetSetIdRoute
   ApiAccountDeleteRoute: typeof ApiAccountDeleteRoute
   ApiAuthAppleRoute: typeof ApiAuthAppleRoute
+  ApiAuthStartRoute: typeof ApiAuthStartRoute
   ApiAuthWelcomeRoute: typeof ApiAuthWelcomeRoute
   ApiGroupsInviteRoute: typeof ApiGroupsInviteRoute
   ApiMediaRawRoute: typeof ApiMediaRawRoute
@@ -638,6 +651,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthWelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/start': {
+      id: '/api/auth/start'
+      path: '/api/auth/start'
+      fullPath: '/api/auth/start'
+      preLoaderRoute: typeof ApiAuthStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/apple': {
       id: '/api/auth/apple'
       path: '/api/auth/apple'
@@ -678,6 +698,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetSetIdRoute: SetSetIdRoute,
   ApiAccountDeleteRoute: ApiAccountDeleteRoute,
   ApiAuthAppleRoute: ApiAuthAppleRoute,
+  ApiAuthStartRoute: ApiAuthStartRoute,
   ApiAuthWelcomeRoute: ApiAuthWelcomeRoute,
   ApiGroupsInviteRoute: ApiGroupsInviteRoute,
   ApiMediaRawRoute: ApiMediaRawRoute,

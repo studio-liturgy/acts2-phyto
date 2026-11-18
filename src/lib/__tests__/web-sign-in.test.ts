@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   answerMatches,
   appleName,
+  appReturnUrl,
+  appStartUrl,
   authorizeUrl,
   forwardFragment,
+  isAppState,
   parseAnswer,
+  readStart,
 } from "../web-sign-in";
 
 describe("web sign in", () => {
@@ -60,5 +64,38 @@ describe("web sign in", () => {
     expect(answerMatches(pending, "abc")).toBe(true);
     expect(answerMatches(pending, "xyz")).toBe(false);
     expect(answerMatches(null, "abc")).toBe(false);
+  });
+
+  it("app: the sheet starts on phyto's address and Google returns to /auth/web", () => {
+    const nonce = "a".repeat(64);
+    const start = new URL(appStartUrl("https://phytoexp.live", "google", "app.12345678", nonce));
+    expect(start.host).toBe("phytoexp.live");
+    expect(start.pathname).toBe("/api/auth/start");
+    const read = readStart(start.searchParams);
+    expect(read).toEqual({ provider: "google", state: "app.12345678", nonce });
+    const google = new URL(authorizeUrl(read!.provider, start.origin, read!.state, read!.nonce));
+    expect(google.searchParams.get("redirect_uri")).toBe("https://phytoexp.live/auth/web");
+  });
+
+  it("app: /api/auth/start refuses anything but plain values", () => {
+    const ok = "a".repeat(64);
+    expect(
+      readStart(new URLSearchParams({ provider: "x", state: "app.12345678", nonce: ok })),
+    ).toBeNull();
+    expect(
+      readStart(new URLSearchParams({ provider: "google", state: "<script>", nonce: ok })),
+    ).toBeNull();
+    expect(
+      readStart(new URLSearchParams({ provider: "google", state: "app.12345678", nonce: "zz" })),
+    ).toBeNull();
+  });
+
+  it("app: an app sign in's answer goes back to the app, a browser's stays", () => {
+    expect(isAppState("app.abc")).toBe(true);
+    expect(isAppState("abc")).toBe(false);
+    expect(isAppState(null)).toBe(false);
+    expect(appReturnUrl("#id_token=t&state=app.abc")).toBe(
+      "live.phyto.app://auth/callback#id_token=t&state=app.abc",
+    );
   });
 });

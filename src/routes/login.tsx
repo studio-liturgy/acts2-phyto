@@ -12,7 +12,12 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { APP_NAME } from "@/lib/appConfig";
 import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import { useNativeApp } from "@/hooks/use-native-app";
-import { canSignInWithApple, signInWithAppleInApp, signInWithGoogleInApp } from "@/lib/app-sign-in";
+import {
+  canSignInWithApple,
+  signInWithAppleInApp,
+  signInWithGoogleInApp,
+  signInWithGoogleInAppDirect,
+} from "@/lib/app-sign-in";
 import { PHONE_UI } from "@/lib/phone-layout";
 import { PHONE_BTN_TEXT } from "@/lib/phone-buttons";
 import { startWebSignIn } from "@/lib/web-sign-in-client";
@@ -327,6 +332,24 @@ function LoginPage() {
                     // The app: Google's page opens in the system sign-in sheet
                     // and comes straight back (Google refuses app web views).
                     if (nativeApp) {
+                      // Test build: the sheet names phyto, not Supabase.
+                      if (isTestBuild) {
+                        void signInWithGoogleInAppDirect().then(async (r) => {
+                          if (!r.ok) {
+                            if (!r.cancelled) setError(r.error);
+                            return;
+                          }
+                          const { data } = await supabase.auth.getUser();
+                          const user = data.user;
+                          if (
+                            user &&
+                            (!TESTERS_ONLY || (await isTesterEmail(user.email ?? "")) === true)
+                          ) {
+                            await sendWelcomeIfNew(user);
+                          }
+                        });
+                        return;
+                      }
                       void signInWithGoogleInApp().then((r) => {
                         if (r.ok) window.location.assign(r.callbackPath);
                         else if (!r.cancelled) setError(r.error);

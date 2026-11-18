@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { APPLE_NAME_KEY } from "@/lib/profile";
+import { APP_STATE_PREFIX, appStartUrl, parseAnswer } from "@/lib/web-sign-in";
 
 /**
  * Sign in with Google inside the phyto app. Google refuses sign-in inside an
@@ -49,6 +50,55 @@ export function callbackPath(appUrl: string): string | null {
 export type AppSignIn =
   | { ok: true; callbackPath: string }
   | { ok: false; cancelled: boolean; error: string };
+
+/**
+ * Test build: the sheet opens on phyto's own address (lib/web-sign-in.ts),
+ * so iOS asks to use "phytoexp.live" (or "phyto.live"), not the Supabase
+ * project's address. Google's identity token comes back on
+ * `live.phyto.app://` and is handed to Supabase here, like Apple's.
+ */
+export async function signInWithGoogleInAppDirect(): Promise<
+  { ok: true } | { ok: false; cancelled: boolean; error: string }
+> {
+  const plugin = webAuthPlugin();
+  if (!plugin) return { ok: false, cancelled: false, error: "Google sign in isn't available." };
+  const nonce = crypto.randomUUID() + crypto.randomUUID();
+  const state = APP_STATE_PREFIX + crypto.randomUUID();
+  const start = appStartUrl(window.location.origin, "google", state, await sha256Hex(nonce));
+  let back: string;
+  try {
+    back = (await plugin.start({ url: start, callbackScheme: APP_AUTH_SCHEME })).url;
+  } catch (e) {
+    const code = (e as { code?: string } | null)?.code;
+    return { ok: false, cancelled: code === "CANCELLED", error: "Google sign in didn't finish." };
+  }
+  let hash = "";
+  try {
+    hash = new URL(back).hash;
+  } catch {
+    // Not a URL: treated as a failed answer below.
+  }
+  const answer = parseAnswer(hash);
+  if (!answer.ok) {
+    return { ok: false, cancelled: answer.cancelled, error: "Google sign in didn't finish." };
+  }
+  if (answer.state !== state) {
+    return { ok: false, cancelled: false, error: "Google sign in didn't finish." };
+  }
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: "google",
+    token: answer.idToken,
+    nonce,
+  });
+  if (error || !data.session) {
+    return {
+      ok: false,
+      cancelled: false,
+      error: error?.message ?? "Google sign in didn't finish.",
+    };
+  }
+  return { ok: true };
+}
 
 export async function signInWithGoogleInApp(): Promise<AppSignIn> {
   const plugin = webAuthPlugin();

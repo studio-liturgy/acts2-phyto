@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { APP_NAME } from "@/lib/appConfig";
 import { finishWebSignIn } from "@/lib/web-sign-in-client";
+import { appReturnUrl, isAppState } from "@/lib/web-sign-in";
 import { sendWelcomeIfNew } from "@/lib/welcome";
 import { isTesterEmail } from "@/lib/auth";
 import { TESTERS_ONLY } from "@/lib/testers";
@@ -23,6 +24,13 @@ function WebSignInFinish() {
     if (called.current) return;
     called.current = true;
     const hash = window.location.hash;
+    // Inside the app's sign-in sheet: hand the answer back to the app,
+    // which closes the sheet and finishes the sign in there.
+    const state = new URLSearchParams(hash.replace(/^#/, "")).get("state");
+    if (isAppState(state)) {
+      window.location.replace(appReturnUrl(hash));
+      return;
+    }
     // The token leaves the address bar (and the history entry) at once.
     window.history.replaceState(null, "", window.location.pathname);
     void finishWebSignIn(hash).then(async (r) => {

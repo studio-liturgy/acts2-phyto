@@ -104,3 +104,46 @@ export function forwardFragment(form: { get(name: string): FormDataEntryValue | 
 export function answerMatches(pending: PendingSignIn | null, state: string): boolean {
   return !!pending && pending.state.length > 0 && pending.state === state;
 }
+
+/**
+ * Google in the iPhone app: the system sign-in sheet opens on phyto's own
+ * /api/auth/start (so iOS's "wants to use ... to sign in" names phyto, not
+ * Supabase), which sends it on to Google. Google answers on /auth/web inside
+ * the sheet; a state starting with `app.` tells that page to hand the answer
+ * back to the app on `live.phyto.app://`, which closes the sheet.
+ */
+export const APP_STATE_PREFIX = "app.";
+export const APP_RETURN = "live.phyto.app://auth/callback";
+export const START_PATH = "/api/auth/start";
+
+export function isAppState(state: string | null): boolean {
+  return !!state && state.startsWith(APP_STATE_PREFIX);
+}
+
+/** The sheet's first page: phyto's address, with what Google needs. */
+export function appStartUrl(
+  origin: string,
+  provider: WebProvider,
+  state: string,
+  hashedNonce: string,
+): string {
+  const q = new URLSearchParams({ provider, state, nonce: hashedNonce });
+  return `${origin}${START_PATH}?${q}`;
+}
+
+/** /api/auth/start's checks: a known provider and plain short values only. */
+export function readStart(
+  search: URLSearchParams,
+): { provider: WebProvider; state: string; nonce: string } | null {
+  const provider = search.get("provider");
+  const state = search.get("state") ?? "";
+  const nonce = search.get("nonce") ?? "";
+  if (provider !== "google" && provider !== "apple") return null;
+  if (!/^[A-Za-z0-9._-]{8,100}$/.test(state) || !/^[a-f0-9]{64}$/.test(nonce)) return null;
+  return { provider, state, nonce };
+}
+
+/** /auth/web inside the app's sheet: the answer, handed back to the app. */
+export function appReturnUrl(hash: string): string {
+  return `${APP_RETURN}#${hash.replace(/^#/, "")}`;
+}
