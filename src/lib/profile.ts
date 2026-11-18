@@ -163,9 +163,16 @@ export function suggestHandle(email: string | undefined, name = ""): string {
  *  that only show someone else's slides. */
 export function welcomeExempt(pathname: string): boolean {
   if (
-    ["/welcome", "/auth/callback", "/login", "/legal", "/terms", "/privacy", "/output"].includes(
-      pathname,
-    )
+    [
+      "/welcome",
+      "/auth/callback",
+      "/auth/web",
+      "/login",
+      "/legal",
+      "/terms",
+      "/privacy",
+      "/output",
+    ].includes(pathname)
   )
     return true;
   return pathname.startsWith("/g/") || pathname.startsWith("/screen/");

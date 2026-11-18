@@ -27,6 +27,7 @@ import { Route as SetSetIdRouteImport } from './routes/set.$setId'
 import { Route as ScreenSlugRouteImport } from './routes/screen.$slug'
 import { Route as SShareIdRouteImport } from './routes/s.$shareId'
 import { Route as GTokenRouteImport } from './routes/g.$token'
+import { Route as AuthWebRouteImport } from './routes/auth.web'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as ApiShareInviteRouteImport } from './routes/api/share/invite'
@@ -37,6 +38,7 @@ import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
 import { Route as ApiMediaRawRouteImport } from './routes/api/media/raw'
 import { Route as ApiGroupsInviteRouteImport } from './routes/api/groups/invite'
 import { Route as ApiAuthWelcomeRouteImport } from './routes/api/auth/welcome'
+import { Route as ApiAuthAppleRouteImport } from './routes/api/auth/apple'
 import { Route as ApiAccountDeleteRouteImport } from './routes/api/account/delete'
 
 const WelcomeRoute = WelcomeRouteImport.update({
@@ -129,6 +131,11 @@ const GTokenRoute = GTokenRouteImport.update({
   path: '/g/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthWebRoute = AuthWebRouteImport.update({
+  id: '/auth/web',
+  path: '/auth/web',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
@@ -179,6 +186,11 @@ const ApiAuthWelcomeRoute = ApiAuthWelcomeRouteImport.update({
   path: '/api/auth/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthAppleRoute = ApiAuthAppleRouteImport.update({
+  id: '/api/auth/apple',
+  path: '/api/auth/apple',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAccountDeleteRoute = ApiAccountDeleteRouteImport.update({
   id: '/api/account/delete',
   path: '/api/account/delete',
@@ -201,11 +213,13 @@ export interface FileRoutesByFullPath {
   '/updates': typeof UpdatesRoute
   '/welcome': typeof WelcomeRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/web': typeof AuthWebRoute
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
   '/screen/$slug': typeof ScreenSlugRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/account/delete': typeof ApiAccountDeleteRoute
+  '/api/auth/apple': typeof ApiAuthAppleRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/raw': typeof ApiMediaRawRoute
@@ -232,11 +246,13 @@ export interface FileRoutesByTo {
   '/updates': typeof UpdatesRoute
   '/welcome': typeof WelcomeRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/web': typeof AuthWebRoute
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
   '/screen/$slug': typeof ScreenSlugRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/account/delete': typeof ApiAccountDeleteRoute
+  '/api/auth/apple': typeof ApiAuthAppleRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/raw': typeof ApiMediaRawRoute
@@ -264,11 +280,13 @@ export interface FileRoutesById {
   '/updates': typeof UpdatesRoute
   '/welcome': typeof WelcomeRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/web': typeof AuthWebRoute
   '/g/$token': typeof GTokenRoute
   '/s/$shareId': typeof SShareIdRoute
   '/screen/$slug': typeof ScreenSlugRoute
   '/set/$setId': typeof SetSetIdRoute
   '/api/account/delete': typeof ApiAccountDeleteRoute
+  '/api/auth/apple': typeof ApiAuthAppleRoute
   '/api/auth/welcome': typeof ApiAuthWelcomeRoute
   '/api/groups/invite': typeof ApiGroupsInviteRoute
   '/api/media/raw': typeof ApiMediaRawRoute
@@ -297,11 +315,13 @@ export interface FileRouteTypes {
     | '/updates'
     | '/welcome'
     | '/auth/callback'
+    | '/auth/web'
     | '/g/$token'
     | '/s/$shareId'
     | '/screen/$slug'
     | '/set/$setId'
     | '/api/account/delete'
+    | '/api/auth/apple'
     | '/api/auth/welcome'
     | '/api/groups/invite'
     | '/api/media/raw'
@@ -328,11 +348,13 @@ export interface FileRouteTypes {
     | '/updates'
     | '/welcome'
     | '/auth/callback'
+    | '/auth/web'
     | '/g/$token'
     | '/s/$shareId'
     | '/screen/$slug'
     | '/set/$setId'
     | '/api/account/delete'
+    | '/api/auth/apple'
     | '/api/auth/welcome'
     | '/api/groups/invite'
     | '/api/media/raw'
@@ -359,11 +381,13 @@ export interface FileRouteTypes {
     | '/updates'
     | '/welcome'
     | '/auth/callback'
+    | '/auth/web'
     | '/g/$token'
     | '/s/$shareId'
     | '/screen/$slug'
     | '/set/$setId'
     | '/api/account/delete'
+    | '/api/auth/apple'
     | '/api/auth/welcome'
     | '/api/groups/invite'
     | '/api/media/raw'
@@ -391,11 +415,13 @@ export interface RootRouteChildren {
   UpdatesRoute: typeof UpdatesRoute
   WelcomeRoute: typeof WelcomeRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthWebRoute: typeof AuthWebRoute
   GTokenRoute: typeof GTokenRoute
   SShareIdRoute: typeof SShareIdRoute
   ScreenSlugRoute: typeof ScreenSlugRoute
   SetSetIdRoute: typeof SetSetIdRoute
   ApiAccountDeleteRoute: typeof ApiAccountDeleteRoute
+  ApiAuthAppleRoute: typeof ApiAuthAppleRoute
   ApiAuthWelcomeRoute: typeof ApiAuthWelcomeRoute
   ApiGroupsInviteRoute: typeof ApiGroupsInviteRoute
   ApiMediaRawRoute: typeof ApiMediaRawRoute
@@ -535,6 +561,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/web': {
+      id: '/auth/web'
+      path: '/auth/web'
+      fullPath: '/auth/web'
+      preLoaderRoute: typeof AuthWebRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
@@ -605,6 +638,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthWelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/apple': {
+      id: '/api/auth/apple'
+      path: '/api/auth/apple'
+      fullPath: '/api/auth/apple'
+      preLoaderRoute: typeof ApiAuthAppleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/account/delete': {
       id: '/api/account/delete'
       path: '/api/account/delete'
@@ -631,11 +671,13 @@ const rootRouteChildren: RootRouteChildren = {
   UpdatesRoute: UpdatesRoute,
   WelcomeRoute: WelcomeRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthWebRoute: AuthWebRoute,
   GTokenRoute: GTokenRoute,
   SShareIdRoute: SShareIdRoute,
   ScreenSlugRoute: ScreenSlugRoute,
   SetSetIdRoute: SetSetIdRoute,
   ApiAccountDeleteRoute: ApiAccountDeleteRoute,
+  ApiAuthAppleRoute: ApiAuthAppleRoute,
   ApiAuthWelcomeRoute: ApiAuthWelcomeRoute,
   ApiGroupsInviteRoute: ApiGroupsInviteRoute,
   ApiMediaRawRoute: ApiMediaRawRoute,

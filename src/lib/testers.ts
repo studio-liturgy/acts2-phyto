@@ -21,7 +21,8 @@ export const TESTERS_ONLY = isTest;
  *  sign in, its callback, the legal pages it links to, old phytoexp /g
  *  live links that are already out in the world, and screen links. */
 export function isOpenOnTest(pathname: string): boolean {
-  if (pathname === "/login" || pathname === "/auth/callback") return true;
+  if (pathname === "/login" || pathname === "/auth/callback" || pathname === "/auth/web")
+    return true;
   if (pathname === "/legal" || pathname === "/terms" || pathname === "/privacy") return true;
   // The screen link (Present from a phone) needs no sign in either.
   return pathname.startsWith("/g/") || pathname.startsWith("/screen/");

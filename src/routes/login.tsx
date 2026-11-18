@@ -15,6 +15,7 @@ import { useNativeApp } from "@/hooks/use-native-app";
 import { canSignInWithApple, signInWithAppleInApp, signInWithGoogleInApp } from "@/lib/app-sign-in";
 import { PHONE_UI } from "@/lib/phone-layout";
 import { PHONE_BTN_TEXT } from "@/lib/phone-buttons";
+import { startWebSignIn } from "@/lib/web-sign-in-client";
 import wordmark from "@/assets/wordmark.svg";
 import wordmarkTestBlack from "@/assets/wordmark-test-black.svg";
 import loginBg from "@/assets/login-bg.jpg";
@@ -57,10 +58,11 @@ function LoginPage() {
   const bgReady = useImageReady(LOGIN_BG);
   // Sign in with Apple: the iPhone app's native sheet (a build that has it).
   const appleIn = native === "ios" && canSignInWithApple();
-  // Browsers (phone and computer): Apple's web sign-in through Supabase.
-  // Test build only until it has been tried on phytoexp.live; then this
-  // turns on for phyto.live too.
-  const appleWeb = native === null && isTestBuild;
+  // Browsers (phone and computer): Apple and Google sign in through
+  // phyto's own address (lib/web-sign-in.ts). Test build only until it has
+  // been tried on phytoexp.live; then it turns on for phyto.live too.
+  const webIdSignIn = native === null && isTestBuild;
+  const appleWeb = webIdSignIn;
   const appleShown = appleIn || appleWeb;
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
@@ -331,6 +333,12 @@ function LoginPage() {
                       });
                       return;
                     }
+                    // Browsers on the test build: Google's page names phyto's
+                    // own address (lib/web-sign-in.ts), not Supabase's.
+                    if (webIdSignIn) {
+                      void startWebSignIn("google");
+                      return;
+                    }
                     supabase.auth.signInWithOAuth({
                       provider: "google",
                       options: { redirectTo: window.location.origin + "/auth/callback" },
@@ -353,10 +361,7 @@ function LoginPage() {
                     onClick={() => {
                       sessionStorage.setItem("phyto-subscribe", String(subscribe));
                       if (!appleIn) {
-                        supabase.auth.signInWithOAuth({
-                          provider: "apple",
-                          options: { redirectTo: window.location.origin + "/auth/callback" },
-                        });
+                        void startWebSignIn("apple");
                         return;
                       }
                       void signInWithAppleInApp().then(async (r) => {
