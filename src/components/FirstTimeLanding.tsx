@@ -23,6 +23,7 @@ import { usePhoneLayout } from "@/hooks/use-phone-layout";
 import { NoAccountChoice } from "@/components/NoAccountChoice";
 import { useNoAccount } from "@/lib/no-account";
 import { useLibrary } from "@/lib/store";
+import { useNativeApp } from "@/hooks/use-native-app";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
 const linkCls = "mono uppercase transition-opacity duration-200 hover:opacity-60";
@@ -48,6 +49,9 @@ type Step = {
   textC?: React.ReactNode;
   /** Mobile copy where the desktop line breaks / paragraph splits don't read well stacked. */
   mobile?: { textA?: React.ReactNode[]; textB?: React.ReactNode; textC?: React.ReactNode };
+  /** The phyto app's copy, where it works differently from a browser (presenting
+   *  through AirPlay). Falls back to `mobile`, then to the desktop copy. */
+  app?: { textA?: React.ReactNode[]; textB?: React.ReactNode; textC?: React.ReactNode };
   /** Two clips (A, B: the original staggered pair) or three (step 1: A beside the textA
    *  stack, B under textA, C staggered below A overlapping B's lower edge). */
   clips: Clip[];
@@ -112,6 +116,7 @@ const STEPS: Step[] = [
         "Display scriptures in two translations at once and songs in several languages side by side",
       textC: "Add chords to songs, viewed on a mobile phone",
     },
+    app: { textC: "Add chords to songs and see them in the phone view" },
     desktop: { hookEndX: 317 },
     svgPath:
       "M164.889 305.578V285.157H216.772V131.996H213.627L183.493 200.853H161.745V199.282L196.071 122.309H238.783V285.157H290.665V305.578H164.889Z",
@@ -156,6 +161,13 @@ const STEPS: Step[] = [
       textA: [
         "Connect to a TV or projector, hit Present, then Output and drag it to your extended screen (mobile WIP)",
       ],
+    },
+    app: {
+      textA: [
+        "Connect to a TV with AirPlay: open Control Center, tap Screen Mirroring and pick your TV, then tap Present in the Present tab",
+      ],
+      textB:
+        "Make the gathering go live (needs an account). Friends follow along on their own phones",
     },
     desktop: {
       hookEndX: 235,
@@ -293,6 +305,8 @@ export function FirstTimeLanding({
   const noAccount = useNoAccount();
   // Without an account the app keeps one gathering (no New Gathering after it).
   const gatheringCount = useLibrary((s) => s.gatheringOrder?.length ?? 0);
+  // Inside the phyto app, steps use their `app` copy where they have one.
+  const nativeApp = useNativeApp() !== null;
 
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -1093,6 +1107,7 @@ export function FirstTimeLanding({
       <section className="mt-12 flex flex-col gap-12 md:hidden">
         {STEPS.map((step, i) => {
           const mirror = i % 2 === 1;
+          const copy = { ...step.mobile, ...(nativeApp ? step.app : undefined) };
           return (
             <div key={step.n}>
               <p
@@ -1153,7 +1168,7 @@ export function FirstTimeLanding({
                     }`}
                     style={{ backgroundColor: step.color }}
                   >
-                    {(step.mobile?.textA ?? step.textA).map((text, j) => (
+                    {(copy.textA ?? step.textA).map((text, j) => (
                       <p
                         key={j}
                         className={`mono text-xs uppercase leading-relaxed ${j ? "mt-3" : ""}`}
@@ -1172,13 +1187,13 @@ export function FirstTimeLanding({
                         }}
                       />
                     ))}
-                    {(step.mobile?.textC ?? step.textC) && (
+                    {(copy.textC ?? step.textC) && (
                       <p className="mono mt-6 text-xs uppercase leading-relaxed">
-                        {step.mobile?.textC ?? step.textC}
+                        {copy.textC ?? step.textC}
                       </p>
                     )}
                     <p className="mono mt-6 text-xs uppercase leading-relaxed">
-                      {step.mobile?.textB ?? step.textB}
+                      {copy.textB ?? step.textB}
                     </p>
                     <StepVideo
                       clip={step.clips[step.clips.length - 1]}
