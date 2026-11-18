@@ -70,6 +70,13 @@ function LoginPage() {
   const phone = usePhoneLayout() === true && PHONE_UI;
   // Phone: the Settings pills' small mono (Sign out, Delete Account).
   const btnText = phone ? PHONE_BTN_TEXT : "text-sm";
+  // Sign in with Google / Apple: outlined pills on a phone (like Cancel),
+  // filled on a computer.
+  const ssoBtn = phone
+    ? `border ${isTest ? "border-[var(--brand-black)] text-[var(--brand-black)]" : "border-white text-white"}`
+    : isTest
+      ? "bg-[var(--brand-black)] text-[var(--brand-white)]"
+      : "bg-white text-[var(--brand-blue)]";
   // Phone: "Keep me in the loop" sized to run edge to edge under the buttons.
   const loopRow = useRef<HTMLLabelElement>(null);
   const loopText = useRef<HTMLSpanElement>(null);
@@ -327,7 +334,7 @@ function LoginPage() {
                   // With Apple under it: 4px apart (his call: closer than Sign out and
                   // Delete Account; the column's space-y-3 puts 12px under this one).
                   style={appleIn ? { marginBlockEnd: "0.25rem" } : undefined}
-                  className={`mono uppercase ${btnText} w-full rounded-full px-6 py-3 transition hover:opacity-90 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
+                  className={`mono uppercase ${btnText} w-full rounded-full px-6 py-3 transition hover:opacity-90 ${ssoBtn}`}
                 >
                   sign in with Google
                 </button>
@@ -354,7 +361,7 @@ function LoginPage() {
                         }
                       });
                     }}
-                    className={`mono uppercase ${btnText} w-full rounded-full px-6 py-3 transition hover:opacity-90 ${isTest ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "bg-white text-[var(--brand-blue)]"}`}
+                    className={`mono uppercase ${btnText} w-full rounded-full px-6 py-3 transition hover:opacity-90 ${ssoBtn}`}
                   >
                     sign in with Apple
                   </button>
