@@ -582,7 +582,7 @@ export function FirstTimeLanding({
           aria-hidden
           className={`absolute inset-0 bg-cover bg-center ${
             heroReady === "instant" ? "" : "transition-opacity duration-300"
-          } ${heroReady ? "opacity-85" : "opacity-0"}`}
+          } ${heroReady ? "opacity-70" : "opacity-0"}`}
           style={{ backgroundImage: `url('${introHero}')` }}
         />
         {/* Overlay chrome — aligned to the content column, like the regular home header.
