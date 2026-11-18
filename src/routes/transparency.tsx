@@ -227,7 +227,7 @@ function TransparencyPage() {
         </div>
 
         <div className="mono mt-16 space-y-2 text-xs uppercase leading-relaxed opacity-70">
-          <p>All amounts are in CAD.</p>
+          <p>All amounts are in CAD</p>
         </div>
 
         <BackToTop arrow="var(--brand-blue)" />
