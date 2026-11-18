@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fitFontSize } from "@/lib/fit-text";
 import { isTesterEmail, signInWithEmail, signInWithPassword, verifyEmailCode } from "@/lib/auth";
 import { isReviewEmail } from "@/lib/review-account";
@@ -20,6 +20,7 @@ import {
 } from "@/lib/app-sign-in";
 import { PHONE_UI } from "@/lib/phone-layout";
 import { PHONE_BTN_TEXT } from "@/lib/phone-buttons";
+import { clearBackToLogin, markBackToLogin } from "@/hooks/use-back-home";
 import { startWebSignIn } from "@/lib/web-sign-in-client";
 import wordmark from "@/assets/wordmark.svg";
 import wordmarkTestBlack from "@/assets/wordmark-test-black.svg";
@@ -91,6 +92,9 @@ function LoginPage() {
       : "bg-white text-[var(--brand-blue)]";
   // Phone: "Keep me in the loop" sized to run edge to edge under the buttons.
   const loopRow = useRef<HTMLButtonElement>(null);
+  // Back on the sign-in page: Terms and Privacy go home again unless they
+  // are opened from here once more.
+  useEffect(() => clearBackToLogin(), []);
   const loopText = useRef<HTMLSpanElement>(null);
   const [loopSize, setLoopSize] = useState<number | null>(null);
   useLayoutEffect(() => {
@@ -453,6 +457,7 @@ function LoginPage() {
                   <Link
                     to="/legal"
                     hash="terms-online"
+                    onClick={markBackToLogin}
                     className={`underline ${isTest ? "hover:text-black/80" : "hover:text-white/80"}`}
                   >
                     Terms of Use
@@ -461,6 +466,7 @@ function LoginPage() {
                   <Link
                     to="/legal"
                     hash="privacy-online"
+                    onClick={markBackToLogin}
                     className={`underline ${isTest ? "hover:text-black/80" : "hover:text-white/80"}`}
                   >
                     Privacy Policy

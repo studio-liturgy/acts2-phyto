@@ -35,3 +35,37 @@ export function useBackHomeSearch(): { tab?: "settings" } {
   }, []);
   return toSettings ? { tab: "settings" } : {};
 }
+
+// Terms and Privacy opened from the sign-in page: Back returns there.
+const LOGIN_KEY = "phyto:back-to-login";
+
+/** Remember that Terms or Privacy was opened from the sign-in page. */
+export function markBackToLogin(): void {
+  try {
+    sessionStorage.setItem(LOGIN_KEY, "1");
+  } catch {
+    // Storage unavailable: Back goes to the home page.
+  }
+}
+
+/** Back on the sign-in page (or anywhere else): forget it. */
+export function clearBackToLogin(): void {
+  try {
+    sessionStorage.removeItem(LOGIN_KEY);
+  } catch {
+    // Nothing to clear.
+  }
+}
+
+/** Whether Back on Terms or Privacy should return to the sign-in page. */
+export function useBackToLogin(): boolean {
+  const [toLogin, setToLogin] = useState(false);
+  useEffect(() => {
+    try {
+      setToLogin(sessionStorage.getItem(LOGIN_KEY) === "1");
+    } catch {
+      setToLogin(false);
+    }
+  }, []);
+  return toLogin;
+}

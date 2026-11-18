@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { BackLink } from "@/components/BackLink";
 import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { Link } from "@tanstack/react-router";
-import { useBackHomeSearch } from "@/hooks/use-back-home";
+import { useBackHomeSearch, useBackToLogin } from "@/hooks/use-back-home";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
@@ -49,6 +49,8 @@ export function LegalLayout({
   children: ReactNode;
 }) {
   const backSearch = useBackHomeSearch();
+  // Opened from the sign-in page: Back returns there.
+  const toLogin = useBackToLogin();
   usePageBackgroundColor(isTest ? "var(--brand-orange-dark)" : "var(--brand-blue)");
 
   return (
@@ -56,7 +58,7 @@ export function LegalLayout({
       className={`flex min-h-screen flex-col ${isTest ? "bg-[var(--brand-orange-dark)]" : "bg-[var(--brand-blue)]"} text-[var(--brand-white)]`}
     >
       <main className={`mx-auto w-full max-w-3xl flex-1 px-6 pb-16 ${BACK_PAGE_TOP}`}>
-        <BackLink search={backSearch} />
+        <BackLink search={backSearch} toLogin={toLogin} />
         <h1 className="sr-only">{active === "terms" ? "Terms of Use" : "Privacy Policy"}</h1>
         <div className="mt-8 flex gap-2">
           <LegalPill to="/terms" active={active === "terms"}>
