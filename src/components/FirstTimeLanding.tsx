@@ -571,6 +571,8 @@ export function FirstTimeLanding({
   }, []);
 
   const heroReady = useImageReady(introHero);
+  // A Back button (phone: BACK link; desktop: Back pill) shows above the heading.
+  const hasBack = phone ? (!isEmpty || noAccount) && !signInOnly : !isEmpty && !signInOnly;
 
   return (
     <main className="flex-1">
@@ -594,10 +596,10 @@ export function FirstTimeLanding({
           <div
             className={`mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 ${phone ? BACK_PAGE_TOP : "pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] md:pt-10"}`}
           >
-            {(!isEmpty || noAccount) && !signInOnly && phone && (
+            {hasBack && phone && (
               <BackLink search={backSearch} tone="text-[var(--brand-white)] opacity-80" />
             )}
-            {!isEmpty && !signInOnly && !phone && (
+            {hasBack && !phone && (
               <Link
                 to="/"
                 search={backSearch}
@@ -647,7 +649,13 @@ export function FirstTimeLanding({
           </div>
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-6 pb-16 pt-24 text-center md:pb-24 md:pt-28">
+        {/* With a Back button above it, the heading sits lower so the two
+            don't crowd each other. */}
+        <div
+          className={`relative mx-auto max-w-6xl px-6 pb-16 text-center md:pb-24 ${
+            hasBack ? "pt-32 md:pt-36" : "pt-24 md:pt-28"
+          }`}
+        >
           <Link to="/" className="intro-wordmark inline-block">
             <img
               src={isTest ? wordmarkTest : wordmark}
