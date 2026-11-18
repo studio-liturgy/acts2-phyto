@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { setMatchesSearch } from "@/lib/set-search";
+import { rankBySearch, setMatchesSearch } from "@/lib/set-search";
 import { Search, X } from "lucide-react";
 import { useLibrary } from "@/lib/store";
 import { NO_IDS, NO_SETS, phoneKindBg } from "@/lib/phone-layout";
@@ -24,10 +24,12 @@ export function PhoneAddSetSheet({
   const [query, setQuery] = useState("");
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return order
+    const list = order
       .map((id) => sets[id])
       .filter((d) => d && setMatchesSearch(d, q))
       .sort((a, b) => a.name.localeCompare(b.name));
+    // Name matches first, then sets that match in their words.
+    return rankBySearch(list, q);
   }, [order, sets, query]);
 
   return (

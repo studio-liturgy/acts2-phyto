@@ -81,6 +81,7 @@ import {
   guessKey,
 } from "@/lib/chords";
 import { stripInlineFormat } from "@/lib/inline-format";
+import { searchRank } from "@/lib/set-search";
 import { create } from "zustand";
 import { groupSlides, hiddenSlideIds } from "@/lib/sections";
 import {
@@ -613,6 +614,9 @@ function Presenter() {
       const sa = sets[a];
       const sb = sets[b];
       if (!sa || !sb) return 0;
+      // A search lists name matches first, then sets that match in their words.
+      const byRank = searchRank(sa, q) - searchRank(sb, q);
+      if (byRank) return byRank;
       return setSortMode === "az" ? sa.name.localeCompare(sb.name) : sb.createdAt - sa.createdAt;
     });
   const filteredGatherings = showAll ? gatheringOrder : [];
@@ -676,20 +680,23 @@ function Presenter() {
   // can be inserted on the fly.
   const catalogueResults =
     activeGathering && q
-      ? order.filter((id) => {
-          if (activeGathering.setIds.includes(id)) return false;
-          const s = sets[id];
-          if (!s) return false;
-          if (kindFilter !== "all") {
-            const kindOk =
-              kindFilter === "scripture"
-                ? s.kind === "scripture" || s.kind === "message"
-                : s.kind === kindFilter;
-            if (!kindOk) return false;
-          }
-          if (s.name.toLowerCase().includes(q)) return true;
-          return setMatchesLyric(s, q);
-        })
+      ? order
+          .filter((id) => {
+            if (activeGathering.setIds.includes(id)) return false;
+            const s = sets[id];
+            if (!s) return false;
+            if (kindFilter !== "all") {
+              const kindOk =
+                kindFilter === "scripture"
+                  ? s.kind === "scripture" || s.kind === "message"
+                  : s.kind === kindFilter;
+              if (!kindOk) return false;
+            }
+            if (s.name.toLowerCase().includes(q)) return true;
+            return setMatchesLyric(s, q);
+          })
+          // Name matches first, then sets that match in their words.
+          .sort((a, b) => searchRank(sets[a]!, q) - searchRank(sets[b]!, q))
       : [];
 
   useEffect(() => {

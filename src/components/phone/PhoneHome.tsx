@@ -20,8 +20,7 @@ import { useAccountSlug } from "@/hooks/use-account-slug";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { isLiveNow } from "@/lib/live-session";
-import { stripChords } from "@/lib/chords";
-import { stripInlineFormat } from "@/lib/inline-format";
+import { rankBySearch, setMatchesSearch } from "@/lib/set-search";
 import { songPatternStyle, songPatterns } from "@/lib/song-layout";
 import { nextOwnershipFilter, type OwnershipFilter } from "@/lib/group-catalogue";
 import {
@@ -755,20 +754,13 @@ function CatalogueTab({ sharedOutIds }: { sharedOutIds: Set<string> }) {
                 ? !!d.shared
                 : matchesKindStep(d, kindFilter),
       )
-      .filter(
-        (d) =>
-          !q ||
-          d.name.toLowerCase().includes(q) ||
-          d.slides.some((slide) =>
-            slide.lines?.some((line) =>
-              stripInlineFormat(stripChords(line)).toLowerCase().includes(q),
-            ),
-          ),
-      )
+      .filter((d) => setMatchesSearch(d, q))
       .filter((d) => !(isGroupGuest && editMode) || !d.shared);
-    return [...list].sort((a, b) =>
+    const sorted = [...list].sort((a, b) =>
       sortMode === "az" ? a.name.localeCompare(b.name) : b.createdAt - a.createdAt,
     );
+    // A search lists name matches first, then sets that match in their words.
+    return rankBySearch(sorted, q);
   }, [order, sets, query, kindFilter, sortMode, sharedOutIds, isGroupGuest, editMode]);
 
   const newSet = (kind: SetKind) => {

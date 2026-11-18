@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { setMatchesSearch } from "@/lib/set-search";
+import { rankBySearch, setMatchesSearch } from "@/lib/set-search";
 import { useAuthStore } from "@/lib/authStore";
 import { canDeleteGathering } from "@/lib/group-catalogue";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -86,6 +86,38 @@ export function PhoneGathering({
   const [searching, setSearching] = useState(false);
   const createSet = useLibrary((s) => s.createSet);
 
+  // Tapping the search opens the whole catalogue as a list at once, with
+  // the keyboard. The search bar glides to the top of the screen and the
+  // list fills the space between it and the keyboard, scrolling on its own.
+  const searchBarRef = useRef<HTMLDivElement>(null);
+  const [listMax, setListMax] = useState<number | null>(null);
+  useEffect(() => {
+    if (!searching) return;
+    const bar = searchBarRef.current;
+    const scroller = bar?.closest<HTMLElement>(".overflow-y-auto");
+    if (!bar || !scroller) return;
+    const vv = window.visualViewport;
+    const measure = () => {
+      const bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      // 4px under the bar (mt-1) and 12px clear of the keyboard.
+      setListMax(Math.max(160, bottom - bar.getBoundingClientRect().bottom - 16));
+    };
+    const glide = window.setTimeout(() => {
+      const top = bar.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 12;
+      if (Math.abs(top) > 2) scroller.scrollBy({ top, behavior: "smooth" });
+    }, 300);
+    measure();
+    vv?.addEventListener("resize", measure);
+    vv?.addEventListener("scroll", measure);
+    scroller.addEventListener("scroll", measure, { passive: true });
+    return () => {
+      window.clearTimeout(glide);
+      vv?.removeEventListener("resize", measure);
+      vv?.removeEventListener("scroll", measure);
+      scroller.removeEventListener("scroll", measure);
+    };
+  }, [searching]);
+
   // Touch reorder. The held row's order and index live in a ref as well as
   // state: finger moves arrive faster than renders, and each one must start
   // from the last move, not the last render. The listeners sit on the window,
@@ -156,13 +188,12 @@ export function PhoneGathering({
     }
   }, [gatheringId]);
 
+  // Every set while the search is empty (as on desktop), else the matches:
+  // name matches first, then sets that match in their words.
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return order
-      .map((id) => sets[id])
-      .filter((d) => d && setMatchesSearch(d, q))
-      .slice(0, 8);
+    const list = order.map((id) => sets[id]).filter((d) => d && setMatchesSearch(d, q));
+    return rankBySearch(list, q);
   }, [order, sets, query]);
 
   const here = `/present?gathering=${encodeURIComponent(gatheringId)}${view === "phone" ? "&view=mobile" : view === "slides" ? "&view=slides" : ""}${fromLink ? "&link=true" : ""}${fromRemote ? "&remote=true" : ""}`;
@@ -449,8 +480,13 @@ export function PhoneGathering({
         )}
 
         {/* Search to add: always here, so sets can be added while live. */}
-        <div className="mt-4">
-          <div className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2">
+        {/* While searching, the block is at least a screen tall so the bar
+            can glide to the top even under a short set list. */}
+        <div className={`mt-4 ${searching ? "min-h-[100dvh]" : ""}`}>
+          <div
+            ref={searchBarRef}
+            className="pill flex items-center gap-2 border border-foreground bg-background px-4 py-2"
+          >
             <Search className="h-4 w-4 shrink-0" />
             <input
               value={query}
@@ -471,36 +507,44 @@ export function PhoneGathering({
               </button>
             )}
           </div>
-          {searching && query.trim() !== "" && (
-            <div className="mt-1 overflow-hidden rounded-2xl border border-foreground">
-              {matches.map((m) => (
+          {searching && (matches.length > 0 || query.trim() !== "") && (
+            <div
+              className="mt-1 flex flex-col overflow-hidden rounded-2xl border border-foreground"
+              style={listMax ? { maxHeight: listMax } : undefined}
+            >
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                {matches.map((m) => (
+                  <button
+                    key={m.id}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      addSetToGathering(gatheringId, m.id);
+                      setQuery("");
+                    }}
+                    className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm active:bg-muted"
+                  >
+                    <span className="truncate">{m.name}</span>
+                    <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {m.kind}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {/* Always last, under the scrolling list: a new song named as
+                  typed, added here, then opened in its editor (back returns
+                  to this gathering). */}
+              {query.trim() !== "" && (
                 <button
-                  key={m.id}
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    addSetToGathering(gatheringId, m.id);
-                    setQuery("");
-                  }}
-                  className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm active:bg-muted"
+                  onClick={() => newSetHere("song")}
+                  className={`mono flex w-full shrink-0 items-center gap-2 px-4 py-3 text-left text-xs uppercase tracking-wider active:bg-muted ${matches.length ? "border-t border-foreground/20" : ""}`}
                 >
-                  <span className="truncate">{m.name}</span>
-                  <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                    {m.kind}
+                  <Plus className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0 truncate">
+                    New Song <span className="normal-case">“{query.trim()}”</span>
                   </span>
                 </button>
-              ))}
-              {/* Always last: a new song named as typed, added here, then
-                  opened in its editor (back returns to this gathering). */}
-              <button
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => newSetHere("song")}
-                className={`mono flex w-full items-center gap-2 px-4 py-3 text-left text-xs uppercase tracking-wider active:bg-muted ${matches.length ? "border-t border-foreground/20" : ""}`}
-              >
-                <Plus className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 truncate">
-                  New Song <span className="normal-case">“{query.trim()}”</span>
-                </span>
-              </button>
+              )}
             </div>
           )}
 

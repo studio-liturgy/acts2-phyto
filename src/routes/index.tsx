@@ -10,8 +10,7 @@ import { exportCatalogue, importCatalogue } from "@/lib/catalogue-io";
 import { APP_NAME } from "@/lib/appConfig";
 import { isLiveNow } from "@/lib/live-session";
 import { useAccountSlug } from "@/hooks/use-account-slug";
-import { stripChords } from "@/lib/chords";
-import { stripInlineFormat } from "@/lib/inline-format";
+import { rankBySearch, setMatchesSearch } from "@/lib/set-search";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -721,16 +720,7 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
                   // variant, so it shows under Scripture too.
                   matchesKindStep(d, kindFilter),
       )
-      .filter(
-        (d) =>
-          !q ||
-          d.name.toLowerCase().includes(q) ||
-          d.slides.some((slide) =>
-            slide.lines?.some((line) =>
-              stripInlineFormat(stripChords(line)).toLowerCase().includes(q),
-            ),
-          ),
-      )
+      .filter((d) => setMatchesSearch(d, q))
       // A group guest editing sees only their own sets (foreign group sets carry
       // `shared`), so they can't select or remove other members' contributions.
       .filter((d) => !(isGroupGuest && editMode) || !d.shared);
@@ -742,7 +732,8 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
           return b.createdAt - a.createdAt;
       }
     });
-    return rows;
+    // A search lists name matches first, then sets that match in their words.
+    return rankBySearch(rows, q);
   }, [order, sets, catalogueFilter, sortMode, kindFilter, sharedOutIds, isGroupGuest, editMode]);
 
   const sortLabel: Record<SortMode, string> = {
