@@ -74,6 +74,8 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { TestSiteWarning } from "@/components/TestSiteWarning";
 import { Button } from "@/components/ui/button";
 import { useDialogKeyboard } from "@/hooks/use-dialog-keyboard";
+import { LaunchReveal } from "@/components/LaunchReveal";
+import { shouldPlayLaunch } from "@/lib/launch-reveal";
 
 function NotFoundComponent() {
   return (
@@ -359,11 +361,28 @@ function RootComponent() {
   // account"); signed-in accounts still go through the tester check. Read after
   // mount so the server render and hydration agree.
   const [nativeApp, setNativeApp] = useState(false);
+  // The app's launch animation: once per launch, never on the TV screen
+  // (/output) or a /screen window, which load in the app's web view too.
+  const [launch, setLaunch] = useState(false);
   useEffect(() => {
     setNativeApp(isNativeApp());
     registerAppServiceWorker();
-    // Two frames: the first screen has painted under the launch screen.
-    requestAnimationFrame(() => requestAnimationFrame(hideAppSplash));
+    const tv = pathname === "/output" || pathname.startsWith("/screen/");
+    let storage: Storage | null = null;
+    try {
+      storage = window.sessionStorage;
+    } catch {
+      // Storage blocked: play it.
+    }
+    if (!tv && shouldPlayLaunch(isNativeApp(), storage)) {
+      // LaunchReveal hides the launch screen once its first frame is drawn.
+      setLaunch(true);
+    } else {
+      // Two frames: the first screen has painted under the launch screen.
+      requestAnimationFrame(() => requestAnimationFrame(hideAppSplash));
+    }
+    // Only on the first load of the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Phone: pop-up dialogs move above the keyboard while typing in them.
   useDialogKeyboard(PHONE_UI);
@@ -748,6 +767,7 @@ function RootComponent() {
       {TESTERS_ONLY && !isOpenOnTest(pathname) && !(session ? testerOk : nativeApp) ? null : (
         <Outlet />
       )}
+      {launch && <LaunchReveal onFirstFrame={hideAppSplash} onDone={() => setLaunch(false)} />}
       <SignedOutDialog />
       {TESTERS_ONLY && <TestersOnlyDialog open={notTester} onOpenChange={setNotTester} />}
       <Dialog

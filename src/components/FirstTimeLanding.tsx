@@ -644,7 +644,7 @@ export function FirstTimeLanding({
         </div>
 
         <div className="mx-auto max-w-6xl px-6 pb-16 pt-24 text-center md:pb-24 md:pt-28">
-          <Link to="/" className="inline-block">
+          <Link to="/" className="intro-wordmark inline-block">
             <img
               src={isTest ? wordmarkTest : wordmark}
               alt={isTest ? "phytoexp" : "phyto"}
