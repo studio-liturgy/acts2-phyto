@@ -1,7 +1,7 @@
 /**
  * The phyto app's launch animation (components/LaunchReveal.tsx), his spec
- * Nov 18: the blurred blue sign-in picture as large blocks that halve in size
- * in steps (6, 12, 24, 48 across) while still grain rises from none to
+ * Nov 18: the blurred cyanotype (Callithamnion roseum) as large blocks that
+ * halve in size in steps (3, 6, 12, 24 across) while still grain rises from none to
  * strong, then the white wordmark bursts in at the centre and holds for
  * about a second, then everything fades out to reveal the app. Times are milliseconds from the first frame.
  */
@@ -9,10 +9,10 @@
 /** Blocks across the screen, and when each size starts. The steps lengthen
  *  so the change slows down towards the end. */
 export const BLOCK_STEPS: readonly { at: number; across: number }[] = [
-  { at: 0, across: 6 },
-  { at: 200, across: 12 },
-  { at: 500, across: 24 },
-  { at: 900, across: 48 },
+  { at: 0, across: 3 },
+  { at: 200, across: 6 },
+  { at: 500, across: 12 },
+  { at: 900, across: 24 },
 ];
 
 /** Grain rises over the block steps, then holds. */

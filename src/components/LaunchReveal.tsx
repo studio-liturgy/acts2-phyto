@@ -23,12 +23,12 @@ const GRAIN_MAX = 0.3;
 /** Give up waiting for the picture after this long. */
 const LOAD_TIMEOUT = 3000;
 /** The picture's average colour, shown until the first frame draws. */
-const FILL = "#3f7ea0";
+const FILL = "#2e7092";
 
 /**
  * The phyto app's launch animation, played once per launch over the first
  * screen (lib/launch-reveal.ts holds the timeline). It takes over from the
- * native launch screen (the same blurred picture), so `onFirstFrame` hides
+ * native launch screen (plain blue, the picture's average colour), so `onFirstFrame` hides
  * that only once the first frame has drawn. Taps don't skip it.
  */
 export function LaunchReveal({
