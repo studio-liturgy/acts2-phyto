@@ -90,7 +90,7 @@ function LoginPage() {
       ? "bg-[var(--brand-black)] text-[var(--brand-white)]"
       : "bg-white text-[var(--brand-blue)]";
   // Phone: "Keep me in the loop" sized to run edge to edge under the buttons.
-  const loopRow = useRef<HTMLLabelElement>(null);
+  const loopRow = useRef<HTMLButtonElement>(null);
   const loopText = useRef<HTMLSpanElement>(null);
   const [loopSize, setLoopSize] = useState<number | null>(null);
   useLayoutEffect(() => {
@@ -416,22 +416,22 @@ function LoginPage() {
                   </p>
                 )}
 
-                <label
+                {/* The whole row is one button (a tap anywhere on it ticks the
+                    box): a label around a hidden checkbox didn't answer taps
+                    on iPhone. */}
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={subscribe}
+                  onClick={() => setSubscribe((s) => !s)}
                   ref={loopRow}
-                  className={`mono flex cursor-pointer items-center gap-2 pt-1 uppercase ${phone ? "justify-between whitespace-nowrap" : "justify-center text-[11px]"} ${isTest ? "text-black/70" : "text-white/70"}`}
+                  className={`mono flex w-full cursor-pointer items-center gap-2 -mb-2 -mt-1 pb-2 pt-2 uppercase ${phone ? "justify-between whitespace-nowrap" : "justify-center text-[11px]"} ${isTest ? "text-black/70" : "text-white/70"}`}
                   style={phone ? { fontSize: loopSize ?? 11 } : undefined}
                 >
-                  {/* The hidden checkbox sits inside the box, so the row holds
-                      only the box and the words. */}
-                  <div
+                  <span
+                    aria-hidden
                     className={`relative flex h-3.5 w-3.5 shrink-0 items-center justify-center border ${isTest ? "border-black" : "border-white"}`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={subscribe}
-                      onChange={(e) => setSubscribe(e.target.checked)}
-                      className="sr-only"
-                    />
                     {subscribe && (
                       <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
                         <path
@@ -442,9 +442,9 @@ function LoginPage() {
                         />
                       </svg>
                     )}
-                  </div>
-                  <span ref={loopText}>Keep me in the loop with phyto updates and news.</span>
-                </label>
+                  </span>
+                  <span ref={loopText}>Keep me in the loop with phyto updates and news</span>
+                </button>
 
                 <p
                   className={`pt-2 text-center text-[11px] ${isTest ? "text-black/50" : "text-white/50"}`}
