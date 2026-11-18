@@ -18,6 +18,8 @@ import {
   MEDIA_MAX_BYTES,
   isUploadableImage,
   isUploadableVideo,
+  photoAccept,
+  withMediaType,
 } from "@/lib/media";
 import { prepareImageFile, prepareRenderedImage } from "@/lib/image-upload";
 import { useScriptureVersions } from "@/hooks/use-scripture-versions";
@@ -176,6 +178,7 @@ const SINGLE_VERSION = ["_"];
 
 /** The names a new set is created with: clicking into one starts blank. */
 const DEFAULT_SET_NAMES = new Set(["New Song", "New Scripture", "New Media"]);
+const isTestBuild = import.meta.env.VITE_APP_ENV === "test";
 
 function kindBadgeBg(kind: SetKind): string {
   if (kind === "song") return "bg-[var(--brand-blue)] text-[var(--brand-white)]";
@@ -592,6 +595,10 @@ function SetEditor() {
   const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
   // The media editor's "Add image" picker.
   const mediaFileRef = useRef<HTMLInputElement>(null);
+  // Phone: the Add menu's two pickers (photo library, Files).
+  const photoFileRef = useRef<HTMLInputElement>(null);
+  const docFileRef = useRef<HTMLInputElement>(null);
+  const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number } | null>(null);
   const [groupView, setGroupView] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [showFileSizeDialog, setShowFileSizeDialog] = useState(false);
@@ -960,9 +967,23 @@ function SetEditor() {
   const handleMediaFiles = async (files: FileList | null) => {
     if (!files || converting || uploading) return;
     setVideoErr(null);
-    const all = Array.from(files);
+    const all = Array.from(files).map(withMediaType);
     const videoFiles = all.filter((f) => isUploadableVideo(f.type));
     const nonVideo = all.filter((f) => !isUploadableVideo(f.type));
+    const imageFiles = nonVideo.filter((f) => isUploadableImage(f.type));
+    const pdfFiles = nonVideo.filter((f) => f.type === "application/pdf");
+    // Something picked that phyto can't use says so, rather than nothing
+    // happening.
+    const unknown = nonVideo.filter(
+      (f) => !isUploadableImage(f.type) && f.type !== "application/pdf",
+    );
+    if (unknown.length > 0) {
+      setVideoErr(
+        unknown.length === 1
+          ? `${unknown[0].name} isn't a picture, video or PDF.`
+          : `${unknown.length} files aren't pictures, videos or PDFs.`,
+      );
+    }
 
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
     if (
@@ -981,9 +1002,6 @@ function SetEditor() {
       setUploading(false);
     }
 
-    const imageFiles = nonVideo.filter((f) => /^image\/(png|jpe?g|webp|gif|bmp)$/i.test(f.type));
-    const pdfFiles = nonVideo.filter((f) => f.type === "application/pdf");
-
     if (imageFiles.length > 0) {
       setUploading(true);
       for (const file of imageFiles) {
@@ -997,14 +1015,19 @@ function SetEditor() {
       setConverting(true);
       for (const pdf of pdfFiles) {
         try {
-          for (const blob of await pdfToImageBlobs(pdf)) {
+          const blobs = await pdfToImageBlobs(pdf, (done, total) =>
+            setPdfProgress({ done, total }),
+          );
+          for (const blob of blobs) {
             const img = await prepareRenderedImage(blob, () => setShowStorageLimitDialog(true));
             if (img) addSlide(phytoSet.id, { kind: "image", imageUrl: img.url, lines: [] });
           }
-        } catch {
-          // skip failed files silently
+        } catch (err) {
+          const why = err instanceof Error && err.message ? ` (${err.message})` : "";
+          setVideoErr(`Couldn't open ${pdf.name}.${isTestBuild ? why : ""}`);
         }
       }
+      setPdfProgress(null);
       setConverting(false);
     }
   };
@@ -1044,6 +1067,10 @@ function SetEditor() {
   };
   const ICONBTN =
     "pill flex h-9 w-9 shrink-0 items-center justify-center transition active:bg-foreground/15 disabled:opacity-40";
+  // Phone: the two half-width buttons under the link, the link pill's height
+  // and text size.
+  const PHONE_MEDIA_BTN =
+    "mono uppercase pill flex min-w-0 flex-1 items-center justify-center gap-1.5 border border-foreground px-3 py-1.5 text-xs leading-4 tracking-wider transition active:bg-foreground active:text-background disabled:opacity-60";
   /* Left (1/2): import controls, then the slides grid. Mirrors the song and
           scripture editors — a shrink-0 controls header over a scrollable body,
           no rounded panel. The whole column is the drop target. */
@@ -1092,20 +1119,11 @@ function SetEditor() {
               <Plus className="h-4 w-4 opacity-40 hover:opacity-100" />
             </button>
           </div>
-          {/* Phone: Add image (outlined, right of the link), Fit and Section on the link's row. */}
+          {/* Phone: Fit and Section on the link's row; Add an image and
+              Upload a PDF sit in their own row below. */}
           {phone && (
             <>
-              <span className="w-1.5 shrink-0" />
-              <button
-                type="button"
-                onClick={() => mediaFileRef.current?.click()}
-                disabled={converting || uploading}
-                className={`${ICONBTN} border border-foreground`}
-                title="Add image"
-                aria-label="Add image"
-              >
-                <ImagePlus className="h-4 w-4" />
-              </button>
+              {phytoSet.slides.length > 0 && <span className="w-1.5 shrink-0" />}
               {hasImages && (
                 <button
                   type="button"
@@ -1143,6 +1161,68 @@ function SetEditor() {
             e.target.value = "";
           }}
         />
+        {/* Phone: Add an image (photo library) and Upload a PDF (Files), side
+            by side under the link. Separate pickers, so the app opens the
+            right one straight away; each shows its own progress. */}
+        {phone && (
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => photoFileRef.current?.click()}
+              disabled={converting || uploading}
+              className={PHONE_MEDIA_BTN}
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
+                </>
+              ) : (
+                "Add an image"
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => docFileRef.current?.click()}
+              disabled={converting || uploading}
+              className={PHONE_MEDIA_BTN}
+            >
+              {converting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
+                  {pdfProgress && pdfProgress.total > 0
+                    ? `Page ${Math.min(pdfProgress.done + 1, pdfProgress.total)} of ${pdfProgress.total}`
+                    : "Opening…"}
+                </>
+              ) : (
+                "Upload a PDF"
+              )}
+            </button>
+          </div>
+        )}
+        <input
+          ref={photoFileRef}
+          type="file"
+          accept={photoAccept(!noVideoUpload)}
+          multiple
+          disabled={converting || uploading}
+          className="hidden"
+          onChange={(e) => {
+            handleMediaFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={docFileRef}
+          type="file"
+          accept=".pdf"
+          multiple
+          disabled={converting || uploading}
+          className="hidden"
+          onChange={(e) => {
+            handleMediaFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
         {videoErr && (
           <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
             {videoErr}
@@ -1155,44 +1235,53 @@ function SetEditor() {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {phytoSet.slides.length === 0 ? (
-          <label
-            className={`mono flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 text-center text-xs uppercase leading-relaxed tracking-wider transition ${
-              converting || uploading
-                ? "cursor-wait border-foreground/30 text-muted-foreground"
-                : fileOver
-                  ? "border-foreground bg-foreground/5"
-                  : "border-foreground/60 text-muted-foreground hover:border-foreground"
-            }`}
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Uploading…
-              </>
-            ) : converting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Converting…
-              </>
-            ) : fileOver ? (
-              "Drop to upload"
-            ) : noVideoUpload ? (
-              "Drop images or PDFs here or click to browse"
-            ) : (
-              "Drop images, PDFs or videos here or click to browse"
-            )}
-            <input
-              type="file"
-              accept={noVideoUpload ? MEDIA_ACCEPT_NO_VIDEO : MEDIA_ACCEPT}
-              multiple
-              disabled={converting || uploading}
-              className="hidden"
-              onChange={(e) => handleMediaFiles(e.target.files)}
-            />
-          </label>
+          // Phone: no drop box; the buttons under the link add media.
+          phone ? null : (
+            <label
+              className={`mono flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 text-center text-xs uppercase leading-relaxed tracking-wider transition ${
+                converting || uploading
+                  ? "cursor-wait border-foreground/30 text-muted-foreground"
+                  : fileOver
+                    ? "border-foreground bg-foreground/5"
+                    : "border-foreground/60 text-muted-foreground hover:border-foreground"
+              }`}
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Uploading…
+                </>
+              ) : converting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Converting…
+                </>
+              ) : fileOver ? (
+                "Drop to upload"
+              ) : noVideoUpload ? (
+                "Drop images or PDFs here or click to browse"
+              ) : (
+                "Drop images, PDFs or videos here or click to browse"
+              )}
+              <input
+                type="file"
+                accept={noVideoUpload ? MEDIA_ACCEPT_NO_VIDEO : MEDIA_ACCEPT}
+                multiple
+                disabled={converting || uploading}
+                className="hidden"
+                onChange={(e) => handleMediaFiles(e.target.files)}
+              />
+            </label>
+          )
         ) : (
           <>
-            {(fileOver || uploading) && (
+            {(fileOver || uploading || (converting && !phone)) && (
               <p className="mono mb-3 text-center text-xs uppercase tracking-wider text-muted-foreground">
-                {uploading ? "Uploading…" : "Drop to add media"}
+                {uploading
+                  ? "Uploading…"
+                  : converting
+                    ? pdfProgress && pdfProgress.total > 0
+                      ? `Converting page ${Math.min(pdfProgress.done + 1, pdfProgress.total)} of ${pdfProgress.total}`
+                      : "Converting…"
+                    : "Drop to add media"}
               </p>
             )}
             <div className={`mb-3 justify-end gap-2 ${phone ? "hidden" : "flex"}`}>
@@ -3631,7 +3720,10 @@ function Importers({
  *  old fixed 2.0, and encoded at IMAGE_QUALITY instead of the browser default
  *  (0.92). A fixed 2.0 scale on a large page produced ~4000px JPEGs, which is
  *  how a single imported deck reached 7.7MB inside `sets.content`. */
-async function pdfToImageBlobs(file: File): Promise<Blob[]> {
+async function pdfToImageBlobs(
+  file: File,
+  onPage?: (done: number, total: number) => void,
+): Promise<Blob[]> {
   const pdfjsLib = await import("pdfjs-dist");
   // phyto's own copy of the reader (same version), so PDF import works
   // offline in the app and never calls an outside site.
@@ -3642,6 +3734,7 @@ async function pdfToImageBlobs(file: File): Promise<Blob[]> {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const blobs: Blob[] = [];
+  onPage?.(0, pdf.numPages);
 
   for (let i = 1; i <= pdf.numPages; i++) {
     try {
@@ -3662,8 +3755,10 @@ async function pdfToImageBlobs(file: File): Promise<Blob[]> {
     } catch {
       // skip failed pages silently
     }
+    onPage?.(i, pdf.numPages);
   }
 
+  if (blobs.length === 0) throw new Error("No pages could be drawn.");
   return blobs;
 }
 

@@ -77,3 +77,35 @@ export const MEDIA_ACCEPT =
 /** The same without video files (no account: uploads need one). */
 export const MEDIA_ACCEPT_NO_VIDEO =
   "image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf";
+
+/** Phone media editor, Add an image: pictures (and videos with an account)
+ *  only, so the app opens the photo library straight away (phyto-app
+ *  FilePicker.swift picks its picker from the input's accept list). */
+export function photoAccept(videos: boolean): string {
+  const images = Object.keys(IMAGE_EXT_BY_TYPE);
+  return [...images, ...(videos ? Object.keys(VIDEO_EXT_BY_TYPE) : [])].join(",");
+}
+
+const TYPE_BY_EXT: Record<string, string> = {
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  bmp: "image/bmp",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+};
+
+/** A picked file with its type filled in from the name when the browser left
+ *  it blank or generic (files handed over by an app can arrive that way). */
+export function withMediaType(file: File): File {
+  const known = file.type.toLowerCase();
+  if (known && known !== "application/octet-stream") return file;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const type = TYPE_BY_EXT[ext];
+  if (!type) return file;
+  return new File([file], file.name, { type, lastModified: file.lastModified });
+}
