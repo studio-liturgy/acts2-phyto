@@ -8,12 +8,28 @@ import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { INTRO_AUTO_MS, pageAt, slideOffset, slides, swipeStep } from "@/lib/intro-carousel";
 import { PHONE_BTN, PHONE_BTN_COLUMN, PHONE_BTN_COLUMN_PAD } from "@/lib/phone-buttons";
 import type { PhoneTab } from "@/lib/phone-layout";
+// Imported (not public/) so they are hashed and kept in the app's offline
+// cache: the intro plays from the phone, not the network.
+import introSet from "@/assets/intro-set.mp4";
+import introSetPoster from "@/assets/intro-set-poster.webp";
+import introGathering from "@/assets/intro-gathering.mp4";
+import introGatheringPoster from "@/assets/intro-gathering-poster.webp";
+import introGolive from "@/assets/intro-golive.mp4";
+import introGolivePoster from "@/assets/intro-golive-poster.webp";
+import introRemote from "@/assets/intro-remote.mp4";
+import introRemotePoster from "@/assets/intro-remote-poster.webp";
+import introSignin from "@/assets/intro-signin.mp4";
+import introSigninPoster from "@/assets/intro-signin-poster.webp";
+import introGroups from "@/assets/intro-groups.mp4";
+import introGroupsPoster from "@/assets/intro-groups-poster.webp";
 
 type IntroPage = {
   title: string;
   text: string;
   /** A screen recording (MP4) for the card; an empty card until recorded. */
   clip?: string;
+  /** The recording's first frame, shown until it plays. */
+  poster?: string;
   /** A still picture for the card, for a page without a recording. */
   image?: string;
 };
@@ -22,32 +38,38 @@ const PAGES: IntroPage[] = [
   {
     title: "Create Sets",
     text: "Import lyrics, scriptures or your own media, and add message slides. Add chords to songs and display songs and scriptures in more than one language",
-    clip: "/intro-set.mp4",
+    clip: introSet,
+    poster: introSetPoster,
   },
   {
     title: "Create Gatherings",
     text: "Arrange sets into gatherings to present later on phones and screens",
-    clip: "/intro-gathering.mp4",
+    clip: introGathering,
+    poster: introGatheringPoster,
   },
   {
     title: "Go Live",
     text: "Generate a link / QR code so that friends can follow along on their own phones",
-    clip: "/intro-golive.mp4",
+    clip: introGolive,
+    poster: introGolivePoster,
   },
   {
     title: "Present",
     text: "Connect to a TV with AirPlay, or remote control another device's screen through a link / QR code",
-    clip: "/intro-remote.mp4",
+    clip: introRemote,
+    poster: introRemotePoster,
   },
   {
     title: "Go Online",
     text: "Sign in to access your sets and sync them across devices",
-    clip: "/intro-signin.mp4",
+    clip: introSignin,
+    poster: introSigninPoster,
   },
   {
     title: "Groups + Sharing",
     text: "Create a group to share your catalogue and organize gatherings with friends, or share individual sets",
-    clip: "/intro-groups.mp4",
+    clip: introGroups,
+    poster: introGroupsPoster,
   },
 ];
 
@@ -235,7 +257,7 @@ export function PhoneIntro({
                       <>
                         {/* The first frame shows until the recording plays. */}
                         <img
-                          src={p.clip.replace(/\.mp4$/, "-poster.webp")}
+                          src={p.poster}
                           alt=""
                           aria-hidden
                           decoding="async"

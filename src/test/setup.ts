@@ -10,5 +10,6 @@ if (!globalThis.crypto?.subtle) {
 }
 
 beforeEach(() => {
-  localStorage.clear();
+  // Tests that run in the node environment (sw.test.ts) have no localStorage.
+  if (typeof localStorage !== "undefined") localStorage.clear();
 });

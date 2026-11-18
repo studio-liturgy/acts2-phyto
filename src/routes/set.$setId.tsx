@@ -3633,8 +3633,11 @@ function Importers({
  *  how a single imported deck reached 7.7MB inside `sets.content`. */
 async function pdfToImageBlobs(file: File): Promise<Blob[]> {
   const pdfjsLib = await import("pdfjs-dist");
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
+  // phyto's own copy of the reader (same version), so PDF import works
+  // offline in the app and never calls an outside site.
+  pdfjsLib.GlobalWorkerOptions.workerSrc = (
+    await import("pdfjs-dist/build/pdf.worker.min.mjs?url")
+  ).default;
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;

@@ -4,10 +4,11 @@ import { APP_NAME } from "@/lib/appConfig";
 import AboutTest from "@/content/about-test";
 import AboutMain from "@/content/about-main";
 import loginBgOr from "@/assets/login-bg-or.jpg";
+import aboutBgMain from "@/assets/about-bg.jpg";
 import { isNativeApp } from "@/lib/native-app";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
-const aboutBg = isTest ? loginBgOr : "/about-bg.jpg";
+const aboutBg = isTest ? loginBgOr : aboutBgMain;
 
 export const Route = createFileRoute("/about")({
   head: () => ({

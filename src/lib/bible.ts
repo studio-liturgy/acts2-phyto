@@ -490,12 +490,39 @@ async function fetchChapter(translation: string, bookId: number, chapter: number
 
 // bolls returns book names in each translation's own language via get-books, so
 // this is how a bolls reference shows a localized book name (e.g. "約翰福音").
-// Cached per translation — the list is fetched at most once — and falls back to
-// the English display name if the request fails.
+// Fetched at most once per translation: kept in memory, and on the device
+// (localStorage) so the names still show offline in later launches. Falls back
+// to the English display name if the request fails.
 const bookNamesByTranslation = new Map<string, Map<number, string>>();
+const BOOK_NAMES_KEY = "phyto-bolls-books:";
+
+function storedBooks(translation: string): Map<number, string> | null {
+  try {
+    const raw = localStorage.getItem(BOOK_NAMES_KEY + translation);
+    if (!raw) return null;
+    const pairs = JSON.parse(raw) as unknown;
+    if (!Array.isArray(pairs)) return null;
+    const names = new Map<number, string>();
+    for (const p of pairs) {
+      if (Array.isArray(p) && typeof p[0] === "number" && typeof p[1] === "string")
+        names.set(p[0], p[1]);
+    }
+    return names.size > 0 ? names : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeBooks(translation: string, names: Map<number, string>): void {
+  try {
+    localStorage.setItem(BOOK_NAMES_KEY + translation, JSON.stringify([...names]));
+  } catch {
+    // Storage full or blocked: the names stay in memory for this launch.
+  }
+}
 
 async function loadBooks(translation: string): Promise<Map<number, string>> {
-  let names = bookNamesByTranslation.get(translation);
+  let names = bookNamesByTranslation.get(translation) ?? storedBooks(translation) ?? undefined;
   if (!names) {
     names = new Map<number, string>();
     try {
@@ -506,12 +533,13 @@ async function loadBooks(translation: string): Promise<Map<number, string>> {
           if (typeof b.bookid === "number" && typeof b.name === "string")
             names.set(b.bookid, b.name);
         }
+        if (names.size > 0) storeBooks(translation, names);
       }
     } catch {
       // fall back to the English display name below
     }
-    bookNamesByTranslation.set(translation, names);
   }
+  bookNamesByTranslation.set(translation, names);
   return names;
 }
 

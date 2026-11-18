@@ -28,6 +28,31 @@ describe("parseReference (English book names)", () => {
   });
 });
 
+describe("parseReferenceLocalized (book names kept on the device)", () => {
+  it("uses book names stored on the device when offline", async () => {
+    localStorage.setItem("phyto-bolls-books:ZZOFF1", JSON.stringify([[43, "約翰福音"]]));
+    const fetchMock = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    expect(await parseReferenceLocalized("約翰福音 3:16", ["ZZOFF1"])).toMatchObject({
+      bookId: 43,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("stores fetched book names for later launches", async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => [{ bookid: 43, name: "若望福音" }],
+    })) as unknown as typeof fetch;
+    await parseReferenceLocalized("若望福音 3", ["ZZOFF2"]);
+    expect(JSON.parse(localStorage.getItem("phyto-bolls-books:ZZOFF2") ?? "null")).toEqual([
+      [43, "若望福音"],
+    ]);
+  });
+});
+
 describe("parseReferenceLocalized (references typed in another language)", () => {
   beforeEach(() => {
     // bolls' get-books for the translation: book names in its own language.

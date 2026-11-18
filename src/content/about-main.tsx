@@ -3,23 +3,28 @@ import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
+import { useImageReady } from "@/hooks/use-image-ready";
+import aboutBg from "@/assets/about-bg.jpg";
 
-const aboutBg = "/about-bg.jpg";
+/** The picture's average colour, shown until the picture is ready. */
+const ABOUT_BG_FILL = "#307193";
 
 export default function AboutMain() {
   usePageBackgroundColor("#3c7a9e");
+  const bgReady = useImageReady(aboutBg);
   return (
     <div className="flex flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
-      <section
-        className="relative flex-1 w-full bg-[var(--brand-blue)]"
-        style={{
-          backgroundImage: `url(${aboutBg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      >
-        <div className="mx-auto w-full max-w-6xl px-6 pt-[calc(env(safe-area-inset-top,0px)+2.5rem)] pb-24 md:pt-14 md:pb-32">
+      <section className="relative flex-1 w-full" style={{ backgroundColor: ABOUT_BG_FILL }}>
+        {/* The picture appears whole, never painting in strips: hidden until
+            decoded (at once when it's already cached, else a short fade). */}
+        <div
+          aria-hidden
+          className={`absolute inset-0 bg-cover bg-center bg-no-repeat ${
+            bgReady === "instant" ? "" : "transition-opacity duration-300"
+          } ${bgReady ? "opacity-100" : "opacity-0"}`}
+          style={{ backgroundImage: `url('${aboutBg}')` }}
+        />
+        <div className="relative mx-auto w-full max-w-6xl px-6 pt-[calc(env(safe-area-inset-top,0px)+2.5rem)] pb-24 md:pt-14 md:pb-32">
           <Link
             to="/"
             className="mono inline-flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--brand-white)] opacity-90 transition-opacity hover:opacity-60"

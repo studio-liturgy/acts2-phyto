@@ -19,8 +19,10 @@ import {
   hideAppSplash,
   isNativeApp,
   nativeAppInitScript,
+  nativePlatformFromUA,
   registerAppServiceWorker,
 } from "@/lib/native-app";
+import { watchLibraryPictures } from "@/lib/offline-pictures";
 import { clearNoAccount } from "@/lib/no-account";
 import { clearMyProfile, loadMyProfile, needsWelcome, useProfile } from "@/lib/profile";
 
@@ -382,6 +384,15 @@ function RootComponent() {
       // Two frames: the first screen has painted under the launch screen.
       requestAnimationFrame(() => requestAnimationFrame(hideAppSplash));
     }
+    // Only on the first load of the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // The app keeps every picture in the library on the phone (public/sw.js);
+  // the TV screen's own web view leaves that to the phone.
+  useEffect(() => {
+    if (!nativePlatformFromUA(navigator.userAgent)) return;
+    if (pathname === "/output" || pathname.startsWith("/screen/")) return;
+    return watchLibraryPictures();
     // Only on the first load of the page.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
