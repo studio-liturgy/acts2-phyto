@@ -7,6 +7,7 @@ import {
   setChordAt,
   type SongChords,
 } from "@/lib/chords";
+import { spreadChordLefts } from "@/lib/chord-strip-layout";
 import { focusLine } from "@/lib/phone-dock";
 
 /** The cell's text box: 14px text, 8px in from the left (pl-2). */
@@ -63,12 +64,29 @@ export function ChordStrip({
   const input = useRef<HTMLInputElement>(null);
 
   const font = `${CELL_FONT_PX}px ${fontFamily || "system-ui, -apple-system, sans-serif"}`;
-  const xOf = (index: number) => {
+  const measure = (s: string, f: string) => {
     const ctx = (canvas.current ??= document.createElement("canvas")).getContext("2d");
-    if (!ctx) return CELL_PAD_PX;
-    ctx.font = font;
-    return CELL_PAD_PX + ctx.measureText(text.slice(0, index)).width;
+    if (!ctx) return 0;
+    ctx.font = f;
+    return ctx.measureText(s).width;
   };
+  const xOf = (index: number) => CELL_PAD_PX + measure(text.slice(0, index), font);
+
+  // The strip's own chord font (weight, size and family come from CSS), read
+  // once it is on the page, so chords sharing a word can be laid side by side.
+  const strip = useRef<HTMLDivElement>(null);
+  const [chordFont, setChordFont] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    if (!strip.current) return;
+    const cs = getComputedStyle(strip.current);
+    setChordFont(`600 ${cs.fontSize} ${cs.fontFamily}`);
+  }, []);
+  const labels = anchors.map((a) => renderChord(a.chord, chords));
+  const lefts = spreadChordLefts(
+    anchors.map((a) => xOf(a.index)),
+    // Before the font is known, a monospace estimate (0.6em at 10px).
+    labels.map((l) => (chordFont ? measure(l, chordFont) : l.length * 6)),
+  );
 
   // The word starts a click can land on (and the end of the line).
   const wordStarts = (): number[] => {
@@ -108,6 +126,7 @@ export function ChordStrip({
 
   return (
     <div
+      ref={strip}
       data-chord-strip
       className="mono relative h-4 cursor-text text-[10px] leading-4 text-muted-foreground"
       onMouseDown={(e) => {
@@ -131,9 +150,9 @@ export function ChordStrip({
               setEditing({ index: a.index, value: chordForBox(a.chord, chords) });
             }}
             className="absolute top-0 whitespace-nowrap font-semibold hover:underline"
-            style={{ left: xOf(a.index) }}
+            style={{ left: lefts[k] }}
           >
-            {renderChord(a.chord, chords)}
+            {labels[k]}
           </button>
         ),
       )}
