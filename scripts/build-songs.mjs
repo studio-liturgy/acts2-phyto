@@ -19,6 +19,7 @@ import {
   stripChords,
   stripChordsRaw,
 } from "../src/lib/chords.ts";
+import { cleanSongLyrics } from "../src/lib/song-db-clean.ts";
 
 // Maps lowercase OpenSong section prefixes → display labels.
 // Numbered variants (V1, V2) get the number appended only for Verse/Pre-Chorus.
@@ -665,6 +666,17 @@ async function main() {
   const dashesBefore = parsed.filter((s) => /\s-|-\s/.test(s.lyrics)).length;
   for (const s of parsed) s.lyrics = resolveDashes(s.lyrics, vocab);
   const dashesAfter = parsed.filter((s) => /\s-|-\s/.test(s.lyrics)).length;
+
+  // Chart furniture the rules above don't reach (repeat counts, "> chorus",
+  // section names typed as lyrics, glued lines, one-line hymn verses), plus
+  // the hand fixes in scripts/song-fixes.json. See src/lib/song-db-clean.ts.
+  const fixes = JSON.parse(
+    await readFile(join(process.cwd(), "scripts", "song-fixes.json"), "utf-8"),
+  );
+  for (const s of parsed) {
+    s.lyrics = cleanSongLyrics(s.lyrics, s.title, fixes);
+    s.hasChords = /\([^()\s]+\)/.test(s.lyrics);
+  }
 
   // A handful of chorded songs carry no <key> tag at all. Working the key out
   // here rather than in the app means every song that ships with chords also

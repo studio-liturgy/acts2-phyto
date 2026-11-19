@@ -67,7 +67,8 @@ def parse(n):
             if NOTE.match(l) and len(l) > 60:
                 notes.append(l)
                 continue
-            l = re.sub(r"^\d+(?:\s*[/–-]\s*\d+)?\s*(?=\D)", "", l)
+            # "4" and "4/5", and half-verse marks ("5a", "5b") before a capital.
+            l = re.sub(r"^\d+(?:[ab](?=[A-Z]))?(?:\s*[/–-]\s*\d+(?:[ab](?=[A-Z]))?)?\s*(?=\D)", "", l)
             if re.fullmatch(r"[A-Z’' ]{2,20}", l) and not cur:
                 stanzas.append(["[" + l.title() + "]"])
                 continue
