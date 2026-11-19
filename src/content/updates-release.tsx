@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 // phyto.live/updates via updates-main and, until it ships, at the top of
 // phytoexp.live/updates via updates-test). Older entries write their own
 // date. Terms and Privacy write their Effective Date as a literal.
-export const RELEASE_DATE = "October 24, 2026";
+export const RELEASE_DATE = "November 19, 2026";
 
 export function FeatureItem({ children }: { children: ReactNode }) {
   return (
@@ -20,11 +20,68 @@ export function FeatureItem({ children }: { children: ReactNode }) {
 const sectionCls = "mt-8 text-xl";
 const subCls = "mono mt-5 text-xs uppercase tracking-wider opacity-80";
 
+/** November 19, 2026: usernames, the presenter's video playbar, and fixes. One `<li>`, above SongModesEntry. */
+export function UsernamesEntry() {
+  return (
+    <li className="border-t border-[var(--brand-white)]/20 pt-8">
+      <div className="text-2xl">{RELEASE_DATE}</div>
+
+      <div className={sectionCls}>Features</div>
+
+      <div className={subCls}>Account</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>After signing in, choose a username</FeatureItem>
+        <FeatureItem>Change it any time in Account Settings</FeatureItem>
+        <FeatureItem>The home page shows your username instead of your email</FeatureItem>
+      </ul>
+
+      <div className={subCls}>Presenter View</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          A playbar for the live video: it fills as the video plays, and you can drag the playhead
+          or tap the bar to jump
+        </FeatureItem>
+      </ul>
+
+      <div className={sectionCls}>Bug Fixes</div>
+
+      <div className={subCls}>Media</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          The last section left in a media set can now be removed. Its slides stay, without sections
+        </FeatureItem>
+      </ul>
+
+      <div className={subCls}>Fonts</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Chinese in the Serif font no longer falls back to sans for some characters
+        </FeatureItem>
+      </ul>
+
+      <div className={subCls}>Stage Output</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Slides no longer show a half-loaded picture: the gathering&rsquo;s pictures load ahead of
+          time, and the live and next sets&rsquo; videos are buffered
+        </FeatureItem>
+      </ul>
+
+      <div className={subCls}>Song Search</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Search lists sets whose names match first, then sets whose words match
+        </FeatureItem>
+      </ul>
+    </li>
+  );
+}
+
 /** October 24, 2026: song modes, export, background, go live. One `<li>`, above ArrangementsEntry. */
 export function SongModesEntry() {
   return (
     <li className="border-t border-[var(--brand-white)]/20 pt-8">
-      <div className="text-2xl">{RELEASE_DATE}</div>
+      <div className="text-2xl">October 24, 2026</div>
 
       <div className={sectionCls}>Songs</div>
 

@@ -9,6 +9,7 @@ import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 import {
   ArrangementsEntry,
   SongModesEntry,
+  UsernamesEntry,
   LiveGatheringsEntry,
   ReleaseEntry,
   VersionsEntry,
@@ -35,6 +36,7 @@ export default function UpdatesTest() {
         {/* The next release's entry, exactly as phyto.live/updates will show it. */}
         {/* No rule above the latest update: the lines only divide entries. */}
         <ul className="mt-8 space-y-12 [&>li:first-child]:border-t-0 [&>li:first-child]:pt-0">
+          <UsernamesEntry />
           <SongModesEntry />
           <ArrangementsEntry />
           <LiveGatheringsEntry />
