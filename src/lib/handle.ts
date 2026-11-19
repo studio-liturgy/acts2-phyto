@@ -1,8 +1,8 @@
 /**
- * @usernames, shared with antho (its `profiles` table, same accounts): unique,
- * lowercase. A copy of antho's src/lib/handle.ts: keep the two the same, apart
- * from RESERVED_ALLOWED. The
- * database enforces the pattern, so these checks are for friendly messages.
+ * @usernames, shared by phyto and antho (antho's `profiles` table, same
+ * accounts): unique, lowercase. phyto and antho each keep an identical copy of
+ * this file. The database enforces the pattern, so these checks are for
+ * friendly messages.
  */
 
 export const HANDLE_MIN = 3;
@@ -41,8 +41,7 @@ export function normalizeHandle(input: string): string {
 export type HandleProblem = "too-short" | "too-long" | "characters" | "reserved";
 
 /** The studio's own account may take the reserved names (his call, Nov 15:
- *  @studioliturgy for hello@studioliturgy.com). phyto only for now; antho's
- *  copy still blocks them. */
+ *  @studioliturgy for hello@studioliturgy.com), in both apps. */
 const RESERVED_ALLOWED = new Set(["hello@studioliturgy.com"]);
 
 /** Returns what's wrong with a normalized handle, or null when it's usable. */
