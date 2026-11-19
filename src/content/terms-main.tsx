@@ -23,7 +23,7 @@ export default function TermsMain({ defaultSection }: { defaultSection: "offline
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: November 3, 2026
+          Effective Date: November 19, 2026
         </p>
 
         {/* OFFLINE TAB */}

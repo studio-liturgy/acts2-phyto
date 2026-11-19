@@ -22,7 +22,7 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: November 3, 2026
+          Effective Date: November 19, 2026
         </p>
 
         {/* OFFLINE TAB */}
@@ -301,6 +301,12 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
                   sign-in) to send occasional product updates. See section 6 below.
                 </li>
                 <li>
+                  <strong>Username and name:</strong> the username you choose after signing in, and
+                  the name from your Google or Apple account if it provides one, are stored with
+                  your account. People you share sets with and members of your groups can see your
+                  username. Your name is not shown to other users.
+                </li>
+                <li>
                   <strong>Catalogue content:</strong> your sets and gatherings, synced to our
                   database so you can access them across devices
                 </li>
@@ -329,8 +335,8 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
                 </li>
               </ul>
               <p className="mt-2">
-                We do not collect your name, payment information, location, or any other personal
-                data beyond what is listed above.
+                We do not collect payment information, location, or any other personal data beyond
+                what is listed above.
               </p>
             </section>
 
