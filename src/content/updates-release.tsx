@@ -57,7 +57,23 @@ export function UsernamesEntry() {
           time, and the live and next sets&rsquo; videos are buffered
         </FeatureItem>
         <FeatureItem>
-          Search lists sets whose names match first, then sets whose words match
+          Search lists sets whose names start with your search first, then names with a word that
+          starts with it, then sets whose words match
+        </FeatureItem>
+        <FeatureItem>
+          Songs from Song Search no longer show repeat marks (x2, &gt; chorus) or notes for the band
+        </FeatureItem>
+        <FeatureItem>
+          Chords typed as plain letters in Song Search songs are now real chords, and section names
+          typed into the words are now real sections
+        </FeatureItem>
+        <FeatureItem>
+          Hymns from Song Search no longer run a whole verse into one line, and lines that ran
+          together now break where they should
+        </FeatureItem>
+        <FeatureItem>
+          Chords on the same word no longer overlap in the Multi-Language and Call and Response
+          editors
         </FeatureItem>
       </ul>
     </li>
