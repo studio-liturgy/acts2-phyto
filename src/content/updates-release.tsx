@@ -30,9 +30,10 @@ export function UsernamesEntry() {
 
       <div className={subCls}>Account</div>
       <ul className="mt-2 space-y-1">
-        <FeatureItem>After signing in, choose a username</FeatureItem>
-        <FeatureItem>Change it any time in Account Settings</FeatureItem>
-        <FeatureItem>The home page shows your username instead of your email</FeatureItem>
+        <FeatureItem>
+          Choose a username after signing in and change it any time in Account Settings. The home
+          page shows it instead of your email
+        </FeatureItem>
       </ul>
 
       <div className={subCls}>Presenter View</div>
@@ -44,31 +45,17 @@ export function UsernamesEntry() {
       </ul>
 
       <div className={sectionCls}>Bug Fixes</div>
-
-      <div className={subCls}>Media</div>
       <ul className="mt-2 space-y-1">
         <FeatureItem>
           The last section left in a media set can now be removed. Its slides stay, without sections
         </FeatureItem>
-      </ul>
-
-      <div className={subCls}>Fonts</div>
-      <ul className="mt-2 space-y-1">
         <FeatureItem>
           Chinese in the Serif font no longer falls back to sans for some characters
         </FeatureItem>
-      </ul>
-
-      <div className={subCls}>Stage Output</div>
-      <ul className="mt-2 space-y-1">
         <FeatureItem>
           Slides no longer show a half-loaded picture: the gathering&rsquo;s pictures load ahead of
           time, and the live and next sets&rsquo; videos are buffered
         </FeatureItem>
-      </ul>
-
-      <div className={subCls}>Song Search</div>
-      <ul className="mt-2 space-y-1">
         <FeatureItem>
           Search lists sets whose names match first, then sets whose words match
         </FeatureItem>
