@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
+import { useBackHomeSearch } from "@/hooks/use-back-home";
 import {
   ArrangementsEntry,
   SongModesEntry,
@@ -15,12 +16,15 @@ import {
 } from "@/content/updates-release";
 
 export default function UpdatesMain() {
+  // Opened from the phone's Settings tab: Back returns there.
+  const backSearch = useBackHomeSearch();
   usePageBackgroundColor("var(--brand-blue)");
   return (
     <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
         <Link
           to="/"
+          search={backSearch}
           className="mono flex items-center gap-1.5 text-xs uppercase tracking-wider opacity-80 transition-opacity hover:opacity-60"
         >
           <ArrowLeft className="h-3 w-3" /> BACK

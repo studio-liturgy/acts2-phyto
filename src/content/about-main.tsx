@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { BackToTop } from "@/components/BackToTop";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
+import { useBackHomeSearch } from "@/hooks/use-back-home";
 import { useImageReady } from "@/hooks/use-image-ready";
 import aboutBg from "@/assets/about-bg.jpg";
 
@@ -10,6 +11,8 @@ import aboutBg from "@/assets/about-bg.jpg";
 const ABOUT_BG_FILL = "#307193";
 
 export default function AboutMain() {
+  // Opened from the phone's Settings tab: Back returns there.
+  const backSearch = useBackHomeSearch();
   usePageBackgroundColor("#3c7a9e");
   const bgReady = useImageReady(aboutBg);
   return (
@@ -27,6 +30,7 @@ export default function AboutMain() {
         <div className="relative mx-auto w-full max-w-6xl px-6 pt-[calc(env(safe-area-inset-top,0px)+2.5rem)] pb-24 md:pt-14 md:pb-32">
           <Link
             to="/"
+            search={backSearch}
             className="mono inline-flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--brand-white)] opacity-90 transition-opacity hover:opacity-60"
           >
             <ArrowLeft className="h-3 w-3" /> BACK
