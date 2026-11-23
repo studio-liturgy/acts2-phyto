@@ -58,6 +58,17 @@ export function visitUrl(shareUrl: string, currentOrigin: string, test: boolean 
   return currentOrigin + shareUrl.slice(PROD_ORIGIN.length);
 }
 
+/** In the app, Visit link stays in the app: the live link's path, opened on
+ *  the app's own site (a test build shows it on phytoexp.live). */
+export function inAppPath(shareUrl: string): string {
+  try {
+    const u = new URL(shareUrl);
+    return u.pathname + u.search;
+  } catch {
+    return shareUrl;
+  }
+}
+
 export type TesterRpc = (
   fn: "is_phytoexp_tester",
   args: { p_email: string },

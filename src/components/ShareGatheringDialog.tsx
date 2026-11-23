@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { TESTERS_ONLY, visitUrl } from "@/lib/testers";
+import { inAppPath, TESTERS_ONLY, visitUrl } from "@/lib/testers";
+import { useNavigate } from "@tanstack/react-router";
 import { useNativeApp } from "@/hooks/use-native-app";
 import { QRCodeCanvas } from "qrcode.react";
 import { Copy, Check } from "lucide-react";
@@ -66,6 +67,7 @@ export function ShareGatheringDialog({
   const [step, setStep] = useState(startStep);
   // The app never says "EXP", even on the test build.
   const nativeApp = useNativeApp() !== null;
+  const navigate = useNavigate();
   const [goingLive, setGoingLive] = useState(false);
   const [wentLive, setWentLive] = useState(false);
   // Reset on opening, never on closing: changing what's shown while the
@@ -483,10 +485,23 @@ export function ShareGatheringDialog({
                     Share link
                   </button>
                 )}
+                {/* In the app it opens inside the app; elsewhere in a new tab. */}
                 <a
-                  href={shareUrl ? visitUrl(shareUrl, window.location.origin) : undefined}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={
+                    shareUrl
+                      ? nativeApp
+                        ? inAppPath(shareUrl)
+                        : visitUrl(shareUrl, window.location.origin)
+                      : undefined
+                  }
+                  target={nativeApp ? undefined : "_blank"}
+                  rel={nativeApp ? undefined : "noopener noreferrer"}
+                  onClick={(e) => {
+                    if (!nativeApp || !shareUrl) return;
+                    e.preventDefault();
+                    onOpenChange(false);
+                    navigate({ href: inAppPath(shareUrl) });
+                  }}
                   aria-disabled={!shareUrl}
                   className={`mono flex-1 rounded-full border border-foreground py-3 text-center text-xs uppercase tracking-wider transition active:bg-foreground active:text-background ${shareUrl ? "" : "pointer-events-none opacity-40"}`}
                 >
