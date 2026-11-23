@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { flushPushes, useLibrary } from "@/lib/store";
 import { useAppleDeleteNote } from "@/hooks/use-apple-delete-note";
+import { deleteConfirmMatches, deleteConfirmTarget } from "@/lib/delete-confirm";
 import { deleteAccount, signOutAndClearDevice } from "@/lib/account";
 import { useAccountSlug } from "@/hooks/use-account-slug";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
@@ -1105,6 +1106,7 @@ function SettingsTab({
   const myHandle = useMyHandle();
   const userEmail = useUserEmail();
   const appleNote = useAppleDeleteNote();
+  const confirmTarget = deleteConfirmTarget(myHandle, userEmail);
   const syncStatus = useSyncStatus();
   const activeWorkspace = useLibrary((s) => s.activeWorkspace) ?? "personal";
   const groups = useLibrary((s) => s.groups) ?? [];
@@ -1404,18 +1406,25 @@ function SettingsTab({
       <AlertDialog open={confirmDelete} onOpenChange={(o) => !deleting && setConfirmDelete(o)}>
         <AlertDialogContent className="gap-0 rounded-3xl p-8">
           <AlertDialogTitle className="text-2xl font-normal leading-tight">
-            Delete <span className="normal-case">{userEmail}</span>?
+            Delete{" "}
+            <span className={confirmTarget.kind === "username" ? "mono uppercase" : "normal-case"}>
+              {confirmTarget.value}
+            </span>
+            ?
           </AlertDialogTitle>
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             This permanently deletes your sets, gatherings, uploaded media, shares, and any groups
-            you own (their members keep their own sets). It cannot be undone. Type your email to
-            confirm.{appleNote && ` ${appleNote}`}
+            you own (their members keep their own sets). It cannot be undone. Type your{" "}
+            {confirmTarget.kind} to confirm.{appleNote && ` ${appleNote}`}
           </AlertDialogDescription>
           <input
-            type="email"
+            type={confirmTarget.kind === "email" ? "email" : "text"}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             value={confirmEmail}
             onChange={(e) => setConfirmEmail(e.target.value)}
-            placeholder={userEmail ?? "your email"}
+            placeholder={confirmTarget.value || `your ${confirmTarget.kind}`}
             className="mono mt-4 w-full rounded-full border border-foreground bg-background px-4 py-2 text-xs outline-none"
           />
           {deleteError && (
@@ -1426,9 +1435,7 @@ function SettingsTab({
           <div className="mt-8 flex gap-3">
             <button
               type="button"
-              disabled={
-                deleting || confirmEmail.trim().toLowerCase() !== (userEmail ?? "").toLowerCase()
-              }
+              disabled={deleting || !deleteConfirmMatches(confirmEmail, myHandle, userEmail)}
               onClick={() => void runDelete()}
               className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] disabled:opacity-40"
             >

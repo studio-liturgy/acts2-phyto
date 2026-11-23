@@ -33,8 +33,8 @@ export async function fetchStorageUsage(): Promise<StorageUsage | null> {
 
 /** Delete the signed-in account and everything it owns (see the API route),
  *  then wipe this device: session, local library, and saved preferences. The
- *  email is re-checked server-side. Returns an error message, or null. */
-export async function deleteAccount(confirmEmail: string): Promise<string | null> {
+ *  typed username (or email) is re-checked server-side. Returns an error message, or null. */
+export async function deleteAccount(confirmText: string): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token ?? null;
   if (!token) return "You're not signed in.";
@@ -52,7 +52,7 @@ export async function deleteAccount(confirmEmail: string): Promise<string | null
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(
-        appleCode ? { email: confirmEmail, appleCode } : { email: confirmEmail },
+        appleCode ? { confirm: confirmText, appleCode } : { confirm: confirmText },
       ),
     });
   } catch {

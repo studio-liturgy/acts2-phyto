@@ -7,6 +7,7 @@ import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
 import { useAppleDeleteNote } from "@/hooks/use-apple-delete-note";
+import { deleteConfirmMatches, deleteConfirmTarget } from "@/lib/delete-confirm";
 import { deleteAccount, fetchStorageUsage, formatBytes, type StorageUsage } from "@/lib/account";
 
 /** A setting row: the same height as WorkspaceSettingsRows / Arrangements. */
@@ -30,6 +31,7 @@ export function SettingsDialog({
   const userEmail = useUserEmail();
   const appleNote = useAppleDeleteNote();
   const handle = useMyHandle();
+  const confirmTarget = deleteConfirmTarget(handle, userEmail);
   const refreshWorkspaceSettings = useLibrary((s) => s.refreshWorkspaceSettings);
 
   const [usage, setUsage] = useState<StorageUsage | null>(null);
@@ -125,18 +127,21 @@ export function SettingsDialog({
                 </button>
               ) : (
                 <div className="rounded-2xl border border-[var(--brand-red)] p-4">
-                  <div className={LABEL}>Delete {userEmail}?</div>
+                  <div className={LABEL}>Delete {confirmTarget.value}?</div>
                   <p className="mt-2 text-sm">
                     This permanently deletes your sets, gatherings, uploaded media, shares, and any
                     groups you own (their members keep their own sets). It cannot be undone. Type
-                    your email to confirm.{appleNote && ` ${appleNote}`}
+                    your {confirmTarget.kind} to confirm.{appleNote && ` ${appleNote}`}
                   </p>
                   <input
                     autoFocus
-                    type="email"
+                    type={confirmTarget.kind === "email" ? "email" : "text"}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={confirmEmail}
                     onChange={(e) => setConfirmEmail(e.target.value)}
-                    placeholder={userEmail ?? "your email"}
+                    placeholder={confirmTarget.value || `your ${confirmTarget.kind}`}
                     className="mono uppercase mt-3 w-full rounded-full border border-foreground bg-background px-4 py-2 text-sm outline-none"
                   />
                   {deleteError && (
@@ -147,10 +152,7 @@ export function SettingsDialog({
                   <div className="mt-4 flex gap-3">
                     <button
                       type="button"
-                      disabled={
-                        deleting ||
-                        confirmEmail.trim().toLowerCase() !== (userEmail ?? "").toLowerCase()
-                      }
+                      disabled={deleting || !deleteConfirmMatches(confirmEmail, handle, userEmail)}
                       onClick={runDelete}
                       className="mono uppercase flex-1 rounded-full bg-[var(--brand-red)] py-2 text-sm text-[var(--brand-white)] transition hover:opacity-90 disabled:opacity-40"
                     >

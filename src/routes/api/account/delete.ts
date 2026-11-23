@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { appleSubject, revokeAppleSignIn } from "@/lib/apple-revoke";
+import { deleteConfirmMatches } from "@/lib/delete-confirm";
 import {
   getUserId,
   getWorkerEnv,
@@ -45,22 +46,40 @@ export const Route = createFileRoute("/api/account/delete")({
           auth: { autoRefreshToken: false, persistSession: false },
         });
 
-        // The caller must type their email in the dialog; verify it server-side
+        // The caller types their username in the dialog (their email on an
+        // account without one, or from an older tab); verify it server-side
         // too so a stray request can't delete an account by token alone.
-        let confirmEmail = "";
+        let confirmText = "";
         let appleCode = "";
         try {
-          const body = (await request.json()) as { email?: string; appleCode?: string };
-          confirmEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+          const body = (await request.json()) as {
+            confirm?: string;
+            email?: string;
+            appleCode?: string;
+          };
+          const typed = typeof body.confirm === "string" ? body.confirm : body.email;
+          confirmText = typeof typed === "string" ? typed : "";
           appleCode = typeof body.appleCode === "string" ? body.appleCode : "";
         } catch {
           // handled below
         }
         const { data: userRes, error: userErr } = await admin.auth.admin.getUserById(userId);
-        const actualEmail = userRes?.user?.email?.toLowerCase() ?? "";
-        if (userErr || !actualEmail || confirmEmail !== actualEmail) {
+        const { data: profileRow } = await admin
+          .from("profiles")
+          .select("handle")
+          .eq("user_id", userId)
+          .maybeSingle();
+        const handle = (profileRow as { handle?: string } | null)?.handle ?? null;
+        if (
+          userErr ||
+          !userRes?.user ||
+          !deleteConfirmMatches(confirmText, handle, userRes.user.email)
+        ) {
           return Response.json(
-            { ok: false, error: "Email confirmation didn't match." },
+            {
+              ok: false,
+              error: handle ? "Username didn't match." : "Email confirmation didn't match.",
+            },
             { status: 400 },
           );
         }
