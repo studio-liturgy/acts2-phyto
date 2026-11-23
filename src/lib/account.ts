@@ -61,14 +61,19 @@ export async function deleteAccount(confirmText: string): Promise<string | null>
   const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
   if (!res.ok || !json.ok) return json.error ?? "Could not delete the account.";
 
-  // The account is gone; nothing local is worth keeping.
+  // The account is gone; nothing local is worth keeping. Sign out and empty
+  // the library on screen at once, so the signed-out page shows straight
+  // away; the device's copy is cleared behind it (it waits for the sync lock).
   await signOut();
-  await clearLibrary();
   try {
     localStorage.clear();
   } catch {
     // ignore
   }
+  useLibrary.setState({ sets: {}, order: [], gatherings: {}, gatheringOrder: [] });
+  void clearLibrary().catch((e: unknown) =>
+    console.error("[account] clear after delete failed", e),
+  );
   return null;
 }
 

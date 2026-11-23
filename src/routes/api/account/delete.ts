@@ -82,95 +82,99 @@ export const Route = createFileRoute("/api/account/delete")({
           );
         }
 
-        // Sign in with Apple: the app sends a fresh authorization code from
-        // Apple's sheet; revoke the account's Apple token with it (Apple's
-        // rule). It runs alongside the deletion (Apple takes a second or
-        // two); a failure is logged and the deletion still goes ahead.
-        const started = Date.now();
-        const apple: Promise<void> = appleCode
-          ? revokeAppleSignIn({
-              code: appleCode,
-              expectedSub: appleSubject(userRes.user),
-              keyId: readString(env, "APPLE_KEY_ID"),
-              privateKeyPem: readString(env, "APPLE_PRIVATE_KEY"),
-            }).then((result) => {
-              const ms = Date.now() - started;
-              if (result === "revoked")
-                console.log(`Account delete: Apple token revoked (${ms} ms)`);
-              else console.error(`Account delete: Apple revocation ${result} (${ms} ms)`);
-            })
-          : Promise.resolve();
-        const timings: string[] = [];
-        const lap = (label: string, from: number) =>
-          timings.push(`${label} ${Date.now() - from} ms`);
+        // The checks passed: answer at once and finish the deletion after the
+        // response (waitUntil), so the app signs out straight away instead of
+        // waiting ~3 s for Apple and the tables. Every step is idempotent and
+        // logged; a failure part-way leaves an account that can delete again.
+        const purge = async (): Promise<void> => {
+          // Sign in with Apple: the app sends a fresh authorization code from
+          // Apple's sheet; revoke the account's Apple token with it (Apple's
+          // rule). It runs alongside the deletion (Apple takes a second or
+          // two); a failure is logged and the deletion still goes ahead.
+          const started = Date.now();
+          const apple: Promise<void> = appleCode
+            ? revokeAppleSignIn({
+                code: appleCode,
+                expectedSub: appleSubject(userRes.user),
+                keyId: readString(env, "APPLE_KEY_ID"),
+                privateKeyPem: readString(env, "APPLE_PRIVATE_KEY"),
+              }).then((result) => {
+                const ms = Date.now() - started;
+                if (result === "revoked")
+                  console.log(`Account delete: Apple token revoked (${ms} ms)`);
+                else console.error(`Account delete: Apple revocation ${result} (${ms} ms)`);
+              })
+            : Promise.resolve();
+          const timings: string[] = [];
+          const lap = (label: string, from: number) =>
+            timings.push(`${label} ${Date.now() - from} ms`);
 
+          try {
+            const steps: Array<[string, () => PromiseLike<{ error: unknown }>]> = [
+              ["groups", () => admin.from("groups").delete().eq("owner_id", userId)],
+              ["group_members", () => admin.from("group_members").delete().eq("user_id", userId)],
+              ["group_sets", () => admin.from("group_sets").delete().eq("owner_id", userId)],
+              [
+                "set_shares",
+                () =>
+                  admin
+                    .from("set_shares")
+                    .delete()
+                    .or(`owner_id.eq.${userId},grantee_user_id.eq.${userId}`),
+              ],
+              ["gatherings", () => admin.from("gatherings").delete().eq("user_id", userId)],
+              ["sets", () => admin.from("sets").delete().eq("user_id", userId)],
+              ["account_slugs", () => admin.from("account_slugs").delete().eq("user_id", userId)],
+              [
+                "workspace_settings",
+                () => admin.from("workspace_settings").delete().eq("user_id", userId),
+              ],
+              ["deletions", () => admin.from("deletions").delete().eq("user_id", userId)],
+            ];
+            const tablesFrom = Date.now();
+            for (const [table, run] of steps) {
+              const { error } = await run();
+              // A table that doesn't exist yet (migration not applied) has nothing
+              // of ours in it; anything else is a real failure.
+              const code = (error as { code?: string } | null)?.code;
+              if (error && code !== "42P01" && code !== "PGRST205") {
+                console.error(`Account delete: ${table} failed`, error);
+                return;
+              }
+            }
+
+            lap("tables", tablesFrom);
+            const mediaFrom = Date.now();
+            if (bucket) {
+              const keys = (await listUserObjects(bucket, userId)).map((o) => o.key);
+              for (let i = 0; i < keys.length; i += 100) {
+                await bucket.delete(keys.slice(i, i + 100));
+              }
+            }
+
+            lap("media", mediaFrom);
+            const userFrom = Date.now();
+            const { error: delErr } = await admin.auth.admin.deleteUser(userId);
+            lap("user", userFrom);
+            if (delErr) {
+              console.error("Account delete: deleteUser failed", delErr);
+              return;
+            }
+          } catch (err) {
+            console.error("Account delete failed", err);
+            return;
+          }
+
+          await apple;
+          console.log(`Account delete: done in ${Date.now() - started} ms (${timings.join(", ")})`);
+        };
         try {
-          const steps: Array<[string, () => PromiseLike<{ error: unknown }>]> = [
-            ["groups", () => admin.from("groups").delete().eq("owner_id", userId)],
-            ["group_members", () => admin.from("group_members").delete().eq("user_id", userId)],
-            ["group_sets", () => admin.from("group_sets").delete().eq("owner_id", userId)],
-            [
-              "set_shares",
-              () =>
-                admin
-                  .from("set_shares")
-                  .delete()
-                  .or(`owner_id.eq.${userId},grantee_user_id.eq.${userId}`),
-            ],
-            ["gatherings", () => admin.from("gatherings").delete().eq("user_id", userId)],
-            ["sets", () => admin.from("sets").delete().eq("user_id", userId)],
-            ["account_slugs", () => admin.from("account_slugs").delete().eq("user_id", userId)],
-            [
-              "workspace_settings",
-              () => admin.from("workspace_settings").delete().eq("user_id", userId),
-            ],
-            ["deletions", () => admin.from("deletions").delete().eq("user_id", userId)],
-          ];
-          const tablesFrom = Date.now();
-          for (const [table, run] of steps) {
-            const { error } = await run();
-            // A table that doesn't exist yet (migration not applied) has nothing
-            // of ours in it; anything else is a real failure.
-            const code = (error as { code?: string } | null)?.code;
-            if (error && code !== "42P01" && code !== "PGRST205") {
-              console.error(`Account delete: ${table} failed`, error);
-              return Response.json(
-                { ok: false, error: `Could not remove your ${table}.` },
-                { status: 500 },
-              );
-            }
-          }
-
-          lap("tables", tablesFrom);
-          const mediaFrom = Date.now();
-          if (bucket) {
-            const keys = (await listUserObjects(bucket, userId)).map((o) => o.key);
-            for (let i = 0; i < keys.length; i += 100) {
-              await bucket.delete(keys.slice(i, i + 100));
-            }
-          }
-
-          lap("media", mediaFrom);
-          const userFrom = Date.now();
-          const { error: delErr } = await admin.auth.admin.deleteUser(userId);
-          lap("user", userFrom);
-          if (delErr) {
-            console.error("Account delete: deleteUser failed", delErr);
-            return Response.json(
-              { ok: false, error: "Could not delete the account." },
-              { status: 500 },
-            );
-          }
-        } catch (err) {
-          console.error("Account delete failed", err);
-          return Response.json(
-            { ok: false, error: "Could not delete the account." },
-            { status: 500 },
-          );
+          const { waitUntil } = await import("cloudflare:workers");
+          waitUntil(purge());
+        } catch {
+          await purge();
         }
 
-        await apple;
-        console.log(`Account delete: done in ${Date.now() - started} ms (${timings.join(", ")})`);
         return Response.json({ ok: true });
       },
     },
