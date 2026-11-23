@@ -1,4 +1,4 @@
-import { isChordToken } from "./chords";
+import { hideChords, isChordToken } from "./chords";
 
 // Song search + lyrics. Christian/worship-focused.
 //
@@ -286,8 +286,21 @@ function lyricsKey(text: string): string {
 // lyric matches can't suppress the online search or crowd out the real song.
 type ScoredLocal = SongResult & { _strong: boolean };
 
+// A song's lyrics as plain words (no chords, section labels or punctuation),
+// worked out once per song: lyric phrases match however they're punctuated.
+const plainLyrics = new WeakMap<LocalSong, string>();
+function lyricWords(s: LocalSong): string {
+  let w = plainLyrics.get(s);
+  if (w === undefined) {
+    w = normTitle(hideChords(s.lyrics.replace(/^\s*\[[^\]]+\]\s*$/gm, " ")));
+    plainLyrics.set(s, w);
+  }
+  return w;
+}
+
 function searchLocal(db: LocalSong[], parse: ParsedQuery): ScoredLocal[] {
-  const titlePhrase = parse.title.toLowerCase().trim();
+  // Punctuation never decides a match: "Holy, Holy, Holy" = "holy holy holy".
+  const titlePhrase = normTitle(parse.title);
   const titleTerms = titlePhrase.split(/\s+/).filter(Boolean);
   if (titleTerms.length === 0) return [];
 
@@ -305,17 +318,20 @@ function searchLocal(db: LocalSong[], parse: ParsedQuery): ScoredLocal[] {
   const hits: Hit[] = [];
   for (const s of db) {
     if (!artistOk(s.artist)) continue;
-    const titleMeta = `${s.title} ${s.aka ?? ""}`.toLowerCase();
+    const titleMeta = normTitle(`${s.title} ${s.aka ?? ""}`);
     if (titleTerms.every((t) => titleMeta.includes(t))) {
-      const title = s.title.toLowerCase();
+      const title = normTitle(s.title);
       let score = 1; // all title terms present but not contiguous
       if (title === titlePhrase) score = 4;
       else if (title.startsWith(titlePhrase)) score = 3;
       else if (title.includes(titlePhrase)) score = 2;
       hits.push({ song: s, score });
     } else if (titleTerms.length >= 2) {
-      const body = s.lyrics.toLowerCase().replace(/\s+/g, " ");
-      if (body.includes(titlePhrase)) hits.push({ song: s, score: 0 });
+      const body = lyricWords(s);
+      // The opening line, as hymns are often known ("Holy, Holy, Holy! Lord
+      // God Almighty!" is filed as "Holy, Holy, Holy"): as strong as a title.
+      if (titleTerms.length >= 3 && body.startsWith(titlePhrase)) hits.push({ song: s, score: 3 });
+      else if (body.includes(titlePhrase)) hits.push({ song: s, score: 0 });
     }
   }
 

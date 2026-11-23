@@ -23,6 +23,15 @@ const DB = [
       "\n",
     ),
   },
+  {
+    title: "Holy, Holy, Holy",
+    artist: "Heber, Reginald (1783-1826)",
+    lyrics: [
+      "[Verse 1]",
+      "(D)Holy (Bm)holy (A)ho(D)ly (G)Lord God (D)Almighty",
+      "(A)Early in the (Bm)morning our (E)song shall rise to (A)Thee",
+    ].join("\n"),
+  },
 ];
 
 function mockDb(db: unknown) {
@@ -74,5 +83,24 @@ describe("searchSongs: chords survive the local database", () => {
     const { local } = await searchSongs("Amazing Grace");
     const hit = local.find((s) => s.title === "Amazing Grace")!;
     expect(hit.key).toBeUndefined();
+  });
+});
+
+describe("searchSongs: punctuation and first lines", () => {
+  it("finds a hymn by its first line, past chords and commas", async () => {
+    mockDb(DB);
+    const { local } = await searchSongs("Holy, Holy, Holy Lord God Almighty");
+    expect(local[0]?.title).toBe("Holy, Holy, Holy");
+  });
+
+  it("ignores punctuation in titles", async () => {
+    mockDb(DB);
+    expect((await searchSongs("holy holy holy")).local[0]?.title).toBe("Holy, Holy, Holy");
+  });
+
+  it("still finds a remembered line in the middle", async () => {
+    mockDb(DB);
+    const { online } = await searchSongs("early in the morning");
+    expect((await online).map((s) => s.title)).toContain("Holy, Holy, Holy");
   });
 });
