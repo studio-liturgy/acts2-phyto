@@ -382,8 +382,12 @@ export function PhoneViewer({
   return (
     <div
       // The visible screen exactly (100dvh, not 100vh, which on a phone runs
-      // under the browser's bar): a short set has nothing to scroll.
-      className={`flex flex-col ${embedded ? "h-full" : "h-[100dvh]"} ${themeClasses}`}
+      // under the browser's bar): a short set has nothing to scroll. Standalone,
+      // it clears the status bar (the app draws the page under it; browsers
+      // report 0).
+      className={`flex flex-col ${
+        embedded ? "h-full" : "h-[100dvh] pt-[env(safe-area-inset-top,0px)]"
+      } ${themeClasses}`}
       style={{
         fontFamily: FONT_FAMILY_CSS[prefs.fontFamily],
         fontSize: `${prefs.fontSize * BASE_FONT_REM}rem`,
