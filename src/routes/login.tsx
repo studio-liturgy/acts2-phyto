@@ -15,7 +15,6 @@ import { useNativeApp } from "@/hooks/use-native-app";
 import {
   canSignInWithApple,
   signInWithAppleInApp,
-  signInWithGoogleInApp,
   signInWithGoogleInAppDirect,
 } from "@/lib/app-sign-in";
 import { PHONE_UI } from "@/lib/phone-layout";
@@ -65,9 +64,9 @@ function LoginPage() {
   // Sign in with Apple: the iPhone app's native sheet (a build that has it).
   const appleIn = native === "ios" && canSignInWithApple();
   // Browsers (phone and computer): Apple and Google sign in through
-  // phyto's own address (lib/web-sign-in.ts). Test build only until it has
-  // been tried on phytoexp.live; then it turns on for phyto.live too.
-  const webIdSignIn = native === null && isTestBuild;
+  // phyto's own address (lib/web-sign-in.ts), so their pages name phyto,
+  // not Supabase.
+  const webIdSignIn = native === null;
   const appleWeb = webIdSignIn;
   const appleShown = appleIn || appleWeb;
   const [email, setEmail] = useState("");
@@ -336,32 +335,25 @@ function LoginPage() {
                     // The app: Google's page opens in the system sign-in sheet
                     // and comes straight back (Google refuses app web views).
                     if (nativeApp) {
-                      // Test build: the sheet names phyto, not Supabase.
-                      if (isTestBuild) {
-                        void signInWithGoogleInAppDirect().then(async (r) => {
-                          if (!r.ok) {
-                            if (!r.cancelled) setError(r.error);
-                            return;
-                          }
-                          const { data } = await supabase.auth.getUser();
-                          const user = data.user;
-                          if (
-                            user &&
-                            (!TESTERS_ONLY || (await isTesterEmail(user.email ?? "")) === true)
-                          ) {
-                            await sendWelcomeIfNew(user);
-                          }
-                        });
-                        return;
-                      }
-                      void signInWithGoogleInApp().then((r) => {
-                        if (r.ok) window.location.assign(r.callbackPath);
-                        else if (!r.cancelled) setError(r.error);
+                      // The sheet names phyto, not Supabase.
+                      void signInWithGoogleInAppDirect().then(async (r) => {
+                        if (!r.ok) {
+                          if (!r.cancelled) setError(r.error);
+                          return;
+                        }
+                        const { data } = await supabase.auth.getUser();
+                        const user = data.user;
+                        if (
+                          user &&
+                          (!TESTERS_ONLY || (await isTesterEmail(user.email ?? "")) === true)
+                        ) {
+                          await sendWelcomeIfNew(user);
+                        }
                       });
                       return;
                     }
-                    // Browsers on the test build: Google's page names phyto's
-                    // own address (lib/web-sign-in.ts), not Supabase's.
+                    // Browsers: Google's page names phyto's own address
+                    // (lib/web-sign-in.ts), not Supabase's.
                     if (webIdSignIn) {
                       void startWebSignIn("google");
                       return;
