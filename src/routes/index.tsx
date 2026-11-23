@@ -210,11 +210,18 @@ function Home() {
   useEffect(() => {
     document.title = title;
   }, [title]);
+  // The carousel intro is the app's only. Phone browsers land on the regular
+  // intro page (FirstTimeLanding, through Library), like computers.
+  const appIntro = isNativeApp();
   // Phone, signed out: only the intro, with Sign in. No library to browse.
   // (In the app, the intro also offers "Use without an account".)
   if (phone && authLoading) return <div className="min-h-screen bg-background" />;
   if (phone && !canUseLibrary)
-    return <PhoneIntro signedIn={false} signInOnly emptyLibrary={isEmpty} />;
+    return appIntro ? (
+      <PhoneIntro signedIn={false} signInOnly emptyLibrary={isEmpty} />
+    ) : (
+      <Library signInOnly />
+    );
   // iPad browsers need an account too, like phone browsers;
   // the iPad app doesn't.
   if (
@@ -234,7 +241,7 @@ function Home() {
   if (phoneTab) return <PhoneHome tab={phoneTab} />;
   // Phone intro (?intro, or an empty account): the six-page carousel. Back
   // names a tab, which keeps an empty account from opening it again.
-  if (phone && landing && !pulling)
+  if (phone && landing && !pulling && appIntro)
     return <PhoneIntro signedIn={isSignedIn} signInOnly={false} emptyLibrary={isEmpty} />;
   if (phone === null && !landing) return <div className="min-h-screen bg-background" />;
   return <Library />;
