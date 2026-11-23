@@ -30,6 +30,7 @@ import {
   type PhoneSlide,
   type ViewerPrefs,
 } from "@/lib/phone-viewer";
+import { moveSwipe, startSwipe, swipeStep, type SwipeTrack } from "@/lib/set-swipe";
 
 /** QR overlay fade, in and out. */
 const QR_FADE_MS = 200;
@@ -181,7 +182,7 @@ export function PhoneViewer({
   const tabBarRef = useRef<HTMLDivElement>(null);
   // The set's words scroll on their own; a new set starts at its top.
   const contentRef = useRef<HTMLDivElement>(null);
-  const touchStartX = useRef<number | null>(null);
+  const swipe = useRef<SwipeTrack | null>(null);
 
   useEffect(() => {
     savePrefs(prefs);
@@ -614,22 +615,29 @@ export function PhoneViewer({
         className="group relative flex min-h-0 flex-1 flex-col"
         onTouchStart={(e) => {
           if (e.touches.length > 1) {
-            touchStartX.current = null;
+            swipe.current = null;
             return;
           }
-          touchStartX.current = e.touches[0].clientX;
+          const p = e.touches[0];
+          swipe.current = startSwipe(p.clientX, p.clientY);
         }}
         onTouchMove={(e) => {
-          if (e.touches.length > 1) touchStartX.current = null;
+          if (!swipe.current) return;
+          if (e.touches.length > 1) {
+            swipe.current = null;
+            return;
+          }
+          const p = e.touches[0];
+          swipe.current = moveSwipe(swipe.current, p.clientX, p.clientY);
         }}
         onTouchEnd={(e) => {
-          if (touchStartX.current === null) return;
-          const dx = e.changedTouches[0].clientX - touchStartX.current;
-          touchStartX.current = null;
-          if (Math.abs(dx) < 50) return;
-          if (dx < 0 && activeIdx < sets.length - 1) {
+          if (!swipe.current) return;
+          const p = e.changedTouches[0];
+          const step = swipeStep(swipe.current, p.clientX, p.clientY);
+          swipe.current = null;
+          if (step === 1 && activeIdx < sets.length - 1) {
             selectSet(sets[activeIdx + 1].id);
-          } else if (dx > 0 && activeIdx > 0) {
+          } else if (step === -1 && activeIdx > 0) {
             selectSet(sets[activeIdx - 1].id);
           }
         }}
