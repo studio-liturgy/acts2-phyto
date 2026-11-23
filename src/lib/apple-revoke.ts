@@ -47,13 +47,16 @@ export function appleSubject(
 }
 
 /** The extra line in the Delete Account dialog for an account that signs in
- *  with Apple: in the app Apple's sheet finishes it; elsewhere the person
+ *  with Apple: none in the app (Apple's sheet finishes it); elsewhere the person
  *  removes phyto from their Apple Account themselves. */
+/** Shown when the person closes Apple's sheet during Delete Account. */
+export const APPLE_CONFIRM_NEEDED = "Confirm with Apple to finish.";
+
 export function appleDeleteNote(apple: boolean, canAskApple: boolean): string | null {
-  if (!apple) return null;
-  return canAskApple
-    ? "Confirm with Apple to finish."
-    : "To finish, remove phyto under Sign in with Apple in your Apple Account settings.";
+  // In the app Apple's sheet simply follows Delete forever (his call, Nov 23:
+  // no line for it); only browsers need telling.
+  if (!apple || canAskApple) return null;
+  return "To finish, remove phyto under Sign in with Apple in your Apple Account settings.";
 }
 
 function base64url(bytes: Uint8Array): string {

@@ -63,12 +63,10 @@ export const Route = createFileRoute("/api/account/delete")({
         } catch {
           // handled below
         }
-        const { data: userRes, error: userErr } = await admin.auth.admin.getUserById(userId);
-        const { data: profileRow } = await admin
-          .from("profiles")
-          .select("handle")
-          .eq("user_id", userId)
-          .maybeSingle();
+        const [{ data: userRes, error: userErr }, { data: profileRow }] = await Promise.all([
+          admin.auth.admin.getUserById(userId),
+          admin.from("profiles").select("handle").eq("user_id", userId).maybeSingle(),
+        ]);
         const handle = (profileRow as { handle?: string } | null)?.handle ?? null;
         if (
           userErr ||
@@ -86,17 +84,25 @@ export const Route = createFileRoute("/api/account/delete")({
 
         // Sign in with Apple: the app sends a fresh authorization code from
         // Apple's sheet; revoke the account's Apple token with it (Apple's
-        // rule). A failure is logged and the deletion still goes ahead.
-        if (appleCode) {
-          const result = await revokeAppleSignIn({
-            code: appleCode,
-            expectedSub: appleSubject(userRes.user),
-            keyId: readString(env, "APPLE_KEY_ID"),
-            privateKeyPem: readString(env, "APPLE_PRIVATE_KEY"),
-          });
-          if (result === "revoked") console.log("Account delete: Apple token revoked");
-          else console.error(`Account delete: Apple revocation ${result}`);
-        }
+        // rule). It runs alongside the deletion (Apple takes a second or
+        // two); a failure is logged and the deletion still goes ahead.
+        const started = Date.now();
+        const apple: Promise<void> = appleCode
+          ? revokeAppleSignIn({
+              code: appleCode,
+              expectedSub: appleSubject(userRes.user),
+              keyId: readString(env, "APPLE_KEY_ID"),
+              privateKeyPem: readString(env, "APPLE_PRIVATE_KEY"),
+            }).then((result) => {
+              const ms = Date.now() - started;
+              if (result === "revoked")
+                console.log(`Account delete: Apple token revoked (${ms} ms)`);
+              else console.error(`Account delete: Apple revocation ${result} (${ms} ms)`);
+            })
+          : Promise.resolve();
+        const timings: string[] = [];
+        const lap = (label: string, from: number) =>
+          timings.push(`${label} ${Date.now() - from} ms`);
 
         try {
           const steps: Array<[string, () => PromiseLike<{ error: unknown }>]> = [
@@ -120,6 +126,7 @@ export const Route = createFileRoute("/api/account/delete")({
             ],
             ["deletions", () => admin.from("deletions").delete().eq("user_id", userId)],
           ];
+          const tablesFrom = Date.now();
           for (const [table, run] of steps) {
             const { error } = await run();
             // A table that doesn't exist yet (migration not applied) has nothing
@@ -134,6 +141,8 @@ export const Route = createFileRoute("/api/account/delete")({
             }
           }
 
+          lap("tables", tablesFrom);
+          const mediaFrom = Date.now();
           if (bucket) {
             const keys = (await listUserObjects(bucket, userId)).map((o) => o.key);
             for (let i = 0; i < keys.length; i += 100) {
@@ -141,7 +150,10 @@ export const Route = createFileRoute("/api/account/delete")({
             }
           }
 
+          lap("media", mediaFrom);
+          const userFrom = Date.now();
           const { error: delErr } = await admin.auth.admin.deleteUser(userId);
+          lap("user", userFrom);
           if (delErr) {
             console.error("Account delete: deleteUser failed", delErr);
             return Response.json(
@@ -157,6 +169,8 @@ export const Route = createFileRoute("/api/account/delete")({
           );
         }
 
+        await apple;
+        console.log(`Account delete: done in ${Date.now() - started} ms (${timings.join(", ")})`);
         return Response.json({ ok: true });
       },
     },

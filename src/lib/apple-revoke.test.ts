@@ -62,8 +62,8 @@ describe("appleSubject", () => {
 });
 
 describe("appleDeleteNote", () => {
-  it("gives the app line, the browser line, or nothing", () => {
-    expect(appleDeleteNote(true, true)).toBe("Confirm with Apple to finish.");
+  it("gives the browser line, or nothing (the app has none)", () => {
+    expect(appleDeleteNote(true, true)).toBeNull();
     expect(appleDeleteNote(true, false)).toBe(
       "To finish, remove phyto under Sign in with Apple in your Apple Account settings.",
     );

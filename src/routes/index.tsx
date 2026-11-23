@@ -252,7 +252,9 @@ function Home() {
         signedIn={isSignedIn}
         signInOnly={false}
         emptyLibrary={isEmpty}
-        firstRun={!!first && !!intro && isSignedIn}
+        // Continue, not Back: the first sign-in (after the username), or
+        // an empty account landing here by itself.
+        firstRun={isSignedIn && ((!!first && !!intro) || (!intro && isEmpty))}
       />
     );
   if (phone === null && !landing) return <div className="min-h-screen bg-background" />;

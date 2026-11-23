@@ -7,7 +7,7 @@ import { db } from "./db";
 import { signOut } from "./auth";
 import { flushPushes, useLibrary } from "./store";
 import { withSyncLock } from "./sync";
-import { appleDeleteNote, hasAppleSignIn } from "./apple-revoke";
+import { APPLE_CONFIRM_NEEDED, hasAppleSignIn } from "./apple-revoke";
 import { appleAuthorizationCode, canSignInWithApple } from "./app-sign-in";
 
 async function accessToken(): Promise<string | null> {
@@ -43,7 +43,7 @@ export async function deleteAccount(confirmText: string): Promise<string | null>
   let appleCode: string | null = null;
   if (hasAppleSignIn(data.session?.user) && canSignInWithApple()) {
     const code = await appleAuthorizationCode();
-    if (code === "cancelled") return appleDeleteNote(true, true);
+    if (code === "cancelled") return APPLE_CONFIRM_NEEDED;
     appleCode = code;
   }
   let res: Response;

@@ -1425,7 +1425,7 @@ function SettingsTab({
             value={confirmEmail}
             onChange={(e) => setConfirmEmail(e.target.value)}
             placeholder={confirmTarget.value || `your ${confirmTarget.kind}`}
-            className="mono mt-4 w-full rounded-full border border-foreground bg-background px-4 py-2 text-xs outline-none"
+            className={`mono mt-4 w-full rounded-full border border-foreground bg-background px-4 py-2 text-xs outline-none ${confirmTarget.kind === "username" ? "uppercase" : ""}`}
           />
           {deleteError && (
             <p className="mono mt-2 text-[10px] uppercase tracking-wider text-[var(--brand-red)]">
