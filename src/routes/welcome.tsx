@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { isNativeApp } from "@/lib/native-app";
 import { APP_NAME } from "@/lib/appConfig";
 import { useAuthStore } from "@/lib/authStore";
 import { safeNextPath } from "@/lib/session-lost";
@@ -50,6 +51,12 @@ function WelcomePage() {
   const profile = useProfile((s) => s.profile);
   const existing = profile && profile !== "error" ? profile : null;
   const done = () => navigate({ href: next ?? "/", replace: true });
+  // The app's first sign-in: once the username is saved, the intro
+  // carousel follows, ending in Continue (his flow: sign in, username,
+  // intro). Set before the save so the "already has one" effect below
+  // doesn't send the page home first.
+  const firstRun = useRef(false);
+  const toIntro = () => navigate({ to: "/", search: { intro: true, first: true }, replace: true });
 
   const [handle, setHandle] = useState("");
   const [touched, setTouched] = useState(false);
@@ -64,7 +71,7 @@ function WelcomePage() {
 
   // Already has one (and not here to change it): carry on.
   useEffect(() => {
-    if (existing && !change) done();
+    if (existing && !change && !firstRun.current) done();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existing, change]);
 
@@ -114,9 +121,12 @@ function WelcomePage() {
       existing?.display_name ||
       suggestDisplayName(session.user, localStorage.getItem(APPLE_NAME_KEY)) ||
       handle;
+    firstRun.current =
+      !existing && !change && (!next || next.split("?")[0] === "/") && isNativeApp();
     const result = await saveProfile({ user_id: session.user.id, handle, display_name: name });
     setSaving(false);
-    if (result.ok) return done();
+    if (result.ok) return firstRun.current ? toIntro() : done();
+    firstRun.current = false;
     if (result.reason === "taken") setAvailability("taken");
     else setError("Couldn't save. Please try again.");
   };

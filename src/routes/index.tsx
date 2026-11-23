@@ -108,8 +108,13 @@ export const Route = createFileRoute("/")({
   // has content, so signed-in users can revisit it from the home header.
   // `?tab` picks the phone layout's bottom tab (Gatherings, Catalogue,
   // Settings); none = Gatherings, or Catalogue on an empty account.
-  validateSearch: (search: Record<string, unknown>): { intro?: boolean; tab?: PhoneTab } => ({
+  // `?first` (with `?intro`): the app's first sign-in, straight after the
+  // username; the carousel ends in Continue instead of Back.
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { intro?: boolean; first?: boolean; tab?: PhoneTab } => ({
     ...(search.intro === true || search.intro === "true" ? { intro: true } : {}),
+    ...(search.first === true || search.first === "true" ? { first: true } : {}),
     ...(parsePhoneTab(search.tab) ? { tab: parsePhoneTab(search.tab) } : {}),
   }),
   head: () => ({
@@ -181,7 +186,7 @@ export const Route = createFileRoute("/")({
  *  landing and the first account download stay the shared ones. */
 function Home() {
   const phone = usePhoneLayout();
-  const { intro, tab } = Route.useSearch();
+  const { intro, first, tab } = Route.useSearch();
   const order = useLibrary((s) => s.order) ?? [];
   const gatheringOrder = useLibrary((s) => s.gatheringOrder) ?? [];
   const activeWorkspace = useLibrary((s) => s.activeWorkspace) ?? "personal";
@@ -242,7 +247,14 @@ function Home() {
   // Phone intro (?intro, or an empty account): the six-page carousel. Back
   // names a tab, which keeps an empty account from opening it again.
   if (phone && landing && !pulling && appIntro)
-    return <PhoneIntro signedIn={isSignedIn} signInOnly={false} emptyLibrary={isEmpty} />;
+    return (
+      <PhoneIntro
+        signedIn={isSignedIn}
+        signInOnly={false}
+        emptyLibrary={isEmpty}
+        firstRun={!!first && !!intro && isSignedIn}
+      />
+    );
   if (phone === null && !landing) return <div className="min-h-screen bg-background" />;
   return <Library />;
 }

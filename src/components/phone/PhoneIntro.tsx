@@ -84,17 +84,21 @@ const CARD_WIDTH = 0.65;
  * carousel. The card slides sideways with a swipe (or by itself every 12 s),
  * the title and line above it fade, and nothing scrolls up or down.
  * Signed out it offers Sign In (and, in the app, Use without an account);
- * signed in, only Back.
+ * signed in, only Back; on the first sign-in (after the username), a
+ * Continue pill under the carousel instead of Back.
  */
 export function PhoneIntro({
   signedIn,
   signInOnly,
   emptyLibrary,
+  firstRun = false,
 }: {
   signedIn: boolean;
   /** Signed out and not using the app without an account: no Back. */
   signInOnly: boolean;
   emptyLibrary: boolean;
+  /** The first sign-in, straight after choosing a username: Continue. */
+  firstRun?: boolean;
 }) {
   usePageBackgroundColor("var(--background)");
   const backSearch = useBackHomeSearch();
@@ -179,7 +183,7 @@ export function PhoneIntro({
 
   return (
     <div className="fixed inset-0 flex touch-none select-none flex-col overflow-hidden overscroll-none bg-background text-foreground">
-      {!signInOnly && (
+      {!signInOnly && !firstRun && (
         <div className={`absolute inset-x-0 top-0 z-10 px-6 ${BACK_PAGE_TOP}`}>
           <BackLink search={{ tab: backTab }} />
         </div>
@@ -319,7 +323,26 @@ export function PhoneIntro({
           </div>
         </div>
       )}
-      {signedIn && <div className="pb-[calc(env(safe-area-inset-bottom,0px)+2.25rem)]" />}
+      {signedIn && firstRun && (
+        // Continue sits where Sign In sits for a signed-out visitor.
+        <div
+          className={`${PHONE_BTN_COLUMN_PAD} pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-6`}
+        >
+          <div className={`${PHONE_BTN_COLUMN} flex flex-col gap-2`}>
+            <Link
+              to="/"
+              search={{ tab: backTab }}
+              replace
+              className={`${PHONE_BTN} border border-foreground bg-foreground text-background active:opacity-80`}
+            >
+              Continue
+            </Link>
+          </div>
+        </div>
+      )}
+      {signedIn && !firstRun && (
+        <div className="pb-[calc(env(safe-area-inset-bottom,0px)+2.25rem)]" />
+      )}
     </div>
   );
 }
