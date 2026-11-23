@@ -215,7 +215,7 @@ function Home() {
   if (phone && authLoading) return <div className="min-h-screen bg-background" />;
   if (phone && !canUseLibrary)
     return <PhoneIntro signedIn={false} signInOnly emptyLibrary={isEmpty} />;
-  // iPad browsers need an account too (test only, like the phone layout);
+  // iPad browsers need an account too, like phone browsers;
   // the iPad app doesn't.
   if (
     PHONE_UI &&

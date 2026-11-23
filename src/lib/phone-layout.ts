@@ -1,13 +1,11 @@
-// The phone layout (phone browser, phase 1): screens under 768px wide get
-// their own home, gathering and set editor screens. Tablets keep the desktop
-// layout for now. Test only until phase 1 ships.
+// The phone layout (phone browser and the phyto app): screens under 768px
+// wide get their own home, gathering and set editor screens. Tablets keep the
+// desktop layout for now. On in every build since the iOS app launch.
 
 import type { Gathering, Set as PhytoSet, SetKind } from "./types";
 
-const isTest = import.meta.env.VITE_APP_ENV === "test";
-
 /** Whether this build has the phone layout at all. */
-export const PHONE_UI = isTest;
+export const PHONE_UI = true;
 
 /** Screens narrower than this get the phone layout (Tailwind's `md`). */
 export const PHONE_MAX_WIDTH = 767;
