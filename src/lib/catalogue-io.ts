@@ -1,6 +1,9 @@
 import { db } from "./db";
 import type { Set as PhytoSet, SetKind, Slide, Gathering } from "./types";
-import { useLibrary } from "./store";
+import { flushPushes, pushLater, useLibrary } from "./store";
+import { recordDeletions, withSyncLock } from "./sync";
+import { supabase } from "./supabase";
+import { useAuthStore } from "./authStore";
 import { nanoid } from "nanoid";
 
 // ---------------------------------------------------------------------------
@@ -222,23 +225,79 @@ export async function importCatalogue(file: File, mode: "merge" | "replace"): Pr
 
   const data = migratePhytoFile(raw);
   const myGroupIds = new Set(useLibrary.getState().groups.map((g) => g.id));
-  const sets = data.sets.map((s) => asOwnedSet(s, myGroupIds));
-  const gatherings = data.gatherings.map((g) => asOwnedGathering(g, myGroupIds));
+  // An import is this device's newest edit: stamped now, so the account and
+  // other devices take it instead of keeping their older copy (or a deletion
+  // tombstone from before) and writing it back over the import.
+  const now = Date.now();
+  const sets = data.sets.map((s) => ({ ...asOwnedSet(s, myGroupIds), updatedAt: now }));
+  const gatherings = data.gatherings.map((g) => ({
+    ...asOwnedGathering(g, myGroupIds),
+    updatedAt: now,
+  }));
 
-  // One transaction, so a write that fails part-way leaves the library as it
-  // was instead of cleared or half-imported.
-  await db.transaction("rw", db.sets, db.gatherings, async () => {
-    if (mode === "replace") {
-      await db.sets.clear();
-      await db.gatherings.clear();
-    }
-    // Upsert by id: overwrites same-id rows, adds new ones.
-    await db.sets.bulkPut(sets);
-    if (gatherings.length) await db.gatherings.bulkPut(gatherings);
+  // Under the sync lock, so a sync pass already running can't write its
+  // older snapshot back over the import.
+  const removed = await withSyncLock(async () => {
+    const before =
+      mode === "replace"
+        ? { sets: await db.sets.toArray(), gatherings: await db.gatherings.toArray() }
+        : { sets: [], gatherings: [] };
+    // One transaction, so a write that fails part-way leaves the library as it
+    // was instead of cleared or half-imported.
+    await db.transaction("rw", db.sets, db.gatherings, async () => {
+      if (mode === "replace") {
+        await db.sets.clear();
+        await db.gatherings.clear();
+      }
+      // Upsert by id: overwrites same-id rows, adds new ones.
+      await db.sets.bulkPut(sets);
+      if (gatherings.length) await db.gatherings.bulkPut(gatherings);
+    });
+    const keepSets = new Set(sets.map((s) => s.id));
+    const keepGatherings = new Set(gatherings.map((g) => g.id));
+    return {
+      sets: before.sets.filter((s) => !s.shared && !keepSets.has(s.id)).map((s) => s.id),
+      gatherings: before.gatherings
+        .filter((g) => !g.shared && !g.group_id && !keepGatherings.has(g.id))
+        .map((g) => g.id),
+    };
   });
 
   // Refresh the Zustand store from Dexie
   await useLibrary.getState().loadFromDb();
 
+  // Signed in: Replace takes the sets and gatherings it cleared out of the
+  // account too (with tombstones, so other devices drop them), and the
+  // imported rows go up at once.
+  await removeFromAccount(removed);
+  pushLater({ sets: sets.map((s) => s.id), gatherings: gatherings.map((g) => g.id) });
+  await flushPushes();
+
   return sets.length;
+}
+
+/** Replace import: delete my own sets and gatherings the file didn't keep
+ *  from the account, and tombstone them for my other devices. */
+async function removeFromAccount(ids: { sets: string[]; gatherings: string[] }): Promise<void> {
+  const userId = useAuthStore.getState().session?.user.id;
+  if (!userId || (!ids.sets.length && !ids.gatherings.length)) return;
+  if (ids.gatherings.length) {
+    const { error: gsErr } = await supabase
+      .from("gathering_sets")
+      .delete()
+      .in("gathering_id", ids.gatherings);
+    if (gsErr) console.error("[import] gathering_sets delete error", gsErr);
+    const { error } = await supabase
+      .from("gatherings")
+      .delete()
+      .in("id", ids.gatherings)
+      .eq("user_id", userId);
+    if (error) console.error("[import] gatherings delete error", error);
+    await recordDeletions("gathering", ids.gatherings);
+  }
+  if (ids.sets.length) {
+    const { error } = await supabase.from("sets").delete().in("id", ids.sets).eq("user_id", userId);
+    if (error) console.error("[import] sets delete error", error);
+    await recordDeletions("set", ids.sets);
+  }
 }
