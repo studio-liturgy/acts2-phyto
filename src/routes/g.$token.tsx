@@ -263,7 +263,7 @@ function LinkAccountMenu({ ownId }: { ownId: string | null }) {
   const phone = usePhoneLayout() === true;
   const navigate = useNavigate();
   const BTN =
-    "mt-2 block w-full rounded-lg border border-current/40 px-3 py-1.5 text-center text-[10px] uppercase tracking-wider transition";
+    "mt-2 block w-full rounded-lg border border-current/40 px-3 pb-[7px] pt-[5px] text-center text-[10px] uppercase tracking-wider transition";
   const here = typeof window !== "undefined" ? window.location.pathname : "/";
   if (!isSignedIn) {
     return (
@@ -276,7 +276,7 @@ function LinkAccountMenu({ ownId }: { ownId: string | null }) {
     // Edit and Home share one row, each half the width.
     const ROW_BTN = BTN.replace("mt-2 block w-full", "flex-1");
     return (
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex gap-1.5">
         <button
           type="button"
           onClick={() => {

@@ -441,7 +441,7 @@ export function PhoneViewer({
                       menuTimer.current = setTimeout(() => setMenuOpen(false), QR_FADE_MS);
                     }}
                     style={{ fontFamily: FONT_FAMILY_CSS.mono }}
-                    className={`mt-4 w-full rounded-lg border px-3 py-1.5 text-center text-[10px] uppercase tracking-wider transition ${
+                    className={`mt-4 w-full rounded-lg border px-3 pb-[7px] pt-[5px] text-center text-[10px] uppercase tracking-wider transition ${
                       prefs.isDark
                         ? "border-white/40 hover:border-white"
                         : "border-black/40 hover:border-black"
