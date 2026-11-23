@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { flushPushes, useLibrary } from "@/lib/store";
+import { useAppleDeleteNote } from "@/hooks/use-apple-delete-note";
 import { deleteAccount, signOutAndClearDevice } from "@/lib/account";
 import { useAccountSlug } from "@/hooks/use-account-slug";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
@@ -1103,6 +1104,7 @@ function SettingsTab({
   const isSignedIn = useIsSignedIn();
   const myHandle = useMyHandle();
   const userEmail = useUserEmail();
+  const appleNote = useAppleDeleteNote();
   const syncStatus = useSyncStatus();
   const activeWorkspace = useLibrary((s) => s.activeWorkspace) ?? "personal";
   const groups = useLibrary((s) => s.groups) ?? [];
@@ -1407,7 +1409,7 @@ function SettingsTab({
           <AlertDialogDescription className="mt-4 text-base text-foreground">
             This permanently deletes your sets, gatherings, uploaded media, shares, and any groups
             you own (their members keep their own sets). It cannot be undone. Type your email to
-            confirm.
+            confirm.{appleNote && ` ${appleNote}`}
           </AlertDialogDescription>
           <input
             type="email"

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
+import { appleSubject, revokeAppleSignIn } from "@/lib/apple-revoke";
 import {
   getUserId,
   getWorkerEnv,
@@ -47,9 +48,11 @@ export const Route = createFileRoute("/api/account/delete")({
         // The caller must type their email in the dialog; verify it server-side
         // too so a stray request can't delete an account by token alone.
         let confirmEmail = "";
+        let appleCode = "";
         try {
-          const body = (await request.json()) as { email?: string };
+          const body = (await request.json()) as { email?: string; appleCode?: string };
           confirmEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+          appleCode = typeof body.appleCode === "string" ? body.appleCode : "";
         } catch {
           // handled below
         }
@@ -60,6 +63,20 @@ export const Route = createFileRoute("/api/account/delete")({
             { ok: false, error: "Email confirmation didn't match." },
             { status: 400 },
           );
+        }
+
+        // Sign in with Apple: the app sends a fresh authorization code from
+        // Apple's sheet; revoke the account's Apple token with it (Apple's
+        // rule). A failure is logged and the deletion still goes ahead.
+        if (appleCode) {
+          const result = await revokeAppleSignIn({
+            code: appleCode,
+            expectedSub: appleSubject(userRes.user),
+            keyId: readString(env, "APPLE_KEY_ID"),
+            privateKeyPem: readString(env, "APPLE_PRIVATE_KEY"),
+          });
+          if (result === "revoked") console.log("Account delete: Apple token revoked");
+          else console.error(`Account delete: Apple revocation ${result}`);
         }
 
         try {

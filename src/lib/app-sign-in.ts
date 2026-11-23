@@ -133,9 +133,12 @@ export async function signInWithGoogleInApp(): Promise<AppSignIn> {
 }
 
 type AppleSignIn = {
-  signIn: (o: {
-    nonce: string;
-  }) => Promise<{ identityToken: string; givenName?: string; familyName?: string }>;
+  signIn: (o: { nonce: string }) => Promise<{
+    identityToken: string;
+    authorizationCode?: string;
+    givenName?: string;
+    familyName?: string;
+  }>;
 };
 
 function appleSignInPlugin(): AppleSignIn | null {
@@ -198,4 +201,22 @@ export async function signInWithAppleInApp(): Promise<
     return { ok: false, cancelled: false, error: error?.message ?? "Apple sign in didn't finish." };
   }
   return { ok: true };
+}
+
+/**
+ * Apple's sheet once more, for Delete Account: returns a fresh one-time
+ * authorization code the server trades for Apple's token and revokes.
+ * "cancelled" when the person closes the sheet; null when this app build
+ * can't give a code (older builds), so the deletion goes ahead without it.
+ */
+export async function appleAuthorizationCode(): Promise<string | "cancelled" | null> {
+  const plugin = appleSignInPlugin();
+  if (!plugin) return null;
+  try {
+    const r = await plugin.signIn({ nonce: await sha256Hex(crypto.randomUUID()) });
+    return r.authorizationCode || null;
+  } catch (e) {
+    const code = (e as { code?: string } | null)?.code;
+    return code === "CANCELLED" ? "cancelled" : null;
+  }
 }

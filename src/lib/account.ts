@@ -7,6 +7,8 @@ import { db } from "./db";
 import { signOut } from "./auth";
 import { flushPushes, useLibrary } from "./store";
 import { withSyncLock } from "./sync";
+import { appleDeleteNote, hasAppleSignIn } from "./apple-revoke";
+import { appleAuthorizationCode, canSignInWithApple } from "./app-sign-in";
 
 async function accessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
@@ -33,14 +35,25 @@ export async function fetchStorageUsage(): Promise<StorageUsage | null> {
  *  then wipe this device: session, local library, and saved preferences. The
  *  email is re-checked server-side. Returns an error message, or null. */
 export async function deleteAccount(confirmEmail: string): Promise<string | null> {
-  const token = await accessToken();
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token ?? null;
   if (!token) return "You're not signed in.";
+  // Sign in with Apple accounts in the app: Apple's sheet gives a code the
+  // server uses to revoke the account's Apple token (lib/apple-revoke.ts).
+  let appleCode: string | null = null;
+  if (hasAppleSignIn(data.session?.user) && canSignInWithApple()) {
+    const code = await appleAuthorizationCode();
+    if (code === "cancelled") return appleDeleteNote(true, true);
+    appleCode = code;
+  }
   let res: Response;
   try {
     res = await fetch("/api/account/delete", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ email: confirmEmail }),
+      body: JSON.stringify(
+        appleCode ? { email: confirmEmail, appleCode } : { email: confirmEmail },
+      ),
     });
   } catch {
     return "Could not reach the server. Check your connection and try again.";

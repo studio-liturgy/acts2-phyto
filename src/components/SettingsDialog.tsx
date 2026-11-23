@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { WorkspaceSettingsRows } from "@/components/WorkspaceSettingsRows";
 import { useIsSignedIn, useUserEmail } from "@/lib/authStore";
 import { useLibrary } from "@/lib/store";
+import { useAppleDeleteNote } from "@/hooks/use-apple-delete-note";
 import { deleteAccount, fetchStorageUsage, formatBytes, type StorageUsage } from "@/lib/account";
 
 /** A setting row: the same height as WorkspaceSettingsRows / Arrangements. */
@@ -27,6 +28,7 @@ export function SettingsDialog({
   const navigate = useNavigate();
   const isSignedIn = useIsSignedIn();
   const userEmail = useUserEmail();
+  const appleNote = useAppleDeleteNote();
   const handle = useMyHandle();
   const refreshWorkspaceSettings = useLibrary((s) => s.refreshWorkspaceSettings);
 
@@ -127,7 +129,7 @@ export function SettingsDialog({
                   <p className="mt-2 text-sm">
                     This permanently deletes your sets, gatherings, uploaded media, shares, and any
                     groups you own (their members keep their own sets). It cannot be undone. Type
-                    your email to confirm.
+                    your email to confirm.{appleNote && ` ${appleNote}`}
                   </p>
                   <input
                     autoFocus
