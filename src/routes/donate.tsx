@@ -68,6 +68,7 @@ function DonatePage() {
         </div>
         <Link
           to="/transparency"
+          search={{ from: "donate" }}
           className="mono mt-10 text-xs uppercase tracking-wider underline underline-offset-4 transition-opacity hover:opacity-60"
         >
           See where your money goes

@@ -9,23 +9,26 @@ const BACK_CLASS =
  *  Transparency, Feedback and the phone Intro. One look everywhere; pages
  *  place it with `BACK_PAGE_TOP` (lib/page-top.ts). `tone` sets the colour and
  *  strength for the page's background. `toLogin` returns to the sign-in page
- *  (Terms and Privacy opened from it). */
+ *  (Terms and Privacy opened from it); `toDonate` returns to Donate
+ *  (Transparency opened from it). */
 export function BackLink({
   search,
   tone = "opacity-80",
   toLogin = false,
+  toDonate = false,
 }: {
   search?: { tab?: PhoneTab };
   tone?: string;
   toLogin?: boolean;
+  toDonate?: boolean;
 }) {
-  if (toLogin) {
-    // Step back in history (the sign-in page pushed this page), rather than
-    // pushing the sign-in page again: otherwise its Cancel (also a step
-    // back) would land on Terms instead of where sign in was opened from.
+  if (toLogin || toDonate) {
+    // Step back in history (the page that opened this one pushed it), rather
+    // than pushing that page again: otherwise its own Back (sign in's Cancel
+    // is a step back too) would land here instead of where it was opened from.
     return (
       <Link
-        to="/login"
+        to={toLogin ? "/login" : "/donate"}
         onClick={(e) => {
           if (window.history.length > 1) {
             e.preventDefault();
