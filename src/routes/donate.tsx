@@ -12,7 +12,7 @@ const STRIPE_DONATE_URL = "https://donate.stripe.com/bJe14gbwwbucdfac9E8og00";
 
 const CONTACT_SUBJECT = "Donating to phyto";
 const CONTACT_BODY =
-  "Hello,\n\nI would like to donate to phyto by [Wise / e-transfer / recurring donation]. Could you please send me the details?\n\nThank you.";
+  "I would like to donate to phyto by [Wise / e-transfer / recurring donation]. Could you please send me the details?";
 const CONTACT_MAILTO = `mailto:hello@studioliturgy.com?subject=${encodeURIComponent(
   CONTACT_SUBJECT,
 )}&body=${encodeURIComponent(CONTACT_BODY)}`;
