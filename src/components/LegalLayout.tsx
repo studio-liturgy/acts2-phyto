@@ -62,7 +62,7 @@ export function LegalLayout({
       className={`flex min-h-screen flex-col ${isTest ? "bg-[var(--brand-orange-dark)]" : "bg-[var(--brand-blue)]"} text-[var(--brand-white)]`}
     >
       <main className={`mx-auto w-full max-w-3xl flex-1 px-6 pb-16 ${BACK_PAGE_TOP}`}>
-        <BackLink search={backSearch} stepBackTo={toLogin ? "/login" : undefined} />
+        <BackLink search={backSearch} toLogin={toLogin} />
         <h1 className="sr-only">{active === "terms" ? "Terms of Use" : "Privacy Policy"}</h1>
         <div className="mt-8 flex gap-2">
           <LegalPill to="/terms" active={active === "terms"}>

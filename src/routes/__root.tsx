@@ -23,6 +23,7 @@ import {
   registerAppServiceWorker,
 } from "@/lib/native-app";
 import { watchLibraryPictures } from "@/lib/offline-pictures";
+import { entryIndex, recordBackTrail } from "@/lib/back-trail";
 import { clearNoAccount } from "@/lib/no-account";
 import { clearMyProfile, loadMyProfile, needsWelcome, useProfile } from "@/lib/profile";
 
@@ -348,8 +349,15 @@ function EffectsSummary({ effects }: { effects: SyncEffects }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const { pathname } = useLocation();
+  const locationHref = useLocation({ select: (l) => l.href });
+  const locationIndex = useLocation({ select: (l) => entryIndex(l.state) });
   const navigate = useNavigate();
   const { session, setSession } = useAuthStore();
+  // Which page sits at each history step, so Back on the info pages can step
+  // back to the page that opened them (lib/back-trail.ts).
+  useEffect(() => {
+    recordBackTrail(locationIndex, locationHref);
+  }, [locationIndex, locationHref]);
   const loadFromDb = useLibrary((s) => s.loadFromDb);
   const refreshLiveState = useLibrary((s) => s.refreshLiveState);
   const nullLocalLiveState = useLibrary((s) => s.nullLocalLiveState);

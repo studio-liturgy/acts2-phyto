@@ -9,9 +9,6 @@ import { supabase } from "@/lib/supabase";
 import { APP_NAME } from "@/lib/appConfig";
 
 export const Route = createFileRoute("/transparency")({
-  // Opened from Donate ("See where your money goes"): Back returns there.
-  validateSearch: (search: Record<string, unknown>): { from?: "donate" } =>
-    search.from === "donate" ? { from: "donate" } : {},
   head: () => ({
     meta: [
       { title: `Transparency | ${APP_NAME}` },
@@ -80,7 +77,6 @@ function Total({ children }: { children: React.ReactNode }) {
 }
 
 function TransparencyPage() {
-  const fromDonate = Route.useSearch().from === "donate";
   usePageBackgroundColor("var(--brand-blue)");
   const [stats, setStats] = useState<Stats | null>(null);
   const [entries, setEntries] = useState<Entry[] | null>(null);
@@ -124,7 +120,7 @@ function TransparencyPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
       <main className={`mx-auto w-full max-w-6xl flex-1 px-6 pb-16 md:px-10 ${BACK_PAGE_TOP}`}>
-        <BackLink stepBackTo={fromDonate ? "/donate" : undefined} />
+        <BackLink />
 
         {/* Stats */}
         <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-8">
@@ -151,7 +147,6 @@ function TransparencyPage() {
             <div className="mono mt-1 text-base sm:text-lg">
               <Link
                 to="/donate"
-                search={{ from: "transparency" }}
                 data-giving
                 className="text-xs uppercase tracking-wider underline underline-offset-4 transition-opacity hover:opacity-60"
               >
