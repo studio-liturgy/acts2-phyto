@@ -29,15 +29,9 @@ export function Footer({ className }: { className?: string }) {
           >
             Instagram
           </a>
-          <a
-            href="/donate"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={linkCls}
-            data-giving
-          >
+          <Link to="/donate" className={linkCls} data-giving>
             Donate
-          </a>
+          </Link>
           <Link to="/feedback" className={linkCls}>
             Feedback
           </Link>

@@ -68,14 +68,9 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
               <h2 className="text-2xl">3. Donations</h2>
               <p className="mt-2">
                 phyto accepts voluntary donations via Stripe at{" "}
-                <a
-                  href="/donate"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:opacity-60"
-                >
+                <Link to="/donate" className="underline hover:opacity-60">
                   phyto.live/donate
-                </a>
+                </Link>
                 . Donations are entirely optional and greatly appreciated. Donating does not grant
                 any additional features, rights, or privileges. Every donation and expense is listed
                 on{" "}

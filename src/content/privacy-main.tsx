@@ -207,14 +207,9 @@ export default function PrivacyMain({ defaultSection }: { defaultSection: "offli
               <h2 className="text-2xl">7. Stripe</h2>
               <p className="mt-2">
                 The app links to a voluntary donation page hosted by Stripe at{" "}
-                <a
-                  href="/donate"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:opacity-60"
-                >
+                <Link to="/donate" className="underline hover:opacity-60">
                   phyto.live/donate
-                </a>
+                </Link>
                 . Any payment information you provide is handled entirely by Stripe and subject to
                 Stripe's own privacy policy. phyto does not receive or store your payment details.
                 When a donation completes, Stripe notifies phyto with the donor's name, email

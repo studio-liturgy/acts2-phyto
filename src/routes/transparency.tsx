@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { BackLink } from "@/components/BackLink";
 import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { useEffect, useState } from "react";
@@ -142,9 +142,16 @@ function TransparencyPage() {
         <div className="mt-20 grid grid-cols-1 gap-x-24 gap-y-16 md:grid-cols-2">
           <section>
             <Total>Total donations: {entries ? formatMoney(totalDonations) : "—"}</Total>
-            {/* Keeps the two tables level with the hours line in the expenses column */}
-            <div aria-hidden className="mono invisible mt-1 hidden text-base sm:text-lg md:block">
-              &nbsp;
+            {/* On the line level with the hours line in the expenses column, so
+                the two tables stay level. Hidden in the phyto app. */}
+            <div className="mono mt-1 text-base sm:text-lg">
+              <Link
+                to="/donate"
+                data-giving
+                className="text-xs uppercase tracking-wider underline underline-offset-4 transition-opacity hover:opacity-60"
+              >
+                Donate
+              </Link>
             </div>
             <h2 className="mono mt-10 text-xs uppercase tracking-wider opacity-70">Donations</h2>
             <div className="mono mt-4 overflow-x-auto uppercase">

@@ -1330,7 +1330,7 @@ function SettingsTab({
                 { to: "/?intro=true", label: "Intro" },
                 { to: "/about", label: "About" },
                 { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
-                { href: "/donate", label: "Donate", giving: true },
+                { to: "/donate", label: "Donate", giving: true },
               ],
               [
                 // phytoexp.live has no Updates page.
@@ -1340,7 +1340,7 @@ function SettingsTab({
                 { to: "/terms", label: "Legal" },
               ],
             ] as (
-              | { to: string; label: string }
+              | { to: string; label: string; giving?: boolean }
               | { href: string; label: string; giving?: boolean }
             )[][]
           ).map((links, col) => (

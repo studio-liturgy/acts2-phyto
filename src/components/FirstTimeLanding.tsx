@@ -1251,15 +1251,13 @@ export function FirstTimeLanding({
             generously and cheerfully!
           </p>
           <div className="mt-10 flex flex-col items-stretch gap-4 md:flex-row md:flex-wrap md:items-center md:justify-center">
-            <a
-              href="/donate"
+            <Link
+              to="/donate"
               data-giving
-              target="_blank"
-              rel="noopener noreferrer"
               className="pill flex items-center justify-between gap-3 border border-[var(--brand-white)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"
             >
               Donate <ArrowUpRight className="size-[1em]" />
-            </a>
+            </Link>
             <Link
               to="/about"
               className="pill flex items-center justify-between gap-3 border border-[var(--brand-white)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"

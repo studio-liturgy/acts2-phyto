@@ -71,15 +71,13 @@ export default function AboutMain() {
 
           {/* Buttons */}
           <div className="mt-10 flex flex-wrap items-center gap-4">
-            <a
-              href="/donate"
+            <Link
+              to="/donate"
               data-giving
-              target="_blank"
-              rel="noopener noreferrer"
               className="pill flex items-center border border-[var(--brand-white)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"
             >
               Donate
-            </a>
+            </Link>
             <Link
               to="/transparency"
               className="pill flex items-center border border-[var(--brand-white)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]"

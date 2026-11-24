@@ -51,15 +51,13 @@ export default function AboutTest() {
             >
               phyto.live
             </a>
-            <a
-              href="/donate"
+            <Link
+              to="/donate"
               data-giving
-              target="_blank"
-              rel="noopener noreferrer"
               className="pill flex items-center border border-[var(--brand-black)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-black)] transition hover:bg-[var(--brand-black)] hover:text-[var(--brand-orange)]"
             >
               Donate
-            </a>
+            </Link>
             <Link
               to="/transparency"
               className="pill flex items-center border border-[var(--brand-black)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-black)] transition hover:bg-[var(--brand-black)] hover:text-[var(--brand-orange)]"
