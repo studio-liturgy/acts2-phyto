@@ -23,7 +23,7 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: November 19, 2026
+          Effective Date: November 24, 2026
         </p>
 
         {/* OFFLINE TAB */}
@@ -67,18 +67,22 @@ export default function TermsTest({ defaultSection }: { defaultSection: "offline
             <section data-giving>
               <h2 className="text-2xl">3. Donations</h2>
               <p className="mt-2">
-                phyto accepts voluntary donations via Stripe at{" "}
+                phyto accepts voluntary donations at{" "}
                 <Link to="/donate" className="underline hover:opacity-60">
                   phyto.live/donate
                 </Link>
+                : by card through Stripe, or by Wise or e-transfer arranged by email with{" "}
+                <a href="mailto:hello@studioliturgy.com" className="underline hover:opacity-60">
+                  hello@studioliturgy.com
+                </a>
                 . Donations are entirely optional and greatly appreciated. Donating does not grant
                 any additional features, rights, or privileges. Every donation and expense is listed
                 on{" "}
                 <Link to="/transparency" className="underline hover:opacity-60">
                   phytoexp.live/transparency
                 </Link>{" "}
-                by amount and date, and donors receive a thank-you email at the address given to
-                Stripe.
+                by amount and date. Donors who give through Stripe receive a thank-you email at the
+                address given to Stripe.
               </p>
             </section>
 

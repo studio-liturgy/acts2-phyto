@@ -22,7 +22,7 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
         </TabsList>
 
         <p className="mono mt-6 text-xs uppercase tracking-wider opacity-70">
-          Effective Date: November 19, 2026
+          Effective Date: November 24, 2026
         </p>
 
         {/* OFFLINE TAB */}
@@ -204,17 +204,19 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
             </section>
 
             <section data-giving>
-              <h2 className="text-2xl">7. Stripe</h2>
+              <h2 className="text-2xl">7. Donations</h2>
               <p className="mt-2">
-                The app links to a voluntary donation page hosted by Stripe at{" "}
+                The app links to a voluntary donation page at{" "}
                 <Link to="/donate" className="underline hover:opacity-60">
                   phyto.live/donate
                 </Link>
-                . Any payment information you provide is handled entirely by Stripe and subject to
-                Stripe's own privacy policy. phyto does not receive or store your payment details.
-                When a donation completes, Stripe notifies phyto with the donor's name, email
-                address and amount so we can send a thank-you email. Donations and expenses are
-                published on{" "}
+                . Card donations are handled entirely by Stripe and are subject to Stripe's own
+                privacy policy; phyto does not receive or store your payment details. When a card
+                donation completes, Stripe notifies phyto with the donor's name, email address and
+                amount so we can send a thank-you email. If you give by Wise or e-transfer, you
+                arrange it with us by email: we keep that correspondence and see the name and amount
+                on the transfer, and we use them only to confirm and record your gift. Donations and
+                expenses are published on{" "}
                 <Link to="/transparency" className="underline hover:opacity-60">
                   phyto.live/transparency
                 </Link>{" "}
@@ -402,7 +404,7 @@ export default function PrivacyTest({ defaultSection }: { defaultSection: "offli
                 Signed-in users can upload images and short video clips for their slides and
                 backgrounds. Uploaded media is stored in Cloudflare R2 (object storage) rather than
                 on your device, subject to a limit of 5 MB per image or PDF, 100 MB per video, and
-                50 MB total per account (accounts created before 6 October 2026 keep their earlier
+                50 MB total per account (accounts created before October 6, 2026 keep their earlier
                 300 MB allowance).
               </p>
               <p className="mt-2">
