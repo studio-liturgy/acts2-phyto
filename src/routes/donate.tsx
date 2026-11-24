@@ -22,6 +22,9 @@ const PILL =
   "pill flex items-center gap-3 border border-[var(--brand-white)] px-[30px] py-[12px] text-5xl tracking-[-0.045em] text-[var(--brand-white)] transition hover:bg-[var(--brand-white)] hover:text-[var(--brand-blue)]";
 
 export const Route = createFileRoute("/donate")({
+  // Opened from Transparency's Donate: Back returns there.
+  validateSearch: (search: Record<string, unknown>): { from?: "transparency" } =>
+    search.from === "transparency" ? { from: "transparency" } : {},
   head: () => ({
     meta: [{ title: `Donate | ${APP_NAME}` }, { name: "robots", content: "noindex" }],
   }),
@@ -32,6 +35,7 @@ function DonatePage() {
   const navigate = useNavigate();
   // Opened from the phone's Settings tab: Back returns there.
   const backSearch = useBackHomeSearch();
+  const fromTransparency = Route.useSearch().from === "transparency";
   usePageBackgroundColor("var(--brand-blue)");
   // Giving stays out of the phyto app (store payment rules): the page is
   // hidden there before paint ([data-giving], styles.css) and goes home.
@@ -45,7 +49,11 @@ function DonatePage() {
       className="flex min-h-dvh flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]"
     >
       <header className={`mx-auto w-full max-w-6xl px-6 ${BACK_PAGE_TOP}`}>
-        <BackLink search={backSearch} tone="opacity-90" />
+        <BackLink
+          search={backSearch}
+          stepBackTo={fromTransparency ? "/transparency" : undefined}
+          tone="opacity-90"
+        />
       </header>
       <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
         <h1 className="text-3xl leading-snug tracking-[-0.045em] md:text-[2.6rem] md:leading-[1.15]">

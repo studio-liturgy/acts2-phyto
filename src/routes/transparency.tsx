@@ -124,7 +124,7 @@ function TransparencyPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--brand-blue)] text-[var(--brand-white)]">
       <main className={`mx-auto w-full max-w-6xl flex-1 px-6 pb-16 md:px-10 ${BACK_PAGE_TOP}`}>
-        <BackLink toDonate={fromDonate} />
+        <BackLink stepBackTo={fromDonate ? "/donate" : undefined} />
 
         {/* Stats */}
         <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-8">
@@ -151,6 +151,7 @@ function TransparencyPage() {
             <div className="mono mt-1 text-base sm:text-lg">
               <Link
                 to="/donate"
+                search={{ from: "transparency" }}
                 data-giving
                 className="text-xs uppercase tracking-wider underline underline-offset-4 transition-opacity hover:opacity-60"
               >
