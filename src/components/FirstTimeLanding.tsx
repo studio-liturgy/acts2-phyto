@@ -818,20 +818,13 @@ export function FirstTimeLanding({
         </button>
       </section>
 
-      {/* ── Mobile-only "stay tuned" popup. Loads as normal in-flow content (scrolls
-          with the page) right here; once its top edge would scroll just past the top
-          of the viewport, it sticks there for the remainder of the page (no overflow
-          ancestor between here and <main>'s end, so its sticky range isn't bounded
-          early). Dismissible, remembered via localStorage.
-
-          Colored brand-blue (not white) on purpose: iOS Safari auto-matches its
-          toolbar/safe-area color to whatever sticky element looks like a "header"
-          near the top of the viewport, and was picking up this popup's white
-          background instead of the page's actual blue — recoloring it to match
-          the page is what actually fixes the white safe-area bar, not fighting
-          Safari's heuristic. ── */}
-      {!popupDismissed && !PHONE_UI && (
-        <div className="sticky top-4 z-50 mx-4 mt-6 md:hidden">
+      {/* ── Desktop "Stay updated" card (the old phone "be notified when mobile
+          launches" card, same look). Loads in the flow here; once its top would
+          scroll past the top of the window it sticks there for the rest of the
+          page. X snoozes it for 3 days; signing up hides it for good. Phones
+          have /subscribe (Settings) instead. ── */}
+      {!popupDismissed && (
+        <div className="sticky top-4 z-50 mx-auto mt-10 hidden max-w-6xl px-6 md:block">
           <div className="relative rounded-3xl border border-[var(--brand-white)] bg-[var(--brand-blue)] p-5 text-center text-[var(--brand-white)]">
             <button
               type="button"
@@ -841,13 +834,11 @@ export function FirstTimeLanding({
             >
               <X className="h-4 w-4" />
             </button>
-            <p className="mono text-xs uppercase tracking-wider">
-              Be notified when mobile launches
-            </p>
+            <p className="mono text-xs uppercase tracking-wider">Stay updated</p>
             {subscribeStatus === "done" ? (
               <p className="mono mt-4 text-xs uppercase tracking-wider">You're on the list!</p>
             ) : (
-              <form onSubmit={submitMobileSubscribe} className="relative mt-4">
+              <form onSubmit={submitMobileSubscribe} className="relative mx-auto mt-4 max-w-sm">
                 <input
                   type="email"
                   required
