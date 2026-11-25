@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { BackLink } from "@/components/BackLink";
 import { NoAccountChoice } from "@/components/NoAccountChoice";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
+import { useNativeApp } from "@/hooks/use-native-app";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
 import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { INTRO_AUTO_MS, pageAt, slideOffset, slides, swipeStep } from "@/lib/intro-carousel";
@@ -73,6 +74,17 @@ const PAGES: IntroPage[] = [
   },
 ];
 
+/** A phone browser presents only as a remote (AirPlay is the app's). */
+const BROWSER_PRESENT = {
+  title: "Remote",
+  text: "Control another device's screen through a link / QR code",
+};
+
+/** The pages for the app, or for a phone browser. */
+function introPages(app: boolean): IntroPage[] {
+  return app ? PAGES : PAGES.map((p) => (p.title === "Present" ? { ...p, ...BROWSER_PRESENT } : p));
+}
+
 const N = PAGES.length;
 const SLIDE_MS = 450;
 // The card's shape (from the mock-up) and its share of the screen's width.
@@ -101,6 +113,7 @@ export function PhoneIntro({
   firstRun?: boolean;
 }) {
   usePageBackgroundColor("var(--background)");
+  const pages = introPages(useNativeApp() !== null);
   const backSearch = useBackHomeSearch();
   // Back always names a tab, so an empty account doesn't land on this
   // intro again.
@@ -193,7 +206,7 @@ export function PhoneIntro({
         {/* Title and line: all six stacked, the current one faded in, so
             nothing shifts between pages. Room for four lines of text. */}
         <div className="relative mx-auto h-9 w-full px-6">
-          {PAGES.map((p, i) => (
+          {pages.map((p, i) => (
             <h1
               key={p.title}
               aria-hidden={i !== page}
@@ -204,7 +217,7 @@ export function PhoneIntro({
           ))}
         </div>
         <div className="relative mx-auto mt-6 h-[4.125rem] w-full px-10">
-          {PAGES.map((p, i) => (
+          {pages.map((p, i) => (
             <p
               key={p.title}
               aria-hidden={i !== page}
@@ -226,7 +239,7 @@ export function PhoneIntro({
           onPointerCancel={endDrag}
         >
           <div className="relative h-full">
-            {PAGES.map((p, i) => {
+            {pages.map((p, i) => {
               const offset = slideOffset(i, pos, N);
               const glide = sliding && slides(i, fromPos, pos, N);
               return (
@@ -293,7 +306,7 @@ export function PhoneIntro({
 
         {/* Dots: which page is showing. */}
         <div className="mt-8 flex justify-center gap-[3px]" aria-hidden>
-          {PAGES.map((p, i) => (
+          {pages.map((p, i) => (
             <span
               key={p.title}
               className={`h-1.5 w-1.5 rounded-full transition-colors duration-300 ${i === page ? "bg-foreground" : "bg-foreground/30"}`}
