@@ -7,6 +7,7 @@ import { useBackHomeSearch } from "@/hooks/use-back-home";
 import {
   ArrangementsEntry,
   SongModesEntry,
+  AppStoreEntry,
   UsernamesEntry,
   FeatureItem,
   LiveGatheringsEntry,
@@ -32,6 +33,7 @@ export default function UpdatesMain() {
         <h1 className="sr-only">Updates</h1>
         {/* No rule above the latest update: the lines only divide entries. */}
         <ul className="mt-8 space-y-12 [&>li:first-child]:border-t-0 [&>li:first-child]:pt-0">
+          <AppStoreEntry />
           <UsernamesEntry />
           <SongModesEntry />
           <ArrangementsEntry />

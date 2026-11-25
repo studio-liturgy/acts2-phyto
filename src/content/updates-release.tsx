@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
+import { APP_STORE_URL } from "@/lib/app-store";
 
 // The latest release's date: the newest Updates entry (shown on
 // phyto.live/updates via updates-main and, until it ships, at the top of
 // phytoexp.live/updates via updates-test). Older entries write their own
 // date. Terms and Privacy write their Effective Date as a literal.
-export const RELEASE_DATE = "November 19, 2026";
+export const RELEASE_DATE = "November 25, 2026";
 
 export function FeatureItem({ children }: { children: ReactNode }) {
   return (
@@ -20,11 +21,86 @@ export function FeatureItem({ children }: { children: ReactNode }) {
 const sectionCls = "mt-8 text-xl";
 const subCls = "mono mt-5 text-xs uppercase tracking-wider opacity-80";
 
+/** November 25, 2026: the iOS app on the App Store, the phone layout, Donate, and fixes. One `<li>`, above UsernamesEntry. */
+export function AppStoreEntry() {
+  return (
+    <li className="border-t border-[var(--brand-white)]/20 pt-8">
+      <div className="text-2xl">{RELEASE_DATE}</div>
+
+      <div className={sectionCls}>Features</div>
+
+      <div className={subCls}>iOS App</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          phyto is on the{" "}
+          <a
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:opacity-60"
+          >
+            App Store
+          </a>
+          . It&rsquo;s iPhone only for now. Android and iPad are coming later
+        </FeatureItem>
+        <FeatureItem>
+          Present from your iPhone: AirPlay or a cable puts your slides on a TV or projector
+        </FeatureItem>
+        <FeatureItem>
+          Use your iPhone as the remote: open the screen link on a computer or device connected to
+          your TV, then control the slides from your phone
+        </FeatureItem>
+        <FeatureItem>Use it without an account, and offline</FeatureItem>
+      </ul>
+
+      <div className={subCls}>Phone</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>phyto.live now has a phone layout in phone and iPad browsers</FeatureItem>
+      </ul>
+
+      <div className={subCls}>Donate</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          A new{" "}
+          <Link to="/donate" className="underline hover:opacity-60">
+            Donate page
+          </Link>
+          : give by card through Stripe, or contact to give by Wise, e-transfer or a recurring gift
+        </FeatureItem>
+      </ul>
+
+      <div className={subCls}>Account</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Delete Account now asks you to type your username to confirm. Deleting an account that
+          uses Sign in with Apple also removes phyto from your Apple Account
+        </FeatureItem>
+      </ul>
+
+      <div className={sectionCls}>Bug Fixes</div>
+      <ul className="mt-2 space-y-1">
+        <FeatureItem>
+          Song Search: punctuation and chords no longer block a match, and a hymn&rsquo;s opening
+          line finds it as its title does
+        </FeatureItem>
+        <FeatureItem>
+          Imported sets and gatherings now sync at once, and Replace also removes what it cleared
+          from your account, so another device can no longer bring back an older copy
+        </FeatureItem>
+        <FeatureItem>
+          In a live gathering on a phone, only a clear sideways swipe changes the set, so scrolling
+          the words no longer jumps to the next song
+        </FeatureItem>
+      </ul>
+    </li>
+  );
+}
+
 /** November 19, 2026: usernames, the presenter's video playbar, and fixes. One `<li>`, above SongModesEntry. */
 export function UsernamesEntry() {
   return (
     <li className="border-t border-[var(--brand-white)]/20 pt-8">
-      <div className="text-2xl">{RELEASE_DATE}</div>
+      <div className="text-2xl">November 19, 2026</div>
 
       <div className={sectionCls}>Features</div>
 
