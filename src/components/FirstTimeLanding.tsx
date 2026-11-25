@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { APP_STORE_URL } from "@/lib/app-store";
 import { BackLink } from "@/components/BackLink";
 import { BACK_PAGE_TOP } from "@/lib/page-top";
-import { Plus, ArrowUpRight, ArrowDown, X } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDown } from "lucide-react";
 import { Fragment, forwardRef, useEffect, useRef, useState } from "react";
 import {
   DropdownMenu,
@@ -28,9 +28,6 @@ import { useNativeApp } from "@/hooks/use-native-app";
 
 const isTest = import.meta.env.VITE_APP_ENV === "test";
 const linkCls = "mono uppercase transition-opacity duration-200 hover:opacity-60";
-const MOBILE_POPUP_DISMISSED_KEY = "phyto-mobile-popup-dismissed";
-const MOBILE_POPUP_SUBSCRIBED_KEY = "phyto-mobile-popup-subscribed";
-const MOBILE_POPUP_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
 
 type Clip = {
   /** MP4 video src. Absent = grey placeholder until the clip is recorded. */
@@ -337,8 +334,6 @@ export function FirstTimeLanding({
   const mobileCircleRefs = useRef<(HTMLDivElement | null)[]>([]);
   const mobileVideoRefs = useRef<(HTMLVideoElement | null)[][]>([[], [], []]);
 
-  const [popupDismissed, setPopupDismissed] = useState(true);
-
   const active = STEPS[activeIndex];
 
   // JS-driven snap: after the user stops scrolling, gently snap to the nearest card.
@@ -493,49 +488,6 @@ export function FirstTimeLanding({
   const goToFirstStep = () => {
     goToCard(0);
     mobileSectionRefs.current[0]?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  // Mobile popup: stays hidden until we've checked localStorage post-mount, so it
-  // never flashes for a user who already dismissed it. A dismissal (no email
-  // submitted) only snoozes the popup for MOBILE_POPUP_SNOOZE_MS; submitting an
-  // email hides it for good.
-  useEffect(() => {
-    if (localStorage.getItem(MOBILE_POPUP_SUBSCRIBED_KEY) === "1") {
-      setPopupDismissed(true);
-      return;
-    }
-    const dismissedAt = Number(localStorage.getItem(MOBILE_POPUP_DISMISSED_KEY) ?? 0);
-    setPopupDismissed(Date.now() - dismissedAt < MOBILE_POPUP_SNOOZE_MS);
-  }, []);
-
-  const dismissMobilePopup = () => {
-    localStorage.setItem(MOBILE_POPUP_DISMISSED_KEY, String(Date.now()));
-    setPopupDismissed(true);
-  };
-
-  const [subscribeEmail, setSubscribeEmail] = useState("");
-  const [subscribeStatus, setSubscribeStatus] = useState<"idle" | "submitting" | "done" | "error">(
-    "idle",
-  );
-
-  // Same Resend Audience the sign-in page's "subscribe" checkbox adds to (see
-  // sendWelcomeIfNew/login.tsx) — skipEmail so this doesn't also trigger the
-  // "Welcome to phyto" account email, since there's no account here.
-  const submitMobileSubscribe = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (subscribeStatus === "submitting" || subscribeStatus === "done") return;
-    setSubscribeStatus("submitting");
-    try {
-      const res = await fetch("/api/auth/welcome", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: subscribeEmail, subscribe: true, skipEmail: true }),
-      });
-      if (res.ok) localStorage.setItem(MOBILE_POPUP_SUBSCRIBED_KEY, "1");
-      setSubscribeStatus(res.ok ? "done" : "error");
-    } catch {
-      setSubscribeStatus("error");
-    }
   };
 
   // Mobile: each circle only spins while it's pinned (CSS sticky holding it at
@@ -806,64 +758,12 @@ export function FirstTimeLanding({
         </div>
       </section>
 
-      {/* ── Desktop "Stay updated" card (the old phone "be notified when mobile
-          launches" card, same look). Loads in the flow here; once its top would
-          scroll past the top of the window it sticks there for the rest of the
-          page. X snoozes it for 3 days; signing up hides it for good. Phones have /subscribe (Settings)
-          instead. ── */}
-      {!popupDismissed && (
-        <div className="sticky top-4 z-50 mx-auto mt-20 hidden max-w-4xl px-6 md:block">
-          {/* One pill: the label on the left third, the email pill (arrow
-              inside) on the rest, then X (snoozes it for 3 days). */}
-          <div className="grid grid-cols-[1fr_2fr_auto] items-center rounded-full bg-[var(--brand-blue)] py-1.5 pl-6 pr-4 text-[var(--brand-white)]">
-            <p className="mono text-sm uppercase tracking-wider">
-              {subscribeStatus === "error" ? "Something went wrong. Try again?" : "Stay updated"}
-            </p>
-            {subscribeStatus === "done" ? (
-              <p className="mono py-3 pl-5 text-sm uppercase tracking-wider">You're on the list!</p>
-            ) : (
-              <form onSubmit={submitMobileSubscribe} className="relative">
-                <input
-                  type="email"
-                  required
-                  value={subscribeEmail}
-                  onChange={(e) => {
-                    setSubscribeEmail(e.target.value);
-                    if (subscribeStatus === "error") setSubscribeStatus("idle");
-                  }}
-                  placeholder="Email address"
-                  aria-label="Email address"
-                  disabled={subscribeStatus === "submitting"}
-                  className="mono w-full rounded-full border border-[var(--brand-white)] bg-transparent py-3 pl-6 pr-14 text-sm uppercase tracking-wider text-[var(--brand-white)] outline-none placeholder:text-[var(--brand-white)]/50 disabled:opacity-60"
-                />
-                <button
-                  type="submit"
-                  aria-label="Submit"
-                  disabled={subscribeStatus === "submitting"}
-                  className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--brand-white)] text-[var(--brand-blue)] transition hover:opacity-90 disabled:opacity-60"
-                >
-                  <ArrowUpRight className="h-4 w-4" />
-                </button>
-              </form>
-            )}
-            <button
-              type="button"
-              onClick={dismissMobilePopup}
-              aria-label="Dismiss"
-              className="ml-4 transition-opacity hover:opacity-60"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* The short guide's arrow, under the Stay updated pill. */}
+      {/* The short guide's arrow. */}
       <div className="mx-auto max-w-6xl px-6 text-center">
         <button
           type="button"
           onClick={goToFirstStep}
-          className="mono uppercase mx-auto mt-10 inline-flex items-center gap-3 text-xs tracking-wider text-muted-foreground transition-opacity hover:opacity-60 md:mt-12"
+          className="mono uppercase mx-auto mt-10 inline-flex items-center gap-3 text-xs tracking-wider text-muted-foreground transition-opacity hover:opacity-60 md:mt-20"
         >
           <span className="md:hidden">Learn more about how it works below</span>
           <span className="hidden md:inline">
