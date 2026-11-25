@@ -599,6 +599,14 @@ html[data-phone-ui] .has-dock [data-editor-scroll] > [data-rich-cells] {
 html[data-native-app] [data-giving] {
   display: none !important;
 }
+/* The phone headers' notch gap; none under the App Store banner, which
+   already clears the notch (components/AppStoreBanner.tsx). */
+:root {
+  --phone-top-safe: env(safe-area-inset-top, 0px);
+}
+html[data-app-banner] {
+  --phone-top-safe: 0px;
+}
 /* Browser-only links (the App Store button): never inside the app. */
 html[data-native-app] [data-web-only] {
   display: none !important;

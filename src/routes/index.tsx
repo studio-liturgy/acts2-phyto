@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AppStoreBanner } from "@/components/AppStoreBanner";
 import { liveLinkUrl } from "@/lib/testers";
 import { useLibrary } from "@/lib/store";
 import { signOut } from "@/lib/auth";
@@ -813,6 +814,7 @@ function Library({ signInOnly = false }: { signInOnly?: boolean } = {}) {
     <div
       className={`flex flex-col bg-background text-foreground ${showLanding ? "" : "min-h-screen"}`}
     >
+      <AppStoreBanner />
       {/* Header chrome only for the normal home view — on the landing it's overlaid
           onto the top band by FirstTimeLanding. */}
       {!showLanding && (

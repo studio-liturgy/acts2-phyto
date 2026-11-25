@@ -79,7 +79,6 @@ import { TestSiteWarning } from "@/components/TestSiteWarning";
 import { Button } from "@/components/ui/button";
 import { useDialogKeyboard } from "@/hooks/use-dialog-keyboard";
 import { LaunchReveal } from "@/components/LaunchReveal";
-import { AppStoreBanner } from "@/components/AppStoreBanner";
 import { shouldPlayLaunch } from "@/lib/launch-reveal";
 
 function NotFoundComponent() {
@@ -792,7 +791,6 @@ function RootComponent() {
         <Outlet />
       )}
       {launch && <LaunchReveal onFirstFrame={hideAppSplash} onDone={() => setLaunch(false)} />}
-      <AppStoreBanner />
       <SignedOutDialog />
       {TESTERS_ONLY && <TestersOnlyDialog open={notTester} onOpenChange={setNotTester} />}
       <Dialog

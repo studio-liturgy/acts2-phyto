@@ -10,6 +10,10 @@ import { APP_BANNER_DISMISSED_KEY, APP_STORE_URL, showAppStoreBanner } from "@/l
  * "phyto is now on the App Store for iPhone." across the top of the home page
  * in a browser, for signed-in accounts. X closes it for good on that account
  * (user_metadata, so every browser it signs in on), never in the app.
+ *
+ * It sits in the page, pushing it down (the desktop home and the phone
+ * screen place it first). While it shows, <html data-app-banner> lets the
+ * phone header drop its own notch gap: the banner already clears the notch.
  */
 export function AppStoreBanner() {
   const pathname = useLocation({ select: (l) => l.pathname });
@@ -21,7 +25,14 @@ export function AppStoreBanner() {
   const [closed, setClosed] = useState(false);
 
   const dismissed = closed || user?.user_metadata?.[APP_BANNER_DISMISSED_KEY] === true;
-  if (!showAppStoreBanner({ pathname, signedIn: !!user, nativeApp, dismissed })) return null;
+  const show = showAppStoreBanner({ pathname, signedIn: !!user, nativeApp, dismissed });
+  useEffect(() => {
+    if (!show) return;
+    const html = document.documentElement;
+    html.setAttribute("data-app-banner", "");
+    return () => html.removeAttribute("data-app-banner");
+  }, [show]);
+  if (!show) return null;
 
   const close = () => {
     setClosed(true);
@@ -32,7 +43,7 @@ export function AppStoreBanner() {
     <div
       role="region"
       aria-label="phyto on the App Store"
-      className="fixed inset-x-0 top-0 z-50 bg-[var(--brand-blue)] pt-[env(safe-area-inset-top,0px)] text-[var(--brand-white)]"
+      className="shrink-0 bg-[var(--brand-blue)] pt-[env(safe-area-inset-top,0px)] text-[var(--brand-white)]"
     >
       <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3">
         <p className="mono flex-1 text-xs uppercase tracking-wider">

@@ -1,4 +1,5 @@
 import { Link, Navigate } from "@tanstack/react-router";
+import { AppStoreBanner } from "@/components/AppStoreBanner";
 import { ArrowUpLeft, ArrowUpRight, ChevronDown, Layers, Library, Settings } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { presentTabShown, type PhoneTab } from "@/lib/phone-layout";
@@ -45,6 +46,7 @@ export function PhoneScreen({
     // --vvh: the part of the screen above the keyboard, while typing in an
     // editor (useKeyboardInset).
     <div className="flex h-[var(--vvh,100dvh)] translate-y-[var(--vvt,0px)] flex-col overflow-hidden bg-background text-foreground">
+      <AppStoreBanner />
       {header}
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div
@@ -85,7 +87,7 @@ function useNoInputZoom() {
 /** A main screen's header: the big title like the desktop home, actions on the right. */
 export function PhoneTitleHeader({ title, actions }: { title: ReactNode; actions?: ReactNode }) {
   return (
-    <header className="flex shrink-0 items-center gap-2 px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)]">
+    <header className="flex shrink-0 items-center gap-2 px-5 pb-3 pt-[calc(var(--phone-top-safe)+1.25rem)]">
       <h1 className="min-w-0 flex-1 truncate text-4xl leading-tight">{title}</h1>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </header>
@@ -108,7 +110,7 @@ export function PhoneBackHeader({
 }) {
   return (
     <header
-      className={`flex shrink-0 items-center gap-3 px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] ${
+      className={`flex shrink-0 items-center gap-3 px-4 pb-3 pt-[calc(var(--phone-top-safe)+0.75rem)] ${
         border ? "border-b border-foreground" : ""
       }`}
     >
