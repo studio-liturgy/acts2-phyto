@@ -13,6 +13,7 @@ import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as UpdatesRouteImport } from './routes/updates'
 import { Route as TransparencyRouteImport } from './routes/transparency'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SubscribeRouteImport } from './routes/subscribe'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PresentRouteImport } from './routes/present'
@@ -60,6 +61,11 @@ const TransparencyRoute = TransparencyRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubscribeRoute = SubscribeRouteImport.update({
+  id: '/subscribe',
+  path: '/subscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/subscribe': typeof SubscribeRoute
   '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
   '/updates': typeof UpdatesRoute
@@ -248,6 +255,7 @@ export interface FileRoutesByTo {
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/subscribe': typeof SubscribeRoute
   '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
   '/updates': typeof UpdatesRoute
@@ -283,6 +291,7 @@ export interface FileRoutesById {
   '/present': typeof PresentRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/subscribe': typeof SubscribeRoute
   '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
   '/updates': typeof UpdatesRoute
@@ -319,6 +328,7 @@ export interface FileRouteTypes {
     | '/present'
     | '/privacy'
     | '/sitemap.xml'
+    | '/subscribe'
     | '/terms'
     | '/transparency'
     | '/updates'
@@ -353,6 +363,7 @@ export interface FileRouteTypes {
     | '/present'
     | '/privacy'
     | '/sitemap.xml'
+    | '/subscribe'
     | '/terms'
     | '/transparency'
     | '/updates'
@@ -387,6 +398,7 @@ export interface FileRouteTypes {
     | '/present'
     | '/privacy'
     | '/sitemap.xml'
+    | '/subscribe'
     | '/terms'
     | '/transparency'
     | '/updates'
@@ -422,6 +434,7 @@ export interface RootRouteChildren {
   PresentRoute: typeof PresentRoute
   PrivacyRoute: typeof PrivacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SubscribeRoute: typeof SubscribeRoute
   TermsRoute: typeof TermsRoute
   TransparencyRoute: typeof TransparencyRoute
   UpdatesRoute: typeof UpdatesRoute
@@ -474,6 +487,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/subscribe': {
+      id: '/subscribe'
+      path: '/subscribe'
+      fullPath: '/subscribe'
+      preLoaderRoute: typeof SubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -686,6 +706,7 @@ const rootRouteChildren: RootRouteChildren = {
   PresentRoute: PresentRoute,
   PrivacyRoute: PrivacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SubscribeRoute: SubscribeRoute,
   TermsRoute: TermsRoute,
   TransparencyRoute: TransparencyRoute,
   UpdatesRoute: UpdatesRoute,

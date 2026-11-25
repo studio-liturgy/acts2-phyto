@@ -35,6 +35,9 @@ export function Footer({ className }: { className?: string }) {
           <Link to="/feedback" className={linkCls}>
             Feedback
           </Link>
+          <Link to="/subscribe" className={linkCls}>
+            Subscribe
+          </Link>
         </nav>
         <div className="flex justify-center">
           <Link to="/">

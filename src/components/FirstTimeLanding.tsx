@@ -872,7 +872,7 @@ export function FirstTimeLanding({
             )}
             {subscribeStatus === "error" && (
               <p className="mono mt-2 text-xs uppercase tracking-wider text-[var(--brand-white)]/70">
-                Something went wrong — try again?
+                Something went wrong. Try again?
               </p>
             )}
           </div>
