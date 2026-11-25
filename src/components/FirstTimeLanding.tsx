@@ -508,11 +508,6 @@ export function FirstTimeLanding({
     setPopupDismissed(Date.now() - dismissedAt < MOBILE_POPUP_SNOOZE_MS);
   }, []);
 
-  const dismissMobilePopup = () => {
-    localStorage.setItem(MOBILE_POPUP_DISMISSED_KEY, String(Date.now()));
-    setPopupDismissed(true);
-  };
-
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [subscribeStatus, setSubscribeStatus] = useState<"idle" | "submitting" | "done" | "error">(
     "idle",
@@ -821,24 +816,20 @@ export function FirstTimeLanding({
       {/* ── Desktop "Stay updated" card (the old phone "be notified when mobile
           launches" card, same look). Loads in the flow here; once its top would
           scroll past the top of the window it sticks there for the rest of the
-          page. X snoozes it for 3 days; signing up hides it for good. Phones
-          have /subscribe (Settings) instead. ── */}
+          page. Signing up hides it for good. Phones have /subscribe (Settings)
+          instead. ── */}
       {!popupDismissed && (
-        <div className="sticky top-4 z-50 mx-auto mt-10 hidden max-w-6xl px-6 md:block">
-          <div className="relative rounded-3xl border border-[var(--brand-white)] bg-[var(--brand-blue)] p-5 text-center text-[var(--brand-white)]">
-            <button
-              type="button"
-              onClick={dismissMobilePopup}
-              aria-label="Dismiss"
-              className="absolute right-3 top-3 text-[var(--brand-white)]/60 transition-opacity hover:opacity-80"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <p className="mono text-xs uppercase tracking-wider">Stay updated</p>
+        <div className="sticky top-4 z-50 mx-auto mt-10 hidden max-w-4xl px-6 md:block">
+          {/* One pill: the label on the left third, the email pill (arrow
+              inside) on the rest. */}
+          <div className="grid grid-cols-[1fr_2fr] items-center rounded-full bg-[var(--brand-blue)] py-1.5 pl-6 pr-1.5 text-[var(--brand-white)]">
+            <p className="mono text-sm uppercase tracking-wider">
+              {subscribeStatus === "error" ? "Something went wrong. Try again?" : "Stay updated"}
+            </p>
             {subscribeStatus === "done" ? (
-              <p className="mono mt-4 text-xs uppercase tracking-wider">You're on the list!</p>
+              <p className="mono py-3 pl-5 text-sm uppercase tracking-wider">You're on the list!</p>
             ) : (
-              <form onSubmit={submitMobileSubscribe} className="relative mx-auto mt-4 max-w-sm">
+              <form onSubmit={submitMobileSubscribe} className="relative">
                 <input
                   type="email"
                   required
@@ -848,23 +839,19 @@ export function FirstTimeLanding({
                     if (subscribeStatus === "error") setSubscribeStatus("idle");
                   }}
                   placeholder="Email address"
+                  aria-label="Email address"
                   disabled={subscribeStatus === "submitting"}
-                  className="mono w-full rounded-full border border-[var(--brand-white)]/30 bg-transparent py-3 pl-5 pr-14 text-[16px] uppercase tracking-wider text-[var(--brand-white)] outline-none placeholder:text-[var(--brand-white)]/50 focus:border-[var(--brand-white)]/60 disabled:opacity-60"
+                  className="mono w-full rounded-full border border-[var(--brand-white)] bg-transparent py-3 pl-6 pr-14 text-sm uppercase tracking-wider text-[var(--brand-white)] outline-none placeholder:text-[var(--brand-white)]/50 disabled:opacity-60"
                 />
                 <button
                   type="submit"
                   aria-label="Submit"
                   disabled={subscribeStatus === "submitting"}
-                  className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--brand-white)] text-[var(--brand-blue)] transition hover:opacity-90 disabled:opacity-60"
+                  className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--brand-white)] text-[var(--brand-blue)] transition hover:opacity-90 disabled:opacity-60"
                 >
                   <ArrowUpRight className="h-4 w-4" />
                 </button>
               </form>
-            )}
-            {subscribeStatus === "error" && (
-              <p className="mono mt-2 text-xs uppercase tracking-wider text-[var(--brand-white)]/70">
-                Something went wrong. Try again?
-              </p>
             )}
           </div>
         </div>
