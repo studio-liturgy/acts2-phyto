@@ -1331,12 +1331,12 @@ function SettingsTab({
                 { to: "/about", label: "About" },
                 { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
                 { to: "/feedback", label: "Feedback" },
-                // Browsers only: the app hides giving.
-                { to: "/donate", label: "Donate", giving: true },
               ],
               [
                 // phytoexp.live has no Updates page.
                 ...(TESTERS_ONLY ? [] : [{ to: "/updates", label: "Updates" }]),
+                // Browsers only: the app hides giving.
+                { to: "/donate", label: "Donate", giving: true },
                 { href: "https://github.com/studio-liturgy", label: "Source" },
                 { to: "/terms", label: "Legal" },
               ],
