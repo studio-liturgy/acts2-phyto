@@ -1330,24 +1330,36 @@ function SettingsTab({
                 { to: "/?intro=true", label: "Intro" },
                 { to: "/about", label: "About" },
                 { href: "https://www.instagram.com/phyto.live", label: "Instagram" },
+                // Updates sits here in browsers and heads the right column in
+                // the app (phytoexp.live has no Updates page).
+                ...(TESTERS_ONLY
+                  ? []
+                  : [{ to: "/updates", label: "Updates", only: "web" as const }]),
                 { to: "/feedback", label: "Feedback" },
               ],
               [
-                // phytoexp.live has no Updates page.
-                ...(TESTERS_ONLY ? [] : [{ to: "/updates", label: "Updates" }]),
+                ...(TESTERS_ONLY
+                  ? []
+                  : [{ to: "/updates", label: "Updates", only: "app" as const }]),
                 // Browsers only: the app hides giving.
                 { to: "/donate", label: "Donate", giving: true },
+                { to: "/subscribe", label: "Subscribe" },
                 { href: "https://github.com/studio-liturgy", label: "Source" },
                 { to: "/terms", label: "Legal" },
               ],
             ] as (
-              | { to: string; label: string; giving?: boolean }
-              | { href: string; label: string; giving?: boolean }
+              | { to: string; label: string; giving?: boolean; only?: "web" | "app" }
+              | { href: string; label: string; giving?: boolean; only?: "web" | "app" }
             )[][]
           ).map((links, col) => (
             <ul key={col} className="flex flex-col gap-2.5">
               {links.map((l) => (
-                <li key={l.label} data-giving={"giving" in l && l.giving ? "" : undefined}>
+                <li
+                  key={l.label}
+                  data-giving={"giving" in l && l.giving ? "" : undefined}
+                  data-web-only={"only" in l && l.only === "web" ? "" : undefined}
+                  data-app-only={"only" in l && l.only === "app" ? "" : undefined}
+                >
                   {"to" in l ? (
                     <Link
                       to={l.to === "/?intro=true" ? "/" : l.to}

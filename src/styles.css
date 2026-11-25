@@ -611,6 +611,10 @@ html[data-app-banner] {
 html[data-native-app] [data-web-only] {
   display: none !important;
 }
+/* App-only links (Updates' place in the phone Settings): never in a browser. */
+html:not([data-native-app]) [data-app-only] {
+  display: none !important;
+}
 /* The intro's top wordmark: the app's launch animation already shows it. */
 html[data-native-app] .intro-wordmark {
   display: none;
