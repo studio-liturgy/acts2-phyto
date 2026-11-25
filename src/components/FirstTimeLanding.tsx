@@ -713,7 +713,7 @@ export function FirstTimeLanding({
         </div>
 
         <div
-          className={`mt-10 flex-wrap items-center justify-center gap-3 ${PHONE_UI ? "flex" : "hidden md:flex"}`}
+          className={`mt-10 flex-wrap items-center justify-center gap-x-3 gap-y-2 md:gap-y-3 ${PHONE_UI ? "flex" : "hidden md:flex"}`}
         >
           {signInOnly ? (
             // In the phyto app, "Use without an account" sits fainter under it.
@@ -788,7 +788,8 @@ export function FirstTimeLanding({
         {/* Browsers only: the App Store, under Sign in / New Set. */}
         <div
           data-web-only
-          className={`mt-3 items-center justify-center ${PHONE_UI ? "flex" : "hidden md:flex"}`}
+          // Stacked pills on phones sit 8px apart (gap-2), like the phone intro's.
+          className={`mt-2 items-center justify-center md:mt-3 ${PHONE_UI ? "flex" : "hidden md:flex"}`}
         >
           <a
             href={APP_STORE_URL}
