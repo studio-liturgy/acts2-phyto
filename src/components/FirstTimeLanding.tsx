@@ -794,9 +794,13 @@ export function FirstTimeLanding({
             href={APP_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="pill mono uppercase flex items-center gap-2 border border-foreground px-6 py-3 text-sm tracking-wider transition hover:bg-foreground hover:text-background"
+            // The size of the pill above it: Sign In's (text-xs), or New Set's.
+            className={`pill mono uppercase flex items-center gap-2 border border-foreground px-6 py-3 tracking-wider transition hover:bg-foreground hover:text-background ${signInOnly || (phone && !isSignedIn) ? "text-xs" : "text-sm"}`}
           >
-            Get the iPhone app <ArrowUpRight className="h-4 w-4" />
+            Get the iPhone app
+            <ArrowUpRight
+              className={signInOnly || (phone && !isSignedIn) ? "h-3.5 w-3.5" : "h-4 w-4"}
+            />
           </a>
         </div>
 
