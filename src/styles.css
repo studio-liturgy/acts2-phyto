@@ -599,6 +599,10 @@ html[data-phone-ui] .has-dock [data-editor-scroll] > [data-rich-cells] {
 html[data-native-app] [data-giving] {
   display: none !important;
 }
+/* Browser-only links (the App Store button): never inside the app. */
+html[data-native-app] [data-web-only] {
+  display: none !important;
+}
 /* The intro's top wordmark: the app's launch animation already shows it. */
 html[data-native-app] .intro-wordmark {
   display: none;

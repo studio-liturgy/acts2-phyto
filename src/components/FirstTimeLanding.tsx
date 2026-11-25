@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { APP_STORE_URL } from "@/lib/app-store";
 import { BackLink } from "@/components/BackLink";
 import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { Plus, ArrowUpRight, ArrowDown, X } from "lucide-react";
@@ -782,6 +783,21 @@ export function FirstTimeLanding({
               )}
             </>
           )}
+        </div>
+
+        {/* Browsers only: the App Store, under Sign in / New Set. */}
+        <div
+          data-web-only
+          className={`mt-3 items-center justify-center ${PHONE_UI ? "flex" : "hidden md:flex"}`}
+        >
+          <a
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pill mono uppercase flex items-center gap-2 border border-foreground px-6 py-3 text-sm tracking-wider transition hover:bg-foreground hover:text-background"
+          >
+            Get the iPhone app <ArrowUpRight className="h-4 w-4" />
+          </a>
         </div>
 
         <button
