@@ -51,24 +51,32 @@ function DonatePage() {
         <h1 className="text-3xl leading-snug tracking-[-0.045em] md:text-[2.6rem] md:leading-[1.15]">
           Thank you for considering donating!
         </h1>
-        <div className="mono mt-10 max-w-2xl space-y-1 text-xs uppercase leading-relaxed md:text-sm">
-          <p>To give with standard credit cards, please select Stripe.</p>
-          <p>
-            To give via Wise, e-transfer or to set up recurring donations, please contact me through
-            the button on the right.
-          </p>
+        {/* Each way to give: its line, then its button. */}
+        <div className="mono mt-10 max-w-2xl text-xs uppercase leading-relaxed md:text-sm">
+          <p>To give with standard credit / debit cards</p>
         </div>
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
-          <a href={STRIPE_DONATE_URL} target="_blank" rel="noopener noreferrer" className={PILL}>
-            Stripe <ArrowUpRight className="size-[1em]" />
-          </a>
-          <a href={CONTACT_MAILTO} target="_blank" rel="noopener noreferrer" className={PILL}>
-            Contact <ArrowUpRight className="size-[1em]" />
-          </a>
+        <a
+          href={STRIPE_DONATE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${PILL} mt-6`}
+        >
+          Stripe <ArrowUpRight className="size-[1em]" />
+        </a>
+        <div className="mono mt-12 max-w-2xl text-xs uppercase leading-relaxed md:text-sm">
+          <p>To give via Wise, e-transfer or to set up recurring donations</p>
         </div>
+        <a
+          href={CONTACT_MAILTO}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${PILL} mt-6`}
+        >
+          Contact <ArrowUpRight className="size-[1em]" />
+        </a>
         <Link
           to="/transparency"
-          className="mono mt-10 text-xs uppercase tracking-wider underline underline-offset-4 transition-opacity hover:opacity-60"
+          className="mono mt-12 text-xs uppercase tracking-wider underline underline-offset-4 transition-opacity hover:opacity-60"
         >
           See where your money goes
         </Link>
