@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { ArrowUpRight } from "lucide-react";
+import { APP_STORE_URL } from "@/lib/app-store";
 import { BackLink } from "@/components/BackLink";
 import { NoAccountChoice } from "@/components/NoAccountChoice";
 import { useBackHomeSearch } from "@/hooks/use-back-home";
@@ -333,6 +335,7 @@ export function PhoneIntro({
                 className={`${PHONE_BTN} border border-foreground text-foreground active:bg-foreground active:text-background`}
               />
             )}
+            <GetTheApp />
           </div>
         </div>
       )}
@@ -350,12 +353,40 @@ export function PhoneIntro({
             >
               Continue
             </Link>
+            <GetTheApp />
           </div>
         </div>
       )}
       {signedIn && !firstRun && (
-        <div className="pb-[calc(env(safe-area-inset-bottom,0px)+2.25rem)]" />
+        <>
+          {/* Browsers: the App Store pill. The app keeps the plain gap. */}
+          <div
+            data-web-only
+            className={`${PHONE_BTN_COLUMN_PAD} pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-6`}
+          >
+            <div className={`${PHONE_BTN_COLUMN} flex flex-col gap-2`}>
+              <GetTheApp />
+            </div>
+          </div>
+          <div data-app-only className="pb-[calc(env(safe-area-inset-bottom,0px)+2.25rem)]" />
+        </>
       )}
     </div>
+  );
+}
+
+/** "Get the iPhone app" under the carousel, in browsers only ([data-web-only]
+ *  hides it in the app before paint). */
+function GetTheApp() {
+  return (
+    <a
+      data-web-only
+      href={APP_STORE_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`${PHONE_BTN} flex items-center justify-center gap-1.5 border border-foreground text-foreground active:bg-foreground active:text-background`}
+    >
+      Get the iPhone app <ArrowUpRight className="h-3 w-3" />
+    </a>
   );
 }

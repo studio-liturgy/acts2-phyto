@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isStepBackPage, stepBackHref, withEntry } from "@/lib/back-trail";
+import { hasEntryBehind, isStepBackPage, stepBackHref, withEntry } from "@/lib/back-trail";
 
 describe("isStepBackPage", () => {
   it("counts the info pages and the Intro", () => {
@@ -11,6 +11,7 @@ describe("isStepBackPage", () => {
       "/transparency",
       "/feedback",
       "/donate",
+      "/subscribe",
       "/?intro=true",
     ]) {
       expect(isStepBackPage(p)).toBe(true);
@@ -61,5 +62,18 @@ describe("withEntry", () => {
     expect(Object.keys(trail)).toHaveLength(50);
     expect(trail).not.toHaveProperty("9");
     expect(trail).toHaveProperty("10");
+  });
+});
+
+describe("hasEntryBehind", () => {
+  it("is true when this tab recorded any page of the site one entry behind", () => {
+    expect(hasEntryBehind({ "2": "/", "3": "/subscribe" }, 3)).toBe(true);
+    expect(hasEntryBehind({ "2": "/?tab=settings" }, 3)).toBe(true);
+  });
+
+  it("is false for a page opened from a link (nothing recorded behind)", () => {
+    expect(hasEntryBehind({}, 0)).toBe(false);
+    expect(hasEntryBehind({ "0": "/subscribe" }, 0)).toBe(false);
+    expect(hasEntryBehind({ "5": "/about" }, 3)).toBe(false);
   });
 });

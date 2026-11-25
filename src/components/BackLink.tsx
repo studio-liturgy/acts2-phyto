@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import type { PhoneTab } from "@/lib/phone-layout";
-import { currentStepBackHref, entryIndex } from "@/lib/back-trail";
+import { currentHasEntryBehind, currentStepBackHref, entryIndex } from "@/lib/back-trail";
 
 const BACK_CLASS =
   "mono flex w-fit items-center gap-1.5 text-xs uppercase tracking-wider transition-opacity hover:opacity-60";
@@ -23,21 +23,31 @@ function stepBack(e: React.MouseEvent) {
  *  Opened from another of those pages or the Intro, Back steps back to it
  *  (lib/back-trail.ts). Otherwise `toLogin` returns to the sign-in page (Terms
  *  and Privacy opened from it), and everything else goes home (`search`: the
- *  phone's Settings tab when opened from there). */
+ *  phone's Settings tab when opened from there).
+ *
+ *  `freshLabel` (Subscribe: "Home"): the label when the page was opened from
+ *  a link from elsewhere rather than from within phyto, where it reads Back. */
 export function BackLink({
   search,
   tone = "opacity-80",
   toLogin = false,
+  freshLabel,
 }: {
   search?: { tab?: PhoneTab };
   tone?: string;
   toLogin?: boolean;
+  freshLabel?: string;
 }) {
   // Read after mount: history and sessionStorage don't exist on the server.
   const href = useLocation({ select: (l) => l.href });
   const index = useLocation({ select: (l) => entryIndex(l.state) });
   const [behind, setBehind] = useState<string | null>(null);
   useEffect(() => setBehind(currentStepBackHref(index, href)), [index, href]);
+  // Opened from a link (nothing of ours behind it): null until read.
+  const [fresh, setFresh] = useState<boolean | null>(freshLabel ? null : false);
+  useEffect(() => {
+    if (freshLabel) setFresh(!currentHasEntryBehind(index));
+  }, [freshLabel, index]);
 
   if (behind) {
     return (
@@ -57,8 +67,12 @@ export function BackLink({
     );
   }
   return (
-    <Link to="/" search={search ?? {}} className={`${BACK_CLASS} ${tone}`}>
-      <ArrowLeft className="h-3 w-3" /> BACK
+    <Link
+      to="/"
+      search={search ?? {}}
+      className={`${BACK_CLASS} ${tone} ${fresh === null ? "invisible" : ""}`}
+    >
+      <ArrowLeft className="h-3 w-3" /> {fresh && freshLabel ? freshLabel.toUpperCase() : "BACK"}
     </Link>
   );
 }

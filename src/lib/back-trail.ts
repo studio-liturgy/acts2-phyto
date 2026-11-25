@@ -1,6 +1,6 @@
 /**
  * Back on the info pages (About, Updates, Terms, Privacy, Transparency,
- * Feedback, Donate) returns to the page it was opened from when that is one
+ * Feedback, Donate, Subscribe) returns to the page it was opened from when that is one
  * of them or the Intro, instead of always going home.
  *
  * The router numbers each history entry (`__TSR_index` in history.state).
@@ -23,6 +23,7 @@ const STEP_BACK_PATHS = new Set([
   "/transparency",
   "/feedback",
   "/donate",
+  "/subscribe",
 ]);
 
 /** A page Back should step back to: an info page, or the Intro ("/?intro"). */
@@ -81,6 +82,18 @@ export function recordBackTrail(index: number | null, href: string): void {
   } catch {
     // Storage unavailable: Back goes home as before.
   }
+}
+
+/** True when this tab recorded a page of this site one entry behind `index`:
+ *  the page was opened from within phyto, not from a link from elsewhere. */
+export function hasEntryBehind(trail: Trail, index: number): boolean {
+  return index >= 1 && typeof trail[String(index - 1)] === "string";
+}
+
+/** `hasEntryBehind` for the current tab (client only). */
+export function currentHasEntryBehind(index: number | null): boolean {
+  if (typeof window === "undefined" || index === null) return false;
+  return hasEntryBehind(readTrail(), index);
 }
 
 /** Where Back on the entry at `index` should step back to, or null (client only). */

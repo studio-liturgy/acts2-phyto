@@ -1,14 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import subscribeBg from "@/assets/subscribe-bg.webp";
+import { BackLink } from "@/components/BackLink";
+import { useBackHomeSearch } from "@/hooks/use-back-home";
+import subscribeBg from "@/assets/subscribe-bg.png";
+import grain from "@/assets/grain.png";
 import { BACK_PAGE_TOP } from "@/lib/page-top";
 import { usePageBackgroundColor } from "@/hooks/use-page-background-color";
-import { useImageReady } from "@/hooks/use-image-ready";
 import { APP_NAME } from "@/lib/appConfig";
 
-/** The cyanotype's blue, behind it while it loads. */
-const SUBSCRIBE_BG_FILL = "#25699a";
+/** The cyanotype's blue: the picture's own background, and the fill beside it. */
+const SUBSCRIBE_BG_FILL = "#1b5c86";
 
 /** The input and the button: one width, centred. */
 const PILL_W = "w-full max-w-xs";
@@ -16,7 +17,6 @@ const PILL_W = "w-full max-w-xs";
 export const Route = createFileRoute("/subscribe")({
   head: () => ({
     meta: [{ title: `Stay updated | ${APP_NAME}` }],
-    links: [{ rel: "preload", as: "image", href: subscribeBg }],
   }),
   component: SubscribePage,
 });
@@ -27,8 +27,9 @@ export const Route = createFileRoute("/subscribe")({
  * (/api/auth/welcome, subscribe without the welcome email).
  */
 function SubscribePage() {
+  // Opened from the phone's Settings tab: Back returns there.
+  const backSearch = useBackHomeSearch();
   usePageBackgroundColor(SUBSCRIBE_BG_FILL);
-  const bgReady = useImageReady(subscribeBg);
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "done" | "error">("idle");
 
@@ -53,23 +54,22 @@ function SubscribePage() {
       className="relative flex min-h-dvh flex-col text-[var(--brand-white)]"
       style={{ backgroundColor: SUBSCRIBE_BG_FILL }}
     >
-      {/* The picture appears whole: hidden until decoded (at once when cached). */}
+      {/* Codium adhaerens (Anna Atkins), pixelated: 52 x 106 cells scaled to the
+          screen's height, so its middle band (35% to 65%) stays clear for the
+          pills on every screen. Grain on top. */}
       <div
         aria-hidden
-        className={`absolute inset-0 bg-cover bg-center bg-no-repeat ${
-          bgReady === "instant" ? "" : "transition-opacity duration-300"
-        } ${bgReady ? "opacity-100" : "opacity-0"}`}
+        className="absolute inset-0 bg-center bg-no-repeat [background-size:auto_100%] [image-rendering:pixelated]"
         style={{ backgroundImage: `url('${subscribeBg}')` }}
       />
-      <header
-        className={`relative mx-auto flex w-full max-w-6xl justify-end px-6 ${BACK_PAGE_TOP}`}
-      >
-        <Link
-          to="/"
-          className="mono flex w-fit items-center gap-1.5 text-xs uppercase tracking-wider opacity-90 transition-opacity hover:opacity-60"
-        >
-          <ArrowLeft className="h-3 w-3" /> Home
-        </Link>
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-25 mix-blend-overlay [background-size:128px_128px]"
+        style={{ backgroundImage: `url('${grain}')` }}
+      />
+      <header className={`relative mx-auto w-full max-w-6xl px-6 ${BACK_PAGE_TOP}`}>
+        {/* Back from within phyto; Home when opened from a link. */}
+        <BackLink search={backSearch} tone="opacity-90" freshLabel="Home" />
       </header>
       <main className="relative flex flex-1 flex-col items-center justify-center px-6 pb-24">
         {status === "done" ? (
