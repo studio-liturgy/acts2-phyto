@@ -1343,7 +1343,7 @@ function SettingsTab({
                   : [{ to: "/updates", label: "Updates", only: "app" as const }]),
                 // Browsers only: the app hides giving.
                 { to: "/donate", label: "Donate", giving: true },
-                { to: "/subscribe", label: "Subscribe" },
+                { to: "/subscribe", label: "Newsletter" },
                 { href: "https://github.com/studio-liturgy", label: "Source" },
                 { to: "/terms", label: "Legal" },
               ],
