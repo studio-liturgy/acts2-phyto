@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { PHONE_UI } from "@/lib/phone-layout";
+import { PHONE_MAX_WIDTH, PHONE_UI } from "@/lib/phone-layout";
 import { blockLinkHoldMenu } from "@/lib/link-hold";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -144,6 +144,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** A phone-sized screen (the phone layout's width). Client only. */
+function isPhoneScreen(): boolean {
+  return (
+    typeof window !== "undefined" && window.matchMedia(`(max-width: ${PHONE_MAX_WIDTH}px)`).matches
   );
 }
 
@@ -372,6 +379,9 @@ function RootComponent() {
   // account"); signed-in accounts still go through the tester check. Read after
   // mount so the server render and hydration agree.
   const [nativeApp, setNativeApp] = useState(false);
+  // phytoexp.live opens the intro to signed-out phones (read after mount).
+  const [phoneScreen, setPhoneScreen] = useState(false);
+  useEffect(() => setPhoneScreen(isPhoneScreen()), []);
   // The app's launch animation: once per launch, never on the TV screen
   // (/output) or a /screen window, which load in the app's web view too.
   const [launch, setLaunch] = useState(false);
@@ -636,9 +646,17 @@ function RootComponent() {
     navigate({ to: "/welcome", search: here === "/" ? {} : { next: here }, replace: true });
   }, [session, profile, pathname, testerOk, navigate]);
 
-  // phytoexp.live: signed out, only sign in (and the pages it needs) opens.
+  // phytoexp.live: signed out, only sign in (and the pages it needs) opens,
+  // and on a phone-sized screen the intro (the home page).
   useEffect(() => {
-    if (!TESTERS_ONLY || authLoading || session || isOpenOnTest(pathname) || isNativeApp()) return;
+    if (
+      !TESTERS_ONLY ||
+      authLoading ||
+      session ||
+      isOpenOnTest(pathname, isPhoneScreen()) ||
+      isNativeApp()
+    )
+      return;
     const here = pathname + window.location.search;
     navigate({ to: "/login", search: pathname === "/" ? {} : { next: here } });
   }, [session, authLoading, pathname, navigate]);
@@ -787,7 +805,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {TESTERS_ONLY && !isOpenOnTest(pathname) && !(session ? testerOk : nativeApp) ? null : (
+      {TESTERS_ONLY &&
+      !isOpenOnTest(pathname, phoneScreen) &&
+      !(session ? testerOk : nativeApp) ? null : (
         <Outlet />
       )}
       {launch && <LaunchReveal onFirstFrame={hideAppSplash} onDone={() => setLaunch(false)} />}

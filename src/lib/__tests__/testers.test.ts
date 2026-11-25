@@ -25,6 +25,11 @@ describe("isOpenOnTest", () => {
       expect(isOpenOnTest(p)).toBe(true);
     }
   });
+  it("opens the home page (the intro) on a phone-sized screen only", () => {
+    expect(isOpenOnTest("/", true)).toBe(true);
+    expect(isOpenOnTest("/", false)).toBe(false);
+    expect(isOpenOnTest("/present", true)).toBe(false);
+  });
   it("gates the app itself", () => {
     for (const p of [
       "/",

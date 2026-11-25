@@ -19,8 +19,11 @@ export const TESTERS_ONLY = isTest;
 
 /** Paths a signed-out (or not yet checked) visitor may still open on phytoexp:
  *  sign in, its callback, the legal pages it links to, old phytoexp /g
- *  live links that are already out in the world, and screen links. */
-export function isOpenOnTest(pathname: string): boolean {
+ *  live links that are already out in the world, and screen links. On a
+ *  phone-sized screen, the home page too: signed out, it is only the intro
+ *  (with Sign in), so it can be checked without signing in. */
+export function isOpenOnTest(pathname: string, phoneScreen = false): boolean {
+  if (pathname === "/" && phoneScreen) return true;
   if (pathname === "/login" || pathname === "/auth/callback" || pathname === "/auth/web")
     return true;
   if (pathname === "/legal" || pathname === "/terms" || pathname === "/privacy") return true;

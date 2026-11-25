@@ -508,6 +508,11 @@ export function FirstTimeLanding({
     setPopupDismissed(Date.now() - dismissedAt < MOBILE_POPUP_SNOOZE_MS);
   }, []);
 
+  const dismissMobilePopup = () => {
+    localStorage.setItem(MOBILE_POPUP_DISMISSED_KEY, String(Date.now()));
+    setPopupDismissed(true);
+  };
+
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [subscribeStatus, setSubscribeStatus] = useState<"idle" | "submitting" | "done" | "error">(
     "idle",
@@ -816,13 +821,13 @@ export function FirstTimeLanding({
       {/* ── Desktop "Stay updated" card (the old phone "be notified when mobile
           launches" card, same look). Loads in the flow here; once its top would
           scroll past the top of the window it sticks there for the rest of the
-          page. Signing up hides it for good. Phones have /subscribe (Settings)
+          page. X snoozes it for 3 days; signing up hides it for good. Phones have /subscribe (Settings)
           instead. ── */}
       {!popupDismissed && (
         <div className="sticky top-4 z-50 mx-auto mt-10 hidden max-w-4xl px-6 md:block">
           {/* One pill: the label on the left third, the email pill (arrow
-              inside) on the rest. */}
-          <div className="grid grid-cols-[1fr_2fr] items-center rounded-full bg-[var(--brand-blue)] py-1.5 pl-6 pr-1.5 text-[var(--brand-white)]">
+              inside) on the rest, then X (snoozes it for 3 days). */}
+          <div className="grid grid-cols-[1fr_2fr_auto] items-center rounded-full bg-[var(--brand-blue)] py-1.5 pl-6 pr-4 text-[var(--brand-white)]">
             <p className="mono text-sm uppercase tracking-wider">
               {subscribeStatus === "error" ? "Something went wrong. Try again?" : "Stay updated"}
             </p>
@@ -853,6 +858,14 @@ export function FirstTimeLanding({
                 </button>
               </form>
             )}
+            <button
+              type="button"
+              onClick={dismissMobilePopup}
+              aria-label="Dismiss"
+              className="ml-4 transition-opacity hover:opacity-60"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
       )}
