@@ -804,18 +804,6 @@ export function FirstTimeLanding({
             />
           </a>
         </div>
-
-        <button
-          type="button"
-          onClick={goToFirstStep}
-          className="mono uppercase mx-auto mt-10 inline-flex items-center gap-3 text-xs tracking-wider text-muted-foreground transition-opacity hover:opacity-60 md:mt-20"
-        >
-          <span className="md:hidden">Learn more about how it works below</span>
-          <span className="hidden md:inline">
-            Below is a short guide to get you started with phyto!
-          </span>
-          <ArrowDown className="h-4 w-4" />
-        </button>
       </section>
 
       {/* ── Desktop "Stay updated" card (the old phone "be notified when mobile
@@ -824,7 +812,7 @@ export function FirstTimeLanding({
           page. X snoozes it for 3 days; signing up hides it for good. Phones have /subscribe (Settings)
           instead. ── */}
       {!popupDismissed && (
-        <div className="sticky top-4 z-50 mx-auto mt-10 hidden max-w-4xl px-6 md:block">
+        <div className="sticky top-4 z-50 mx-auto mt-20 hidden max-w-4xl px-6 md:block">
           {/* One pill: the label on the left third, the email pill (arrow
               inside) on the rest, then X (snoozes it for 3 days). */}
           <div className="grid grid-cols-[1fr_2fr_auto] items-center rounded-full bg-[var(--brand-blue)] py-1.5 pl-6 pr-4 text-[var(--brand-white)]">
@@ -869,6 +857,21 @@ export function FirstTimeLanding({
           </div>
         </div>
       )}
+
+      {/* The short guide's arrow, under the Stay updated pill. */}
+      <div className="mx-auto max-w-6xl px-6 text-center">
+        <button
+          type="button"
+          onClick={goToFirstStep}
+          className="mono uppercase mx-auto mt-10 inline-flex items-center gap-3 text-xs tracking-wider text-muted-foreground transition-opacity hover:opacity-60 md:mt-12"
+        >
+          <span className="md:hidden">Learn more about how it works below</span>
+          <span className="hidden md:inline">
+            Below is a short guide to get you started with phyto!
+          </span>
+          <ArrowDown className="h-4 w-4" />
+        </button>
+      </div>
 
       {/* ── Middle: rotating circle | snap cards | sticky nav (desktop only — mobile has its own stacked layout below) ── */}
       <section ref={sectionRef} className="relative mx-auto mt-12 hidden max-w-6xl px-6 md:block">
