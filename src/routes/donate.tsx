@@ -66,12 +66,9 @@ function DonatePage() {
         <div className="mono mt-12 max-w-2xl text-xs uppercase leading-relaxed md:text-sm">
           <p>To give via Wise, e-transfer or to set up recurring donations</p>
         </div>
-        <a
-          href={CONTACT_MAILTO}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${PILL} mt-6`}
-        >
+        {/* No target="_blank": mobile browsers open an empty tab for a
+            mailto in a new window instead of handing it to the mail app. */}
+        <a href={CONTACT_MAILTO} className={`${PILL} mt-6`}>
           Contact <ArrowUpRight className="size-[1em]" />
         </a>
         <Link
