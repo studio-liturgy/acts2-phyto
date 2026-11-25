@@ -875,7 +875,9 @@ export function FirstTimeLanding({
 
       {/* ── Middle: rotating circle | snap cards | sticky nav (desktop only — mobile has its own stacked layout below) ── */}
       <section ref={sectionRef} className="relative mx-auto mt-12 hidden max-w-6xl px-6 md:block">
-        <div className="grid grid-cols-[150px_minmax(0,1fr)_minmax(0,auto)] gap-6">
+        {/* Equal side columns, so the cards sit on the page's centre line
+            (under the Stay updated pill), whatever the nav's width. */}
+        <div className="grid grid-cols-[minmax(150px,1fr)_minmax(0,46rem)_minmax(150px,1fr)] gap-6">
           {/* Left: single rotating numbered circle, pinned, beneath the cards */}
           <div className="relative z-0">
             <div ref={circleBoundRef}>
@@ -1115,7 +1117,7 @@ export function FirstTimeLanding({
                     <button
                       key={step.n}
                       onClick={() => goToCard(i)}
-                      className={`pill mono w-fit border-2 px-4 py-2 text-left text-[11px] uppercase tracking-wider transition ${
+                      className={`pill mono w-fit whitespace-nowrap border-2 px-4 py-2 text-left text-[11px] uppercase tracking-wider transition ${
                         isActive ? NAV_CHIP[i].active : NAV_CHIP[i].idle
                       }`}
                     >
